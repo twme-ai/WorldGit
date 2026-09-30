@@ -13,6 +13,15 @@
 | 3 | 想要明確的存檔點 | `commit` | 手動 `/wg commit`、登出自動 commit、定時 commit。**只存有變動的 section**（內容定址 + 去重），所以每次 commit 都很便宜，不是整個世界複製一份。 |
 | 4 | 換電腦 / 給別人接手 | `push` / `pull` / `clone` | 網頁端（類 GitHub 的 Hub）＋ 可部分 clone（只拉某個區域）。 |
 
+## 已決定的方向（2026-09-30）
+
+- 儲存後端用 **JGit**（真正的 git 物件庫）
+- 追蹤方塊、block entity 與**除了玩家以外的所有生物**
+- **Paper 插件、Fabric 模組、CLI、網頁 Hub 四端同等優先**，主要使用者是多人伺服器；Fabric 模組同時是 Paper 伺服器玩家的客戶端顯示端
+- 首發支援 **Paper / Fabric 的 1.21.11 與 26.2**，長期越廣越好
+
+詳見 [docs/09-roadmap-open-questions.md](docs/09-roadmap-open-questions.md)。
+
 ## 文件索引
 
 | 文件 | 內容 |
@@ -35,7 +44,7 @@
                 │ Anvil/NBT 解析 · 正規化 · 物件庫 · diff · 三方合併 · 傳輸協定 │
                 └───────┬───────────────┬───────────────┬───────────────┬──────┘
                         │               │               │               │
-                 Paper 插件        Fabric 模組        CLI (wgit)      Hub 伺服器
-               (多人伺服器、線上    (單人存檔、客戶端   (離線世界、      (網頁、PR、
-                commit/切換/合併)   鬼影方塊預覽)      腳本/CI)        3D diff 檢視)
+                 Paper 插件  ◀───▶ Fabric 模組        CLI (wgit)      Hub 伺服器
+               (多人伺服器、線上    (客戶端鬼影預覽/    (離線世界、      (網頁、PR、
+                commit/切換/合併)   單人存檔完整功能)   腳本/CI)        3D diff 檢視)
 ```

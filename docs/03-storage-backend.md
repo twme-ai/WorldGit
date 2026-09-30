@@ -2,6 +2,8 @@
 
 這是最早要拍板、影響最深的決策。
 
+> **已決定（2026-09-30）：採用選項 A（JGit）**，core 內保留 `ObjectStore` / `RefStore` 介面，之後視量測結果再評估是否換成自製後端。
+
 ## 選項 A：以 JGit 為後端（把世界映射成真正的 git repo）
 
 每個 section blob 就是 git 裡的一個檔案，路徑例如：
