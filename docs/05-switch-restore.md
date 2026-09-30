@@ -49,6 +49,12 @@
 - **不移動 HEAD**，所以結果是「未存檔的變動」，玩家看過滿意再 commit。
 - 這是給單人最直覺的「悔棋」：不用理解分支就能用。
 
+**離線寫回的 Phase 0 驗證（2026-09-30，`experiments/02-core-proto/` T4）**：在伺服器關閉時把快照寫回 region 檔，1.21.11 與 26.2 都通過。寫回時要：
+- 移除 `BlockLight`/`SkyLight`/`starlight.*`/`Heightmaps` 並設 `isLightOn=0`：Paper 載入後會重算光照，結果與原本逐 nibble 相同，log 無錯誤。
+- **刪除範圍內 chunk 的 POI**：伺服器會由方塊重建。保留舊 POI 則會留下過期紀錄，新放的工作站不會被登記。
+- 範圍內 chunk 的實體整批取代，並以 UUID 掃描整個維度移除範圍外的同一隻；被黏性位置沿用的紀錄可能不在實際所在 chunk，寫回時要依 `Pos` 重新分配 chunk。
+- 待辦：原型整檔重寫 region，正式版應就地更新 sector；`.mcc` 大 chunk 寫入、LZ4 尚未驗證。線上（伺服器執行中）替換 section 的做法見 `experiments/03-paper-poc/`。
+
 ## 3. reset --hard 與 revert
 
 - `reset --hard`：= `restore HEAD` 全範圍（丟掉未存檔變動）。若加上 commit 參數則會移動分支指標（改寫歷史），僅限管理員且不可對已 push 的歷史做。

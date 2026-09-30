@@ -27,14 +27,15 @@ commit
      │   │   │   ├─ s.-4 … s.19     # blob：section（方塊 + 該 section 內的 block entity）
      │   │   │   ├─ biomes          # blob：整個 chunk 的 biome（很少變，獨立出來避免假 diff）
      │   │   │   ├─ entities        # blob：該 chunk 內被追蹤的實體（依 UUID 排序）
-     │   │   │   └─ ticks           # blob：排程中的 block/fluid tick（可選，紅石/水流才需要）
+     │   │   │   ├─ ticks           # blob：排程中的 block/fluid tick（可選，紅石/水流才需要）
+     │   │   │   └─ structures      # blob：chunk 的結構資料（村莊、要塞…），空則不存（Phase 0 補上，否則還原出的 chunk 會遺失結構資訊）
      │   │   └─ …
      │   └─ …
      ├─ dimension "minecraft:the_nether" …
      └─ world-meta                   # blob：被追蹤的 level.dat 欄位子集（出生點、gamerule…可選）
 ```
 
-只改了一格方塊時，一次 commit 新增的物件：1 個 section blob + chunk tree + region tree + dimension tree + root tree + commit，總計幾 KB。
+只改了一格方塊時，一次 commit 新增的物件：1 個 section blob + chunk tree + region tree + dimension tree + root tree + commit，總計幾 KB（Phase 0 實測約 5–6 KB、9 個物件）。全空氣且無 block entity 的 section 不存（缺檔即空氣）。
 
 ## 3. 正規化（決定 diff 準不準的關鍵）
 
@@ -47,13 +48,16 @@ commit
 | NBT compound 鍵順序 | 依鍵名排序後序列化 |
 | Paper 加的欄位（chunk/section 的 `starlight.*`；實體的 `Paper.*`、`Bukkit.*`、`Spigot.*`、`WorldUUID*`） | 丟棄（Phase 0 發現） |
 | 實體 `attributes` 列表順序（每次存檔可能不同） | 依 `id` 排序（Phase 0 發現） |
-| 光照（BlockLight/SkyLight）、Heightmaps、`isLightOn` | **丟棄**，寫回時讓伺服器重算 |
-| `LastUpdate`、`InhabitedTime`、`Status` | 丟棄（寫回時固定為 full / 保留目標世界原值） |
-| POI（村民工作站） | 預設丟棄，由方塊重新推導（待驗證：各版本 POI 重建行為，列入 [09](09-roadmap-open-questions.md) 驗證項目） |
+| 光照（BlockLight/SkyLight）、Heightmaps、`isLightOn` | **丟棄**，寫回時讓伺服器重算（Phase 0 已驗證：寫回時移除光照、`starlight.*`、Heightmaps，Paper 兩版載入後重算的光照與原本逐 nibble 相同） |
+| `LastUpdate`、`InhabitedTime`、`Status`、`PostProcessing`、`xPos/yPos/zPos` | 丟棄（寫回時固定為 full / 保留目標世界原值）；`DataVersion` 記在 world-meta |
+| 排程 tick（`block_ticks`/`fluid_ticks`） | 依 (y,z,x,id,p,t) 排序；`t` 易變，待定是否量化 |
+| POI（村民工作站） | **不存**；寫回時**必須刪除**範圍內 chunk 的 POI，伺服器載入時會由方塊重建（Phase 0 已驗證兩版；保留舊 POI 會留下過期紀錄、新工作站不會被登記） |
 | block entity 內的暫態欄位（熔爐燃燒時間、生怪磚倒數…） | 依方塊類型設定「忽略欄位」表；預設保留容器內容（箱子裡的東西是建築的一部分） |
-| 實體的暫態欄位（`Motion`、`FallDistance`、`Fire`、`Air`、年齡…） | 同上，以類型白名單/黑名單處理；座標量化 |
+| 實體的暫態欄位（`Motion`、`FallDistance`、`Fire`、`Air`、年齡…） | 同上，以類型白名單/黑名單處理；位置用「黏性容許距離」（§8）。Phase 0 的完整忽略清單見 `experiments/02-core-proto/REPORT.md` §1.4 |
 
 正規化後的 section 格式建議：自訂的精簡二進位（版本號 + 調色盤字串表 + 打包索引 + 排序過的 block entity NBT），再以 zstd 壓縮。**不直接存 MC 原生 NBT**，好處是 MC 改存檔格式時只影響轉換層。
+
+**Phase 0 驗證結果（2026-09-30，`experiments/02-core-proto/`）**：這套正規化在 1.21.11 與 26.2 都成立。伺服器把 697 個 chunk 全部重寫後，方塊、block entity、biome、ticks 的假 diff 都是 0；把 init 快照寫回乾淨世界再 commit，diff 也是 0。section blob 中位數 485 B，698 個 chunk 的 repo 經 gc 後約 3.2 MB。section 之間幾乎沒有去重（3.4%），主要節省來自不存全空氣 section；biome 去重率約 90%。
 
 ## 4. 追蹤範圍（已決定，2026-09-30）
 
@@ -125,7 +129,8 @@ field minecraft:villager Gossips
 
 | 問題 | 對策 |
 |---|---|
-| 位置/視角每 tick 都在變 | 正規化時忽略 `Motion`、`Rotation`、`FallDistance`、`OnGround` 等欄位；位置量化到方塊格，並設**容許距離**（預設例如 ≤ 2 格內的移動不算變動，可設定）。`NoAI` 生物則精確比對 |
+| 位置/視角每 tick 都在變 | 正規化時忽略 `Motion`、`FallDistance`、`OnGround` 等欄位；`Rotation` 只對會動的實體忽略（盔甲座、展示框、畫、display、NoAI 生物要保留朝向）。位置用**黏性容許距離**：commit 時與 HEAD 中同 UUID 的紀錄比較，其他欄位相同且移動 ≤ 2 格（可設定）就沿用 HEAD 的紀錄。不用「量化到方塊格」，因為生物跨越格線時仍會變。`NoAI` 與靜態實體精確比對。Phase 0 實測：黏性把只有位置的變動減少 60–75%，剩下的都是真的走超過 2 格 |
+| 會自己磨損/變動的欄位 | Phase 0 發現：日曬下殭屍頭盔的耐久（`equipment…damage`）、`Health`、掉落物合併後的 `Item` 數量會一直變，需列入內建忽略表 |
 | AI 內部狀態（`Brain` 記憶、`InLove`、`Age` 計時、仇恨目標…） | 以實體類型維護內建的「忽略欄位」表；只比對「玩家在意的」欄位：類型、名稱、裝備、`NoAI`、`Silent`、`Invulnerable`、`PersistenceRequired`、變種（顏色/花紋）、村民職業與交易、拴繩、坐騎。使用者可用 `.wgignore` 的 `field` 規則增減 |
 | 生物跨 chunk 移動 | 儲存上仍以 chunk 分組，但 diff/merge **以 UUID 為全域鍵**：A chunk 消失、B chunk 出現同一 UUID → 視為「移動」而不是「刪除 + 新增」 |
 | 切換/還原時的重複生物 | 套用前以 UUID 在整個世界（已載入 + 目標 chunk）查找並移除舊的那隻，再放入目標版本，避免同一隻出現兩次 |
