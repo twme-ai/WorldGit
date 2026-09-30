@@ -16,7 +16,8 @@
 | 9 | Folia | **首發支援**，同一個插件 jar | [08](08-architecture.md) §7 |
 | 10 | 專案名稱 | **WorldGit** | |
 | 11 | CoreProtect | **不整合**。作者歸屬與 blame 只用 WorldGit 自己的追蹤（事件、WorldEdit/FAWE API） | [04](04-commit-and-status.md) §2 |
-| 12 | 網頁前端參考 | 參考 BlueMap 等既有地圖/渲染專案，採「伺服器預先渲染 tile + 瀏覽器即時網格」混合架構 | [10](10-web-frontend.md) |
+| 12 | 網頁前端參考 | 參考 BlueMap 等既有地圖/渲染專案，採「伺服器預先渲染 tile + 瀏覽器即時網格」混合架構；**是否直接使用 deepslate / BlueMap 的程式碼，待 Phase 0 實驗後決定** | [10](10-web-frontend.md) §9 |
+| 13 | 實作方式 | 實作階段由 **Sonnet 5.5 子代理**負責撰寫程式碼 | [CLAUDE.md](../CLAUDE.md) |
 
 ## 路線圖（四端並行）
 
@@ -41,7 +42,7 @@
 
 ## 待討論的決策
 
-1. **網頁前端是否直接使用 deepslate 或 BlueMap 的程式碼**（而不只是參考）：見 [10](10-web-frontend.md) §9。建議 Phase 0 先各做一個小實驗再決定。
+目前沒有。前端要不要直接使用 deepslate / BlueMap，等 Phase 0 的實驗結果出來再決定（見下方驗證項目）。
 
 ## Phase 0 要驗證的技術風險
 
@@ -56,5 +57,7 @@
 - [ ] 大世界的 init 耗時與 repo 大小；在 GitHub/Gitea 上 push/clone 的實際表現
 - [ ] chunk unsaved 旗標 + region 時間戳能否抓到所有變動（含 FAWE），以及誤報量
 - [ ] FAWE 的 `EditSessionEvent` 在各種模式下是否都能看到逐格變動
+- [ ] **前端實驗 A**：用 deepslate 渲染 WorldGit 正規化後的一個 section（含多種非完整方塊），評估正確性、效能與介接成本
+- [ ] **前端實驗 B**：評估 BlueMap 核心能否以 WorldGit 的 tree 為輸入產生 tile（不經過實際的世界資料夾）
 - [ ] 新 3D 檢視器在大範圍（數千 chunk）下的效能：網格生成速度、記憶體、瀏覽器端幀率
 - [ ] Folia 在 1.21.11 / 26.2 的釋出狀態，以及 region 排程下 switch 大量 chunk 的效能
