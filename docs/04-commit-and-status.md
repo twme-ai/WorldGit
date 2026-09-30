@@ -51,7 +51,34 @@ commit 最後一定會用**內容雜湊**比對，所以就算某個改動沒被
 作者：事件 + WorldEdit/FAWE API（抓不到作者的變動記為「未知/系統」）
 ```
 
-「unsaved 旗標 + region 時間戳」兩者合起來，理論上已經能抓到所有變動（沒存的看旗標、存了的看時間戳），封包監聽則提供即時性（例如 `/wg status` 描邊要即時更新）。這個組合要在 Phase 0 驗證：旗標在 1.21.11 / 26.2 / Folia 上的行為、以及哪些「不重要的變化」也會設旗標（例如 InhabitedTime）造成的誤報量。
+「unsaved 旗標 + region 時間戳」兩者合起來，理論上已經能抓到所有變動（沒存的看旗標、存了的看時間戳），封包監聽則提供即時性（例如 `/wg status` 描邊要即時更新）。
+
+### Phase 0 驗證結果（2026-09-30，`experiments/03-paper-poc/`）
+
+在 Paper 與 Folia 的 1.21.11、26.2 共四個平台，測了 22 種改動來源。**對方塊與 block entity，「旗標 ∪ 時間戳」沒有縫隙**：改動要嘛還在記憶體（旗標為真），要嘛已存檔（時間戳變了）。但實作時要照下列修正：
+
+| 項目 | 發現 | 做法 |
+|---|---|---|
+| 讀哪個旗標 | Paper/Folia 把 `LevelChunk.isUnsaved()` 改成「含未完成的排程 tick 與 chunk PDC」，有流水的 chunk 永遠是真；在 Folia 的非 region 執行緒呼叫會 NPE | 用 `VarHandle` 直接讀 `ChunkAccess.unsaved` 原始欄位（volatile，任何執行緒可讀，兩版同名） |
+| 光照外溢 | 改一格方塊會連帶讓最多 8 個鄰居 chunk 被設旗標 | 旗標只當候選，靠內容雜湊濾掉；雜湊前可先只比 `block_states` 做便宜篩選 |
+| 閒置誤報 | 閒置 chunk 120 秒內約 7–8/10 會被設一次旗標（光照、`InhabitedTime`、自然流體等） | 同上，正規化已丟棄這些欄位 |
+| 時間戳秒解析度 | 同一秒內存兩次檔，時間戳不變（6 次測試撞 4 次） | 時間戳等於「目前這一秒」或「上次掃描那一秒」的 chunk 一律視為候選 |
+| 實體 | 實體存在獨立的 entity storage，**沒有任何旗標**；entities 檔的時間戳只要 chunk 有實體就每次存檔都更新 | 有實體的 chunk 每次 commit 都序列化實體再雜湊（配合 [02](02-data-model.md) §8 的黏性位置）；Bukkit 實體事件做即時提示 |
+| 直接寫 section | 繞過 `markUnsaved()` 的寫入，旗標、時間戳、封包都看不到，伺服器也不會存 | WorldGit 自己的 switch/restore 替換 section 後**必須**呼叫 `markUnsaved()`；定期或 `status --full` 做全量雜湊兜底 |
+| block entity 內部進度 | 熔爐燒煉進度等不一定會讓 chunk 變髒 | 以雜湊為準（這些欄位本來就在忽略表） |
+| FAWE | `EditSessionEvent` 拿得到 actor；但 FAWE **預設會靜默丟掉第三方 Extent**，需在 FAWE `config.yml` 設 `extent.allowed-plugins`。`//set`、`//replace` 等 bulk 操作看不到逐格，只看到 Region 與 `IBatchProcessor` 的每 chunk 寫入數 | 插件啟動時檢查並提示設定；以 Region / chunk 層級資料推出受影響 chunk，作者歸屬照常 |
+| 純 WorldEdit | 逐格都看得到；Folia 上在 region 執行緒回呼 | FAWE 沒有 Folia 版，Folia 只支援純 WorldEdit，偵測碼分兩條路 |
+| 封包（PacketEvents） | 附近沒玩家就 0 個封包；N 個玩家收到 N 份；NMS 直寫、biome、容器內容、實體都沒有方塊封包 | 只當即時 UI 的選用訊號，不能保證不漏 |
+
+修正後的插件端組合：
+
+```
+已載入 chunk：原始 unsaved 旗標 ∪ 事件/WorldEdit（附作者） ∪ 封包（選用，即時 UI）
+已存檔 chunk：region 時間戳變了，或落在「同一秒」的不確定窗內
+實體：有實體的 chunk 每次 commit 都重新雜湊
+              ↓
+       候選 chunk → 正規化 + 內容雜湊 → 真正的變動；定期全量雜湊兜底
+```
 
 ### index
 

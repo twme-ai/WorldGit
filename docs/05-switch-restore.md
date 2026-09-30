@@ -32,7 +32,7 @@
 
 | 情況 | 處理 |
 |---|---|
-| 玩家站在會變成實心方塊、或腳下變成空氣的位置 | **不移動玩家**（已決定，2026-09-30），只在切換後給世界內的玩家短暫的保護（預設 10 秒內免受窒息與摔落傷害），讓他們自己走出來或飛下來。創造/旁觀模式本來就不受影響。需要時可在 `worldgit.toml` 改成「移到上方安全位置」或「切換前傳送出去」 |
+| 玩家站在會變成實心方塊、或腳下變成空氣的位置 | **不移動玩家**（已決定，2026-09-30），只在切換後給世界內的玩家短暫的保護（預設 10 秒內免受窒息與摔落傷害），讓他們自己走出來或飛下來。創造/旁觀模式本來就不受影響。需要時可在 `worldgit.toml` 改成「移到上方安全位置」或「切換前傳送出去」。實作方式：取消 `EntityDamageEvent` 的 FALL/SUFFOCATION/DROWNING（Phase 0 驗證，比 Resistance 藥水好：只擋指定原因、沒有圖示、斷線不殘留；Folia 上可用） |
 | 目標快照中不存在的 chunk（分支上沒生成過） | 兩種策略：刪除該 chunk（讓遊戲重新生成） / 保留現狀（標記為 untracked）——預設保留 |
 | 大量變動（數千 chunk） | 分批、每 tick 限額，顯示進度條（bossbar）；可選「切換期間踢出玩家」模式 |
 | 切換到 MC 舊版本的 commit | 先經過 DataFixer 升級再套用 |
@@ -53,7 +53,15 @@
 - 移除 `BlockLight`/`SkyLight`/`starlight.*`/`Heightmaps` 並設 `isLightOn=0`：Paper 載入後會重算光照，結果與原本逐 nibble 相同，log 無錯誤。
 - **刪除範圍內 chunk 的 POI**：伺服器會由方塊重建。保留舊 POI 則會留下過期紀錄，新放的工作站不會被登記。
 - 範圍內 chunk 的實體整批取代，並以 UUID 掃描整個維度移除範圍外的同一隻；被黏性位置沿用的紀錄可能不在實際所在 chunk，寫回時要依 `Pos` 重新分配 chunk。
-- 待辦：原型整檔重寫 region，正式版應就地更新 sector；`.mcc` 大 chunk 寫入、LZ4 尚未驗證。線上（伺服器執行中）替換 section 的做法見 `experiments/03-paper-poc/`。
+- 待辦：原型整檔重寫 region，正式版應就地更新 sector；`.mcc` 大 chunk 寫入、LZ4 尚未驗證。線上（伺服器執行中）替換 section 見下一段。
+
+**線上替換 section 的 Phase 0 驗證（2026-09-30，`experiments/03-paper-poc/` §6）**：Paper 與 Folia 的 1.21.11、26.2 四個平台都成功，bot 看到的方塊與伺服器逐格一致，還原後整個 section（含 block entity NBT）的雜湊與原本相同，log 無錯誤。每個 section 約 2–16 ms，遠低於 1 tick。流程：
+1. 在擁有該 chunk 的執行緒（Folia 的 region 執行緒）上，先移除舊 section 內的 block entity，再換上新的 `LevelChunkSection`，然後重建 block entity。
+2. 重算 heightmap；對發光或遮光有變的格子呼叫光照引擎的 `checkBlock`；呼叫 POI 一致性檢查。
+3. **呼叫 `markUnsaved()`**，否則伺服器不會存。
+4. **一定要通知玩家**，否則客戶端繼續顯示舊畫面：零星變動逐格通知（每 section 合併成一個封包），整個 section 替換就重送整個 chunk。
+- 未載入的 chunk 不要直接改磁碟：chunk 系統裡若已有該 chunk 的 holder，寫進磁碟的資料會被記憶體版本蓋掉（實測重現）。改用「加 ticket 載入 → 用同一套流程在記憶體替換 → 釋放 ticket」。
+- 尚未驗證：section 內的實體處理、殘留的排程 tick、POI 實際效果、客戶端光照（測試 bot 讀不到正確光照）。
 
 ## 3. reset --hard 與 revert
 

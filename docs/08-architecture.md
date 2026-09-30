@@ -133,3 +133,16 @@ Folia 上的限制：
 - **不能在執行中建立或載入新世界**，所以 worktree 世界在 Folia 上不可用，改用客戶端鬼影預覽（模組）或 display entity 預覽代替。
 - 跨 region 的操作無法在同一 tick 內完成，commit 快照的「跨 chunk 一致性」會比 Paper 更弱（已在 [04](04-commit-and-status.md) §3 接受）。
 - Folia 的版本通常晚於 Paper 釋出，26.2 的 Folia 支援時程需要確認。
+
+Phase 0 實測（2026-09-30，`experiments/03-paper-poc/` §7）：Folia 1.21.11（build 14）與 26.2（build 7，**BETA**）上偵測、section 替換、WorldEdit 都沒有執行緒錯誤。要注意的差異：
+- Folia **沒有 `/save-all`**，`World#save()` 也不能用。commit 前的強制存檔要在每個 region 自己的執行緒上呼叫 `ChunkHolderManager.saveAllChunks(...)`，按 region 分組。
+- `LevelChunk.isUnsaved()` 在非 region 執行緒會 NPE，改讀原始欄位（見 [04](04-commit-and-status.md) §2）。
+- 實體傳送要用 `teleportAsync`。
+- FAWE 沒有 Folia 版，Folia 上只能搭配純 WorldEdit（7.4.x 有 Folia 支援；7.4.5 需要 Java 25，1.21.11 要用 7.4.2）。
+
+### NMS 轉接層（Phase 0 發現）
+
+PoC 用一個對 1.21.11 Mojang 名稱 server jar 編譯的 jar 同時跑兩版，約 98 個 NMS 引用中有 3 處在 26.2 執行期出錯，例如 `BlockState.getLightBlock()` 改名為 `getLightDampening()`，`ChunkPos.x` 改成 private。正式專案：
+- 照 §1 的規劃，每個 MC 版本一個 adapter 模組，用 paperweight-userdev 各自編譯，讓差異在編譯期出現。
+- CI 加上「對另一版 server jar 的二進位相容檢查」（PoC 的 `tools/check_binary_compat.py`）。
+- Java 21 bytecode 在 26.2（Java 25）上可以直接跑。
