@@ -92,7 +92,11 @@ core 只認識 `LiveWorld`，所以同一套 commit/switch/merge 邏輯在插件
   1. 離線讀寫 region 時的 chunk NBT 結構差異（由 `DataVersion` 分派到不同的轉換器）
   2. 線上存取伺服器內部結構的轉接層（Paper 的 `v1_21_11/`、`v26_2/`；Fabric 的多版本建置）
 - **Paper 端盡量只用公開 API**（chunk 快照、方塊資料、實體序列化夠用的部分），只有效能關鍵或 API 缺少的操作（例如直接替換 section、實體完整 NBT 讀寫）才放進版本轉接層。
-- **1.21.11 → 26.x 之間的差異需要在 Phase 0 盤點**：存檔目錄結構、chunk/實體 NBT 欄位、方塊與實體 ID 變化、程式碼映射（混淆）方式不同對建置流程的影響。
+- **1.21.11 → 26.2 的存檔差異（Phase 0 盤點結果，詳見 `experiments/00-env/REPORT.md`）**：
+  - 目錄結構大改：1.21.11 是三個世界資料夾（`world`、`world_nether/DIM-1`、`world_the_end/DIM1`）；26.2 是單一 `world/dimensions/minecraft/<維度>/{region,entities,poi}`，`playerdata` 改為 `players/data`。→ 需要以維度 id 為鍵的目錄轉接層。
+  - `level.dat` 的 gamerule、天氣、時間等搬到 `data/minecraft/*.dat`。→ `world-meta` 需要轉接層。
+  - **chunk / section 的 NBT 結構完全相同**，只有 `DataVersion` 不同（4671 → 4903）。→ section 解析與正規化兩版可共用。
+  - 實體多了/少了少數欄位；空的 `minecraft:bed` block entity 在 26.2 消失。
 - **跨版本的 repo**：同一個 repo 可能先後被 1.21.11 與 26.2 的伺服器使用。commit 記錄 `DataVersion`；新版本讀舊 commit 時透過遊戲自己的 DataFixer 升級（在伺服器/模組端做，不在 core 裡重寫）；**舊版本不能 checkout 新版本的 commit**（明確報錯）。
 - **網頁端的版本**：Hub 的 3D 檢視需要對應版本的方塊模型與材質，依 commit 的 `DataVersion` 載入對應資源（見 [10](10-web-frontend.md) §3）。
 

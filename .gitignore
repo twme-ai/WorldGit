@@ -1,0 +1,8 @@
+# Phase 0 的大型產物：伺服器 jar、測試世界、下載的遊戲資源、建置輸出
+.work/
+**/build/
+**/.gradle/
+**/node_modules/
+**/dist/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar

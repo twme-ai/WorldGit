@@ -45,6 +45,8 @@ commit
 | 調色盤順序（palette 在 MC 裡是任意順序） | 依 YZX 走訪順序，以「第一次出現」重新編號調色盤，重新打包 bit 陣列 |
 | block state 屬性順序 | 屬性依鍵名排序 |
 | NBT compound 鍵順序 | 依鍵名排序後序列化 |
+| Paper 加的欄位（chunk/section 的 `starlight.*`；實體的 `Paper.*`、`Bukkit.*`、`Spigot.*`、`WorldUUID*`） | 丟棄（Phase 0 發現） |
+| 實體 `attributes` 列表順序（每次存檔可能不同） | 依 `id` 排序（Phase 0 發現） |
 | 光照（BlockLight/SkyLight）、Heightmaps、`isLightOn` | **丟棄**，寫回時讓伺服器重算 |
 | `LastUpdate`、`InhabitedTime`、`Status` | 丟棄（寫回時固定為 full / 保留目標世界原值） |
 | POI（村民工作站） | 預設丟棄，由方塊重新推導（待驗證：各版本 POI 重建行為，列入 [09](09-roadmap-open-questions.md) 驗證項目） |
@@ -64,7 +66,7 @@ commit
 | **所有生物**，包含自然刷出的怪物 | 追蹤 | 有人用生物做建築（凍結的生物雕像、村民交易所、動物園）。移動帶來的問題見 §8 |
 | 掉落物、經驗球、投射物、掉落中的方塊、點燃的 TNT | 追蹤 | 可用 `.wgignore` 排除（範本裡有現成的註解行） |
 | biome | 追蹤（獨立 blob） | 有些建築師會改 biome |
-| **所有已生成的 chunk**（包含沒被玩家動過的自然地形） | 追蹤 | 從 repo 下載時要能拿到完整、可以直接開的世界，見 §7 |
+| **所有已完全生成的 chunk**（`Status: full`，包含沒被玩家動過的自然地形） | 追蹤 | 從 repo 下載時要能拿到完整、可以直接開的世界，見 §7。生成到一半的邊緣 chunk（玩家看不到）不追蹤：Phase 0 測試世界中 2255 個 chunk 只有 626 個是 full |
 | 玩家資料（背包、位置、進度） | **不追蹤**（寫死，不能用 `.wgignore` 反向開啟） | 不是世界的一部分；切換分支時沒收玩家的東西會很奇怪 |
 | 地圖（map_*.dat）、記分板、世界邊界、gamerule | 追蹤 | 屬於 `world-meta`，同樣可排除 |
 

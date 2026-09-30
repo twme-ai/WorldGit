@@ -1,0 +1,115 @@
+# WorldGit 測試場景：每行一個 console 指令（不含斜線）。'#' 開頭為註解。
+# 平台：y=149 石磚，範圍 x -8..56, z -8..40；場景在 y>=150。
+# 行首 "@" 標記 = 此行之前先等待較久（chunk 載入）。
+setworldspawn 0 150 0
+fill -8 150 -8 56 175 40 air
+fill -8 149 -8 56 149 40 stone_bricks
+fill -8 148 -8 56 148 40 dirt
+# --- 1. 樓梯各方向/上下 ---
+setblock 1 150 1 oak_stairs[facing=north,half=bottom,shape=straight]
+setblock 3 150 1 oak_stairs[facing=east,half=bottom,shape=straight]
+setblock 5 150 1 oak_stairs[facing=south,half=top,shape=straight]
+setblock 7 150 1 oak_stairs[facing=west,half=top,shape=straight]
+setblock 9 150 1 stone_brick_stairs[facing=north,half=bottom,shape=inner_left,waterlogged=true]
+setblock 11 150 1 stone_brick_stairs[facing=east,half=bottom,shape=outer_right]
+# --- 2. 半磚 ---
+setblock 1 150 4 oak_slab[type=bottom]
+setblock 3 150 4 oak_slab[type=top]
+setblock 5 150 4 oak_slab[type=double]
+setblock 7 150 4 stone_slab[type=bottom,waterlogged=true]
+# --- 3. 柵欄、牆、玻璃片 ---
+setblock 1 150 7 oak_fence
+setblock 2 150 7 oak_fence
+setblock 3 150 7 oak_fence
+setblock 2 150 8 oak_fence
+setblock 2 150 6 oak_fence_gate[facing=north,open=true]
+setblock 6 150 7 cobblestone_wall
+setblock 7 150 7 cobblestone_wall
+setblock 7 151 7 cobblestone_wall
+setblock 7 150 8 cobblestone_wall
+setblock 7 150 6 mossy_cobblestone_wall
+setblock 11 150 7 glass_pane
+setblock 12 150 7 glass_pane
+setblock 12 150 8 red_stained_glass_pane
+setblock 13 150 7 iron_bars
+# --- 4. 門、活板門、床 ---
+setblock 1 150 11 oak_door[half=lower,facing=east,hinge=left,open=false]
+setblock 1 151 11 oak_door[half=upper,facing=east,hinge=left,open=false]
+setblock 4 150 11 iron_door[half=lower,facing=north,hinge=right,open=true]
+setblock 4 151 11 iron_door[half=upper,facing=north,hinge=right,open=true]
+setblock 7 150 11 spruce_trapdoor[facing=south,half=top,open=false]
+setblock 10 150 11 red_bed[facing=north,part=foot,occupied=false]
+setblock 10 150 10 red_bed[facing=north,part=head,occupied=false]
+# --- 5. 紅石 ---
+setblock 1 150 15 redstone_block
+setblock 2 150 15 redstone_wire[east=side,west=side,north=none,south=none,power=15]
+setblock 3 150 15 redstone_wire[east=side,west=side,north=none,south=none,power=14]
+setblock 4 150 15 repeater[facing=east,delay=3,locked=false]
+setblock 5 150 15 redstone_wire
+setblock 6 150 15 comparator[facing=east,mode=subtract]
+setblock 8 150 15 lever[face=floor,facing=north,powered=true]
+setblock 10 150 15 redstone_lamp[lit=true]
+setblock 12 150 15 observer[facing=up]
+setblock 14 150 15 piston[facing=up,extended=false]
+setblock 16 150 15 sticky_piston[facing=east,extended=false]
+# --- 6. 花、植物、雪、水、岩漿 ---
+setblock 1 149 19 grass_block
+setblock 1 150 19 poppy
+setblock 2 149 19 grass_block
+setblock 2 150 19 tall_grass[half=lower]
+setblock 2 151 19 tall_grass[half=upper]
+setblock 3 149 19 grass_block
+setblock 3 150 19 rose_bush[half=lower]
+setblock 3 151 19 rose_bush[half=upper]
+setblock 5 150 19 snow[layers=3]
+setblock 6 150 19 snow[layers=8]
+setblock 8 150 19 wheat[age=5]
+setblock 8 149 19 farmland[moisture=7]
+setblock 10 150 19 oak_sapling[stage=0]
+setblock 12 150 19 cactus[age=3]
+setblock 14 150 19 sweet_berry_bush[age=2]
+setblock 16 150 19 kelp
+setblock 18 150 19 vine[south=true]
+# 水與岩漿源頭（用圍欄式石磚盆，避免流出）
+fill 20 150 19 22 151 21 stone_bricks
+fill 21 151 20 21 151 20 water
+fill 24 150 19 26 151 21 stone_bricks
+fill 25 151 20 25 151 20 lava
+# 流動水：需等待 tick 才會出現 level 方塊，這裡放置一格 level=3 的水
+setblock 28 150 20 water[level=3]
+# --- 7. Block entity ---
+setblock 1 150 24 chest[facing=south,type=single]
+data merge block 1 150 24 {Items:[{Slot:0b,id:"minecraft:diamond",count:3},{Slot:1b,id:"minecraft:iron_sword",count:1,components:{"minecraft:enchantments":{"minecraft:sharpness":5},"minecraft:custom_name":"WorldGit Blade"}},{Slot:13b,id:"minecraft:oak_planks",count:64}]}
+setblock 3 150 24 oak_sign[rotation=4,waterlogged=false]
+data merge block 3 150 24 {front_text:{messages:["WorldGit","test sign","","v1"],color:"black",has_glowing_text:0b},back_text:{messages:["back","","",""]},is_waxed:0b}
+setblock 5 150 24 white_banner[rotation=8]
+data merge block 5 150 24 {patterns:[{pattern:"minecraft:stripe_top",color:"red"},{pattern:"minecraft:creeper",color:"black"}]}
+setblock 7 150 24 lectern[facing=south,has_book=true]
+data merge block 7 150 24 {Book:{id:"minecraft:written_book",count:1,components:{"minecraft:written_book_content":{title:"WorldGit Manual",author:"claude",pages:["Page one","Page two"]}}},Page:1}
+setblock 9 150 24 spawner
+data merge block 9 150 24 {SpawnData:{entity:{id:"minecraft:zombie"}},SpawnCount:2s,RequiredPlayerRange:0s}
+setblock 11 150 24 furnace[facing=south,lit=false]
+data merge block 11 150 24 {Items:[{Slot:0b,id:"minecraft:iron_ore",count:5},{Slot:1b,id:"minecraft:coal",count:2}],BurnTime:100s,CookTime:20s}
+setblock 13 150 24 barrel[facing=up]
+data merge block 13 150 24 {Items:[{Slot:0b,id:"minecraft:apple",count:7}],CustomName:"Test Barrel"}
+setblock 15 150 24 player_head[rotation=2]
+setblock 17 150 24 jukebox
+setblock 19 150 24 command_block[facing=up,conditional=false]
+data merge block 19 150 24 {Command:"say hi",auto:0b}
+# --- 8. 實體（固定區 y=150..152，x 30..54）---
+summon armor_stand 31 150 2 {ShowArms:1b,Pose:{Head:[10f,20f,0f]},Rotation:[90f,0f],Tags:["wg"],CustomName:"Stand",equipment:{mainhand:{id:"minecraft:diamond_sword",count:1},head:{id:"minecraft:iron_helmet",count:1}}}
+setblock 34 151 4 stone_bricks
+summon item_frame 34 151 3 {Facing:2b,Item:{id:"minecraft:compass",count:1},ItemRotation:3b,Tags:["wg"]}
+fill 36 150 5 40 154 5 stone_bricks
+summon painting 38 152 4 {variant:"minecraft:kebab",facing:2b,Tags:["wg"]}
+summon block_display 31 151 8 {block_state:{Name:"minecraft:oak_stairs",Properties:{facing:"east",half:"top"}},transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],scale:[1f,1f,1f],translation:[0f,0f,0f]},Tags:["wg"]}
+summon item_display 33 151 8 {item:{id:"minecraft:diamond",count:1},item_display:"ground",Tags:["wg"]}
+summon text_display 35 151 8 {text:"WorldGit",billboard:"center",background:16711680,Tags:["wg"]}
+summon minecart 31 150 12 {Tags:["wg"]}
+setblock 33 150 12 rail[shape=east_west]
+summon chest_minecart 35 150 13 {Tags:["wg"],Items:[{Slot:0b,id:"minecraft:cobblestone",count:9}]}
+summon zombie 31 150 16 {NoAI:1b,PersistenceRequired:1b,Invulnerable:1b,Tags:["wg"],CustomName:"NoAI Zombie",equipment:{head:{id:"minecraft:iron_helmet",count:1}}}
+summon villager 33 150 16 {NoAI:1b,PersistenceRequired:1b,Invulnerable:1b,Tags:["wg"],VillagerData:{profession:"minecraft:librarian",level:2,type:"minecraft:plains"},Offers:{Recipes:[{buy:{id:"minecraft:emerald",count:1},sell:{id:"minecraft:book",count:1},maxUses:12,xp:5},{buy:{id:"minecraft:paper",count:24},sell:{id:"minecraft:emerald",count:1},maxUses:16}]},Xp:10}
+summon cow 40 150 16 {PersistenceRequired:1b,Tags:["wg"]}
+summon item 31 150 20 {Item:{id:"minecraft:emerald",count:5},Age:100s,PickupDelay:32767s,Tags:["wg"]}
+summon experience_orb 33 150 20 {Value:7s,Tags:["wg"]}
