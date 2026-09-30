@@ -17,6 +17,7 @@
 | 10 | 專案名稱 | **WorldGit** | |
 | 11 | CoreProtect | **不整合**。作者歸屬與 blame 只用 WorldGit 自己的追蹤（事件、WorldEdit/FAWE API） | [04](04-commit-and-status.md) §2 |
 | 12 | 網頁前端參考 | 參考 BlueMap 等既有地圖/渲染專案，採「伺服器預先渲染 tile + 瀏覽器即時網格」混合架構；**是否直接使用 deepslate / BlueMap 的程式碼，待 Phase 0 實驗後決定** | [10](10-web-frontend.md) §9 |
+| 14 | Hub 的 Java 版本 | **Hub 用 Java 25**（BlueMap 5.x 需要）；core、插件、模組、CLI 維持 Java 21 相容 | [08](08-architecture.md) §3、`experiments/01-bluemap/REPORT.md` |
 | 13 | 實作方式 | 實作階段由 **Sonnet 5.5 子代理**負責撰寫程式碼 | [CLAUDE.md](../CLAUDE.md) |
 
 ## 路線圖（四端並行）

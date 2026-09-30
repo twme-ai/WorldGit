@@ -53,12 +53,12 @@ core 只認識 `LiveWorld`，所以同一套 commit/switch/merge 邏輯在插件
 
 | 項目 | 建議 | 理由 / 替代方案 |
 |---|---|---|
-| core 語言 | **Java 21+** | 插件和模組都是 JVM，零橋接成本；替代：Rust core + JNI，效能好但兩套語言、跨平台打包麻煩 |
+| core 語言 | **Java 21**（core、插件、模組、CLI 維持 Java 21 相容，因為 1.21.11 伺服器跑在 Java 21 上） | 插件和模組都是 JVM，零橋接成本；替代：Rust core + JNI，效能好但兩套語言、跨平台打包麻煩 |
 | NBT/Anvil | 自寫精簡讀寫器（離線）；線上則直接從伺服器記憶體結構取資料 | 避免依賴大型函式庫；可參考現有開源 NBT 函式庫 |
 | 儲存 | JGit | 見 [03](03-storage-backend.md) |
 | 壓縮 | zstd（section 編碼層）+ git 自身的 zlib | |
 | CLI 發佈 | GraalVM native-image 單一執行檔，或 jlink 精簡 JRE | |
-| Hub 後端 | **Java 21 + Spring Boot**（已決定用 Java），直接重用 core；git 協定用 JGit 的 `GitServlet` | 需要在伺服器端做合併與世界 zip 組裝；Spring 的 OAuth、權限、速率限制對公開服務現成可用；虛擬執行緒處理大量 git 連線。替代：Javalin（較輕，但 OAuth/權限要自己組） |
+| Hub 後端 | **Java 25 + Spring Boot**（已決定，2026-09-30：為了嵌入需要 Java 25 的 BlueMap core），直接重用 core；git 協定用 JGit 的 `GitServlet` | 需要在伺服器端做合併與世界 zip 組裝；Spring 的 OAuth、權限、速率限制對公開服務現成可用；虛擬執行緒處理大量 git 連線。替代：Javalin（較輕，但 OAuth/權限要自己組） |
 | Hub 前端 | **全新撰寫**（不沿用 BlockForge）：TypeScript + Vite，3D 用 Three.js 加上自寫的 chunk 網格生成器 | 見 [10](10-web-frontend.md) |
 | 遊戲內預覽 | 插件：display entity / 假方塊封包（可參考既有的 VirtualEntities、WorldEditDisplay 經驗）；模組：客戶端渲染 | |
 | 目標版本 | **首發：Paper 與 Fabric 的 26.2 與 1.21.11**；長期目標是支援範圍越廣越好 | 已決定（2026-09-30），見 §5 |
