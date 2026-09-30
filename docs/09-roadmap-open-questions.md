@@ -16,7 +16,7 @@
 | 9 | Folia | **首發支援**，同一個插件 jar | [08](08-architecture.md) §7 |
 | 10 | 專案名稱 | **WorldGit** | |
 | 11 | CoreProtect | **不整合**。作者歸屬與 blame 只用 WorldGit 自己的追蹤（事件、WorldEdit/FAWE API） | [04](04-commit-and-status.md) §2 |
-| 12 | 網頁前端參考 | 參考 BlueMap 等既有地圖/渲染專案，採「伺服器預先渲染 tile + 瀏覽器即時網格」混合架構；**是否直接使用 deepslate / BlueMap 的程式碼，待 Phase 0 實驗後決定** | [10](10-web-frontend.md) §9 |
+| 12 | 網頁前端參考 | 參考 BlueMap 等既有地圖/渲染專案，採「伺服器預先渲染 tile + 瀏覽器即時網格」混合架構；**依 Phase 0 實驗結果：遠景嵌入 BlueMap core，近景 / diff 用 deepslate 的模型層加自寫網格生成與繪製** | [10](10-web-frontend.md) §9 |
 | 14 | Hub 的 Java 版本 | **Hub 用 Java 25**（BlueMap 5.x 需要）；core、插件、模組、CLI 維持 Java 21 相容 | [08](08-architecture.md) §3、`experiments/01-bluemap/REPORT.md` |
 | 13 | 實作方式 | 程式碼由 **Codex（gpt-6.1-sol，透過 Codex 插件）**撰寫，包含需要網路與 Minecraft 伺服器的驗證（已開啟 Codex 寫入沙盒的網路存取）。先前的 Phase 0 實驗由 Sonnet 5.5 子代理執行 | [CLAUDE.md](../CLAUDE.md) |
 
@@ -43,7 +43,7 @@
 
 ## 待討論的決策
 
-目前沒有。前端要不要直接使用 deepslate / BlueMap，等 Phase 0 的實驗結果出來再決定（見下方驗證項目）。
+目前沒有。
 
 ## Phase 0 要驗證的技術風險
 
@@ -58,7 +58,7 @@
 - [ ] 大世界的 init 耗時與 repo 大小；在 GitHub/Gitea 上 push/clone 的實際表現
 - [ ] chunk unsaved 旗標 + region 時間戳能否抓到所有變動（含 FAWE），以及誤報量
 - [ ] FAWE 的 `EditSessionEvent` 在各種模式下是否都能看到逐格變動
-- [ ] **前端實驗 A**：用 deepslate 渲染 WorldGit 正規化後的一個 section（含多種非完整方塊），評估正確性、效能與介接成本
-- [ ] **前端實驗 B**：評估 BlueMap 核心能否以 WorldGit 的 tree 為輸入產生 tile（不經過實際的世界資料夾）
+- [x] **前端實驗 A**（見 `experiments/04-deepslate/REPORT.md`）：用 deepslate 渲染 WorldGit 正規化後的一個 section（含多種非完整方塊），評估正確性、效能與介接成本
+- [x] **前端實驗 B**（見 `experiments/01-bluemap/REPORT.md`）：評估 BlueMap 核心能否以 WorldGit 的 tree 為輸入產生 tile（不經過實際的世界資料夾）
 - [ ] 新 3D 檢視器在大範圍（數千 chunk）下的效能：網格生成速度、記憶體、瀏覽器端幀率
 - [ ] Folia 在 1.21.11 / 26.2 的釋出狀態，以及 region 排程下 switch 大量 chunk 的效能

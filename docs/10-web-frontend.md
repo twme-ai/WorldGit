@@ -1,6 +1,8 @@
 # 10 — 網頁前端與 3D 世界檢視器（全新撰寫）
 
-> 已決定（2026-09-30）：網頁前端**全新撰寫，不沿用 BlockForge**。本文件只規劃設計，尚未實作。
+> 已決定（2026-09-30）：網頁前端**全新撰寫，不沿用 BlockForge**。
+>
+> 已決定（2026-09-30，依 Phase 0 實驗結果）：**遠景地圖嵌入 BlueMap core 產生 tile；近景 / diff / 衝突用 deepslate 的模型層，加上自己寫的網格生成與繪製**。兩者都鎖定版本、以轉接層包起來。依據：`experiments/01-bluemap/REPORT.md`、`experiments/04-deepslate/REPORT.md`。
 
 ## 1. 前端要做到的事
 
@@ -19,7 +21,8 @@
 |---|---|---|
 | 語言/建置 | TypeScript + Vite | |
 | UI 框架 | React | 生態系最大、元件庫多；3D 以外的頁面（列表、PR、設定）都是一般網頁 |
-| 3D | Three.js 只當作 WebGL 的底層，**網格生成自己寫** | Minecraft 世界的效能關鍵在網格生成與剔除，通用引擎不會幫你做 |
+| 3D（近景 / diff） | **deepslate**（MIT，鎖定版本）只用資料層與模型層：NBT/region 讀取、BlockState、blockstate/model 解析展開、`SpecialRenderers` 的特殊模型（箱子、床、旗幟、告示牌、頭顱…）。**不用**它的 `StructureRenderer` / `ChunkBuilder`；網格生成與繪製（WebGL2、自訂 shader）自己寫 | 實驗 A：模型層兩版不需修改即可用；原生 renderer 在 4×4 chunk 就卡住主執行緒 3.3～5.7 秒，自寫的 worker 版 0.45 秒且不阻塞 |
+| 遠景地圖 | **BlueMap core**（MIT，鎖定版本）嵌入 Hub 後端產生 tile；檢視可沿用 BlueMap 的 webapp 當總覽頁 | 實驗 B：只需實作它的 `World`/`Chunk`/`MapSettings` 介面，不必修改 BlueMap |
 | 背景運算 | Web Worker 池 | 解碼 section、生成網格都在 worker 做，不卡畫面 |
 | 部署 | 建置成靜態檔，由 Java 後端一起提供 | 自架版維持「單一 image」；公開服務可以放 CDN |
 
@@ -27,9 +30,11 @@
 
 - **Mojang 的材質與模型不能由我們重新散布**。做法：Hub 後端在需要某個 MC 版本時，從 Mojang 官方的版本清單下載該版本的客戶端 jar，取出 blockstates / models / textures，在伺服器端預先處理後快取，再提供給瀏覽器。自架版與公開服務都用同樣方式。
 - 預先處理的產物（每個 MC 版本一份）：
-  - 材質圖集（texture atlas）與動畫材質資訊
-  - **「方塊狀態 → 已展開的面」表**：把 blockstate 的 variants / multipart、模型繼承、旋轉、uvlock 全部在伺服器端展開成最終的四邊形列表，瀏覽器只需要查表，不需要理解 Minecraft 的模型格式
-  - 生物群系顏色表（草、樹葉、水的染色）
+  - 材質圖集（texture atlas）與動畫材質資訊。**必須自己打包**：deepslate 的 `TextureAtlas.fromBlobs` 會把 64×64 的實體貼圖（箱子、床、旗幟、告示牌）裁成 16×16
+  - 合併後的 blockstates / models JSON（gzip 後每版約 100 KB），由瀏覽器端的 deepslate 解析展開。**不需要**在後端預先展開成四邊形表：實驗 A 顯示瀏覽器展開全部約 2300 個模型只要約 12 ms，也避免 Java 端重寫模型語意而與 deepslate 行為分歧
+  - 方塊旗標（是否不透明、半透明、自我剔除），正式版改從伺服器的 data generator report 取得，不用啟發式推算
+  - 生物群系顏色表（草、樹葉、水的染色；deepslate 的染色是寫死常數，要由我們替換）
+- BlueMap 的遠景渲染使用它自己的資源管線（同樣從 Mojang 下載 client jar），與上面的產物分開。
 - 依 commit 的 `DataVersion` 載入對應版本的資源（首發：1.21.11 與 26.2）。
 
 ## 4. 混合架構：伺服器預先渲染 + 瀏覽器即時生成
@@ -49,9 +54,10 @@
 
 1. 從 API 取得正規化後的 section 二進位資料（與 core 相同的格式），在 worker 中解碼
 2. 面剔除：相鄰是不透明完整方塊的面不畫（需要鄰近 section 的邊界資料）
-3. 完整方塊用貪婪合併（greedy meshing）減少面數；非完整方塊（樓梯、柵欄、花）直接用展開表的四邊形
-4. 分成不透明、裁切（樹葉、玻璃片）、半透明（水、染色玻璃）三個繪製批次；半透明依距離排序
-5. 生物群系染色、簡單的環境光遮蔽（AO）
+3. 單一方塊的四邊形由 deepslate 的 `BlockDefinition.getMesh()` / `SpecialRenderers` 產生，以（方塊狀態, 剔除遮罩）為鍵快取（實驗 A 的快取命中率 99.8%）
+4. **完整方塊要自己做貪婪合併（greedy meshing）並壓縮頂點格式**：deepslate 沒有這部分。實驗 A 的原型不合併時，16×16 chunk 需要 247 MB 顯示記憶體，目標是降到 50 MB 以下
+5. 分成不透明、裁切（樹葉、玻璃片）、半透明（水、染色玻璃）三個繪製批次；半透明依距離排序
+6. 生物群系染色、簡單的環境光遮蔽（AO）；deepslate 不處理的 uvlock、流體角落高度與流向也由我們補上
 
 規模控制：
 - 3D 只載入**框選範圍**與視野內的 section；視錐剔除、距離剔除
@@ -95,10 +101,20 @@ diff 中實體以 UUID 對應：新增（綠）、移除（紅）、移動（箭
 | [squaremap](https://github.com/jpenilla/squaremap) | 需確認（GitHub 未辨識） | Java | 輕量 2D 俯視地圖（原版地圖風格） | 2D 總覽圖的風格與效能 |
 | [Pl3xMap](https://github.com/granny/Pl3xMap) | MIT | Java | 同上 | 同上 |
 
-使用方式的選擇（待決定）：
-- **只參考設計**：全部自己寫，最有彈性，工作量最大。
-- **直接使用函式庫**：近景用 deepslate、tile 渲染嵌入 BlueMap 的核心。可以省下大量工作，但要配合它們的資料格式和版本更新節奏；MIT 授權允許這樣用，只需保留授權聲明。
-- 建議 Phase 0 各做一個小實驗：用 deepslate 渲染 WorldGit 的一個 section，以及評估 BlueMap 核心能不能吃 WorldGit 的 tree 產生 tile，再決定。
+使用方式（已決定，2026-09-30）：**直接使用 deepslate 與 BlueMap core 當依賴**（見文件開頭）。
+
+### 採用方式與注意事項
+
+| | deepslate（近景 / diff） | BlueMap core（遠景 tile） |
+|---|---|---|
+| 使用範圍 | 資料層與模型層；網格生成、繪製、diff 上色自己寫 | `core` 模組；不用 `common`，tile 排程、快取鍵、lowres 合成、儲存對應由 Hub 自己寫 |
+| 版本管理 | 鎖定版本（0.x，minor 版本可能破壞 API），包在一層薄的轉接層後面 | 鎖定版本（內部介面沒有穩定承諾），BlueMap 的型別藏在 Hub 內部的 `TileRenderer` 介面後面 |
+| 已知要補的部分 | 圖集打包、生物群系染色、greedy meshing、uvlock、流體細節、告示牌文字、講台的書、刷怪磚內的生物、所有實體的外觀 | 光照近似（WorldGit 丟棄光照）；lowres 是累積式的，要由 Hub 自己合成；tile 快取鍵要包含向外 1 格的鄰居 chunk |
+| 特殊需求 | — | Java 25（Hub 已改用 Java 25） |
+| 升版方式 | 固定場景的截圖比對做回歸測試 | 金標準 tile 比對做回歸測試 |
+| 風險 | 單一維護者；MIT 授權允許必要時 vendor | 單一維護者；必要時 fork 或 vendor `core` |
+
+估計工作量（實驗報告的估計）：近景 / diff 檢視器約 3～4 個人月（deepslate 省下其中約 3～5 週）；BlueMap 介接約 1500～2500 行 Java、2～3 人週。
 
 ## 10. 驗證方式
 
