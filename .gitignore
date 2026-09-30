@@ -6,3 +6,4 @@
 **/dist/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
+__pycache__/
