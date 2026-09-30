@@ -14,7 +14,7 @@
 | HEAD | 活的世界目前「站在」哪個 commit / 分支上 | 顯示在 scoreboard / bossbar / `/wg status`。 |
 | branch | 一條平行時空 | 例如 `main`、`castle-v2`、`alice/redstone-test`。 |
 | index / staging area | 大多情況**省略**：commit 時直接收整個世界的變動 | 進階用法：`/wg add <選取範圍>` 只把某區域的變動放進下一個 commit（「我只想存城堡，不想存旁邊的實驗」）。 |
-| .gitignore | `worldgit.toml` 的 `ignore` 規則 | 例：忽略掉落物、`nether` 維度、某個座標範圍（刷怪塔、測試區）。 |
+| .gitignore | **`.wgignore`**：放在 repo 根目錄、被版本控制的排除規則 | 可依維度、座標範圍、實體類型、NBT 欄位排除，支援 `!` 加回。預設什麼都不排除。詳見 [02](02-data-model.md) §5。 |
 | remote | Hub 上的同名 repo 或另一台伺服器 | |
 | conflict | 兩個分支自共同祖先以來**都改了同一格方塊（或同一個實體）且結果不同** | 以「衝突區域」呈現，而非一格一格。 |
 
@@ -82,5 +82,5 @@
 
 1. **MC 版本升級（DataVersion）**：舊 commit 是 1.21 的格式，現在伺服器是 26.x。checkout 舊存檔點時必須先過 DataFixer 升級；合併兩個不同版本的分支前，要先把兩邊都升級到同一版。每個 commit 都要記錄 DataVersion。
 2. **衍生資料**：光照、heightmap、POI 等可以從方塊重新計算，不應該進版本控制（會造成假 diff），寫回世界時讓遊戲重算。
-3. **會自己變的東西**：作物生長、水流、生物走動、熔爐燒東西。它們會讓 `status` 永遠不乾淨 → 需要正規化與忽略規則（見 [02](02-data-model.md)）。
+3. **會自己變的東西**：作物生長、水流、生物走動、熔爐燒東西。它們會讓 `status` 永遠不乾淨 → 需要正規化與 `.wgignore` 規則（見 [02](02-data-model.md) §5、§8）。
 4. **「活的」工作目錄**：git 的檔案在你改它時不會自己動；世界在 checkout 當下可能有玩家站在裡面、chunk 正被載入。這是本專案最大的工程難點（見 [05](05-switch-restore.md)）。

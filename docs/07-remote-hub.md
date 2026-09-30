@@ -30,7 +30,24 @@
 | Release | tag 對應的世界 zip 下載（由 Hub 從物件組出 region 檔） |
 | 權限 | 誰可以 push 到哪個分支；受保護分支（main 只能經 PR） |
 
-## 4. 伺服器 ↔ Hub 的整合
+## 4. 部署方式：自架與公開服務都要（已決定，2026-09-30）
+
+**同一套程式碼，兩種部署**，避免維護兩個版本：
+
+| | 自架版 | 公開服務 |
+|---|---|---|
+| 對象 | 想把資料留在自己手上的伺服器、團隊 | 單人玩家、小團隊、不想架設的人 |
+| 形式 | 單一 Docker image（或 jar），內建資料庫預設用 SQLite、repo 存本機磁碟 | 同一個 image，改用 PostgreSQL + 物件儲存（S3 相容），可水平擴充 |
+| 帳號 | 本機帳號，可選 OAuth | OAuth 登入（GitHub、Discord、Microsoft 帳號…） |
+| 額外需求 | — | 容量配額、速率限制、濫用檢舉、公開/私人 repo、帳單（若有） |
+| Minecraft 端設定 | `/wg remote add origin https://hub.example.com/team/world` | 同樣語法，指向公開服務網址 |
+
+設計上的影響：
+- 儲存層與帳號層都要做成可替換的介面（本機/S3、SQLite/PostgreSQL、本機帳號/OAuth）。
+- 從第一版就要支援**多租戶**（使用者、組織、repo 權限），自架版只是「只有一個組織」的特例。
+- 自架版與公開服務之間可以互相 push/pull（都是標準 git 協定），所以使用者可以隨時搬家。
+
+## 5. 伺服器 ↔ Hub 的整合
 
 - 插件設定 Hub token 後，可在遊戲內 `/wg push`、`/wg pull`、`/wg pr create`
 - Hub 上合併 PR 後可 webhook 通知伺服器（顯示「main 有新版本，/wg pull 更新」），**不自動套用**到活的世界，避免玩家腳下的方塊突然消失

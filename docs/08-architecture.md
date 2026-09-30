@@ -11,7 +11,7 @@ worldgit/
 │   ├─ store/       ObjectStore / RefStore 介面 + JGit 實作
 │   ├─ diff/        tree diff、section diff、方塊級 diff
 │   ├─ merge/       三方合併、衝突分群、合併狀態（MERGE_HEAD 等）
-│   └─ config/      worldgit.toml
+│   └─ config/      .wgignore 解析（版本控制內）、worldgit.toml（本機設定）
 ├─ platform-api/    「活的世界」抽象：讀快照、套用變更、鎖定、通知玩家
 ├─ protocol/        插件/模組 ↔ 客戶端模組的網路封包定義（diff 預覽、衝突資訊）
 ├─ paper/           Paper 插件：實作 platform-api + 指令/GUI/預覽
@@ -70,7 +70,8 @@ core 只認識 `LiveWorld`，所以同一套 commit/switch/merge 邏輯在插件
 ├─ world/                   ← working tree（MC 自己管）
 ├─ world_nether/ …
 └─ .worldgit/
-    └─ world/               ← git 物件庫（bare repo）+ index（chunk 時間戳/雜湊快取）+ worldgit.toml
+    └─ world/               ← git 物件庫（bare repo）+ index（chunk 時間戳/雜湊快取）+ worldgit.toml（本機設定）
+                              # .wgignore 在 repo 的 tree 裡，跟世界內容一起被版本控制
 ```
 
 放在世界資料夾外面：MC 不會碰到、傳統的世界備份不會把歷史也打包進去、刪世界不會連歷史一起刪。
