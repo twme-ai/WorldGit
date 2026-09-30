@@ -33,7 +33,7 @@
 | `log` | 存檔點時間軸（書本 GUI / 網頁） | ★★★ | 網頁端每個 commit 附一張俯視縮圖。 |
 | `show <commit>` | 顯示該存檔點改了什麼（變動區域外框 + 統計） | ★★ | |
 | `tag` | 里程碑：「v1.0 開幕版」「比賽提交版」 | ★★ | Hub 上 tag = 可下載的 release（世界 zip）。 |
-| `blame` | **這格方塊是哪個存檔點、誰放的** | ★ | 粒度是 commit 級；逐動作的紀錄是 CoreProtect 的領域，兩者互補（可選擇整合 CoreProtect 資料）。 |
+| `blame` | **這格方塊是哪個存檔點、誰放的** | ★ | 粒度是 commit 級，資料來自 WorldGit 自己的作者追蹤（見 [04](04-commit-and-status.md) §2）。不整合 CoreProtect（已決定）。 |
 | `bisect` | 二分搜尋「哪個存檔點開始紅石壞了」 | ★ | 做起來其實不難（就是反覆 checkout），但需求小。 |
 
 ### 切換與復原（痛點 1）

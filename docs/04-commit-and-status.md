@@ -14,15 +14,48 @@
 
 ## 2. 怎麼知道哪些 chunk 變了（dirty 追蹤）
 
-三層機制，由便宜到可靠：
+### 先釐清：抓到變動「只影響速度與作者歸屬，不影響正確性」
 
-| 層級 | 做法 | 可靠度 |
-|---|---|---|
-| 事件提示 | 插件監聽 BlockPlace/Break/Explode/Piston/Physics、WorldEdit `EditSessionEvent`；模組用 mixin 攔 `LevelChunk.setBlockState` | 插件端不完整（FAWE、其他插件直接改 NMS 會繞過事件）；模組端幾乎完整 |
-| region 時間戳 | region 檔頭有每個 chunk 的「最後寫入時間」；跟上次 commit 記錄的時間戳比 | 可靠但只對「已存回磁碟」的 chunk 有效；且任何存檔都會更新（包括只是 InhabitedTime 變） |
-| 內容雜湊 | 對候選 chunk 做正規化 + 雜湊比對 | 最終真相 |
+commit 最後一定會用**內容雜湊**比對，所以就算某個改動沒被任何機制事先察覺，只要它所在的 chunk 被檢查到，就不會漏存。dirty 追蹤的目的是：
+1. **速度**：不用每次都把整個世界重新雜湊一遍
+2. **作者歸屬**：知道「誰」改的（只有部分機制做得到）
 
-這跟 git 的 index 一樣：**index 記錄每個 chunk 上次看到的時間戳與雜湊**，時間戳沒變就不重算。完整掃描（`/wg status --full`）只在懷疑不一致時用。
+### 各種偵測機制
+
+| 機制 | 做法 | 抓得到 FAWE / 其他插件直接改 NMS 嗎？ | 知道是誰改的嗎？ | 備註 |
+|---|---|---|---|---|
+| Bukkit 事件 | 監聽 BlockPlace/Break/Explode/Piston/Physics… | ✗ | ✓ | 最基本的作者來源 |
+| **WorldEdit / FAWE API** | 在 `EditSessionEvent` 包一層 Extent，看到每一格被設定的方塊 | ✓（FAWE 也支援此事件，部分極速模式需驗證） | ✓（知道是哪個玩家下的指令） | CoreProtect 記錄 WorldEdit 改動也是用這個方式 |
+| **攔截送給玩家的方塊更新封包** | 用 PacketEvents 監聽 `BlockUpdate`、`SectionBlocksUpdate`、chunk 資料封包，收到就把該 chunk 標為 dirty | ✓（FAWE 改完一定會送封包給附近玩家） | ✗ | 只有**附近有玩家**的 chunk 才會送封包；同一個變動會送給 N 個玩家，要以 chunk 去重 |
+| **chunk 的「未存檔」旗標** | 伺服器內部每個 chunk 被改動時都會被標記為需要存檔（`LevelChunk` 的 unsaved 旗標）；插件透過版本轉接層定期讀取已載入 chunk 的這個旗標 | ✓（任何要被存下來的改動都一定會設它，不管來源） | ✗ | 伺服器自動存檔後旗標會被清掉，所以要搭配下一列的時間戳 |
+| region 時間戳 | region 檔頭有每個 chunk 的「最後寫入時間」；跟上次 commit 記錄的時間戳比 | ✓ | ✗ | 只對已寫回磁碟的 chunk 有效；也會因不重要的欄位變化而更新（由雜湊過濾） |
+| Fabric mixin | 直接攔 `LevelChunkSection.setBlockState` 與 chunk 的 unsaved 標記 | ✓（Fabric 上任何改動都經過這裡） | 部分 | 模組端最完整 |
+| 內容雜湊 | 對候選 chunk 做正規化 + 雜湊比對 | — | — | 最終真相 |
+
+### 回答「能不能像 FAWE 一樣直接收到世界被更改的封包」
+
+可以，而且值得做，但要注意 FAWE 本身並不是「收到」變更，它是**直接把方塊寫進 chunk 的記憶體**（所以才會繞過 Bukkit 事件），改完再主動送 chunk 封包給附近玩家。我們能利用的是兩個點：
+
+1. **FAWE 自己的 API**：透過 `EditSessionEvent` 可以看到 FAWE 寫了哪些方塊、是誰下的指令 → 同時解決「偵測」和「作者」。
+2. **送出的封包**：伺服器要讓玩家看到變化，一定會送方塊更新或 chunk 封包，所以監聽送出的封包可以抓到**任何來源**（FAWE、其他插件、指令）造成的可見變化。限制是：沒有玩家在附近的 chunk 不會送封包，而且封包不帶「誰改的」。
+
+所以封包監聽適合當作「補漏」而不是唯一來源。
+
+### 插件端的組合（建議）
+
+```
+已載入的 chunk：  unsaved 旗標  ∪  封包監聽  ∪  事件/WorldEdit API
+已存回磁碟的 chunk：region 時間戳
+                     ↓
+              候選 chunk → 內容雜湊 → 真正的變動
+作者：事件 + WorldEdit/FAWE API（抓不到作者的變動記為「未知/系統」）
+```
+
+「unsaved 旗標 + region 時間戳」兩者合起來，理論上已經能抓到所有變動（沒存的看旗標、存了的看時間戳），封包監聽則提供即時性（例如 `/wg status` 描邊要即時更新）。這個組合要在 Phase 0 驗證：旗標在 1.21.11 / 26.2 / Folia 上的行為、以及哪些「不重要的變化」也會設旗標（例如 InhabitedTime）造成的誤報量。
+
+### index
+
+這跟 git 的 index 一樣：**index 記錄每個 chunk 上次看到的時間戳與雜湊**，時間戳沒變、旗標沒設、也沒收到封包的 chunk 就不重算。完整掃描（`/wg status --full`）只在懷疑不一致時用。
 
 ## 3. 一致的快照
 

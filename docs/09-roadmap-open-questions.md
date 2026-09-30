@@ -15,6 +15,8 @@
 | 8 | Hub 技術棧 | 後端 **Java**（Spring Boot + JGit `GitServlet`）；前端**全新撰寫**，不沿用 BlockForge | [08](08-architecture.md) §3、[10](10-web-frontend.md) |
 | 9 | Folia | **首發支援**，同一個插件 jar | [08](08-architecture.md) §7 |
 | 10 | 專案名稱 | **WorldGit** | |
+| 11 | CoreProtect | **不整合**。作者歸屬與 blame 只用 WorldGit 自己的追蹤（事件、WorldEdit/FAWE API） | [04](04-commit-and-status.md) §2 |
+| 12 | 網頁前端參考 | 參考 BlueMap 等既有地圖/渲染專案，採「伺服器預先渲染 tile + 瀏覽器即時網格」混合架構 | [10](10-web-frontend.md) |
 
 ## 路線圖（四端並行）
 
@@ -39,25 +41,7 @@
 
 ## 待討論的決策
 
-1. **與 CoreProtect 的整合**：建議做成選用的軟依賴，只用來補強作者歸屬與 blame，排在 Phase 3 之後（利弊分析見下）。同意嗎？
-
-### CoreProtect 整合的利弊
-
-CoreProtect 會把每一次方塊放置/破壞、容器存取記錄到資料庫，包含玩家與時間。WorldGit 自己的歷史是「存檔點」級，兩者粒度不同。
-
-好處：
-- **逐格的 blame**：「這格是誰、在幾點放的」，比 WorldGit commit 級的作者歸屬精確得多
-- **衝突解決更好判斷**：衝突區域裡每一格可以顯示「ours 這邊是 alice 在 3 點放的、theirs 是 bob 在 5 點放的」
-- **補足作者歸屬的漏洞**：WorldGit 插件靠事件追蹤作者，會漏掉部分 WorldEdit/其他插件的改動；CoreProtect 已經處理過很多這類整合
-- **既有資料**：伺服器在導入 WorldGit 之前累積的 CoreProtect 紀錄，也能拿來回答「這棟建築是誰蓋的」
-
-壞處：
-- **只有 Paper 有**：Fabric 端沒有 CoreProtect（Fabric 上對應的是 Ledger），兩邊體驗會不一致，要嘛再整合 Ledger，要嘛接受差異
-- **兩份歷史會互相干擾**：WorldGit 的 switch/restore 若透過一般 API 改方塊，會在 CoreProtect 裡灌進大量「假」紀錄；若繞過 API，CoreProtect 的紀錄又會跟世界現況對不上。切換分支後，CoreProtect 的「誰放的」可能指向另一個時空的方塊
-- **效能**：大伺服器的 CoreProtect 資料庫動輒數千萬筆，逐格查詢要做快取與批次
-- **多一個相依的版本相容性**：CoreProtect 的 API 版本要跟著 1.21.11 / 26.2 / Folia 一起測
-
-建議：做成**選用的軟依賴**（沒裝 CoreProtect 也完全正常），只讀取、不寫入；只用在 blame 和衝突 UI 的「誰放的」提示；WorldGit 自己的作者追蹤仍是主要來源。排在 Phase 3（合併）之後，因為那時衝突 UI 才真正用得上。
+1. **網頁前端是否直接使用 deepslate 或 BlueMap 的程式碼**（而不只是參考）：見 [10](10-web-frontend.md) §9。建議 Phase 0 先各做一個小實驗再決定。
 
 ## Phase 0 要驗證的技術風險
 
@@ -70,5 +54,7 @@ CoreProtect 會把每一次方塊放置/破壞、容器存取記錄到資料庫�
 - [ ] 在 Paper 上替換已載入 chunk 的 section 後，客戶端更新與實體同步的正確做法（兩個版本）
 - [ ] 1.21.11 與 26.2 的存檔目錄結構與 chunk/實體 NBT 差異
 - [ ] 大世界的 init 耗時與 repo 大小；在 GitHub/Gitea 上 push/clone 的實際表現
+- [ ] chunk unsaved 旗標 + region 時間戳能否抓到所有變動（含 FAWE），以及誤報量
+- [ ] FAWE 的 `EditSessionEvent` 在各種模式下是否都能看到逐格變動
 - [ ] 新 3D 檢視器在大範圍（數千 chunk）下的效能：網格生成速度、記憶體、瀏覽器端幀率
 - [ ] Folia 在 1.21.11 / 26.2 的釋出狀態，以及 region 排程下 switch 大量 chunk 的效能

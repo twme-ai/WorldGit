@@ -32,7 +32,18 @@
   - 生物群系顏色表（草、樹葉、水的染色）
 - 依 commit 的 `DataVersion` 載入對應版本的資源（首發：1.21.11 與 26.2）。
 
-## 4. 網格生成
+## 4. 混合架構：伺服器預先渲染 + 瀏覽器即時生成
+
+參考 BlueMap 的做法（§9），把「看整張地圖」和「近看 / 看差異」分開處理：
+
+| | 遠景、總覽 | 近景、diff、衝突 |
+|---|---|---|
+| 誰來算 | **Hub 後端預先渲染成 tile**（2D 俯視圖 + 低細節 3D） | **瀏覽器在 Web Worker 即時生成網格** |
+| 原因 | 大範圍資料量大，每個訪客都自己算太浪費 | 需要動態上色、切換 ours/theirs/base，預先渲染做不到 |
+
+**與 git 內容定址的結合**：tile 的快取鍵是「它涵蓋的那些 chunk 的 tree 雜湊」，而不是 commit。所以兩個 commit 之間沒變的區域共用同一批 tile，每次 push 只需要重新渲染真正有變動的 tile。這比一般地圖外掛「定時全圖重繪」有效率得多，也讓「切換到任何一個歷史 commit 看地圖」成本很低。
+
+## 5. 瀏覽器端網格生成
 
 以 **section（16×16×16）為單位**生成網格，與資料模型的粒度一致，所以 diff 時只要重建變動的 section：
 
@@ -47,7 +58,7 @@
 - 遠處用低細節（只畫頂面顏色的高度圖），近處才用完整模型
 - 全世界的總覽用 2D 地圖 tile，不用 3D
 
-## 5. 實體
+## 6. 實體
 
 Minecraft 的生物模型寫在遊戲程式碼裡而不是 JSON，完整重現成本很高。分階段：
 1. **第一版**：以包圍盒 + 生物圖示/名稱標籤呈現；盔甲座、物品展示框、畫、display entity 優先做真實外觀（建築最常用）
@@ -55,7 +66,7 @@ Minecraft 的生物模型寫在遊戲程式碼裡而不是 JSON，完整重現�
 
 diff 中實體以 UUID 對應：新增（綠）、移除（紅）、移動（箭頭連線）、屬性改變（黃）。
 
-## 6. diff 的呈現模式
+## 7. diff 的呈現模式
 
 | 模式 | 說明 |
 |---|---|
@@ -65,13 +76,31 @@ diff 中實體以 UUID 對應：新增（綠）、移除（紅）、移動（箭
 | 時間軸 | 沿 commit 列表拖曳，逐個 commit 播放變化 |
 | 只看變動 | 隱藏沒變的方塊，只顯示變動及其周圍 1 格 |
 
-## 7. 操作
+## 8. 操作
 
 - 兩種鏡頭：環繞（像模型檢視器）與飛行（WASD + 滑鼠，像遊戲內旁觀模式）
 - 點方塊顯示：座標、方塊狀態、block entity 內容（例如箱子物品）、最後變動的 commit 與作者
 - 網址帶座標與視角，可以直接分享「這個角度的這個 commit」
 
-## 8. 驗證方式
+## 9. 參考專案
+
+以下專案都是開源的 Minecraft 地圖或渲染專案，資料為 2026-09-30 查詢時的狀態：
+
+| 專案 | 授權 | 語言 | 形式 | 值得參考的地方 |
+|---|---|---|---|---|
+| [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap) | MIT | Java（網頁端 Three.js） | 伺服器端把世界渲染成 3D tile，網頁載入檢視 | **整體架構最接近**：伺服器預先渲染高/低細節 tile、從遊戲 jar 載入資源、網頁檢視器的飛行/環繞/平面鏡頭。核心渲染器是 Java，理論上可以放進 Hub 後端直接產生 tile，需要評估介接成本 |
+| [deepslate](https://github.com/misode/deepslate) | MIT | TypeScript | 瀏覽器端函式庫，用原版資源渲染結構/方塊 | **近景渲染**：方塊模型解析（blockstate、multipart、模型繼承）與 WebGL 網格，可能可以直接當作依賴使用 |
+| [prismarine-viewer](https://github.com/PrismarineJS/prismarine-viewer) | MIT | JavaScript（Three.js） | 瀏覽器端即時顯示伺服器/機器人看到的世界 | Web Worker 網格生成、以 section 為單位增量更新 |
+| [Dynmap](https://github.com/webbukkit/dynmap) | Apache-2.0 | Java | 老牌的即時網頁地圖 | 方塊變動後如何讓 tile 失效與重繪 |
+| [squaremap](https://github.com/jpenilla/squaremap) | 需確認（GitHub 未辨識） | Java | 輕量 2D 俯視地圖（原版地圖風格） | 2D 總覽圖的風格與效能 |
+| [Pl3xMap](https://github.com/granny/Pl3xMap) | MIT | Java | 同上 | 同上 |
+
+使用方式的選擇（待決定）：
+- **只參考設計**：全部自己寫，最有彈性，工作量最大。
+- **直接使用函式庫**：近景用 deepslate、tile 渲染嵌入 BlueMap 的核心。可以省下大量工作，但要配合它們的資料格式和版本更新節奏；MIT 授權允許這樣用，只需保留授權聲明。
+- 建議 Phase 0 各做一個小實驗：用 deepslate 渲染 WorldGit 的一個 section，以及評估 BlueMap 核心能不能吃 WorldGit 的 tree 產生 tile，再決定。
+
+## 10. 驗證方式
 
 - 渲染正確性：以固定場景（各種方塊類型的測試世界）在遊戲內截圖，與網頁渲染做比對
 - 效能目標（Phase 0 量測後確定）：例如框選 16×16 chunk 範圍時，首次載入到可操作的時間、幀率、記憶體用量
