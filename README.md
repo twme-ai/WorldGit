@@ -1,4 +1,4 @@
-# WorldGit（工作名稱）
+# WorldGit
 
 > 把 git 的「平行時空」模型搬進 Minecraft 世界：存檔點（commit）、分支（branch）、切換（switch）、合併（merge）、雲端同步（push / pull）。
 
@@ -19,7 +19,9 @@
 - **除了玩家以外全部預設追蹤**（所有生物、掉落物等實體、所有已生成的地形），不想追蹤的用 `.wgignore` 排除
 - **Paper 插件、Fabric 模組、CLI、網頁 Hub 四端同等優先**，主要使用者是多人伺服器；Fabric 模組同時是 Paper 伺服器玩家的客戶端顯示端
 - 首發支援 **Paper / Fabric 的 1.21.11 與 26.2**，長期越廣越好
-- 網頁 Hub **自架與公開服務都要**
+- 網頁 Hub **自架與公開服務都要**；後端 Java，前端全新撰寫
+- **Folia 首發就支援**
+- 切換分支時**不移動玩家**，只給短暫的傷害保護
 
 詳見 [docs/09-roadmap-open-questions.md](docs/09-roadmap-open-questions.md)。
 
@@ -37,6 +39,7 @@
 | [docs/07-remote-hub.md](docs/07-remote-hub.md) | push / pull / clone 與網頁端 Hub（PR、預覽、下載） |
 | [docs/08-architecture.md](docs/08-architecture.md) | 四個端（core / 插件 / 模組 / CLI / 網頁）的切分與技術選型 |
 | [docs/09-roadmap-open-questions.md](docs/09-roadmap-open-questions.md) | 分階段路線圖與**待討論的決策清單** |
+| [docs/10-web-frontend.md](docs/10-web-frontend.md) | 網頁前端（全新撰寫）與 3D 世界檢視器的設計 |
 
 ## 一句話架構
 

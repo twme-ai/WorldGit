@@ -25,7 +25,7 @@
 | Repo 首頁 | 俯視地圖（類 BlueMap/squaremap 的 tile），分支選單 |
 | Commit 列表 | 每個 commit 附變動區域縮圖、作者、+/-/~ 統計；auto commit 折疊 |
 | 實體檢視 | 生物也會出現在 3D 檢視中（使用簡化模型或圖示標記），diff 中標出新增/移除/移動 |
-| Commit / Diff 檢視 | 3D 檢視器（可沿用 BlockForge 的真實方塊模型渲染），新增/移除/修改上色，地圖上標出變動 chunk |
+| Commit / Diff 檢視 | 3D 檢視器（全新撰寫，見 [10](10-web-frontend.md)），新增/移除/修改上色，地圖上標出變動 chunk |
 | Pull Request | diff、座標釘選留言（「這裡的屋頂可以再高兩格」→ 留言帶 x,y,z，遊戲內可看到）、衝突解決（見 [06](06-diff-merge.md)）、合併按鈕 |
 | Release | tag 對應的世界 zip 下載（由 Hub 從物件組出 region 檔） |
 | 權限 | 誰可以 push 到哪個分支；受保護分支（main 只能經 PR） |

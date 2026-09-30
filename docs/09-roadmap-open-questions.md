@@ -11,6 +11,10 @@
 | 4 | 支援範圍 | 長期越廣越好；**首發 Paper 與 Fabric 的 1.21.11 與 26.2** | [08](08-architecture.md) §5 |
 | 5 | 網頁端 | 類 GitHub 的網頁檢視端是正式目標（原始筆記中「用不到」為筆誤） | [07](07-remote-hub.md) |
 | 6 | Hub 部署 | **自架與公開服務都要**，同一套程式碼、多租戶設計 | [07](07-remote-hub.md) §4 |
+| 7 | 切換時的玩家 | **不移動玩家**；切換後給短暫的窒息/摔落傷害保護；可在設定改成移到安全位置 | [05](05-switch-restore.md) §1 |
+| 8 | Hub 技術棧 | 後端 **Java**（Spring Boot + JGit `GitServlet`）；前端**全新撰寫**，不沿用 BlockForge | [08](08-architecture.md) §3、[10](10-web-frontend.md) |
+| 9 | Folia | **首發支援**，同一個插件 jar | [08](08-architecture.md) §7 |
+| 10 | 專案名稱 | **WorldGit** | |
 
 ## 路線圖（四端並行）
 
@@ -18,12 +22,12 @@
 
 | 階段 | core | CLI | Paper 插件 | Fabric 模組 | 網頁 Hub |
 |---|---|---|---|---|---|
-| **Phase 0：技術驗證** | Anvil 讀取、正規化（方塊 + 生物）、section 雜湊、JGit 映射原型；1.21.11 與 26.2 存檔差異盤點 | 量測工具 | 線上 chunk 快照與 section 替換的 PoC（兩個版本） | 客戶端鬼影渲染 PoC；插件 ↔ 模組握手 PoC | 從 JGit repo 讀出一個 commit，用 BlockForge 渲染器顯示 |
+| **Phase 0：技術驗證** | Anvil 讀取、正規化（方塊 + 生物）、section 雜湊、JGit 映射原型；1.21.11 與 26.2 存檔差異盤點 | 量測工具 | 線上 chunk 快照與 section 替換的 PoC（兩個版本，Paper 與 Folia） | 客戶端鬼影渲染 PoC；插件 ↔ 模組握手 PoC | 新的 3D 檢視器原型：從 JGit repo 讀出一個 commit 並顯示 |
 | **Phase 1：存檔點與檢視** | commit、log、tree diff、方塊/實體 diff | `init` `status` `commit` `log` `diff` | `/wg commit` `status` `log`、自動 commit（登出/定時）、作者歸屬 | 單人世界的 commit/log；連上插件時顯示 status/diff 描邊 | repo 首頁、commit 列表、單一 commit 的 3D 檢視與 diff 上色 |
 | **Phase 2：復原與切換** | 套用 patch、stash、DataFixer 升級流程 | `restore` `switch` `branch` `reset` | `/wg restore`（選取範圍）、原地 `switch`、玩家安全處理 | `/wg preview` 客戶端鬼影預覽另一個 commit；單人世界 switch/restore | 分支瀏覽、兩個 commit 的比較檢視 |
 | **Phase 3：合併** | 三方合併、衝突分群、生物 UUID 合併、合併後鄰居形狀修正 | `merge` `merge --abort` `revert` `cherry-pick` | 合併中狀態、合併工具（ours/theirs/base 原地切換）、衝突 GUI | 衝突清單 UI、ours/theirs 疊圖預覽 | 衝突區域檢視與選擇 |
 | **Phase 4：遠端協作** | push/pull 流程、權限 | `push` `pull` `clone`（產出可直接開的世界） | 遊戲內 `/wg push/pull/pr` | 同左（單人） | 帳號與權限、PR、座標留言、release 下載 |
-| **之後** | 自製儲存後端（視量測）、sparse clone | | worktree 世界、Folia、更多版本 | 更多版本 | blame、hooks、俯視地圖 tile |
+| **之後** | 自製儲存後端（視量測）、sparse clone | | worktree 世界（Folia 除外）、更多版本 | 更多版本 | blame、hooks、俯視地圖 tile |
 
 ### 各階段的驗收標準
 
@@ -35,11 +39,25 @@
 
 ## 待討論的決策
 
-1. **切換時的安全策略**：預設「原地切換 + 把卡在方塊裡的玩家移出」，還是「切換時把世界內的玩家傳出去」？
-2. **Hub 技術棧**：後端 Kotlin/Ktor（直接重用 core），前端沿用 BlockForge 的渲染器——同意嗎？
-3. **與 CoreProtect 的關係**：要不要讀 CoreProtect 資料來做更精細的作者歸屬 / blame？
-4. **Folia**：列在「之後」，還是首發就要？
-5. **專案名稱**：`WorldGit` 只是工作名稱。
+1. **與 CoreProtect 的整合**：建議做成選用的軟依賴，只用來補強作者歸屬與 blame，排在 Phase 3 之後（利弊分析見下）。同意嗎？
+
+### CoreProtect 整合的利弊
+
+CoreProtect 會把每一次方塊放置/破壞、容器存取記錄到資料庫，包含玩家與時間。WorldGit 自己的歷史是「存檔點」級，兩者粒度不同。
+
+好處：
+- **逐格的 blame**：「這格是誰、在幾點放的」，比 WorldGit commit 級的作者歸屬精確得多
+- **衝突解決更好判斷**：衝突區域裡每一格可以顯示「ours 這邊是 alice 在 3 點放的、theirs 是 bob 在 5 點放的」
+- **補足作者歸屬的漏洞**：WorldGit 插件靠事件追蹤作者，會漏掉部分 WorldEdit/其他插件的改動；CoreProtect 已經處理過很多這類整合
+- **既有資料**：伺服器在導入 WorldGit 之前累積的 CoreProtect 紀錄，也能拿來回答「這棟建築是誰蓋的」
+
+壞處：
+- **只有 Paper 有**：Fabric 端沒有 CoreProtect（Fabric 上對應的是 Ledger），兩邊體驗會不一致，要嘛再整合 Ledger，要嘛接受差異
+- **兩份歷史會互相干擾**：WorldGit 的 switch/restore 若透過一般 API 改方塊，會在 CoreProtect 裡灌進大量「假」紀錄；若繞過 API，CoreProtect 的紀錄又會跟世界現況對不上。切換分支後，CoreProtect 的「誰放的」可能指向另一個時空的方塊
+- **效能**：大伺服器的 CoreProtect 資料庫動輒數千萬筆，逐格查詢要做快取與批次
+- **多一個相依的版本相容性**：CoreProtect 的 API 版本要跟著 1.21.11 / 26.2 / Folia 一起測
+
+建議：做成**選用的軟依賴**（沒裝 CoreProtect 也完全正常），只讀取、不寫入；只用在 blame 和衝突 UI 的「誰放的」提示；WorldGit 自己的作者追蹤仍是主要來源。排在 Phase 3（合併）之後，因為那時衝突 UI 才真正用得上。
 
 ## Phase 0 要驗證的技術風險
 
@@ -52,4 +70,5 @@
 - [ ] 在 Paper 上替換已載入 chunk 的 section 後，客戶端更新與實體同步的正確做法（兩個版本）
 - [ ] 1.21.11 與 26.2 的存檔目錄結構與 chunk/實體 NBT 差異
 - [ ] 大世界的 init 耗時與 repo 大小；在 GitHub/Gitea 上 push/clone 的實際表現
-- [ ] BlockForge 渲染器對 1.21.11 資源的支援程度
+- [ ] 新 3D 檢視器在大範圍（數千 chunk）下的效能：網格生成速度、記憶體、瀏覽器端幀率
+- [ ] Folia 在 1.21.11 / 26.2 的釋出狀態，以及 region 排程下 switch 大量 chunk 的效能
