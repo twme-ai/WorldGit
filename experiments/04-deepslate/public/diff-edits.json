@@ -1,0 +1,19 @@
+{
+  "note": "模擬「另一個 commit」：在 JSON 層面對場景改幾格方塊。座標對應 experiments/00-env/scene.txt。",
+  "ops": [
+    { "op": "set", "pos": [1, 150, 1], "state": "minecraft:spruce_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]" },
+    { "op": "set", "pos": [12, 150, 8], "state": "minecraft:blue_stained_glass_pane[east=false,north=false,south=false,west=false,waterlogged=false]" },
+    { "op": "set", "pos": [5, 150, 19], "state": "minecraft:snow[layers=6]" },
+    { "op": "set", "pos": [1, 150, 11], "state": "minecraft:oak_door[half=lower,facing=east,hinge=left,open=true,powered=false]" },
+    { "op": "set", "pos": [2, 150, 7], "state": "minecraft:air" },
+    { "op": "set", "pos": [2, 150, 8], "state": "minecraft:air" },
+    { "op": "set", "pos": [7, 151, 7], "state": "minecraft:air" },
+    { "op": "set", "pos": [8, 150, 15], "state": "minecraft:air" },
+    { "op": "fill", "from": [14, 150, 1], "to": [15, 152, 2], "state": "minecraft:diamond_block" },
+    { "op": "set", "pos": [14, 153, 1], "state": "minecraft:lantern[hanging=false,waterlogged=false]" },
+    { "op": "fill", "from": [44, 150, 24], "to": [46, 152, 26], "state": "minecraft:gold_block" },
+    { "op": "fill", "from": [10, 149, 28], "to": [13, 149, 31], "state": "minecraft:air" },
+    { "op": "fill", "from": [15, 149, 33], "to": [16, 149, 34], "state": "minecraft:air" },
+    { "op": "fill", "from": [15, 150, 36], "to": [16, 151, 36], "state": "minecraft:emerald_block" }
+  ]
+}

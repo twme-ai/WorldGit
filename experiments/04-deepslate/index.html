@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>WorldGit x deepslate experiment</title>
+<style>
+  html,body{margin:0;height:100%;background:#111;color:#eee;font:12px/1.4 system-ui,sans-serif;overflow:hidden}
+  canvas{position:absolute;left:0;top:0}
+  #panel{position:absolute;left:8px;top:8px;background:#000a;padding:8px;border-radius:6px;max-width:330px;z-index:2}
+  #panel select,#panel button{margin:2px 2px 2px 0;font-size:12px}
+  #stats{white-space:pre;font:11px/1.35 ui-monospace,monospace;margin-top:6px}
+  #legend{position:absolute;right:8px;top:8px;background:#000a;padding:6px 8px;border-radius:6px;display:none;z-index:2}
+  #legend i{display:inline-block;width:10px;height:10px;margin:0 4px 0 8px;vertical-align:middle}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas><canvas id="ov"></canvas>
+<div id="panel">
+  <div>
+    ver <select id="ver"><option>1.21.11</option><option>26.2</option></select>
+    area <select id="size"><option value="scene">scene 7x6</option><option value="4x4">4x4</option><option value="16x16">16x16</option></select>
+    view <select id="view"><option value="B">B (new)</option><option value="A">A (old)</option><option value="D">diff</option></select>
+  </div>
+  <div><label><input type="checkbox" id="only"> only changed</label>
+  <label><input type="checkbox" id="labels" checked> entity/sign labels</label></div>
+  <div id="cams"></div>
+  <div id="stats">loading...</div>
+</div>
+<div id="legend"><i style="background:#3f3"></i>added<i style="background:#f33"></i>removed (ghost)<i style="background:#fd2"></i>modified</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

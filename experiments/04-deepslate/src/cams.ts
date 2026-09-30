@@ -1,0 +1,15 @@
+export const CAMS: Record<string, { pos: [number, number, number]; at: [number, number, number] }> = {
+  overview: { pos: [30, 172, 62], at: [28, 150, 14] },
+  stairs: { pos: [6, 153, -3], at: [6, 150, 2.2] },
+  fences: { pos: [7, 153, 2.3], at: [7, 150.2, 7.2] },
+  doors: { pos: [5.5, 153, 6.3], at: [5.5, 150.5, 11] },
+  redstone: { pos: [8.5, 154, 9.5], at: [8.5, 150, 15] },
+  plants: { pos: [9.5, 154.5, 13], at: [9.5, 150, 19] },
+  fluids: { pos: [24, 154, 14.5], at: [24, 150.5, 20] },
+  blockentities: { pos: [10, 155, 17.5], at: [10, 150.5, 24] },
+  signbanner: { pos: [4, 152.3, 20.5], at: [4.5, 151, 24.5] },
+  entities: { pos: [36, 155, -5], at: [35, 151, 10] },
+  diff: { pos: [28, 162, 40], at: [24, 150, 24] },
+  diff2: { pos: [18, 156, 38], at: [14, 149, 32] },
+  terrain: { pos: [0, 100, -75], at: [0, 55, 5] },
+}
