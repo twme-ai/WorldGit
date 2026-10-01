@@ -1,0 +1,31 @@
+{
+  "name": "worldgit-viewer-scale-experiment",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "data": "tsx scripts/prepare.ts",
+    "check": "tsx scripts/check.ts",
+    "bench": "node scripts/bench-browser.mjs",
+    "all": "bash scripts/run.sh"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "deepslate": "0.27.2",
+    "gl-matrix": "^3.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/pngjs": "^6.0.5",
+    "playwright-core": "^1.63.0",
+    "pngjs": "^7.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1"
+  },
+  "private": true
+}

@@ -1,0 +1,2752 @@
+{
+  "date": "2026-10-01T01:34:29.786Z",
+  "lock": "/root/projects/ProjectCollection/WorldGit/.work/bench.lock (held for entire browser run)",
+  "conditions": {
+    "cpus": 3,
+    "cpu": "AMD EPYC 7402P 24-Core Processor",
+    "ramBytes": 20973084672,
+    "viewport": [
+      1280,
+      720
+    ],
+    "canvas": [
+      1280,
+      644
+    ],
+    "build": "Vite production build served by preview 127.0.0.1:5187",
+    "repetitions": 1,
+    "vertexBytes": 24,
+    "meshDedup": false,
+    "chromium": "154.0.8037.92"
+  },
+  "mesh": [
+    {
+      "dataset": "baseline",
+      "chunks": 626,
+      "workers": 1,
+      "wallMs": 14301.20000000298,
+      "wallPerChunkMs": 22.845367412145336,
+      "meshElapsedSumMs": 12966.699999973178,
+      "meshElapsedPerChunkMs": 20.713578274717538,
+      "triangles": 2746582,
+      "vertexBytes": 131835936,
+      "bytesPerVertex": 24,
+      "unitFaces": 1623351,
+      "greedyQuads": 625476,
+      "chunkTime": {
+        "mean": 20.736261980852095,
+        "p50": 19.400000005960464,
+        "p95": 33.29999999701977
+      },
+      "workerLast": [
+        {
+          "bytes": 600960,
+          "triangles": 12520,
+          "unitFaces": 9210,
+          "greedyQuads": 2356,
+          "meshMs": 62.29999999701977,
+          "times": [
+            38,
+            24.5
+          ],
+          "wallMs": 62.79999999701977,
+          "payloadBytes": 1113563,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 3155856,
+          "cacheMisses": 1137
+        }
+      ],
+      "mainHeap": 8068932,
+      "memory": {
+        "main": {
+          "usedSize": 3727264,
+          "totalSize": 4517888,
+          "embedderHeapUsedSize": 433056,
+          "backingStorageSize": 22055
+        },
+        "workers": [
+          {
+            "usedSize": 4809816,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 284880,
+            "backingStorageSize": 6946984
+          }
+        ],
+        "totalJsHeapUsed": 8537080,
+        "totalBackingStorage": 6969039,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "baseline",
+      "chunks": 626,
+      "workers": 2,
+      "wallMs": 8742.20000000298,
+      "wallPerChunkMs": 13.965175718854601,
+      "meshElapsedSumMs": 14249.69999999553,
+      "meshElapsedPerChunkMs": 22.763099041526406,
+      "triangles": 2746582,
+      "vertexBytes": 131835936,
+      "bytesPerVertex": 24,
+      "unitFaces": 1623351,
+      "greedyQuads": 625476,
+      "chunkTime": {
+        "mean": 22.805431309897013,
+        "p50": 20.700000002980232,
+        "p95": 36.20000000298023
+      },
+      "workerLast": [
+        {
+          "bytes": 2195616,
+          "triangles": 45742,
+          "unitFaces": 21470,
+          "greedyQuads": 4163,
+          "meshMs": 227.29999999701977,
+          "times": [
+            32.20000000298023,
+            32,
+            21.299999997019768,
+            17.799999997019768,
+            16.400000005960464,
+            31.69999999552965,
+            34.80000000447035,
+            41.29999999701977
+          ],
+          "wallMs": 243.30000000447035,
+          "payloadBytes": 1125487,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 1607981,
+          "cacheMisses": 838
+        },
+        {
+          "bytes": 600960,
+          "triangles": 12520,
+          "unitFaces": 9210,
+          "greedyQuads": 2356,
+          "meshMs": 55.900000005960464,
+          "times": [
+            32.30000000447035,
+            23.600000001490116
+          ],
+          "wallMs": 60.399999998509884,
+          "payloadBytes": 1120893,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 1547422,
+          "cacheMisses": 943
+        }
+      ],
+      "mainHeap": 8003629,
+      "memory": {
+        "main": {
+          "usedSize": 3727420,
+          "totalSize": 4780032,
+          "embedderHeapUsedSize": 434888,
+          "backingStorageSize": 22055
+        },
+        "workers": [
+          {
+            "usedSize": 4674312,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 303464,
+            "backingStorageSize": 6553516
+          },
+          {
+            "usedSize": 4745872,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 282608,
+            "backingStorageSize": 6761498
+          }
+        ],
+        "totalJsHeapUsed": 13147604,
+        "totalBackingStorage": 13337069,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "baseline",
+      "chunks": 626,
+      "workers": 3,
+      "wallMs": 7030.5,
+      "wallPerChunkMs": 11.230830670926517,
+      "meshElapsedSumMs": 16706.09999998659,
+      "meshElapsedPerChunkMs": 26.687060702853977,
+      "triangles": 2746582,
+      "vertexBytes": 131835936,
+      "bytesPerVertex": 24,
+      "unitFaces": 1623351,
+      "greedyQuads": 625476,
+      "chunkTime": {
+        "mean": 26.740415335439454,
+        "p50": 23.399999998509884,
+        "p95": 48.5
+      },
+      "workerLast": [
+        {
+          "bytes": 600960,
+          "triangles": 12520,
+          "unitFaces": 9210,
+          "greedyQuads": 2356,
+          "meshMs": 61.80000000447035,
+          "times": [
+            37.5,
+            24.399999998509884
+          ],
+          "wallMs": 89.09999999403954,
+          "payloadBytes": 1134250,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 1041353,
+          "cacheMisses": 725
+        },
+        {
+          "bytes": 1781760,
+          "triangles": 37120,
+          "unitFaces": 25234,
+          "greedyQuads": 5665,
+          "meshMs": 214,
+          "times": [
+            25.799999997019768,
+            14,
+            19.799999997019768,
+            17.900000005960464,
+            38.100000001490116,
+            34.70000000298023,
+            31.899999998509884,
+            32
+          ],
+          "wallMs": 223.10000000149012,
+          "payloadBytes": 1102985,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 1084428,
+          "cacheMisses": 696
+        },
+        {
+          "bytes": 2195616,
+          "triangles": 45742,
+          "unitFaces": 21470,
+          "greedyQuads": 4163,
+          "meshMs": 222.49999999254942,
+          "times": [
+            32.20000000298023,
+            30.899999998509884,
+            20.399999998509884,
+            18.30000000447035,
+            16.399999998509884,
+            31.299999997019768,
+            39,
+            34.399999998509884
+          ],
+          "wallMs": 268.8999999985099,
+          "payloadBytes": 1124499,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 1029372,
+          "cacheMisses": 801
+        }
+      ],
+      "mainHeap": 8004953,
+      "memory": {
+        "main": {
+          "usedSize": 3727920,
+          "totalSize": 4517888,
+          "embedderHeapUsedSize": 437008,
+          "backingStorageSize": 22055
+        },
+        "workers": [
+          {
+            "usedSize": 4611728,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 193608,
+            "backingStorageSize": 6331542
+          },
+          {
+            "usedSize": 4670848,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 195944,
+            "backingStorageSize": 6487607
+          },
+          {
+            "usedSize": 4677816,
+            "totalSize": 5242880,
+            "embedderHeapUsedSize": 214120,
+            "backingStorageSize": 6623248
+          }
+        ],
+        "totalJsHeapUsed": 17688312,
+        "totalBackingStorage": 19464452,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "2000",
+      "chunks": 2000,
+      "workers": 1,
+      "wallMs": 43688.39999999851,
+      "wallPerChunkMs": 21.844199999999255,
+      "meshElapsedSumMs": 39676.200000047684,
+      "meshElapsedPerChunkMs": 19.838100000023843,
+      "triangles": 8617934,
+      "vertexBytes": 413660832,
+      "bytesPerVertex": 24,
+      "unitFaces": 5091940,
+      "greedyQuads": 1987449,
+      "chunkTime": {
+        "mean": 19.855950000021608,
+        "p50": 18.399999998509884,
+        "p95": 32
+      },
+      "workerLast": [
+        {
+          "bytes": 2181408,
+          "triangles": 45446,
+          "unitFaces": 39906,
+          "greedyQuads": 12537,
+          "meshMs": 191.1000000089407,
+          "times": [
+            16.799999997019768,
+            19.5,
+            20,
+            30.100000001490116,
+            20.399999998509884,
+            29.600000001490116,
+            23.30000000447035,
+            31.700000002980232
+          ],
+          "wallMs": 191.70000000298023,
+          "payloadBytes": 1162268,
+          "decodedBytes": 4309632,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 9796573,
+          "cacheMisses": 1148
+        }
+      ],
+      "mainHeap": 4266159,
+      "memory": {
+        "main": {
+          "usedSize": 3808104,
+          "totalSize": 4517888,
+          "embedderHeapUsedSize": 432664,
+          "backingStorageSize": 22051
+        },
+        "workers": [
+          {
+            "usedSize": 4821124,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 717096,
+            "backingStorageSize": 7095081
+          }
+        ],
+        "totalJsHeapUsed": 8629228,
+        "totalBackingStorage": 7117132,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "2000",
+      "chunks": 2000,
+      "workers": 2,
+      "wallMs": 26102.79999999702,
+      "wallPerChunkMs": 13.05139999999851,
+      "meshElapsedSumMs": 42693.39999996126,
+      "meshElapsedPerChunkMs": 21.34669999998063,
+      "triangles": 8617934,
+      "vertexBytes": 413660832,
+      "bytesPerVertex": 24,
+      "unitFaces": 5091940,
+      "greedyQuads": 1987449,
+      "chunkTime": {
+        "mean": 21.376749999955297,
+        "p50": 19.400000005960464,
+        "p95": 35.600000001490116
+      },
+      "workerLast": [
+        {
+          "bytes": 1547520,
+          "triangles": 32240,
+          "unitFaces": 26700,
+          "greedyQuads": 6948,
+          "meshMs": 146.7000000104308,
+          "times": [
+            13.399999998509884,
+            15.5,
+            15.5,
+            17.100000001490116,
+            23.399999998509884,
+            18.700000002980232,
+            22.799999997019768,
+            20.400000005960464
+          ],
+          "wallMs": 167.29999999701977,
+          "payloadBytes": 1161289,
+          "decodedBytes": 4375680,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 4826030,
+          "cacheMisses": 1083
+        },
+        {
+          "bytes": 2181408,
+          "triangles": 45446,
+          "unitFaces": 39906,
+          "greedyQuads": 12537,
+          "meshMs": 181.59999999403954,
+          "times": [
+            17,
+            20.69999999552965,
+            22.399999998509884,
+            22.900000005960464,
+            19.299999997019768,
+            26.100000001490116,
+            22.799999997019768,
+            30.600000001490116
+          ],
+          "wallMs": 200.60000000149012,
+          "payloadBytes": 1156467,
+          "decodedBytes": 4260096,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 4969728,
+          "cacheMisses": 1071
+        }
+      ],
+      "mainHeap": 10223655,
+      "memory": {
+        "main": {
+          "usedSize": 3808248,
+          "totalSize": 4517888,
+          "embedderHeapUsedSize": 433280,
+          "backingStorageSize": 22051
+        },
+        "workers": [
+          {
+            "usedSize": 4783756,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 706128,
+            "backingStorageSize": 7083094
+          },
+          {
+            "usedSize": 4788036,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 706184,
+            "backingStorageSize": 6964208
+          }
+        ],
+        "totalJsHeapUsed": 13380040,
+        "totalBackingStorage": 14069353,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "2000",
+      "chunks": 2000,
+      "workers": 3,
+      "wallMs": 21489.39999999851,
+      "wallPerChunkMs": 10.744699999999256,
+      "meshElapsedSumMs": 51036.60000017285,
+      "meshElapsedPerChunkMs": 25.518300000086427,
+      "triangles": 8617934,
+      "vertexBytes": 413660832,
+      "bytesPerVertex": 24,
+      "unitFaces": 5091940,
+      "greedyQuads": 1987449,
+      "chunkTime": {
+        "mean": 25.57110000001639,
+        "p50": 22.80000000447035,
+        "p95": 47.100000001490116
+      },
+      "workerLast": [
+        {
+          "bytes": 1547520,
+          "triangles": 32240,
+          "unitFaces": 26700,
+          "greedyQuads": 6948,
+          "meshMs": 169.39999999850988,
+          "times": [
+            15.699999995529652,
+            14.800000004470348,
+            22.399999998509884,
+            20.69999999552965,
+            28.100000001490116,
+            20.5,
+            25.200000002980232,
+            22.19999999552965
+          ],
+          "wallMs": 233.89999999850988,
+          "payloadBytes": 1177779,
+          "decodedBytes": 4375680,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 3245378,
+          "cacheMisses": 1007
+        },
+        {
+          "bytes": 1421856,
+          "triangles": 29622,
+          "unitFaces": 25268,
+          "greedyQuads": 5020,
+          "meshMs": 176.70000000298023,
+          "times": [
+            32.899999998509884,
+            33.100000001490116,
+            33.399999998509884,
+            13.5,
+            13.800000004470348,
+            18.19999999552965,
+            16.80000000447035,
+            15
+          ],
+          "wallMs": 270.5,
+          "payloadBytes": 1170693,
+          "decodedBytes": 4375680,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 3257547,
+          "cacheMisses": 934
+        },
+        {
+          "bytes": 2181408,
+          "triangles": 45446,
+          "unitFaces": 39906,
+          "greedyQuads": 12537,
+          "meshMs": 180.89999999850988,
+          "times": [
+            23.5,
+            18.299999997019768,
+            20,
+            20.700000002980232,
+            17.700000002980232,
+            26.69999999552965,
+            22.399999998509884,
+            31.80000000447035
+          ],
+          "wallMs": 188.70000000298023,
+          "payloadBytes": 1163257,
+          "decodedBytes": 4309632,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 3292212,
+          "cacheMisses": 1025
+        }
+      ],
+      "mainHeap": 10186775,
+      "memory": {
+        "main": {
+          "usedSize": 3808716,
+          "totalSize": 4255744,
+          "embedderHeapUsedSize": 435400,
+          "backingStorageSize": 22051
+        },
+        "workers": [
+          {
+            "usedSize": 4760140,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 526848,
+            "backingStorageSize": 6921350
+          },
+          {
+            "usedSize": 4772120,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 507808,
+            "backingStorageSize": 7036768
+          },
+          {
+            "usedSize": 4731728,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 506784,
+            "backingStorageSize": 6870562
+          }
+        ],
+        "totalJsHeapUsed": 18072704,
+        "totalBackingStorage": 20850731,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "5000",
+      "chunks": 5000,
+      "workers": 1,
+      "wallMs": 109276.70000000298,
+      "wallPerChunkMs": 21.855340000000595,
+      "meshElapsedSumMs": 99688.69999996573,
+      "meshElapsedPerChunkMs": 19.937739999993145,
+      "triangles": 21663962,
+      "vertexBytes": 1039870176,
+      "bytesPerVertex": 24,
+      "unitFaces": 12541294,
+      "greedyQuads": 4955203,
+      "chunkTime": {
+        "mean": 19.95690000001192,
+        "p50": 18.5,
+        "p95": 32.099999994039536
+      },
+      "workerLast": [
+        {
+          "bytes": 2145216,
+          "triangles": 44692,
+          "unitFaces": 26280,
+          "greedyQuads": 5750,
+          "meshMs": 226.89999999850988,
+          "times": [
+            24.099999994039536,
+            17.80000000447035,
+            25.899999998509884,
+            29.100000001490116,
+            29.100000001490116,
+            33.29999999701977,
+            31.600000001490116,
+            36
+          ],
+          "wallMs": 227.19999999552965,
+          "payloadBytes": 1125526,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 25199704,
+          "cacheMisses": 1147
+        }
+      ],
+      "mainHeap": 4997023,
+      "memory": {
+        "main": {
+          "usedSize": 4036640,
+          "totalSize": 4780032,
+          "embedderHeapUsedSize": 433056,
+          "backingStorageSize": 22051
+        },
+        "workers": [
+          {
+            "usedSize": 4857520,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 1787360,
+            "backingStorageSize": 6974963
+          }
+        ],
+        "totalJsHeapUsed": 8894160,
+        "totalBackingStorage": 6997014,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "5000",
+      "chunks": 5000,
+      "workers": 2,
+      "wallMs": 65572.10000000149,
+      "wallPerChunkMs": 13.114420000000298,
+      "meshElapsedSumMs": 107088.30000033975,
+      "meshElapsedPerChunkMs": 21.41766000006795,
+      "triangles": 21663962,
+      "vertexBytes": 1039870176,
+      "bytesPerVertex": 24,
+      "unitFaces": 12541294,
+      "greedyQuads": 4955203,
+      "chunkTime": {
+        "mean": 21.439940000030397,
+        "p50": 19.700000002980232,
+        "p95": 35.29999999701977
+      },
+      "workerLast": [
+        {
+          "bytes": 1627296,
+          "triangles": 33902,
+          "unitFaces": 29036,
+          "greedyQuads": 7609,
+          "meshMs": 152.7000000104308,
+          "times": [
+            16,
+            17.5,
+            18.399999998509884,
+            19.600000001490116,
+            19.799999997019768,
+            28,
+            21.399999998509884,
+            12.200000002980232
+          ],
+          "wallMs": 167.89999999850988,
+          "payloadBytes": 1127720,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 12672596,
+          "cacheMisses": 1139
+        },
+        {
+          "bytes": 2145216,
+          "triangles": 44692,
+          "unitFaces": 26280,
+          "greedyQuads": 5750,
+          "meshMs": 202.69999999552965,
+          "times": [
+            16,
+            18,
+            23.600000001490116,
+            25.899999998509884,
+            27.5,
+            27.799999997019768,
+            30.5,
+            33.5
+          ],
+          "wallMs": 218.20000000298023,
+          "payloadBytes": 1138976,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 12526160,
+          "cacheMisses": 1147
+        }
+      ],
+      "mainHeap": 5126803,
+      "memory": {
+        "main": {
+          "usedSize": 4036784,
+          "totalSize": 4780032,
+          "embedderHeapUsedSize": 434408,
+          "backingStorageSize": 22051
+        },
+        "workers": [
+          {
+            "usedSize": 4849768,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 1761480,
+            "backingStorageSize": 6988413
+          },
+          {
+            "usedSize": 4850096,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 1755048,
+            "backingStorageSize": 6970085
+          }
+        ],
+        "totalJsHeapUsed": 13736648,
+        "totalBackingStorage": 13980549,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "5000",
+      "chunks": 5000,
+      "workers": 3,
+      "wallMs": 52151.09999999404,
+      "wallPerChunkMs": 10.430219999998808,
+      "meshElapsedSumMs": 125032.09999992698,
+      "meshElapsedPerChunkMs": 25.006419999985397,
+      "triangles": 21663962,
+      "vertexBytes": 1039870176,
+      "bytesPerVertex": 24,
+      "unitFaces": 12541294,
+      "greedyQuads": 4955203,
+      "chunkTime": {
+        "mean": 25.04170000000298,
+        "p50": 22.700000002980232,
+        "p95": 43.399999998509884
+      },
+      "workerLast": [
+        {
+          "bytes": 1627296,
+          "triangles": 33902,
+          "unitFaces": 29036,
+          "greedyQuads": 7609,
+          "meshMs": 163,
+          "times": [
+            16.69999999552965,
+            16.30000000447035,
+            20.100000001490116,
+            23.799999997019768,
+            18.100000001490116,
+            29.799999997019768,
+            25.899999998509884,
+            12.600000001490116
+          ],
+          "wallMs": 171.29999999701977,
+          "payloadBytes": 1141951,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 8154372,
+          "cacheMisses": 1136
+        },
+        {
+          "bytes": 2312640,
+          "triangles": 48180,
+          "unitFaces": 27588,
+          "greedyQuads": 6917,
+          "meshMs": 248.09999999403954,
+          "times": [
+            21.299999997019768,
+            32.20000000298023,
+            37.69999999552965,
+            35.20000000298023,
+            35.5,
+            33.79999999701977,
+            31.899999998509884,
+            20.600000001490116
+          ],
+          "wallMs": 256.1000000014901,
+          "payloadBytes": 1154252,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 8338313,
+          "cacheMisses": 1136
+        },
+        {
+          "bytes": 2145216,
+          "triangles": 44692,
+          "unitFaces": 26280,
+          "greedyQuads": 5750,
+          "meshMs": 215.39999999850988,
+          "times": [
+            15.899999998509884,
+            16.5,
+            28.80000000447035,
+            29.899999998509884,
+            28.100000001490116,
+            31,
+            31.69999999552965,
+            33.600000001490116
+          ],
+          "wallMs": 222,
+          "payloadBytes": 1108492,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 8705165,
+          "cacheMisses": 1111
+        }
+      ],
+      "mainHeap": 5068399,
+      "memory": {
+        "main": {
+          "usedSize": 4037284,
+          "totalSize": 4780032,
+          "embedderHeapUsedSize": 434696,
+          "backingStorageSize": 22051
+        },
+        "workers": [
+          {
+            "usedSize": 4826008,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 1161456,
+            "backingStorageSize": 6900105
+          },
+          {
+            "usedSize": 4839108,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 1089744,
+            "backingStorageSize": 6985593
+          },
+          {
+            "usedSize": 4858332,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 1132944,
+            "backingStorageSize": 6985564
+          }
+        ],
+        "totalJsHeapUsed": 18560732,
+        "totalBackingStorage": 20893313,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "10000",
+      "chunks": 10000,
+      "workers": 1,
+      "wallMs": 218892.1000000015,
+      "wallPerChunkMs": 21.889210000000148,
+      "meshElapsedSumMs": 198909.50000000745,
+      "meshElapsedPerChunkMs": 19.890950000000746,
+      "triangles": 43323078,
+      "vertexBytes": 2079507744,
+      "bytesPerVertex": 24,
+      "unitFaces": 25068642,
+      "greedyQuads": 9909048,
+      "chunkTime": {
+        "mean": 19.908459999994932,
+        "p50": 18.5,
+        "p95": 32.19999999552965
+      },
+      "workerLast": [
+        {
+          "bytes": 1664352,
+          "triangles": 34674,
+          "unitFaces": 30859,
+          "greedyQuads": 7786,
+          "meshMs": 181.90000000596046,
+          "times": [
+            21.100000001490116,
+            20.799999997019768,
+            24.100000001490116,
+            25.69999999552965,
+            21.600000001490116,
+            33.899999998509884,
+            20.600000001490116,
+            14.200000002980232
+          ],
+          "wallMs": 182.20000000298023,
+          "payloadBytes": 1139808,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 50411878,
+          "cacheMisses": 1147
+        }
+      ],
+      "mainHeap": 5814496,
+      "memory": {
+        "main": {
+          "usedSize": 4382424,
+          "totalSize": 5537792,
+          "embedderHeapUsedSize": 433064,
+          "backingStorageSize": 22052
+        },
+        "workers": [
+          {
+            "usedSize": 4867496,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 3497752,
+            "backingStorageSize": 6989245
+          }
+        ],
+        "totalJsHeapUsed": 9249920,
+        "totalBackingStorage": 7011297,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "10000",
+      "chunks": 10000,
+      "workers": 2,
+      "wallMs": 138533.6000000015,
+      "wallPerChunkMs": 13.85336000000015,
+      "meshElapsedSumMs": 226352.69999997318,
+      "meshElapsedPerChunkMs": 22.635269999997316,
+      "triangles": 43323078,
+      "vertexBytes": 2079507744,
+      "bytesPerVertex": 24,
+      "unitFaces": 25068642,
+      "greedyQuads": 9909048,
+      "chunkTime": {
+        "mean": 22.65910000000447,
+        "p50": 20.5,
+        "p95": 39.399999998509884
+      },
+      "workerLast": [
+        {
+          "bytes": 1664352,
+          "triangles": 34674,
+          "unitFaces": 30859,
+          "greedyQuads": 7786,
+          "meshMs": 155.70000000298023,
+          "times": [
+            15.299999997019768,
+            15.5,
+            19.30000000447035,
+            18,
+            16.100000001490116,
+            26.399999998509884,
+            30.600000001490116,
+            14.5
+          ],
+          "wallMs": 170.5,
+          "payloadBytes": 1124945,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 25233400,
+          "cacheMisses": 1143
+        },
+        {
+          "bytes": 2312640,
+          "triangles": 48180,
+          "unitFaces": 27588,
+          "greedyQuads": 6917,
+          "meshMs": 229.6000000089407,
+          "times": [
+            16.400000005960464,
+            21.399999998509884,
+            37,
+            32.600000001490116,
+            31.599999994039536,
+            31,
+            39.30000000447035,
+            20.5
+          ],
+          "wallMs": 251.40000000596046,
+          "payloadBytes": 1137147,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 25177532,
+          "cacheMisses": 1141
+        }
+      ],
+      "mainHeap": 5584344,
+      "memory": {
+        "main": {
+          "usedSize": 4382536,
+          "totalSize": 5275648,
+          "embedderHeapUsedSize": 433680,
+          "backingStorageSize": 22052
+        },
+        "workers": [
+          {
+            "usedSize": 4864524,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 3443456,
+            "backingStorageSize": 6971262
+          },
+          {
+            "usedSize": 4851444,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 3448808,
+            "backingStorageSize": 6978472
+          }
+        ],
+        "totalJsHeapUsed": 14098504,
+        "totalBackingStorage": 13971786,
+        "complete": true
+      }
+    },
+    {
+      "dataset": "10000",
+      "chunks": 10000,
+      "workers": 3,
+      "wallMs": 105670.39999999851,
+      "wallPerChunkMs": 10.567039999999851,
+      "meshElapsedSumMs": 253313.3000002727,
+      "meshElapsedPerChunkMs": 25.33133000002727,
+      "triangles": 43323078,
+      "vertexBytes": 2079507744,
+      "bytesPerVertex": 24,
+      "unitFaces": 25068642,
+      "greedyQuads": 9909048,
+      "chunkTime": {
+        "mean": 25.36012000001371,
+        "p50": 23,
+        "p95": 45.5
+      },
+      "workerLast": [
+        {
+          "bytes": 1664352,
+          "triangles": 34674,
+          "unitFaces": 30859,
+          "greedyQuads": 7786,
+          "meshMs": 182.6000000089407,
+          "times": [
+            20,
+            15.300000004470348,
+            24,
+            21.099999994039536,
+            22.5,
+            41.100000001490116,
+            22.200000002980232,
+            16.5
+          ],
+          "wallMs": 220.5,
+          "payloadBytes": 1150932,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 17335912,
+          "cacheMisses": 1142
+        },
+        {
+          "bytes": 2226048,
+          "triangles": 46376,
+          "unitFaces": 26071,
+          "greedyQuads": 6179,
+          "meshMs": 330.90000000596046,
+          "times": [
+            42.79999999701977,
+            49.30000000447035,
+            20.19999999552965,
+            21.700000002980232,
+            80.19999999552965,
+            42.900000005960464,
+            42.79999999701977,
+            31.200000002980232
+          ],
+          "wallMs": 339.8999999985099,
+          "payloadBytes": 1125108,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 16670098,
+          "cacheMisses": 1139
+        },
+        {
+          "bytes": 2312640,
+          "triangles": 48180,
+          "unitFaces": 27588,
+          "greedyQuads": 6917,
+          "meshMs": 274.20000000298023,
+          "times": [
+            17.899999998509884,
+            23.700000002980232,
+            37.70000000298023,
+            57.29999999701977,
+            37.399999998509884,
+            43.5,
+            32.80000000447035,
+            24.099999994039536
+          ],
+          "wallMs": 326.3999999985099,
+          "payloadBytes": 1147519,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 16403970,
+          "cacheMisses": 1146
+        }
+      ],
+      "mainHeap": 5821184,
+      "memory": {
+        "main": {
+          "usedSize": 4382928,
+          "totalSize": 5275648,
+          "embedderHeapUsedSize": 434672,
+          "backingStorageSize": 22052
+        },
+        "workers": [
+          {
+            "usedSize": 4880356,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 2170136,
+            "backingStorageSize": 6996540
+          },
+          {
+            "usedSize": 4851836,
+            "totalSize": 5505024,
+            "embedderHeapUsedSize": 2135040,
+            "backingStorageSize": 6968513
+          },
+          {
+            "usedSize": 4891736,
+            "totalSize": 5767168,
+            "embedderHeapUsedSize": 2189128,
+            "backingStorageSize": 6996625
+          }
+        ],
+        "totalJsHeapUsed": 19006856,
+        "totalBackingStorage": 20983730,
+        "complete": true
+      }
+    }
+  ],
+  "display": [
+    {
+      "dataset": "window256",
+      "initial": {
+        "dataset": "window256",
+        "chunks": 256,
+        "workers": 2,
+        "firstVisibleMs": 1329.1000000014901,
+        "firstFullVisibleMs": 1347.6999999955297,
+        "readyMs": 23692.39999999851,
+        "residentFull": 256,
+        "residentLOD": 0,
+        "vertexBuffers": 54683808,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 80452768,
+        "residentTriangles": 1139246,
+        "drawn": {
+          "meshes": 996,
+          "fullMeshes": 996,
+          "triangles": 527774,
+          "culled": 1294
+        },
+        "evictions": 0,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 1008672,
+            "triangles": 21014,
+            "unitFaces": 13530,
+            "greedyQuads": 3751,
+            "meshMs": 102.99999999254942,
+            "times": [
+              21,
+              26.30000000447035,
+              32.599999994039536,
+              23.5
+            ],
+            "wallMs": 115.19999999552965,
+            "payloadBytes": 1092651,
+            "decodedBytes": 4276608,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 593334,
+            "cacheMisses": 572
+          },
+          {
+            "bytes": 1424064,
+            "triangles": 29668,
+            "unitFaces": 23088,
+            "greedyQuads": 8473,
+            "meshMs": 124.50000000745058,
+            "times": [
+              26.900000005960464,
+              32,
+              30.799999997019768,
+              35.100000001490116
+            ],
+            "wallMs": 130,
+            "payloadBytes": 1106308,
+            "decodedBytes": 4260096,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 743500,
+            "cacheMisses": 619
+          }
+        ],
+        "mainHeap": 15206164,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 277.59999999403954,
+            "cubes": 61
+          },
+          {
+            "ms": 276.5,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 4612496,
+            "totalSize": 5304320,
+            "embedderHeapUsedSize": 1073048,
+            "backingStorageSize": 22265
+          },
+          "workers": [
+            {
+              "usedSize": 4605992,
+              "totalSize": 5505024,
+              "embedderHeapUsedSize": 162120,
+              "backingStorageSize": 6384481
+            },
+            {
+              "usedSize": 4559528,
+              "totalSize": 5505024,
+              "embedderHeapUsedSize": 162120,
+              "backingStorageSize": 6337080
+            }
+          ],
+          "totalJsHeapUsed": 13778016,
+          "totalBackingStorage": 12743826,
+          "complete": true
+        }
+      },
+      "fly": {
+        "samples": 60,
+        "renderSyncMs": {
+          "mean": 649.5550000005712,
+          "p50": 627.5,
+          "p95": 1435.3999999985099
+        },
+        "rafIntervalMs": {
+          "mean": 647.4450000000496,
+          "p50": 629,
+          "p95": 1448.7000000029802
+        },
+        "streamBatchMs": [
+          1447.4000000059605,
+          756.8000000044703,
+          689.0999999940395,
+          669.6999999955297,
+          488.80000000447035,
+          386.40000000596046
+        ],
+        "counts": [
+          {
+            "full": 256,
+            "lod": 0,
+            "bytes": 80452768,
+            "evictions": 0
+          },
+          {
+            "full": 256,
+            "lod": 0,
+            "bytes": 80452768,
+            "evictions": 0
+          },
+          {
+            "full": 256,
+            "lod": 0,
+            "bytes": 80452768,
+            "evictions": 0
+          },
+          {
+            "full": 256,
+            "lod": 0,
+            "bytes": 80452768,
+            "evictions": 0
+          },
+          {
+            "full": 256,
+            "lod": 0,
+            "bytes": 80452768,
+            "evictions": 0
+          },
+          {
+            "full": 256,
+            "lod": 0,
+            "bytes": 80452768,
+            "evictions": 0
+          }
+        ],
+        "dataset": "window256",
+        "chunks": 256,
+        "workers": 2,
+        "firstVisibleMs": 1329.1000000014901,
+        "firstFullVisibleMs": 1347.6999999955297,
+        "readyMs": 62924.5,
+        "residentFull": 256,
+        "residentLOD": 0,
+        "vertexBuffers": 54683808,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 80452768,
+        "residentTriangles": 1139246,
+        "drawn": {
+          "meshes": 519,
+          "fullMeshes": 519,
+          "triangles": 283648,
+          "culled": 1771
+        },
+        "evictions": 0,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 1008672,
+            "triangles": 21014,
+            "unitFaces": 13530,
+            "greedyQuads": 3751,
+            "meshMs": 102.99999999254942,
+            "times": [
+              21,
+              26.30000000447035,
+              32.599999994039536,
+              23.5
+            ],
+            "wallMs": 115.19999999552965,
+            "payloadBytes": 1092651,
+            "decodedBytes": 4276608,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 593334,
+            "cacheMisses": 572
+          },
+          {
+            "bytes": 1424064,
+            "triangles": 29668,
+            "unitFaces": 23088,
+            "greedyQuads": 8473,
+            "meshMs": 124.50000000745058,
+            "times": [
+              26.900000005960464,
+              32,
+              30.799999997019768,
+              35.100000001490116
+            ],
+            "wallMs": 130,
+            "payloadBytes": 1106308,
+            "decodedBytes": 4260096,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 743500,
+            "cacheMisses": 619
+          }
+        ],
+        "mainHeap": 4936057,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 277.59999999403954,
+            "cubes": 61
+          },
+          {
+            "ms": 276.5,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 4643160,
+            "totalSize": 5042176,
+            "embedderHeapUsedSize": 1115880,
+            "backingStorageSize": 22265
+          },
+          "workers": [
+            {
+              "usedSize": 4605992,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 162120,
+              "backingStorageSize": 6384481
+            },
+            {
+              "usedSize": 4559528,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 162120,
+              "backingStorageSize": 6337080
+            }
+          ],
+          "totalJsHeapUsed": 13808680,
+          "totalBackingStorage": 12743826,
+          "complete": true
+        }
+      }
+    },
+    {
+      "dataset": "baseline",
+      "initial": {
+        "dataset": "baseline",
+        "chunks": 626,
+        "workers": 2,
+        "firstVisibleMs": 813.6999999955297,
+        "firstFullVisibleMs": 1414.8999999985099,
+        "readyMs": 4543.69999999553,
+        "residentFull": 128,
+        "residentLOD": 498,
+        "vertexBuffers": 28457664,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 54226624,
+        "residentTriangles": 592868,
+        "drawn": {
+          "meshes": 454,
+          "fullMeshes": 116,
+          "triangles": 85582,
+          "culled": 1134
+        },
+        "evictions": 0,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 1248192,
+            "triangles": 26004,
+            "unitFaces": 12526,
+            "greedyQuads": 5343,
+            "meshMs": 140,
+            "times": [
+              22.399999998509884,
+              29.700000002980232,
+              37.69999999552965,
+              50.399999998509884
+            ],
+            "wallMs": 174.69999999552965,
+            "payloadBytes": 1107410,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 394902,
+            "cacheMisses": 460
+          },
+          {
+            "bytes": 807360,
+            "triangles": 16820,
+            "unitFaces": 10031,
+            "greedyQuads": 4044,
+            "meshMs": 114.10000000149012,
+            "times": [
+              44.19999999552965,
+              17.899999998509884,
+              29.5,
+              22.600000001490116
+            ],
+            "wallMs": 148.79999999701977,
+            "payloadBytes": 1116613,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 391124,
+            "cacheMisses": 401
+          }
+        ],
+        "mainHeap": 8999407,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 281.5,
+            "cubes": 61
+          },
+          {
+            "ms": 146,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 4462128,
+            "totalSize": 5304320,
+            "embedderHeapUsedSize": 862376,
+            "backingStorageSize": 22264
+          },
+          "workers": [
+            {
+              "usedSize": 4500220,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 150384,
+              "backingStorageSize": 6101058
+            },
+            {
+              "usedSize": 4527760,
+              "totalSize": 5505024,
+              "embedderHeapUsedSize": 149960,
+              "backingStorageSize": 6221439
+            }
+          ],
+          "totalJsHeapUsed": 13490108,
+          "totalBackingStorage": 12344761,
+          "complete": true
+        }
+      },
+      "fly": {
+        "samples": 60,
+        "renderSyncMs": {
+          "mean": 320.68000000119207,
+          "p50": 345.30000000447035,
+          "p95": 523.3999999985099
+        },
+        "rafIntervalMs": {
+          "mean": 359.27333333330847,
+          "p50": 384.80000000447035,
+          "p95": 628.7999999970198
+        },
+        "streamBatchMs": [
+          6856.10000000149,
+          3147.4000000059605,
+          2384.2999999970198,
+          2868.5,
+          2809.89999999851
+        ],
+        "counts": [
+          {
+            "full": 128,
+            "lod": 498,
+            "bytes": 50883136,
+            "evictions": 119
+          },
+          {
+            "full": 128,
+            "lod": 498,
+            "bytes": 50387392,
+            "evictions": 181
+          },
+          {
+            "full": 128,
+            "lod": 498,
+            "bytes": 52045984,
+            "evictions": 227
+          },
+          {
+            "full": 128,
+            "lod": 498,
+            "bytes": 54446272,
+            "evictions": 273
+          },
+          {
+            "full": 128,
+            "lod": 498,
+            "bytes": 58455616,
+            "evictions": 317
+          }
+        ],
+        "dataset": "baseline",
+        "chunks": 626,
+        "workers": 2,
+        "firstVisibleMs": 813.6999999955297,
+        "firstFullVisibleMs": 1414.8999999985099,
+        "readyMs": 27656.89999999851,
+        "residentFull": 128,
+        "residentLOD": 498,
+        "vertexBuffers": 34422816,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 60191776,
+        "residentTriangles": 717142,
+        "drawn": {
+          "meshes": 382,
+          "fullMeshes": 310,
+          "triangles": 183708,
+          "culled": 1259
+        },
+        "evictions": 339,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 512256,
+            "triangles": 10672,
+            "unitFaces": 5474,
+            "greedyQuads": 2673,
+            "meshMs": 71.20000000298023,
+            "times": [
+              30.600000001490116,
+              40.80000000447035
+            ],
+            "wallMs": 94.19999999552965,
+            "payloadBytes": 1106568,
+            "decodedBytes": 4227072,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1342204,
+            "cacheMisses": 688
+          },
+          {
+            "bytes": 969600,
+            "triangles": 20200,
+            "unitFaces": 11821,
+            "greedyQuads": 4716,
+            "meshMs": 138.20000000298023,
+            "times": [
+              51.80000000447035,
+              38.29999999701977,
+              28.100000001490116,
+              20
+            ],
+            "wallMs": 161.10000000149012,
+            "payloadBytes": 1110493,
+            "decodedBytes": 4227072,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1341665,
+            "cacheMisses": 687
+          }
+        ],
+        "mainHeap": 11946076,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 281.5,
+            "cubes": 61
+          },
+          {
+            "ms": 146,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 4564204,
+            "totalSize": 5304320,
+            "embedderHeapUsedSize": 941368,
+            "backingStorageSize": 22264
+          },
+          "workers": [
+            {
+              "usedSize": 4637452,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 246768,
+              "backingStorageSize": 6405637
+            },
+            {
+              "usedSize": 4656696,
+              "totalSize": 5505024,
+              "embedderHeapUsedSize": 248528,
+              "backingStorageSize": 6436602
+            }
+          ],
+          "totalJsHeapUsed": 13858352,
+          "totalBackingStorage": 12864503,
+          "complete": true
+        }
+      }
+    },
+    {
+      "dataset": "2000",
+      "initial": {
+        "dataset": "2000",
+        "chunks": 2000,
+        "workers": 2,
+        "firstVisibleMs": 907.5,
+        "firstFullVisibleMs": 1578.5,
+        "readyMs": 4613.70000000298,
+        "residentFull": 128,
+        "residentLOD": 1872,
+        "vertexBuffers": 30568128,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 56337088,
+        "residentTriangles": 636836,
+        "drawn": {
+          "meshes": 574,
+          "fullMeshes": 116,
+          "triangles": 89422,
+          "culled": 2388
+        },
+        "evictions": 0,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 1248192,
+            "triangles": 26004,
+            "unitFaces": 12526,
+            "greedyQuads": 5343,
+            "meshMs": 179.30000000447035,
+            "times": [
+              32.100000001490116,
+              46.5,
+              41.600000001490116,
+              59.399999998509884
+            ],
+            "wallMs": 195.89999999850988,
+            "payloadBytes": 1116337,
+            "decodedBytes": 4243584,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 375022,
+            "cacheMisses": 399
+          },
+          {
+            "bytes": 807360,
+            "triangles": 16820,
+            "unitFaces": 10031,
+            "greedyQuads": 4044,
+            "meshMs": 105.90000000596046,
+            "times": [
+              41.399999998509884,
+              25.5,
+              14.5,
+              24.700000002980232
+            ],
+            "wallMs": 138.80000000447035,
+            "payloadBytes": 1118649,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 411004,
+            "cacheMisses": 462
+          }
+        ],
+        "mainHeap": 13394047,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 308.79999999701977,
+            "cubes": 61
+          },
+          {
+            "ms": 189.60000000149012,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 5002328,
+            "totalSize": 5828608,
+            "embedderHeapUsedSize": 1207456,
+            "backingStorageSize": 22260
+          },
+          "workers": [
+            {
+              "usedSize": 4544868,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 154488,
+              "backingStorageSize": 6232886
+            },
+            {
+              "usedSize": 4513932,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 144848,
+              "backingStorageSize": 6107934
+            }
+          ],
+          "totalJsHeapUsed": 14061128,
+          "totalBackingStorage": 12363080,
+          "complete": true
+        }
+      },
+      "fly": {
+        "samples": 60,
+        "renderSyncMs": {
+          "mean": 118.32000000004967,
+          "p50": 122.79999999701977,
+          "p95": 230.29999999701977
+        },
+        "rafIntervalMs": {
+          "mean": 153.2983333333085,
+          "p50": 155.19999999552965,
+          "p95": 313.20000000298023
+        },
+        "streamBatchMs": [
+          4056,
+          3341.3000000044703,
+          2740.5
+        ],
+        "counts": [
+          {
+            "full": 128,
+            "lod": 1872,
+            "bytes": 52993600,
+            "evictions": 119
+          },
+          {
+            "full": 128,
+            "lod": 1872,
+            "bytes": 52591648,
+            "evictions": 247
+          },
+          {
+            "full": 128,
+            "lod": 1872,
+            "bytes": 57218944,
+            "evictions": 375
+          }
+        ],
+        "dataset": "2000",
+        "chunks": 2000,
+        "workers": 2,
+        "firstVisibleMs": 907.5,
+        "firstFullVisibleMs": 1578.5,
+        "readyMs": 21270.60000000149,
+        "residentFull": 128,
+        "residentLOD": 1872,
+        "vertexBuffers": 28429344,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 54198304,
+        "residentTriangles": 592278,
+        "drawn": {
+          "meshes": 345,
+          "fullMeshes": 345,
+          "triangles": 151630,
+          "culled": 2757
+        },
+        "evictions": 503,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 1364352,
+            "triangles": 28424,
+            "unitFaces": 19027,
+            "greedyQuads": 7564,
+            "meshMs": 117.69999998807907,
+            "times": [
+              27.599999994039536,
+              19.30000000447035,
+              38,
+              33.29999999701977
+            ],
+            "wallMs": 150.5,
+            "payloadBytes": 1163897,
+            "decodedBytes": 4483008,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1542753,
+            "cacheMisses": 811
+          },
+          {
+            "bytes": 951264,
+            "triangles": 19818,
+            "unitFaces": 14849,
+            "greedyQuads": 4609,
+            "meshMs": 98.99999999254942,
+            "times": [
+              38.19999999552965,
+              22.200000002980232,
+              25.299999997019768,
+              13.5
+            ],
+            "wallMs": 126.5,
+            "payloadBytes": 1163323,
+            "decodedBytes": 4474752,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1546185,
+            "cacheMisses": 770
+          }
+        ],
+        "mainHeap": 9907428,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 308.79999999701977,
+            "cubes": 61
+          },
+          {
+            "ms": 189.60000000149012,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 5163704,
+            "totalSize": 5828608,
+            "embedderHeapUsedSize": 1314920,
+            "backingStorageSize": 22260
+          },
+          "workers": [
+            {
+              "usedSize": 4702876,
+              "totalSize": 5505024,
+              "embedderHeapUsedSize": 306816,
+              "backingStorageSize": 6830694
+            },
+            {
+              "usedSize": 4661348,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 299176,
+              "backingStorageSize": 6771384
+            }
+          ],
+          "totalJsHeapUsed": 14527928,
+          "totalBackingStorage": 13624338,
+          "complete": true
+        }
+      }
+    },
+    {
+      "dataset": "5000",
+      "initial": {
+        "dataset": "5000",
+        "chunks": 5000,
+        "workers": 2,
+        "firstVisibleMs": 954.8999999985099,
+        "firstFullVisibleMs": 1479.2999999970198,
+        "readyMs": 4808.70000000298,
+        "residentFull": 128,
+        "residentLOD": 4872,
+        "vertexBuffers": 35176128,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 60945088,
+        "residentTriangles": 732836,
+        "drawn": {
+          "meshes": 574,
+          "fullMeshes": 116,
+          "triangles": 89422,
+          "culled": 5388
+        },
+        "evictions": 0,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 1248192,
+            "triangles": 26004,
+            "unitFaces": 12526,
+            "greedyQuads": 5343,
+            "meshMs": 137.7000000104308,
+            "times": [
+              23.30000000447035,
+              38.29999999701977,
+              32.29999999701977,
+              43.900000005960464
+            ],
+            "wallMs": 164,
+            "payloadBytes": 1110577,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 392067,
+            "cacheMisses": 459
+          },
+          {
+            "bytes": 807360,
+            "triangles": 16820,
+            "unitFaces": 10031,
+            "greedyQuads": 4044,
+            "meshMs": 72.90000000596046,
+            "times": [
+              33.600000001490116,
+              13.300000004470348,
+              10.899999998509884,
+              15.399999998509884
+            ],
+            "wallMs": 100.89999999850988,
+            "payloadBytes": 1116613,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 393960,
+            "cacheMisses": 401
+          }
+        ],
+        "mainHeap": 22057431,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 222.29999999701977,
+            "cubes": 61
+          },
+          {
+            "ms": 214.70000000298023,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 6263280,
+            "totalSize": 6877184,
+            "embedderHeapUsedSize": 1964016,
+            "backingStorageSize": 22260
+          },
+          "workers": [
+            {
+              "usedSize": 4520580,
+              "totalSize": 4980736,
+              "embedderHeapUsedSize": 149536,
+              "backingStorageSize": 6101058
+            },
+            {
+              "usedSize": 4522732,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 149536,
+              "backingStorageSize": 6223774
+            }
+          ],
+          "totalJsHeapUsed": 15306592,
+          "totalBackingStorage": 12347092,
+          "complete": true
+        }
+      },
+      "fly": {
+        "samples": 60,
+        "renderSyncMs": {
+          "mean": 190.74666666748624,
+          "p50": 191.5,
+          "p95": 339.3999999985099
+        },
+        "rafIntervalMs": {
+          "mean": 240.07833333325883,
+          "p50": 249.30000000447035,
+          "p95": 423
+        },
+        "streamBatchMs": [
+          5868.39999999851,
+          4667.79999999702,
+          3686.4000000059605
+        ],
+        "counts": [
+          {
+            "full": 128,
+            "lod": 4872,
+            "bytes": 55862176,
+            "evictions": 128
+          },
+          {
+            "full": 128,
+            "lod": 4872,
+            "bytes": 56074816,
+            "evictions": 256
+          },
+          {
+            "full": 128,
+            "lod": 4872,
+            "bytes": 61047904,
+            "evictions": 384
+          }
+        ],
+        "dataset": "5000",
+        "chunks": 5000,
+        "workers": 2,
+        "firstVisibleMs": 954.8999999985099,
+        "firstFullVisibleMs": 1479.2999999970198,
+        "readyMs": 25691.39999999851,
+        "residentFull": 128,
+        "residentLOD": 4872,
+        "vertexBuffers": 38218560,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 63987520,
+        "residentTriangles": 796220,
+        "drawn": {
+          "meshes": 502,
+          "fullMeshes": 301,
+          "triangles": 210608,
+          "culled": 5564
+        },
+        "evictions": 512,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 904512,
+            "triangles": 18844,
+            "unitFaces": 14764,
+            "greedyQuads": 5510,
+            "meshMs": 81.99999999254942,
+            "times": [
+              29.700000002980232,
+              21.299999997019768,
+              19.899999998509884,
+              11.5
+            ],
+            "wallMs": 106.29999999701977,
+            "payloadBytes": 1129858,
+            "decodedBytes": 4284864,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1447329,
+            "cacheMisses": 805
+          },
+          {
+            "bytes": 1179648,
+            "triangles": 24576,
+            "unitFaces": 14813,
+            "greedyQuads": 6225,
+            "meshMs": 111.10000000149012,
+            "times": [
+              23.399999998509884,
+              10.200000002980232,
+              45.600000001490116,
+              31.899999998509884
+            ],
+            "wallMs": 138.60000000149012,
+            "payloadBytes": 1137249,
+            "decodedBytes": 4268352,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1529245,
+            "cacheMisses": 919
+          }
+        ],
+        "mainHeap": 16128160,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 222.29999999701977,
+            "cubes": 61
+          },
+          {
+            "ms": 214.70000000298023,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 6448464,
+            "totalSize": 7110656,
+            "embedderHeapUsedSize": 2071272,
+            "backingStorageSize": 22260
+          },
+          "workers": [
+            {
+              "usedSize": 4707868,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 310592,
+              "backingStorageSize": 6551791
+            },
+            {
+              "usedSize": 4749804,
+              "totalSize": 5505024,
+              "embedderHeapUsedSize": 301736,
+              "backingStorageSize": 6818190
+            }
+          ],
+          "totalJsHeapUsed": 15906136,
+          "totalBackingStorage": 13392241,
+          "complete": true
+        }
+      }
+    },
+    {
+      "dataset": "10000",
+      "initial": {
+        "dataset": "10000",
+        "chunks": 10000,
+        "workers": 2,
+        "firstVisibleMs": 1155.6000000014901,
+        "firstFullVisibleMs": 1661.2000000029802,
+        "readyMs": 4938.60000000149,
+        "residentFull": 128,
+        "residentLOD": 9872,
+        "vertexBuffers": 42856128,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 68625088,
+        "residentTriangles": 892836,
+        "drawn": {
+          "meshes": 574,
+          "fullMeshes": 116,
+          "triangles": 89422,
+          "culled": 10388
+        },
+        "evictions": 0,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 807360,
+            "triangles": 16820,
+            "unitFaces": 10031,
+            "greedyQuads": 4044,
+            "meshMs": 81.60000000149012,
+            "times": [
+              34.69999999552965,
+              16.900000005960464,
+              14.099999994039536,
+              15.900000005960464
+            ],
+            "wallMs": 119.60000000149012,
+            "payloadBytes": 1113750,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 397274,
+            "cacheMisses": 403
+          },
+          {
+            "bytes": 1248192,
+            "triangles": 26004,
+            "unitFaces": 12526,
+            "greedyQuads": 5343,
+            "meshMs": 147.09999999403954,
+            "times": [
+              33.899999998509884,
+              42.600000001490116,
+              37.79999999701977,
+              32.899999998509884
+            ],
+            "wallMs": 194.5,
+            "payloadBytes": 1127769,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 388750,
+            "cacheMisses": 460
+          }
+        ],
+        "mainHeap": 38269240,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 219.5,
+            "cubes": 61
+          },
+          {
+            "ms": 221.70000000298023,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 8327056,
+            "totalSize": 9084928,
+            "embedderHeapUsedSize": 3309464,
+            "backingStorageSize": 22261
+          },
+          "workers": [
+            {
+              "usedSize": 4524600,
+              "totalSize": 4980736,
+              "embedderHeapUsedSize": 148264,
+              "backingStorageSize": 6098819
+            },
+            {
+              "usedSize": 4521976,
+              "totalSize": 5505024,
+              "embedderHeapUsedSize": 147840,
+              "backingStorageSize": 6241590
+            }
+          ],
+          "totalJsHeapUsed": 17373632,
+          "totalBackingStorage": 12362670,
+          "complete": true
+        }
+      },
+      "fly": {
+        "samples": 60,
+        "renderSyncMs": {
+          "mean": 267.76999999967717,
+          "p50": 271.5,
+          "p95": 448.8999999985099
+        },
+        "rafIntervalMs": {
+          "mean": 340.80666666664183,
+          "p50": 348.30000000447035,
+          "p95": 620.6999999955297
+        },
+        "streamBatchMs": [
+          8794.10000000149,
+          5983.30000000447,
+          4469.9000000059605
+        ],
+        "counts": [
+          {
+            "full": 128,
+            "lod": 9872,
+            "bytes": 63542176,
+            "evictions": 128
+          },
+          {
+            "full": 128,
+            "lod": 9872,
+            "bytes": 63754816,
+            "evictions": 256
+          },
+          {
+            "full": 128,
+            "lod": 9872,
+            "bytes": 68727904,
+            "evictions": 384
+          }
+        ],
+        "dataset": "10000",
+        "chunks": 10000,
+        "workers": 2,
+        "firstVisibleMs": 1155.6000000014901,
+        "firstFullVisibleMs": 1661.2000000029802,
+        "readyMs": 30847.29999999702,
+        "residentFull": 128,
+        "residentLOD": 9872,
+        "vertexBuffers": 45898560,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 71667520,
+        "residentTriangles": 956220,
+        "drawn": {
+          "meshes": 727,
+          "fullMeshes": 301,
+          "triangles": 217808,
+          "culled": 10339
+        },
+        "evictions": 512,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 904512,
+            "triangles": 18844,
+            "unitFaces": 14764,
+            "greedyQuads": 5510,
+            "meshMs": 82.30000000447035,
+            "times": [
+              29.400000005960464,
+              20.19999999552965,
+              22.200000002980232,
+              10.799999997019768
+            ],
+            "wallMs": 100.79999999701977,
+            "payloadBytes": 1128753,
+            "decodedBytes": 4276608,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1445769,
+            "cacheMisses": 833
+          },
+          {
+            "bytes": 1179648,
+            "triangles": 24576,
+            "unitFaces": 14813,
+            "greedyQuads": 6225,
+            "meshMs": 121.70000000298023,
+            "times": [
+              38.600000001490116,
+              14.099999994039536,
+              38,
+              31.200000002980232
+            ],
+            "wallMs": 146,
+            "payloadBytes": 1133264,
+            "decodedBytes": 4268352,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1530814,
+            "cacheMisses": 882
+          }
+        ],
+        "mainHeap": 39426269,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 219.5,
+            "cubes": 61
+          },
+          {
+            "ms": 221.70000000298023,
+            "cubes": 61
+          }
+        ],
+        "memory": {
+          "main": {
+            "usedSize": 8400896,
+            "totalSize": 8822784,
+            "embedderHeapUsedSize": 3342376,
+            "backingStorageSize": 22261
+          },
+          "workers": [
+            {
+              "usedSize": 4753100,
+              "totalSize": 5505024,
+              "embedderHeapUsedSize": 303072,
+              "backingStorageSize": 6712909
+            },
+            {
+              "usedSize": 4710896,
+              "totalSize": 5242880,
+              "embedderHeapUsedSize": 296696,
+              "backingStorageSize": 6631102
+            }
+          ],
+          "totalJsHeapUsed": 17864892,
+          "totalBackingStorage": 13366272,
+          "complete": true
+        }
+      }
+    }
+  ],
+  "backends": [
+    {
+      "backend": "egl",
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    {
+      "backend": "angle-gl",
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    {
+      "backend": "angle-vulkan",
+      "renderer": "ANGLE (Mesa, Vulkan 1.4.318 (llvmpipe (LLVM 20.1.2 256 bits) (0x00000000)), llvmpipe)"
+    }
+  ],
+  "errors": [],
+  "diff": {
+    "small": {
+      "dataset": "10000",
+      "chunks": 10000,
+      "workers": 2,
+      "firstVisibleMs": 1155.6000000014901,
+      "firstFullVisibleMs": 1661.2000000029802,
+      "readyMs": 36548.5,
+      "residentFull": 128,
+      "residentLOD": 9872,
+      "vertexBuffers": 42876864,
+      "indexBuffer": 1572864,
+      "atlas": 16777216,
+      "framebufferEstimate": 7418880,
+      "gpuDisplayEstimate": 68645824,
+      "residentTriangles": 893268,
+      "drawn": {
+        "meshes": 610,
+        "fullMeshes": 152,
+        "triangles": 89854,
+        "culled": 10388
+      },
+      "evictions": 640,
+      "rejections": 0,
+      "workerLast": [
+        {
+          "bytes": 1248192,
+          "triangles": 26004,
+          "unitFaces": 12526,
+          "greedyQuads": 5343,
+          "meshMs": 125,
+          "times": [
+            20.200000002980232,
+            30.600000001490116,
+            30.899999998509884,
+            43.399999998509884
+          ],
+          "wallMs": 155.60000000149012,
+          "payloadBytes": 1114972,
+          "decodedBytes": 4235328,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 1923066,
+          "cacheMisses": 965
+        },
+        {
+          "bytes": 807360,
+          "triangles": 16820,
+          "unitFaces": 10031,
+          "greedyQuads": 4044,
+          "meshMs": 96.09999999403954,
+          "times": [
+            48.899999998509884,
+            18.299999997019768,
+            12.200000002980232,
+            16.799999997019768
+          ],
+          "wallMs": 125.60000000149012,
+          "payloadBytes": 1116026,
+          "decodedBytes": 4235328,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 1839905,
+          "cacheMisses": 867
+        }
+      ],
+      "mainHeap": 19940383,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "workerInit": [
+        {
+          "ms": 219.5,
+          "cubes": 61
+        },
+        {
+          "ms": 221.70000000298023,
+          "cubes": 61
+        }
+      ]
+    },
+    "large": {
+      "diff": {
+        "changes": 40960000,
+        "boxes": 10000,
+        "meshBytes": 0
+      },
+      "status": {
+        "dataset": "10000",
+        "chunks": 10000,
+        "workers": 2,
+        "firstVisibleMs": 1155.6000000014901,
+        "firstFullVisibleMs": 1661.2000000029802,
+        "readyMs": 41526.79999999702,
+        "residentFull": 128,
+        "residentLOD": 9872,
+        "vertexBuffers": 42856128,
+        "indexBuffer": 1572864,
+        "atlas": 16777216,
+        "framebufferEstimate": 7418880,
+        "gpuDisplayEstimate": 68625088,
+        "residentTriangles": 892836,
+        "drawn": {
+          "meshes": 10962,
+          "fullMeshes": 1090,
+          "triangles": 892836,
+          "culled": 0
+        },
+        "evictions": 640,
+        "rejections": 0,
+        "workerLast": [
+          {
+            "bytes": 1248192,
+            "triangles": 26004,
+            "unitFaces": 12526,
+            "greedyQuads": 5343,
+            "meshMs": 125,
+            "times": [
+              20.200000002980232,
+              30.600000001490116,
+              30.899999998509884,
+              43.399999998509884
+            ],
+            "wallMs": 155.60000000149012,
+            "payloadBytes": 1114972,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1923066,
+            "cacheMisses": 965
+          },
+          {
+            "bytes": 807360,
+            "triangles": 16820,
+            "unitFaces": 10031,
+            "greedyQuads": 4044,
+            "meshMs": 96.09999999403954,
+            "times": [
+              48.899999998509884,
+              18.299999997019768,
+              12.200000002980232,
+              16.799999997019768
+            ],
+            "wallMs": 125.60000000149012,
+            "payloadBytes": 1116026,
+            "decodedBytes": 4235328,
+            "cacheEntries": 64,
+            "maxDecoded": 64,
+            "cacheHits": 1839905,
+            "cacheMisses": 867
+          }
+        ],
+        "mainHeap": 19145291,
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "workerInit": [
+          {
+            "ms": 219.5,
+            "cubes": 61
+          },
+          {
+            "ms": 221.70000000298023,
+            "cubes": 61
+          }
+        ]
+      }
+    }
+  },
+  "windowWorker1": {
+    "dataset": "window256",
+    "chunks": 256,
+    "workers": 1,
+    "firstVisibleMs": 948.2999999970198,
+    "firstFullVisibleMs": 968.6000000014901,
+    "readyMs": 23145.89999999851,
+    "residentFull": 256,
+    "residentLOD": 0,
+    "vertexBuffers": 54683808,
+    "indexBuffer": 1572864,
+    "atlas": 16777216,
+    "framebufferEstimate": 7418880,
+    "gpuDisplayEstimate": 80452768,
+    "residentTriangles": 1139246,
+    "drawn": {
+      "meshes": 996,
+      "fullMeshes": 996,
+      "triangles": 527774,
+      "culled": 1294
+    },
+    "evictions": 0,
+    "rejections": 0,
+    "workerLast": [
+      {
+        "bytes": 1424064,
+        "triangles": 29668,
+        "unitFaces": 23088,
+        "greedyQuads": 8473,
+        "meshMs": 127.70000001043081,
+        "times": [
+          35.69999999552965,
+          31.80000000447035,
+          29,
+          32
+        ],
+        "wallMs": 128.60000000149012,
+        "payloadBytes": 1099751,
+        "decodedBytes": 4227072,
+        "cacheEntries": 64,
+        "maxDecoded": 64,
+        "cacheHits": 1337044,
+        "cacheMisses": 790
+      }
+    ],
+    "mainHeap": 10190916,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "workerInit": [
+      {
+        "ms": 146.10000000149012,
+        "cubes": 61
+      }
+    ],
+    "memory": {
+      "main": {
+        "usedSize": 4611572,
+        "totalSize": 5304320,
+        "embedderHeapUsedSize": 1069848,
+        "backingStorageSize": 22265
+      },
+      "workers": [
+        {
+          "usedSize": 4660252,
+          "totalSize": 5242880,
+          "embedderHeapUsedSize": 157736,
+          "backingStorageSize": 6552116
+        }
+      ],
+      "totalJsHeapUsed": 9271824,
+      "totalBackingStorage": 6574381,
+      "complete": true
+    }
+  },
+  "ablation": {
+    "greedy": {
+      "chunks": 256,
+      "workers": 1,
+      "wallMs": 5932.80000000447,
+      "wallPerChunkMs": 23.175000000017462,
+      "meshElapsedSumMs": 5412.800000049174,
+      "meshElapsedPerChunkMs": 21.143750000192085,
+      "triangles": 1139246,
+      "vertexBytes": 54683808,
+      "bytesPerVertex": 24,
+      "unitFaces": 690799,
+      "greedyQuads": 254535,
+      "chunkTime": {
+        "mean": 21.203515625122236,
+        "p50": 19.700000002980232,
+        "p95": 34.5
+      },
+      "workerLast": [
+        {
+          "bytes": 2432736,
+          "triangles": 50682,
+          "unitFaces": 36618,
+          "greedyQuads": 12224,
+          "meshMs": 223.70000000298023,
+          "times": [
+            20.899999998509884,
+            25,
+            28,
+            22.799999997019768,
+            21.700000002980232,
+            35.29999999701977,
+            35.100000001490116,
+            35.20000000298023
+          ],
+          "wallMs": 224.19999999552965,
+          "payloadBytes": 1099751,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 1337044,
+          "cacheMisses": 790
+        }
+      ],
+      "mainHeap": 7857918
+    },
+    "culledOnly": {
+      "chunks": 256,
+      "workers": 1,
+      "wallMs": 7255.70000000298,
+      "wallPerChunkMs": 28.34257812501164,
+      "meshElapsedSumMs": 6779.30000000447,
+      "meshElapsedPerChunkMs": 26.481640625017462,
+      "triangles": 2011774,
+      "vertexBytes": 96565152,
+      "bytesPerVertex": 24,
+      "unitFaces": 690799,
+      "greedyQuads": 690799,
+      "chunkTime": {
+        "mean": 26.53515625,
+        "p50": 25.100000001490116,
+        "p95": 42.79999999701977
+      },
+      "workerLast": [
+        {
+          "bytes": 4774560,
+          "triangles": 99470,
+          "unitFaces": 36618,
+          "greedyQuads": 36618,
+          "meshMs": 287.3999999910593,
+          "times": [
+            28.099999994039536,
+            31.200000002980232,
+            37.600000001490116,
+            33.29999999701977,
+            29.700000002980232,
+            42.79999999701977,
+            41.30000000447035,
+            44.099999994039536
+          ],
+          "wallMs": 288.19999999552965,
+          "payloadBytes": 1099751,
+          "decodedBytes": 4227072,
+          "cacheEntries": 64,
+          "maxDecoded": 64,
+          "cacheHits": 2674687,
+          "cacheMisses": 790
+        }
+      ],
+      "mainHeap": 8322198
+    }
+  },
+  "end": "2026-10-01T01:51:58.639Z"
+}

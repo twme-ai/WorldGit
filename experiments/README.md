@@ -11,3 +11,6 @@
 | `03-paper-poc/` | 插件端 PoC：變動偵測、線上替換 section、Folia |
 | `04-deepslate/` | 前端實驗 A：deepslate 近景渲染與 diff 上色 |
 | `05-fabric-poc/` | Fabric 模組（1.21.11、26.2）鬼影 diff 顯示、插件↔模組握手協定 |
+| `06-survival-scale/` | 生存伺服器 status 雜訊、commit 大小、大世界 init、push/clone |
+| `07-viewer-scale/` | 網頁 3D 檢視器在數千 chunk 下的網格生成、記憶體、LOD 與串流 |
+| `08-folia-switch/` | Folia／Paper 上大量 chunk switch 的壓力測試 |
