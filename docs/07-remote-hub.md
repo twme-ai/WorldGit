@@ -54,7 +54,7 @@ Hub 以 **OCI 容器映像**發佈，**Docker 與 Podman 都要能直接部署**
 - 映像支援 amd64 與 arm64；健康檢查用 Spring Boot actuator 的 health endpoint。
 - CI 對映像做冒煙測試：分別用 Docker 與 rootless Podman 啟動，跑一次 push → 網頁讀取。
 
-**Phase 1 實作狀態（2026-10-01）**：`hub/Containerfile`（node 建前端 → Gradle 建 jar → `eclipse-temurin:25-jre`，非 root uid 10001，資料在 `/data`，映像約 400 MB）、`hub/compose.yaml`、`hub/deploy/` 的 Quadlet 範例與 `hub/scripts/container-smoke.sh` 已完成。已用 Podman 4.9.3（root 模式）驗證 `podman build`、`podman run` 的 push → API／網頁讀取冒煙測試，以及 `podman-compose up`（healthcheck 變 healthy）。**尚未驗證**：rootless Podman、Docker（語法只用兩者共通部分）、arm64 映像、Quadlet 單元實際由 systemd 啟動。建置 context 必須是 repo 根目錄（`podman build -f hub/Containerfile .`）；`.dockerignore` 排除 paper／fabric 等其他模組。CI 目前只做 `docker build`，冒煙測試尚未進 CI。
+**Phase 1 實作狀態（2026-10-01）**：`hub/Containerfile`（node 建前端 → Gradle 建 jar → `eclipse-temurin:25-jre`，非 root uid 10001，資料在 `/data`，映像約 400 MB）、`hub/compose.yaml`、`hub/deploy/` 的 Quadlet 範例與 `hub/scripts/container-smoke.sh` 已完成。已用 Podman 4.9.3（root 模式）驗證 `podman build`、`podman run` 的 push → API／網頁讀取冒煙測試，以及 `podman-compose up`（healthcheck 變 healthy）。其後（同日）又驗證 Quadlet 由 systemd 啟動（rootful 與 rootless）與 PostgreSQL 後端，細節見 [11 的部署驗證](11-phase1-progress.md)。**尚未驗證**：Docker 引擎實跑（語法只用兩者共通部分）、arm64 映像。podman 建置要用 `--format docker` 才保留 HEALTHCHECK。建置 context 必須是 repo 根目錄（`podman build -f hub/Containerfile .`）；`.dockerignore` 排除 paper／fabric 等其他模組。CI 的 `hub-image` job 已加入冒煙測試（docker；SQLite 與 PostgreSQL），尚未在 GitHub 上實跑。
 
 設計上的影響：
 - 儲存層與帳號層都要做成可替換的介面（本機/S3、SQLite/PostgreSQL、本機帳號/OAuth）。

@@ -88,6 +88,9 @@ paper:
     sent: "Sent <count> block ghost(s) (<packets> packets, protocol v<version>)."
     send-failed: "<red>Could not send preview: <message></red>"
     more: "  ... <count> more blocks"
+  display:
+    cells: "No client mod: showing <count> block outline(s) as display entities only you can see (<omitted> omitted by the entity cap). They disappear after <seconds> s; /wg clear removes them now."
+    boxes: "No client mod: drew changed regions as display-entity boxes (<count> entities, <omitted> section(s) omitted by the entity cap). They disappear after <seconds> s; /wg clear removes them now."
   clear:
     done: "Preview cleared."
   reload:

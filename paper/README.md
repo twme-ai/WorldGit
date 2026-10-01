@@ -38,7 +38,7 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 
 事件與 WorldEdit 以**維度／玩家／chunk／原因**記錄作者；commit 帶 primary author、多位 `Contribution` 與 `Co-authored-by` trailers。目前是 chunk 級歸屬，沒有逐格 blame 或 per-player staging。失敗或未達自動門檻時，作者資料保留到下一次；新事件不會被較舊的 dirty generation 清掉。
 
-定時自動 commit 預設每 15 分鐘，小變动最晚合併到 30 分鐘；`min-changed-sections` 可調高以降低生存世界底噪。只有實體變動預設不觸發定時 commit。登出觸發提交當前世界的全部變動；**並非只提交該玩家的變動**。Paper 支援關閉前 commit；Folia 的 disable 階段沒有可用的 region 排程，關閉前 commit 目前略過，依賴定時／登出存檔點。
+定時自動 commit 預設每 15 分鐘，小變动最晚合併到 30 分鐘；`min-changed-sections` 可調高以降低生存世界底噪。只有實體變動預設不觸發定時 commit。登出觸發提交當前世界的全部變動；**並非只提交該玩家的變動**。Paper 在關閉流程內聯 commit。Folia 的 disable 階段沒有可用的 region 排程，改走**離線路徑**：onDisable 預載插件類別與離線來源，JVM 關閉鉤子等伺服器印出「All RegionFile I/O tasks to complete」（所有世界已存完）後，用 core 的離線掃描 commit（與 CLI 同一條路徑，標記為自動存檔點；作者歸屬沿用）。結果寫在 `plugins/WorldGit/shutdown-commit.log`（此時 log4j 已不可靠）。等不到訊號（180 秒）就放棄、不動世界。`/stop` 與 SIGTERM 兩種關閉方式都驗證過；kill -9／崩潰當然不會有關閉前 commit。
 
 ## WorldEdit 與客戶端模組
 
@@ -52,16 +52,18 @@ extent:
 
 FAWE bulk 路徑用 `IBatchProcessor` 記錄 chunk 與 actor，純 WorldEdit 用 Extent 的逐格回呼。Folia 使用純 WorldEdit；本機 1.21.11 為 WE 7.4.2，26.2 為 WE 7.4.5（Java 25）。是否支援其他操作模式需另驗證。
 
-`--show` 對完成 protocol v2 hello、nonce 與能力驗證的玩家傳送 status 描邊／diff 鬼影。每包最多 28,000 bytes、每 tick 最多兩包；方塊超過設定上限改送區域摘要。沒有模組時提供聊天提示與可點擊座標。display entity fallback 尚未實作。
+`--show` 對完成 protocol v2 hello、nonce 與能力驗證的玩家傳送 status 描邊／diff 鬼影。每包最多 28,000 bytes、每 tick 最多兩包；方塊超過設定上限改送區域摘要。沒有模組時提供聊天提示與可點擊座標，另外退回 **display entity fallback**：`/wg diff --show` 對請求者以 `BlockDisplay` 發光描邊（ADDED／MODIFIED 描 after、REMOVED 描 before，顏色用目前色票）；超過 `show.display-max-entities`（預設 512）或 `/wg status --show` 時改畫每個 section 的 12 條邊包圍盒。實體 `visibleByDefault=false` 後只對請求者 `showEntity`，旁邊的玩家看不到；不持久化、不進 WorldGit 的實體快照；`show.display-seconds`（預設 60）後自動移除，`/wg clear`、登出、插件停用也會移除。
 
 ## 重現驗收與量測
 
 所有腳本使用伺服器／baseline 的副本、127.0.0.1、offline mode、port 25651–25654。**acceptance、smoke、benchmark 自己取得 bench.lock，不要再包外層 flock。** SIGTERM 與例外會走清理流程；最後會停止 server 與 bot。
 
 ```bash
-timeout 1800 python3 paper/tools/acceptance.py paper 1.21.11 basic mod shutdown
+timeout 1800 python3 paper/tools/acceptance.py paper 1.21.11 basic mod display shutdown
 timeout 1800 python3 paper/tools/acceptance.py paper 26.2
 timeout 1800 python3 paper/tools/acceptance.py folia 1.21.11
+timeout 1800 python3 paper/tools/acceptance.py folia 1.21.11 sigterm   # Folia：SIGTERM 關閉的離線 commit
+# 四端端到端（插件 → CLI → Hub → 模組端封包）：python3 tools/e2e/phase1_e2e.py --platform paper|folia
 timeout 1800 python3 paper/tools/acceptance.py folia 26.2
 timeout 3600 python3 paper/tools/benchmark.py paper 1.21.11 1000
 timeout 3600 python3 paper/tools/benchmark.py paper 1.21.11 10000

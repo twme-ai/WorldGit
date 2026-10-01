@@ -24,8 +24,11 @@ function encodeHello(version, nonce, caps) {
   return Buffer.concat([head, writeVarint(caps.length), ...caps.map(str), palette])
 }
 
+// WG_BOT_DUMP=<檔案>：把收到的 worldgit:* payload 以「channel hex」逐行附加，供離線以 protocol 解碼（四端一致性驗收）。
+const fs = require('fs')
 function onPayload(channel, data) {
   received.bytes += data.length
+  if (process.env.WG_BOT_DUMP && channel.startsWith('worldgit:') && channel !== 'worldgit:hello') fs.appendFileSync(process.env.WG_BOT_DUMP, channel + ' ' + Buffer.from(data).toString('hex') + '\n')
   if (channel === 'worldgit:hello' && mode === 'mod') {
     // [version][kind=0][version][nonce 8][caps...]
     const v = data[2]; const nonce = data.readBigInt64BE(3)
@@ -75,6 +78,7 @@ rl.on('line', async (line) => {
     } else if (cmd === 'chat') { bot.chat(line.slice(5)); out({ ev: 'chat_sent' }) }
     else if (cmd === 'pos') out({ ev: 'pos', pos: bot.entity.position, gm: bot.game.gameMode })
     else if (cmd === 'stats') out({ ev: 'stats', ready, received: { ...received, previews: Object.fromEntries(Object.entries(received.previews).map(([k, v]) => [k, { kind: v.kind, parts: v.parts, total: v.total, seen: v.seen.size }])) } })
+    else if (cmd === 'entities') out({ ev: 'entities', displays: Object.values(bot.entities).filter((e) => /display/.test(e.name || e.displayName || '')).length, names: [...new Set(Object.values(bot.entities).map((e) => e.name))] })
     else if (cmd === 'quit') { bot.quit(); setTimeout(() => process.exit(0), 300) }
     else out({ ev: 'unknown', cmd })
   } catch (e) { out({ ev: 'cmd_error', cmd, e: String(e) }) }

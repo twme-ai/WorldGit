@@ -1,6 +1,6 @@
 # WorldGit Hub 的 OCI 映像（Docker 與 Podman 通用語法；doc 07 §4.1）。
 # 建置 context 必須是 repo 根目錄：
-#   podman build -f hub/Containerfile -t worldgit-hub .      （或 docker build -f hub/Containerfile ...）
+#   podman build --format docker -f hub/Containerfile -t worldgit-hub .      （或 docker build -f hub/Containerfile ...）
 # 執行：資料集中在 /data（SQLite、世界 repo、資源快取），以非 root（uid 10001）執行，埠 8080。
 
 # 基底的 tag 保留在 FROM／COPY；digest 為多架構 index。更新方式：

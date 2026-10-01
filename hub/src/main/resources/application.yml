@@ -19,14 +19,11 @@ spring:
       enabled: true
   datasource:
     # 預設 SQLite（單檔，放在 data-dir）。公開服務改成 jdbc:postgresql://host/db 並設 username/password。
-    url: jdbc:sqlite:${worldgit.hub.data-dir:data}/hub.db
+    # SQLite pragma 放在 URL 參數（不用 hikari data-source-properties），切換 PostgreSQL 時只需改 URL／driver。
+    url: jdbc:sqlite:${worldgit.hub.data-dir:data}/hub.db?busy_timeout=5000&journal_mode=WAL&foreign_keys=true
     driver-class-name: org.sqlite.JDBC
     hikari:
       maximum-pool-size: 4
-      data-source-properties:
-        busy_timeout: 5000
-        journal_mode: WAL
-        foreign_keys: true
   sql:
     init:
       mode: always

@@ -287,3 +287,32 @@ def wgit(args, cwd=None, check=True):
     if check and r.returncode != 0:
         raise RuntimeError(f'wgit {args} failed: {r.stdout}\n{r.stderr}')
     return r.stdout + r.stderr
+
+
+def place_block(bot, dx=1, item='stone'):
+    bot.ask('give ' + item, 'give', 20)
+    pos = bot.ask('pos', 'pos', 10)['pos']
+    x, y, z = int(pos['x'] // 1), int(pos['y'] // 1), int(pos['z'] // 1)
+    time.sleep(0.5)
+    # baseline 可能在目標位置已有 slab/植物；沿水平軸尋找確實是空氣的目標格。
+    # 目標格須為空氣，且其下方一格是實心方塊（放置的參考面）；在 bot 周圍上下各 4 格內找。
+    airs = ('air', 'cave_air', 'void_air')
+    soft = airs + ('water', 'lava', 'kelp', 'kelp_plant', 'seagrass', 'tall_seagrass', 'bubble_column', 'short_grass', 'tall_grass', 'fern', 'snow', 'vine')
+    candidates = [(x + dx + i, y + j, z + k) for j in (0, -1, 1, -2, 2, -3, 3, -4, 4) for i in range(-3, 4) for k in (0, 1, -1, 2, -2)]
+    target = None
+    for tx, ty, tz in candidates:
+        # 伺服器會拒絕放到玩家碰撞箱內的格；bot 在 spawn 的短暫下落也要預留高度。
+        if tx < pos['x'] + .4 and tx + 1 > pos['x'] - .4 and tz < pos['z'] + .4 and tz + 1 > pos['z'] - .4 and ty < pos['y'] + 1.9 and ty + 1 > pos['y'] - .2:
+            continue
+        block = bot.ask(f'block {tx} {ty} {tz}', 'block', 10)
+        if block.get('name') not in airs:
+            continue
+        below = bot.ask(f'block {tx} {ty - 1} {tz}', 'block', 10)
+        if below.get('name') and below.get('name') not in soft and not below.get('name', '').endswith('slab'):
+            target = (tx, ty, tz)
+            break
+    if target is None:
+        raise RuntimeError('找不到可放置的空氣格')
+    tx, ty, tz = target
+    bot.ask(f'place {tx} {ty - 1} {tz} 0 1 0', 'placed', 20)
+    return target

@@ -192,13 +192,19 @@ final class Commands implements CommandExecutor, TabCompleter {
 
   private List<Component> showStatus(Player player, WorldRepositories.Batch<DimensionRepository.Status> batch) {
     var lines = new ArrayList<Component>();
-    if (!plugin.fabric().ready(player)) {
-      lines.add(Messages.line("paper.status.show-no-mod"));
-      return lines;
-    }
+    boolean mod = plugin.fabric().ready(player);
+    if (!mod) lines.add(Messages.line("paper.status.show-no-mod"));
     var id = plugin.dimensionOf(player.getWorld());
     if (id.isEmpty() || !batch.dimensions().containsKey(id.get()) || !batch.dimensions().get(id.get()).success()) {
       lines.add(Messages.line("paper.status.show-no-data"));
+      return lines;
+    }
+    if (!mod) {
+      var diff = batch.dimensions().get(id.get()).value().diff();
+      if (diff.empty()) {
+        plugin.displays().clear(player);
+        lines.add(Messages.line("paper.status.show-empty"));
+      } else lines.add(displayLine(plugin.displays().showBoxes(player, diff, palette())));
       return lines;
     }
     try {
@@ -311,6 +317,11 @@ final class Commands implements CommandExecutor, TabCompleter {
     var lines = new ArrayList<Component>();
     if (!plugin.fabric().ready(player)) {
       lines.add(Messages.line("paper.diff.no-mod"));
+      if (total == 0) {
+        plugin.displays().clear(player);
+        lines.add(Messages.line("paper.diff.empty"));
+      } else if (total <= plugin.settings().displayMaxEntities()) lines.add(displayLine(plugin.displays().showCells(player, diff, palette())));
+      else lines.add(displayLine(plugin.displays().showBoxes(player, diff, palette())));
       return lines;
     }
     try {
@@ -330,9 +341,14 @@ final class Commands implements CommandExecutor, TabCompleter {
     return lines;
   }
 
+  private Component displayLine(DisplayFallback.Shown shown) {
+    return Messages.line(shown.boxes() ? "paper.display.boxes" : "paper.display.cells", "count", shown.entities(), "omitted", shown.omitted(), "seconds", plugin.settings().displaySeconds());
+  }
+
   private void clear(CommandSender sender) {
     if (!(sender instanceof Player player)) throw bad("paper.error.player-only");
     plugin.fabric().clear(player);
+    plugin.displays().clear(player);
     reply(sender, Messages.line("paper.clear.done"));
   }
 

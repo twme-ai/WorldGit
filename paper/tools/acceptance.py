@@ -1,7 +1,7 @@
 """Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.21.11|26.2> [scenarios...]
 
 scenarios：basic（commit 兩次無變動、bot 放一格、status 恰好 1 個 section、CLI 看到同樣歷史）、attribution（兩個 bot 各改一處）、
-           mod（握手與 status/diff 傳送）、worldedit（//set 大範圍）、auto（自動 commit：定時、登出）、shutdown（關閉前 commit 與離線 CLI 一致）
+           mod（握手與 status/diff 傳送）、display（沒裝模組：BlockDisplay fallback，只對請求者可見、/wg clear、逾時、登出、不進實體快照）、worldedit（//set 大範圍）、auto（自動 commit：定時、登出）、shutdown（關閉前 commit 與離線 CLI 一致）
 結果寫入 .work/paper-delivery/results/<平台>-<版本>.json；每一步 pass/fail 與原始證據都留下，失敗照實記錄，不中斷後續場景。
 """
 import json, os, re, subprocess, sys, time, traceback
@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from harness import *
 
 platform, version = sys.argv[1], sys.argv[2]
-wanted = sys.argv[3:] or ['basic', 'attribution', 'mod', 'worldedit', 'shutdown', 'auto']
+wanted = sys.argv[3:] or ['basic', 'attribution', 'mod', 'display', 'worldedit', 'shutdown', 'auto']
 NAME = f'{platform}-{version}'
 RESULTS = os.path.join(WORK, 'paper-delivery', 'results')
 os.makedirs(RESULTS, exist_ok=True)
@@ -104,35 +104,6 @@ def plugin_problems(s):
 
 def settle(s, seconds=6):
     time.sleep(seconds)
-
-
-def place_block(bot, dx=1, item='stone'):
-    bot.ask('give ' + item, 'give', 20)
-    pos = bot.ask('pos', 'pos', 10)['pos']
-    x, y, z = int(pos['x'] // 1), int(pos['y'] // 1), int(pos['z'] // 1)
-    time.sleep(0.5)
-    # baseline 可能在目標位置已有 slab/植物；沿水平軸尋找確實是空氣的目標格。
-    # 目標格須為空氣，且其下方一格是實心方塊（放置的參考面）；在 bot 周圍上下各 4 格內找。
-    airs = ('air', 'cave_air', 'void_air')
-    soft = airs + ('water', 'lava', 'kelp', 'kelp_plant', 'seagrass', 'tall_seagrass', 'bubble_column', 'short_grass', 'tall_grass', 'fern', 'snow', 'vine')
-    candidates = [(x + dx + i, y + j, z + k) for j in (0, -1, 1, -2, 2, -3, 3, -4, 4) for i in range(-3, 4) for k in (0, 1, -1, 2, -2)]
-    target = None
-    for tx, ty, tz in candidates:
-        # 伺服器會拒絕放到玩家碰撞箱內的格；bot 在 spawn 的短暫下落也要預留高度。
-        if tx < pos['x'] + .4 and tx + 1 > pos['x'] - .4 and tz < pos['z'] + .4 and tz + 1 > pos['z'] - .4 and ty < pos['y'] + 1.9 and ty + 1 > pos['y'] - .2:
-            continue
-        block = bot.ask(f'block {tx} {ty} {tz}', 'block', 10)
-        if block.get('name') not in airs:
-            continue
-        below = bot.ask(f'block {tx} {ty - 1} {tz}', 'block', 10)
-        if below.get('name') and below.get('name') not in soft and not below.get('name', '').endswith('slab'):
-            target = (tx, ty, tz)
-            break
-    if target is None:
-        raise RuntimeError('找不到可放置的空氣格')
-    tx, ty, tz = target
-    bot.ask(f'place {tx} {ty - 1} {tz} 0 1 0', 'placed', 20)
-    return target
 
 
 def scenario_basic(s):
@@ -247,6 +218,61 @@ def scenario_mod(s, platform_name):
     s.cmd('wg commit -m after-mod', r'overworld [0-9a-f]{8}|沒有變動|失敗', 120)
 
 
+def scenario_display(s, bot):
+    """display entity fallback：A 請求 --show，B 在旁邊但沒請求；B 必須看不到。"""
+    obs = s.bot('WgBot4')
+    time.sleep(6)
+    count = lambda b: b.ask('entities', 'entities', 10)['displays']
+    tagged = lambda: s.cmd('execute if entity @e[tag=worldgit_preview]', r'Test (passed|failed)', 20)
+    tagged_n = lambda: int(m.group(1)) if (m := re.search(r'(?i)count: (\d+)', strip(tagged()))) else 0
+    def wait_shown():
+        for _ in range(15):  # diff／status 要重新掃描，慢的時候超過數秒；輪詢到伺服器端出現標記實體，再多等 2 秒讓客戶端收齊
+            time.sleep(1)
+            if tagged_n():
+                break
+        time.sleep(2)
+    s.cmd('wg commit -m before-display', r'overworld [0-9a-f]{8}|沒有變動|失敗', 120)
+    b1 = place_block(bot, 2, 'sand')
+    b2 = place_block(bot, -2, 'sand')
+    time.sleep(3)
+    step('display：前置放置兩格', True, blocks=[b1, b2])
+    bot.ask('chat /wg diff --show', 'chat_sent', 10)
+    wait_shown()
+    a, o, n = count(bot), count(obs), tagged_n()
+    step('display：沒模組的請求者看到 2 個 BlockDisplay、旁邊沒請求的玩家看到 0、伺服器端有 2 個標記實體', a == 2 and o == 0 and n == 2, requester=a, observer=o, server_tagged=n)
+    chats = [e['t'] for e in bot.events('chat')]
+    step('display：聊天仍有沒有模組的提示與 display 說明', any('沒有 WorldGit 模組' in c or 'does not have the WorldGit mod' in c for c in chats) and any('display entit' in c for c in chats), chats=chats[-4:])
+    st = strip(s.cmd('wg status', r'section \d+|沒有變動', 120))
+    ent = re.findall(r'(?:實體|entities|entity) (\d+)', st)
+    step('display：預覽實體不進入 WorldGit 的實體快照（status 沒有實體變動、section 數等於兩格所在的 chunk 數）', sections_of(st) == len({(b[0] >> 4, b[2] >> 4) for b in (b1, b2)}) and all(int(x) == 0 for x in ent), status=st[-900:], entity_counts=ent)
+    bot.ask('chat /wg clear', 'chat_sent', 10)
+    time.sleep(3)
+    step('display：/wg clear 清掉請求者的實體（客戶端與伺服器端）', count(bot) == 0 and tagged_n() == 0, requester=count(bot), server_tagged=tagged_n())
+    bot.ask('chat /wg status --show', 'chat_sent', 10)
+    wait_shown()
+    a, o, n = count(bot), count(obs), tagged_n()
+    step('display：status --show 畫區域包圍盒（每個 section 12 條邊；上限 20 → 只畫 1 個 section、其餘省略），只對請求者可見', a == 12 and o == 0 and n == 12, requester=a, observer=o, server_tagged=n)
+    time.sleep(12)
+    step('display：display-seconds 到期後自動移除', count(bot) == 0 and tagged_n() == 0, requester=count(bot), server_tagged=tagged_n())
+    bot.ask('chat /wg diff --show', 'chat_sent', 10)
+    shown = 0
+    for _ in range(15):  # diff 要重新掃描，慢的時候超過 4 秒；輪詢到實體出現
+        time.sleep(1)
+        shown = tagged_n()
+        if shown:
+            break
+    obs.stop()
+    bot.stop()
+    time.sleep(4)
+    step('display：玩家登出後實體被移除', shown == 2 and tagged_n() == 0, before_quit=shown, after_quit=tagged_n())
+    nb = s.bot('WgBot')
+    time.sleep(6)
+    s.cmd('gamemode creative WgBot')
+    out = strip(s.cmd('wg commit -m after-display', r'overworld [0-9a-f]{8}|沒有變動|失敗', 120))
+    step('display：commit 成功且沒有因預覽實體產生額外 commit 錯誤', '失敗' not in out, out=out[:300])
+    return nb
+
+
 def scenario_worldedit(s, bot, fawe):
     pos = bot.ask('pos', 'pos', 10)['pos']
     x, y, z = int(pos['x']), int(pos['y']), int(pos['z'])
@@ -307,6 +333,35 @@ def scenario_auto(platform, version, baseline):
         s.stop()
 
 
+def scenario_sigterm(platform, version, baseline):
+    """SIGTERM（kill、容器停止）而不是 /stop：Folia 的 JVM 關閉鉤子必須等到世界存檔完成才離線 commit。"""
+    s = Server(platform, version, baseline=baseline, run_label=f'sigterm-{platform}-{version}', config={'auto-commit': {'enabled': False, 'on-shutdown': True}})
+    try:
+        s.start()
+        s.cmd('wg init', r'init 完成|失敗', 900)
+        bot = s.bot('WgBot')
+        time.sleep(6)
+        s.cmd('gamemode creative WgBot')
+        n = len(commits(s))
+        block = place_block(bot, 2, 'glass')
+        time.sleep(2)
+        s.proc.send_signal(signal.SIGTERM)
+        try:
+            s.proc.wait(150)
+        except subprocess.TimeoutExpired:
+            pass
+        exited = s.proc.poll() is not None
+    finally:
+        s.stop()
+    logf = os.path.join(s.dir, 'plugins', 'WorldGit', 'shutdown-commit.log')
+    hook_log = open(logf).read() if os.path.isfile(logf) else ''
+    head = git(s, 'minecraft.overworld', 'log', '-1', '--format=%s')
+    out = wgit(['--world', s.world, 'status'], check=False)
+    summaries = re.findall(r'(\d+) chunks，(\d+) sections，\+(\d+) -(\d+) ~(\d+) !(\d+)', strip(out))
+    step('SIGTERM 關閉：JVM 自行結束、關閉前 commit 建立、離線 CLI status 沒有變動', exited and len(commits(s)) == n + 1 and '關閉前' in head and all(all(int(x) == 0 for x in row) for row in summaries),
+         exited=exited, before=n, after=len(commits(s)), head=head, block=block, hook_log=hook_log[-500:], status=strip(out)[:300])
+
+
 def main():
     with BenchLock():
         baseline = os.path.join(WORK, 'paper-delivery', 'fixtures', 'acceptance-flat-' + version)
@@ -315,7 +370,7 @@ def main():
                 os.path.join(ROOT, 'paper/tools/ScaleFixture.java'), version,
                 os.path.join(WORK, 'worlds', version, 'baseline'), baseline, '16'], check=True, timeout=180)
         results['fixture_kind'] = 'synthetic-flat'
-        s = Server(platform, version, baseline=baseline, plugins=[f'fawe-{version}'] if platform == 'paper' else ([f'we-{"7.4.2" if version == "1.21.11" else "7.4.5"}']), config={'auto-commit': {'enabled': False, 'on-shutdown': True}})
+        s = Server(platform, version, baseline=baseline, plugins=[f'fawe-{version}'] if platform == 'paper' else ([f'we-{"7.4.2" if version == "1.21.11" else "7.4.5"}']), config={'auto-commit': {'enabled': False, 'on-shutdown': True}, 'show': {'display-max-entities': 20, 'display-seconds': 10}})
         try:
             s.start()
             results['console_log'] = os.path.relpath(s.evidence_log, ROOT)
@@ -331,6 +386,8 @@ def main():
                     scenario_attribution(s, bot)
                 if 'mod' in wanted:
                     scenario_mod(s, platform)
+                if 'display' in wanted:
+                    bot = scenario_display(s, bot)
                 if 'worldedit' in wanted:
                     scenario_worldedit(s, bot, platform == 'paper')
             except Exception:
@@ -354,15 +411,19 @@ def main():
             out = wgit(['--world', s.world, 'status'], check=False)
             summaries = re.findall(r'(\d+) chunks，(\d+) sections，\+(\d+) -(\d+) ~(\d+) !(\d+)；實體 (\d+)，biome (\d+)，metadata (\d+)', strip(out))
             if platform == 'folia':
-                # 已記錄的限制：Folia disable 時 region scheduler 不可用，不建立關閉前 commit；未提交的那一格必須被離線 CLI 看到，而不是遺失。
-                overworld = summaries[0] if summaries else None
-                step('Folia：關閉前不建立 commit（已記錄限制），未提交的一格仍保留在世界、離線 CLI 恰好看到 1 個方塊變動',
-                     after == n and overworld is not None and overworld[:4] == ('1', '1', '1', '0') and all(int(x) == 0 for x in overworld[4:]),
-                     before=n, after=after, status=strip(out)[:600])
-                summaries = None
+                # Folia：onDisable 沒有單一擁有執行緒，改由 JVM 關閉鉤子在世界存檔完成（session.lock 釋放）後以離線路徑提交。
+                logf = os.path.join(s.dir, 'plugins', 'WorldGit', 'shutdown-commit.log')
+                hook_log = open(logf).read() if os.path.isfile(logf) else ''
+                results['folia_shutdown_log'] = hook_log[-1500:]
+                step('Folia：關閉後離線 commit 建立（鉤子 log、commit 數 +1、標記為關閉前自動存檔點）',
+                     after == n + 1 and '關閉前' in head and 'WorldGit-Auto: true' in git(s, 'minecraft.overworld', 'log', '-1', '--format=%B'),
+                     before=n, after=after, head=head[:300], hook_log=hook_log[-600:])
             else:
                 step('伺服器關閉前自動 commit', after == n + 1 and '關閉' in head, before=n, after=after, head=head[:300])
             if summaries is not None: step('伺服器停止後離線 CLI status 沒有變動（線上快照與磁碟內容一致）', len(summaries) == 3 and all(all(int(n) == 0 for n in row) for row in summaries), status=strip(out)[:1500])
+    if 'sigterm' in wanted:
+        with BenchLock():
+            scenario_sigterm(platform, version, baseline)
     if 'auto' in wanted:
         with BenchLock():
             scenario_auto(platform, version, baseline)

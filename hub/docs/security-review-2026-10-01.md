@@ -207,7 +207,7 @@
 
 - `core/` 的完整 diff engine（`DiffEngine.java`）、`protocol/` 模組，以及 `paper/`、`fabric/`、`cli/`、`experiments/`（依任務指示排除，且為其他 Sonnet agent 同時處理中的範圍）。
 - 初次審查的M3重現未完成；本次修補已以受控本機高壓縮比blob完成動態驗證，見M3修補驗證。深入巢狀與其他格式fuzzing仍未全面覆蓋。
-- 未測試 PostgreSQL 後端（`SPRING_DATASOURCE_URL` 切換）、S3 儲存後端、OAuth（文件已註明 Phase 1 未實作）。
-- 未做 rootless Podman／arm64 的容器環境差異驗證（`.work/handoff/hub.md` 已註明這些是已知未做項目）。
+- （2026-10-01 後續已驗證 PostgreSQL 後端，見 docs/11）未測試 S3 儲存後端、OAuth（文件已註明 Phase 1 未實作）。
+- （後續已驗證 rootless Podman 與 Quadlet，見 docs/11）未做 arm64 的容器環境差異驗證（`.work/handoff/hub.md` 已註明這些是已知未做項目）。
 - 未對前端 3D 檢視器（`viewer/*.ts`、WebGL shader、Web Worker）做逐行審查，僅檢查其資料反序列化（`wire.ts`）入口與已知的字串/HTML sink；深入的 WebGL/shader 層與記憶體安全（WASM 等）未在範圍內逐行覆蓋。
 - 未對 `AssetPipeline.java`（資源包處理管線本身，讀取 Mojang client jar 內的模型/材質並轉成 `atlas.json` 等）做詳細的 zip bomb／畸形 JSON 的壓力測試，僅讀過其呼叫鏈（`ResourceSource.zip`／`directory`），未發現該檔案本身有長度上限檢查；由於 client jar 來源已鎖定在設定檔白名單的 Minecraft 版本並經 SHA-1 驗證，攻擊面有限，但若之後允許管理員自行上傳任意 client jar，建議另外審查 `AssetPipeline.java` 的 zip bomb 防護（未在本次範圍內逐行確認是否已有上限）。

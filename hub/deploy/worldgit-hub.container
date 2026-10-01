@@ -3,7 +3,9 @@
 #               systemctl --user daemon-reload && systemctl --user start worldgit-hub
 #   root：      放到 /etc/containers/systemd/，使用 systemctl（不加 --user）
 # 先建置映像：podman build -f hub/Containerfile -t localhost/worldgit-hub:latest .
-# 管理員密碼：podman secret create worldgit-admin-password -   （stdin 輸入）
+# 管理員密碼：printf '%s' '密碼' | podman secret create worldgit-admin-password -   （stdin 輸入；以 root 安裝就用 root 建，rootless 用該使用者建）
+# 健康檢查由下面的 HealthCmd 定義，不依賴映像的 HEALTHCHECK（podman 預設 OCI 格式會丟掉它；要保留請加 --format docker）。
+# 已實機驗證（Podman 4.9.3、Ubuntu 24.04）：rootful 與 rootless 的 systemctl start／restart／stop、healthy、登入、push、重啟後資料仍在。
 [Unit]
 Description=WorldGit Hub
 After=network-online.target
@@ -24,6 +26,8 @@ AutoUpdate=local
 
 [Service]
 Restart=always
+# JVM 收到 SIGTERM 正常結束回 143；不列為成功的話 systemctl stop 之後 unit 會顯示 failed。
+SuccessExitStatus=143
 TimeoutStartSec=300
 
 [Install]

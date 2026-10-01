@@ -47,8 +47,17 @@ class HubIntegrationTest {
   static void props(DynamicPropertyRegistry r) throws Exception {
     data = Files.createTempDirectory("hub-test-data");
     work = Files.createTempDirectory("hub-test-world");
+    // 選用：WORLDGIT_TEST_POSTGRES_URL（例 jdbc:postgresql://127.0.0.1:18432/hub）設定後整個端到端套件改跑 PostgreSQL；
+    // 帳密用 WORLDGIT_TEST_POSTGRES_USER／_PASSWORD。預設（未設）仍是 SQLite。
+    String pg = System.getenv("WORLDGIT_TEST_POSTGRES_URL");
+    if (pg != null && !pg.isBlank()) {
+      r.add("spring.datasource.url", () -> pg);
+      r.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+      r.add("spring.datasource.username", () -> System.getenv().getOrDefault("WORLDGIT_TEST_POSTGRES_USER", "postgres"));
+      r.add("spring.datasource.password", () -> System.getenv().getOrDefault("WORLDGIT_TEST_POSTGRES_PASSWORD", ""));
+    }
     r.add("server.address", () -> "127.0.0.1");
-    r.add("server.port", () -> "8094");
+    r.add("server.port", () -> "18094");
     r.add("worldgit.hub.data-dir", () -> data.toString());
     r.add("worldgit.hub.bootstrap.admin-token", () -> TOKEN);
     r.add("worldgit.hub.bootstrap.admin-password", () -> "test-password-1");

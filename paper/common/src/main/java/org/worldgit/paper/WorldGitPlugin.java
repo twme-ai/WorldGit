@@ -32,7 +32,9 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   private NmsBridge bridge;
   private RepoService repo;
   private FabricLink fabric;
+  private DisplayFallback displays;
   private AutoCommit autoCommit;
+  private OfflineShutdownCommit offlineShutdown;
   private final Attribution attribution = new Attribution();
   private final ConcurrentMap<DimensionId, DimensionState> states = new ConcurrentHashMap<>();
   private final ConcurrentMap<UUID, DimensionId> dimensionByWorld = new ConcurrentHashMap<>();
@@ -66,6 +68,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     getServer().getPluginManager().registerEvents(this, this);
     fabric = new FabricLink(this);
     fabric.register();
+    displays = new DisplayFallback(this);
     PluginCommand command = Objects.requireNonNull(getCommand("wg"), "plugin.yml 缺少 wg 指令");
     var commands = new Commands(this);
     command.setExecutor(commands);
@@ -78,6 +81,10 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
         getLogger().warning("讀取 worldgit.yml 失敗，使用預設色票：" + e.getMessage());
       }
     });
+    if (platform.folia() && settings.autoOnShutdown()) {
+      offlineShutdown = new OfflineShutdownCommit(this);
+      offlineShutdown.register();
+    }
     autoCommit = new AutoCommit(this);
     autoCommit.start();
     platform.asyncRepeating(5, settings.pollIntervalTicks() * 50L, this::poll);
@@ -91,16 +98,18 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   public void onDisable() {
     if (!enabledOk) return;
     enabledOk = false;
+    if (displays != null) displays.clearAll();
     platform.shuttingDown();
     if (autoCommit != null) autoCommit.shutdown();
     repo.awaitIdle(); // 等待進行中的背景操作；之後才能在目前執行緒內聯 commit（repo lock 同一時間只有一個持有者）
     if (settings.autoOnShutdown()) shutdownCommit();
+    if (offlineShutdown != null) offlineShutdown.prepare(settings.autoOnShutdown());
     repo.close();
   }
 
   private void shutdownCommit() {
     if (platform.folia()) {
-      getLogger().warning("Folia 上關閉時不執行自動 commit（沒有單一擁有執行緒）；請依賴定時與登出的存檔點。");
+      // Folia：disable 時沒有單一擁有執行緒；改由 OfflineShutdownCommit 在世界存檔完成後以離線路徑提交（JVM 關閉鉤子）。
       return;
     }
     try {
@@ -141,6 +150,10 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
 
   FabricLink fabric() {
     return fabric;
+  }
+
+  DisplayFallback displays() {
+    return displays;
   }
 
   boolean hasDirty() {
@@ -203,6 +216,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
 
   @EventHandler
   public void onQuit(PlayerQuitEvent e) {
+    if (displays != null) displays.clear(e.getPlayer());
     if (autoCommit != null) autoCommit.onQuit(e.getPlayer().getName());
   }
 

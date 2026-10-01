@@ -87,6 +87,9 @@ paper:
     sent: "已送出 <count> 格的鬼影（<packets> 個封包，協定 v<version>）。"
     send-failed: "<red>送出預覽失敗：<message></red>"
     more: "  …另有 <count> 格"
+  display:
+    cells: "沒有模組：改以只有你看得到的 display entity 描邊顯示 <count> 格（<omitted> 格因數量上限省略），<seconds> 秒後自動消失，/wg clear 立即清除。"
+    boxes: "沒有模組：改以 display entity 邊框描出變動的區域（<count> 個實體，<omitted> 個 section 因數量上限省略），<seconds> 秒後自動消失，/wg clear 立即清除。"
   clear:
     done: "已清除預覽。"
   reload:

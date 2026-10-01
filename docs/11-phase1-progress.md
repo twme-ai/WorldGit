@@ -151,7 +151,7 @@ clean status 三維度均為 `candidates=0 payloads-read=0`，無變動 commit �
 
 ### 安全修補摘要（2026-10-01）
 
-完整報告與逐項驗證見 [hub/docs/security-review-2026-10-01.md](../hub/docs/security-review-2026-10-01.md)。已修補：H1（私人世界不存在／無權限一律 404；Git 未認證請求統一 401 challenge，公開匿名 clone 用明確的 `anonymous` 空密碼）、M1（CSP／nosniff／DENY／Referrer-Policy／Permissions-Policy，HSTS 由設定開關、預設關；Playwright 在 CSP 下載入 3D 無違規）、M2（`max-pack-bytes` 改 95 MB、owner 層級配額預設 10 GiB）、M3（core 向後相容 `DecodeBudget.open()` 聚合解壓縮／解析預算，高壓縮比 blob 實測回 413 且不 OOM）、M4（登入與 Git Basic 速率限制與暫時鎖定，XFF 只信任設定的代理）、Low（tree 名稱 4xx、PAT 到期日與 `last_used_at`、compose 與 Quadlet 改用 secret 檔案 + `*_FILE`、Containerfile 基底映像釘 digest）。依賴升級：tomcat-embed-core 10.1.60、jackson-databind 2.21.7、postgresql 42.7.13、lz4（groupId 改 `at.yawk.lz4`）1.11.4，OSV 對這些版本查無已知漏洞。CI Actions 已釘選 commit SHA。共用模組：core 新增 `DecodeBudget`（向後相容）。政策性項目（開放自助註冊前的評估、bootstrap 密碼處理）未實作，列在 docs/07 上線前必做。尚未做：CI 在 GitHub 實跑、Quadlet 實機啟動（compose 路徑已冒煙）、PostgreSQL 後端測試。
+完整報告與逐項驗證見 [hub/docs/security-review-2026-10-01.md](../hub/docs/security-review-2026-10-01.md)。已修補：H1（私人世界不存在／無權限一律 404；Git 未認證請求統一 401 challenge，公開匿名 clone 用明確的 `anonymous` 空密碼）、M1（CSP／nosniff／DENY／Referrer-Policy／Permissions-Policy，HSTS 由設定開關、預設關；Playwright 在 CSP 下載入 3D 無違規）、M2（`max-pack-bytes` 改 95 MB、owner 層級配額預設 10 GiB）、M3（core 向後相容 `DecodeBudget.open()` 聚合解壓縮／解析預算，高壓縮比 blob 實測回 413 且不 OOM）、M4（登入與 Git Basic 速率限制與暫時鎖定，XFF 只信任設定的代理）、Low（tree 名稱 4xx、PAT 到期日與 `last_used_at`、compose 與 Quadlet 改用 secret 檔案 + `*_FILE`、Containerfile 基底映像釘 digest）。依賴升級：tomcat-embed-core 10.1.60、jackson-databind 2.21.7、postgresql 42.7.13、lz4（groupId 改 `at.yawk.lz4`）1.11.4，OSV 對這些版本查無已知漏洞。CI Actions 已釘選 commit SHA。共用模組：core 新增 `DecodeBudget`（向後相容）。政策性項目（開放自助註冊前的評估、bootstrap 密碼處理）未實作，列在 docs/07 上線前必做。部署路徑的驗證（Quadlet、rootless、PostgreSQL、冒煙進 CI）見下方「Hub 部署路徑實機驗證」；CI 在 GitHub 上實跑仍未做。
 
 ### 與設計的差異／未完成
 
@@ -159,9 +159,31 @@ clean status 三維度均為 `candidates=0 payloads-read=0`，無變動 commit �
 - 沒做 AO、告示牌文字／頭顱皮膚；實體只畫線框；grass_block 不走 greedy（有 overlay）。
 - 初始 commit 的統計只列 chunk 數，不逐格計數。部分推送判定只看「宣告的維度 repo 沒推送」與「push 被拒」，沒有 push option 預期清單。
 - mesher（greedy + 模型）沒有單元測試（需要完整資源包），目前由 Playwright 截圖驗證；前端只有繁體中文。
-- 容器：rootless Podman、Docker、arm64、Quadlet 由 systemd 實際啟動都**未驗證**；冒煙測試尚未進 CI（CI 只 `docker build`）。
-- S3 儲存、PostgreSQL 實跑、OAuth、配額／速率限制未做（只有介面／driver 預留）。
+- 容器：Docker、arm64 仍**未實測**（本機只有 Podman）；Quadlet（rootful／rootless）、PostgreSQL 已驗證，冒煙測試已寫進 CI 但尚未在 GitHub 上實跑（見下方「Hub 部署路徑實機驗證」）。
+- S3 儲存、OAuth 未做（只有介面預留）。
 - 修正的坑：ReceivePack 的 RevWalk 不保留 commit body（需 `parseBody`）；SQLite 不會建父目錄；Gradle 設定時 `--configure-on-demand` 必須（其他並行模組可能暫時壞掉）；映像建置 context 不含 paper／fabric，Containerfile 為 settings 宣告的專案建立空目錄。
+
+### Hub 部署路徑實機驗證（2026-10-01，Podman 4.9.3／Ubuntu 24.04／systemd，本機）
+
+證據在 `.work/hub/deploy-verify/`（`quadlet-verify*.log`、`smoke-*.log`、`quadlet-dryrun.log` 等）。
+
+| 項目 | 結果 |
+|---|---|
+| Quadlet rootful（`/etc/containers/systemd/`） | **通過**。`daemon-reload` 後 `systemctl start`；容器 healthy（約 14 秒）；以 Podman secret 掛載（檔案 mode 400、uid 10001）的密碼登入成功、錯誤密碼 401；建 PAT 後 git push 三個維度、snapshots=4；`systemctl restart` 後資料與 PAT 仍在；`podman kill` 後 `Restart=always` 自動拉起（NRestarts=1）。已 stop 並移除 unit、volume、secret、匿名 volume。 |
+| Quadlet rootless（暫時使用者 `wgrl`，subuid／linger／`systemctl --user`） | **通過**。同一流程全部成功（映像以 `podman save \| podman load` 送進該使用者的 storage）；已移除使用者、storage、linger。 |
+| PostgreSQL 16 | **通過**。完整 Hub 測試（15 個，含端到端 push→API、可見性矩陣、PAT、配額）在 PostgreSQL 上全綠，**沒有發現 SQL 方言問題**（schema 只用共通語法）；容器冒煙以 `DB=postgres` 全程通過。測試以 `WORLDGIT_TEST_POSTGRES_URL` 選用（預設 SQLite）。 |
+| 冒煙進 CI | **已寫入、未在 GitHub 實跑**。`hub-image` job 跑 `container-smoke.sh`（docker，SQLite 與 PostgreSQL 各一輪）；新增 `hub-postgres-test` job（postgres service 跑 `:hub:test`）。腳本在本機以 podman 兩種後端都通過。Action 皆釘 commit SHA。 |
+| compose／Quadlet 的 `*_FILE` 是否真被讀到 | **是**。登入成功證明密碼檔被讀到、固定 token 檔以 Bearer 通過。 |
+
+實測發現並修正：
+
+1. **podman 預設 OCI 格式會丟掉 Containerfile 的 `HEALTHCHECK`**（`podman build` 後 `inspect` 沒有 healthcheck，`podman run` 永遠沒有 healthy 狀態）。文件與冒煙腳本改用 `podman build --format docker`（建置後確認 healthcheck 存在並轉 healthy）。Quadlet 的 `HealthCmd` 與 compose 的 `healthcheck` 是自己定義的，不受影響；先前「compose healthy」的結論來自 compose 自帶的定義。
+2. **Quadlet 缺 `SuccessExitStatus=143`**：JVM 收 SIGTERM 回 143，`systemctl stop` 後 unit 變 `failed`。已加入 `hub/deploy/worldgit-hub.container`，rootless 重測 stop 後為 inactive（dead）。
+3. **compose secret 檔案權限**：podman-compose 1.0.6 把檔案原樣 bind mount（mode 與擁有者不變）。依舊文件建議的 root 擁有 `chmod 600` 時，容器 uid 10001 讀不到，Hub 啟動失敗並印「無法讀取 bootstrap secret 檔案」（fail-closed，不會退回隨機密碼）。正確做法是 `chown 10001:10001` + `chmod 400`（rootless 用 `podman unshare chown`）；已更新 `compose.yaml` 註解與 README，並實測通過。
+4. 自訂 network 上容器名稱解析（aardvark-dns）在這台機器不可用（`UnknownHostException`）；冒煙腳本改用 PostgreSQL 容器的 IP 連線，避免依賴 DNS。
+5. SQLite pragma 由 hikari `data-source-properties` 改放 JDBC URL 參數（`?busy_timeout=…&journal_mode=WAL&foreign_keys=true`），切換 PostgreSQL 不用再清除 SQLite 專用屬性。
+
+環境限制與未完成：Quadlet 實驗用 `PublishPort` 的 18091／18092（不是範例的 8091，避免與並行任務衝突，其餘檔案與範例相同）；Docker 引擎、arm64、GitHub runner 實跑未驗證；Quadlet 的 `Type=notify` 在容器啟動（非 healthy）時就視為就緒，要等 healthy 才算上線的場景需另行處理；舊版 PostgreSQL 資料庫的 `tokens.last_used_at` 升級路徑（`TokenSchemaUpgrade`）只在 SQLite 測過，PostgreSQL 為新建 schema。
 
 ## Paper/Folia（Phase 1 插件任務，2026-10-01）
 
@@ -223,10 +245,10 @@ mod 場景最初握手成功但封包為 0，原因是 bot3／bot4 沒有 op；�
 ### 與設計的差異與未完成
 
 - 登出 commit 是當前維度／世界的全部待提交變動，**沒有 per-player staging**；作者是 chunk 級歸屬，沒有逐格 blame。
-- **Folia shutdown commit 略過**：disable 時 region scheduler 已不可用，沒有單一 owner thread。定時與登出可用，但不能把 Folia 關閉前未提交內容宣稱已建立存檔點。
+- **Folia shutdown commit（已於「Phase 1 端到端驗收」章節補上）**：disable 時 region scheduler 已不可用、沒有單一 owner thread，所以改走離線路徑（JVM 關閉鉤子等世界存完後離線 commit），不再略過；本段以下的量測是補上之前的狀態。
 - 未載入部分沿用 core 磁碟掃描，尚無伺服器 chunk IO／flush barrier；卸載存檔仍排隊時可能到下一次 scan 才反映。跨 chunk 快照不是同 tick transaction，UUID 去重保留第一份。
 - 世界級 metadata 除 gamerule 外仍以已落盤內容為準；正在修改但尚未保存的地圖／記分板等沒有完整的活資料擷取。
-- display entity fallback、真正客戶端渲染／截圖與四端共同 push 的端到端流程不由本次 bot 封包測試證明；Fabric／Hub 的實際畫面驗收見各自章節。Phase 2 apply／switch／restore／保護尚未實作。
+- 真正客戶端渲染／截圖不由本次 bot 封包測試證明（Fabric／Hub 的實際畫面驗收見各自章節）。display entity fallback 與四端共同 push 的端到端流程已在「Phase 1 端到端驗收」章節補上。Phase 2 apply／switch／restore／保護尚未實作。
 - FAWE 的 `//regen`、筆刷、schematic、biome 修改模式未逐一驗證；沒有 PacketEvents 補充監聽，內容雜湊仍是最終真相。
 - CI 用 `https://fill.papermc.io/v3/projects/paper/versions/<version>/builds/latest` 的 `downloads["server:default"].url`。2026-10-01 GitHub Actions 實跑已驗證（run 36863841643：1.21.11 build 132、26.2 build 129 下載成功，三組二進位相容檢查通過）。本機開發環境呼叫 Fill v3／舊 API 曾回 429／503／504；v2 不支援以 latest 當 build id。
 
@@ -271,3 +293,63 @@ mod 場景最初握手成功但封包為 0，原因是 bot3／bot4 沒有 op；�
 
 - core：`EntityTagRegistry.PackResolver` 與 `load(world, dv, resolver)`，`OfflineSnapshotSource` 增加 resolver 建構子，fabric* pack 無 resolver 時警告而非失敗；`RegionFile` 將 0 byte `.mca` 視為空、末尾未補滿 4096 的 chunk 可讀。測試：`EntityTagRegistryTest`、`CodecNormalizationTest`，`:core:test` 通過。
 - 根專案：`settings.gradle.kts`（Fabric repo、include、`repositoriesMode = PREFER_PROJECT`）、`gradle/libs.versions.toml`、`ci.yml`（上傳 fabric jar）。沒有修改 `hub/`、`paper/`、`experiments/`，沒有 git commit／push。
+
+## Phase 1 端到端驗收（Phase 1 收尾 A，2026-10-01）
+
+可重跑腳本：`tools/e2e/phase1_e2e.py`（說明見 [tools/e2e/README.md](../tools/e2e/README.md)）。證據在 `.work/phase1-e2e/`（總表 `result-paper.json`、`result-folia.json`，每個版本一個目錄含 console log、CLI log／diff 原文、模組端封包解碼 `mod-batches.json`、Hub API 回應與截圖），精選截圖在 `docs/screenshots/phase1-e2e/`（6 張，約 1 MB）。全部在持有 `bench.lock` 下、127.0.0.1、offline mode 的複製伺服器上執行。
+
+### 驗收流程與結果
+
+每個平台／版本一次（合成平坦世界 fixture，只含插件，沒有 FAWE）：
+
+1. 插件 `/wg init` → 模組 bot（`wgbot.js … mod`，註冊 `worldgit:*` channel 並回 hello）放兩格、挖一格 → `/wg status --show`、`/wg diff --show` → `/wg commit -m e2e-edit`。bot 把收到的 payload 原樣存檔，由 `tools/e2e/DecodeDump.java` 以 `protocol` 的 `Protocol`／`BatchAssembler` 解碼。
+2. 伺服器停止後，CLI（`wgit.jar`）對**同一個** `.worldgit/` repo 跑 `log`、`diff HEAD~1 HEAD --blocks`。
+3. Hub 以 jar 在本機啟動（127.0.0.1:8197、暫存資料目錄、bootstrap token），一般 `git push` 把三個維度 repo 各推一次（`/git/admin/<世界>/<維度>.git`，同一次存檔的 `WorldGit-Snapshot` 在網頁合併成一列）。API 讀回 snapshots／commit 詳情／WGDF diff；Playwright（系統 Chrome + SwiftShader）開 commit 3D 頁面截圖，並從頁內 `viewer.world.diffs` 取出實際上色的格子。
+
+| 平台／版本 | 步驟 | 插件 HEAD（overworld） | 結果 |
+|---|---|---|---|
+| Paper 1.21.11 | 16／16 | `045508503b5f…` | 通過 |
+| Paper 26.2 | 16／16 | `0bbd65b6d508…` | 通過 |
+| Folia 1.21.11 | 16／16 | `e12b53485966…` | 通過 |
+| Folia 26.2 | 16／16 | `8976bad56f5a…` | 通過 |
+
+每一列的 16 個斷言包含：init 建立三個維度 repo；commit 後多一個 commit；插件沒有 WARN／ERROR；CLI `log` 含同一個 commit id 與訊息；CLI `diff` 的 3 格（2 新增、1 移除）涵蓋 bot 放的方塊；**模組端 diff 封包的格子＝CLI diff 的格子（座標集合相同，前後狀態方塊名稱一致）**；模組端 status 描邊（2 個 section 包圍盒，ADDED／REMOVED）包含所有 CLI 格子；push 三個維度成功；Hub snapshots API 含三個維度的 HEAD commit id；Hub commit 詳情 API 回傳同一個 id；**Hub WGDF diff 的格子＝CLI 格子**；3D 頁面載入並截圖（無 console error）；**3D 頁面內 viewer 實際持有的 diff 格子＝CLI 格子**（上色位置正確）。四端的 commit id 與格子座標逐一相同才算通過，沒有任何一端靠放寬比對通過。
+
+- **模組端是封包層級的證明**：bot 收到並解碼的是真正客戶端模組會消費的同一批 `worldgit:diff`／`worldgit:status` payload（含分包重組）；它不是渲染。真正客戶端（Xvfb／llvmpipe）的畫面由 `fabric/tools/accept-paper.py` 驗證：本次以最終插件 jar 重跑，1.21.11（`.work/fabric-acceptance/paper-1.21.11-20261001-142332`）與 26.2（`…paper-26.2-20261001-142509`）都通過（握手、三格 diff 鬼影、status 描邊、clear），截圖 `fabric-client-paper-*-diff.png`。該腳本用自己的世界，所以「真客戶端看到的格子」與本節 CLI 格子不是同一個世界；兩者的銜接就是上一點的封包解碼。**第一次跑這個腳本時兩個版本都失敗**：隨機種子產生的世界在 y=-27～-38 的試煉密室裡有 `vault` 方塊實體，live 複本與初始化掃描的內容不同，diff 多了 5／18 個格子（`Paper diff 應有 3 格，實際為 8／21`），與本次改動無關；原樣重跑就通過。這是該腳本世界的既有底噪，尚未修。
+- 截圖：`hub-paper-1.21.11-commit-closeup.png`、`hub-paper-26.2-commit-closeup.png`、`hub-folia-26.2-commit-closeup.png`（近景：綠＝新增、紅＝移除鬼影、黃＝修改）、`hub-paper-1.21.11-commit-3d.png`（預設鏡頭）、`fabric-client-paper-1.21.11-diff.png`、`fabric-client-paper-26.2-diff.png`（真實客戶端）。
+- 為了讓腳本可重用，把 `place_block` 從 `acceptance.py` 搬到 `harness.py`；`wgbot.js` 加了向後相容的 `WG_BOT_DUMP`（存封包）與 `entities`（計算可見的 display entity）。沒有改 core／protocol／hub／fabric。
+
+### Folia 關閉前 commit（已實作）
+
+- **研究結論**：Folia 的 `onDisable` 在 `RegionShutdownThread` 存檔**之前**執行，那時 region scheduler 已不接受新工作，沒有單一擁有者可以複製 chunk；而世界存完後，Folia 的 `session.lock` 要到 JVM 結束才釋放，所以不能拿 `SessionGuard` 當「已存完」的訊號（第一版這樣做，等到被 `stop` 逾時殺掉，沒有 commit）。
+- **做法**（`OfflineShutdownCommit`）：onEnable 註冊 JVM 關閉鉤子與一個 log4j appender；onDisable 預先建好離線來源並載入 entity tag registry、預載整個插件 jar 的類別（`PluginClassLoader` 之後會被關閉，資源與未載入的類別都讀不到——第一次實測就因為 `EntityTagRegistry` 讀不到 jar 內的 `4671.yml` 而失敗），並取走作者歸屬；鉤子等到 appender 看到 Paper 補丁印出的「All RegionFile I/O tasks to complete」（所有世界已存完、I/O 已 flush）才用 core 的離線掃描 commit（與 CLI 同一條路徑，metadata 標記 plugin／auto、保留 `Co-authored-by`／Contribution），逾時 180 秒就放棄且不動世界。結果寫到 `plugins/WorldGit/shutdown-commit.log`（此時 log4j 不可靠）。
+- **驗證**：`acceptance.py` 的 shutdown 場景（`/stop`）與新的 `sigterm` 場景（`kill -TERM`，鉤子會比存檔更早啟動，必須等訊號）在 Folia 1.21.11 與 26.2 都通過：JVM 自行結束、commit 數 +1、標記為「伺服器關閉前自動存檔點」且 `WorldGit-Auto: true`、伺服器停止後離線 CLI `status` 三個維度全為 0。
+- **限制**：依賴 Paper 補丁的 log 文字與「JVM 關閉鉤子能跑完」；`kill -9`、崩潰、容器被 SIGKILL 當然沒有關閉前 commit；Folia 的作者歸屬因為離線路徑只有 drained 的歸屬而沒有活資料，沿用 chunk 級；兩個鉤子的 log 在 Folia 會以 `[STDERR]` 形式出現在 console（不是插件 logger）。
+- 這條路徑只有 Folia 使用；Paper 仍在 `onDisable` 內聯 commit（行為不變）。
+
+### display entity fallback（已實作）
+
+沒有安裝模組的玩家（握手未完成）執行 `/wg diff --show` 或 `/wg status --show` 時，除了原本的聊天清單，插件用 `BlockDisplay`（`DisplayFallback`）顯示：
+
+- 逐格模式（變動格數 ≤ `show.display-max-entities`，預設 512）：ADDED／MODIFIED 描 after、REMOVED 描 before，用目前色票的發光輪廓（略大於一格以避免 z-fighting）；超過上限、或 `status --show` 時，每個變動 section 畫 12 條細邊的包圍盒（顏色依主要變動種類），再超過上限的 section 省略並在訊息中告知。
+- **只對請求者可見**：`visibleByDefault=false` 後只對該玩家 `showEntity`（Paper per-player entity visibility）。實體不持久化（`persistent=false`）並帶 `worldgit_preview` 標籤，**不進 WorldGit 的實體快照**（驗收中 `status` 沒有實體變動）。
+- 移除：`show.display-seconds`（預設 60）逾時、`/wg clear`、玩家登出、插件停用；重新 `--show` 會先清掉上一批。
+- 設定與 i18n：`show.display-max-entities`、`show.display-seconds`（有範圍驗證與單元測試）；訊息 `paper.display.cells`／`paper.display.boxes`（zh_tw／en_us）。
+- **驗收**（`acceptance.py … display`，兩個玩家 bot：A 請求、B 在旁邊不請求；上限調成 20、秒數調成 10）：A 看到 2 個 display、B 看到 0、伺服器端 2 個標記實體；聊天仍有「沒有模組」提示；`status` 的實體變動數為 0；`/wg clear` 後客戶端與伺服器端都為 0；`status --show` 畫 12 條邊（1 個 section，另一個因上限省略）且只對請求者可見；逾時自動移除；登出後移除。Paper 1.21.11／26.2、Folia 1.21.11／26.2 全部通過（Paper 1.21.11 整套第一次跑有一個步驟因為 4 秒固定等待不夠而失敗，改成輪詢後重跑通過）。
+- **限制**：發光輪廓是「描邊」，不是真實方塊外觀的半透明鬼影，REMOVED 的鬼影只有輪廓加原方塊材質，沒有半透明；沒有逐格 diff 的顏色以外資訊（hover 前後狀態仍在聊天清單）；大量 display entity 的客戶端渲染成本未量測（有上限）；沒有用真的原版客戶端截圖證明沒模組玩家的畫面（以 bot 的實體封包計數驗證可見性）。
+
+### 驗收腳本回歸
+
+| 場景 | Paper 1.21.11 | Paper 26.2 | Folia 1.21.11 | Folia 26.2 |
+|---|---|---|---|---|
+| 完整預設場景（basic、attribution、mod、display、worldedit、shutdown、auto） | 通過 31／32（display 登出步驟 4 秒等待不夠，已改輪詢，`basic display` 重跑通過） | 未跑 worldedit／auto／attribution，`basic mod display shutdown` 通過 | — | — |
+| `basic attribution mod display shutdown sigterm` | — | — | 通過 | 通過 |
+
+（`worldedit`、`auto` 只在 Paper 1.21.11 跑了完整場景；其餘平台只跑與本次改動相關的場景。）
+
+### 未完成與未做
+
+- **Hub／CLI／模組端的 diff 一致性只驗證到「3 格、單一 chunk 附近」的小編輯**；大量變動（跨 region、數萬格）的四端比對沒做，量級量測見各端章節。
+- **沒有 per-player staging**、沒有把兩個玩家的 display 同時對比的測試；沒有 Hub 上「同一個玩家 `wgit push`」流程（Phase 4）。
+- 真客戶端驗收腳本的世界有 vault 方塊實體底噪（見上），尚未修。
+- 沒有為 Folia 跑 `fabric/tools/accept-paper.py`（它只裝 Paper）。

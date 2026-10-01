@@ -131,7 +131,8 @@ Paper 伺服器（WorldGit 插件）                     玩家客戶端（World
 - **渲染**：移除格用原版方塊模型畫紅色半透明鬼影，形狀正確（樓梯、半磚、柵欄、玻璃片）。新增、修改、衝突用三種不同的外框。預設不穿牆，遵守深度遮擋。幾何只在新批次到達時建一次，每幀只畫 4 個固定 buffer。
 - **兩版差異大**：26.2 的渲染 API 大改（反向深度、vertex binding、`drawIndexed` 參數、payload 註冊名稱等），26.2 用不混淆的 Loom（沒有 `modImplementation`）。做法是每版一個小 `Adapter`，其餘共用。**編譯與載入成功不代表畫面正確**，26.2 的鬼影第一次就因深度方向錯誤而消失，所以 CI 要有真正客戶端的截圖回歸測試。
 - **效能**：10 萬格的 vertex buffer 約 99 MB，軟體渲染下每幀約 0.5 秒。正式版必須依 section 分塊、做視錐裁切與 LOD，數萬格以上改畫區域包圍盒（[06](06-diff-merge.md) §1.1）。
-- **尚未做**：沒裝模組時的 display entity 顯示、準星「舊 → 新」提示、衝突選擇 UI、色盲色票設定、Sodium／Iris 相容、資源包重載、硬體 GPU 量測。
+- **Phase 1 收尾已做**：沒裝模組時的 display entity 顯示（`paper/` 的 `DisplayFallback`，見 [11](11-phase1-progress.md)「Phase 1 端到端驗收」）。
+- **尚未做**：準星「舊 → 新」提示、衝突選擇 UI、色盲色票設定、Sodium／Iris 相容、資源包重載、硬體 GPU 量測。
 
 ## 7. Folia 首發支援（已決定，2026-09-30）
 

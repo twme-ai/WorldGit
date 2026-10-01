@@ -28,7 +28,7 @@ auto-commit:
   # 玩家登出後（延遲幾秒合併多人登出）建立存檔點；作者歸屬記錄這段期間改過的人。
   on-quit: true
   quit-delay-seconds: 10
-  # 伺服器關閉前建立存檔點（Paper；Folia 沒有單一擁有執行緒，略過）。
+  # 伺服器關閉前建立存檔點。Paper：關閉流程內聯 commit；Folia：改由 JVM 關閉鉤子等世界存檔完成後以離線路徑提交（結果在 plugins/WorldGit/shutdown-commit.log）。
   on-shutdown: true
 
 show:
@@ -36,6 +36,10 @@ show:
   radius-chunks: 6
   # 傳給客戶端模組鬼影的格數上限（協定上限 100000）；超過改送區域描邊。
   max-cells: 100000
+  # 沒有安裝客戶端模組的玩家：改用只有該玩家看得到的 BlockDisplay 發光描邊（逐格；太多時畫區域包圍盒）。
+  # 實體數量上限（逐格模式最多這麼多格；包圍盒模式每個 section 12 條邊）與自動移除秒數。/wg clear 立即移除。
+  display-max-entities: 512
+  display-seconds: 60
 
 # 主控台與沒有客戶端語言資訊時使用的語言；玩家會優先使用自己的客戶端語言。
 language: zh_tw

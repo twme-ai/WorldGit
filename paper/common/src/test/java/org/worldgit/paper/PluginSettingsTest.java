@@ -47,4 +47,19 @@ class PluginSettingsTest {
     assertTrue(AutoCommit.qualifies(entities, PluginSettings.from(config), false));
     assertFalse(AutoCommit.qualifies(new WorldDiff(DimensionId.OVERWORLD, List.of(), List.of(), List.of(), List.of()), settings, true));
   }
+
+  @Test
+  void displayFallbackSettingsHaveDefaultsAndRanges() {
+    var config = new YamlConfiguration();
+    var defaults = PluginSettings.from(config);
+    assertEquals(512, defaults.displayMaxEntities());
+    assertEquals(60, defaults.displaySeconds());
+    config.set("show.display-max-entities", 0);
+    assertTrue(assertThrows(IllegalArgumentException.class, () -> PluginSettings.from(config)).getMessage().contains("show.display-max-entities"));
+    config.set("show.display-max-entities", 64);
+    config.set("show.display-seconds", 1);
+    assertTrue(assertThrows(IllegalArgumentException.class, () -> PluginSettings.from(config)).getMessage().contains("show.display-seconds"));
+    config.set("show.display-seconds", 10);
+    assertEquals(64, PluginSettings.from(config).displayMaxEntities());
+  }
 }

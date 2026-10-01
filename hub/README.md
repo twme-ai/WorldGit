@@ -26,15 +26,16 @@ git push http://admin:dev-token@127.0.0.1:8091/git/admin/castle/minecraft.overwo
 ## 容器（Docker／Podman 通用）
 
 ```sh
-podman build -f hub/Containerfile -t localhost/worldgit-hub:latest .     # context 必須是 repo 根目錄；docker 同
+podman build --format docker -f hub/Containerfile -t localhost/worldgit-hub:latest .   # context 必須是 repo 根目錄；docker 不需 --format；podman 預設 OCI 格式會丟掉映像的 HEALTHCHECK
 WORLDGIT_ADMIN_PASSWORD_FILE=/安全路徑/admin-password WORLDGIT_ADMIN_TOKEN_FILE=/安全路徑/admin-token podman compose -f hub/compose.yaml up -d --build   # docker compose 同
 hub/scripts/container-smoke.sh                                            # 一鍵冒煙測試：建置 → 啟動 → push → API 讀回 → 清理
 ```
 
 - 多階段建置（Node 建前端 → Gradle 建 jar → `eclipse-temurin:25-jre`），非 root（uid 10001），資料集中在 `/data`（SQLite、世界 repo、資源快取），埠 8080，HEALTHCHECK 走 `/actuator/health/liveness`。
-- `compose.yaml` 的兩個 secret 由宿主檔案提供；先以 `chmod 600` 保護，未指定固定 token 時提供空 token 檔。Compose 的 secret 權限語意依引擎而異，必須讓容器 uid 10001 可讀；Quadlet 以 Podman secret 掛載為檔案（type=mount）並用 `*_FILE` 讀取，不再以環境變數傳入密碼。
+- `compose.yaml` 的兩個 secret 由宿主檔案提供，未指定固定 token 時提供空 token 檔。podman-compose 1.0.6 實測是把檔案原樣 bind mount，容器 uid 10001 必須讀得到：用 `chown 10001:10001 <檔案> && chmod 400 <檔案>`（rootless 用 `podman unshare chown`）；root 擁有的 600 檔案會讓 Hub 啟動失敗（錯誤訊息「無法讀取 bootstrap secret 檔案」，不會靜默退回隨機密碼）。Quadlet 以 Podman secret 掛載為檔案（type=mount）並用 `*_FILE` 讀取，不再以環境變數傳入密碼。
 - `compose.yaml` 預設只綁 `127.0.0.1:8091`；對外請放在反向代理（TLS）後面。
-- Podman Quadlet（systemd）範例在 `hub/deploy/`（`worldgit-hub.container`、`worldgit-hub.volume`）。
+- Podman Quadlet（systemd）範例在 `hub/deploy/`（`worldgit-hub.container`、`worldgit-hub.volume`）；2026-10-01 已在 Podman 4.9.3 的 rootful 與 rootless 實機驗證（見 docs/11）。`[Service]` 的 `SuccessExitStatus=143` 是實測後加的（JVM 收 SIGTERM 回 143，否則 `systemctl stop` 後 unit 顯示 failed）。
+- 冒煙測試支援 `DB=postgres`（另起 postgres 容器）；流程含 healthcheck 轉 healthy、密碼登入（證明 `*_FILE` 被讀到）、push、clone、重啟後資料仍在。CI 的 `hub-image` job 以 docker 跑 SQLite 與 PostgreSQL 兩輪。
 - 目前只有 amd64 實測；arm64 需用 `--platform linux/arm64` 在 arm64 主機（或 qemu）建置，基底映像皆有 arm64，未實測。
 
 ## 設定（`application.yml`，環境變數可覆寫）
@@ -54,7 +55,7 @@ hub/scripts/container-smoke.sh                                            # 一�
 | `worldgit.hub.tokens.pat-days` | `WORLDGIT_HUB_TOKENS_PAT_DAYS` | 新 PAT 預設 90 天，可指定 `expiresAt` ISO-8601（最長十年）；既有與 bootstrap token 的期限維持既有政策 |
 | `worldgit.hub.git.pack-limit-bytes` | — | push 後非同步 repack 的 pack 上限（預設 95,000,000，決定 #17） |
 | `worldgit.hub.assets.source-dir` | `WORLDGIT_HUB_ASSETS_SOURCE_DIR` | 已解開的 client jar 目錄；空白＝自 Mojang 下載 |
-| `spring.datasource.*` | `SPRING_DATASOURCE_URL` 等 | 預設 SQLite；改 `jdbc:postgresql://…` 並設 `SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver` 切換 PostgreSQL（driver 已內建；SQLite 專用 pragma 在 `data-source-properties`，切換時要一併清掉） |
+| `spring.datasource.*` | `SPRING_DATASOURCE_URL` 等 | 預設 SQLite；改 `jdbc:postgresql://…` 並設 `SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver` 切換 PostgreSQL（driver 已內建；SQLite 的 pragma 已改放 URL 參數，所以切換只需改 URL、driver、帳密；2026-10-01 以 PostgreSQL 16 跑過完整 Hub 測試與容器冒煙） |
 | `server.address` / `server.port` | `SERVER_ADDRESS` / `SERVER_PORT` | jar 預設 `0.0.0.0:8080`（容器用）；本機請用 `--server.address=127.0.0.1` |
 
 ## 安全邊界
@@ -83,6 +84,8 @@ commit 物件上限 1 MiB、每個 commit 最多 1024 個 trailer／100000 個 c
 
 ```sh
 ./gradlew --configure-on-demand :hub:test          # 後端（NameRules、端到端 push → API）約 10–60 秒
+# 選用：整個後端測試套件改跑 PostgreSQL（預設不設＝SQLite）
+WORLDGIT_TEST_POSTGRES_URL=jdbc:postgresql://127.0.0.1:5432/hub WORLDGIT_TEST_POSTGRES_PASSWORD=… ./gradlew --configure-on-demand :hub:test
 cd hub/web && npm ci && npm test && npm run build   # 前端 vitest（wire/LOD）＋ tsc ＋ vite build
 cd hub/web && npm run dev                           # Vite dev server（127.0.0.1:5191，proxy 到 Hub 8091）
 ```

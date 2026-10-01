@@ -22,6 +22,8 @@ public record PluginSettings(
     boolean autoOnShutdown,
     int showRadiusChunks,
     int showMaxCells,
+    int displayMaxEntities,
+    int displaySeconds,
     String language,
     String serverName,
     String serverEmail) {
@@ -37,6 +39,8 @@ public record PluginSettings(
     check(autoQuitDelaySeconds, 0, 600, "auto-commit.quit-delay-seconds");
     check(showRadiusChunks, 1, 32, "show.radius-chunks");
     check(showMaxCells, 1, 100_000, "show.max-cells");
+    check(displayMaxEntities, 1, 4096, "show.display-max-entities");
+    check(displaySeconds, 5, 3600, "show.display-seconds");
     Objects.requireNonNull(serverName);
     Objects.requireNonNull(serverEmail);
     Objects.requireNonNull(language);
@@ -59,7 +63,7 @@ public record PluginSettings(
 
   public static PluginSettings from(ConfigurationSection c) {
     validateTypes(c, Integer.class, "dirty-poll-interval-ticks", "commit.chunks-per-tick", "commit.snapshot-window", "commit.timeout-seconds",
-        "auto-commit.interval-minutes", "auto-commit.max-wait-minutes", "auto-commit.min-changed-sections", "auto-commit.quit-delay-seconds", "show.radius-chunks", "show.max-cells");
+        "auto-commit.interval-minutes", "auto-commit.max-wait-minutes", "auto-commit.min-changed-sections", "auto-commit.quit-delay-seconds", "show.radius-chunks", "show.max-cells", "show.display-max-entities", "show.display-seconds");
     validateTypes(c, Boolean.class, "auto-commit.enabled", "auto-commit.entity-only-triggers", "auto-commit.on-quit", "auto-commit.on-shutdown");
     validateTypes(c, String.class, "language", "server-identity.name", "server-identity.email");
     return new PluginSettings(
@@ -77,6 +81,8 @@ public record PluginSettings(
         c.getBoolean("auto-commit.on-shutdown", true),
         c.getInt("show.radius-chunks", 6),
         c.getInt("show.max-cells", 100_000),
+        c.getInt("show.display-max-entities", 512),
+        c.getInt("show.display-seconds", 60),
         c.getString("language", "zh_tw"),
         c.getString("server-identity.name", "WorldGit Server"),
         c.getString("server-identity.email", "worldgit@server.invalid"));
