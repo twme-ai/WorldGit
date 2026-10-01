@@ -115,7 +115,7 @@ field minecraft:villager Gossips
 - 每個維度是獨立 repo（§2.1），所以 `.wgignore` 也是每個維度一份；不想追蹤整個維度，就不要為它建 repo（`init --dimension` 只選要的維度），不再用 `dimension` 規則。
 - Phase 0 實測（`experiments/06-survival-scale/`）：生存模擬中 `entity * !persistent` 讓 commit 大小少 15%、實體增減少 98%；只排除掉落物只少 0.5%。容許距離 0／2／4 格時被判為修改的實體 295／192／174，維持預設 2 格。依決定 #2 預設仍全部追蹤，`entity * !persistent` 放在範本裡當作**建議取消註解的第一行**，並在 `status` 實體雜訊多時提示。
 - `/wg init` 會詢問要用哪份範本（§5.1）；沒有指定時用創造模式範本，只有註解掉的範例行，實際上什麼都不排除，符合「預設全部追蹤」。
-- 另外還有一份**不進版本控制**的本機設定 `worldgit.toml`，只放個別伺服器的設定（自動 commit 頻率、Hub 位址、權限），不放追蹤規則。
+- 另外還有一份**不進版本控制**的本機設定 `worldgit.yml`，只放個別伺服器的設定（自動 commit 頻率、Hub 位址、權限），不放追蹤規則。所有設定檔都用 YAML（決定 #21）。
 
 ### 5.1 創造模式與生存模式範本（已決定，2026-10-01）
 
@@ -165,9 +165,9 @@ entity minecraft:tnt                 # 點燃的 TNT
 
 ### 7.1 選項：只存玩家改過的 chunk（已決定，2026-10-01，預設關閉）
 
-上面的「全部追蹤」是**預設值**。使用者可以在 repo 設定中開啟 `track = modified-only`，此時沒被玩家改過的自然地形不存進 repo。
+上面的「全部追蹤」是**預設值**。使用者可以在 repo 設定中設定 `track: modified-only`，此時沒被玩家改過的自然地形不存進 repo。
 
-- **設定放在 repo 裡**（主世界 repo 的 `world-meta`，跟世界一起被版本控制），不放本機的 `worldgit.toml`：clone 的人必須知道哪些 chunk 是故意不存的。
+- **設定放在 repo 裡**（主世界 repo 的 `world-meta`，跟世界一起被版本控制），不放本機的 `worldgit.yml`：clone 的人必須知道哪些 chunk 是故意不存的。
 - **什麼算「改過」**：WorldGit 觀察到的任何一次方塊、block entity、biome 或被追蹤實體的變動（[04](04-commit-and-status.md) 的偵測機制）。開啟前就存在的 chunk，以 `init` 時與種子重新生成結果比對判斷；比對太貴時可選擇保守地全部視為改過。
 - **clone 與切換**：沒存的 chunk 由伺服器依種子重新生成。需要相同的種子、MC 版本、世界生成設定與資料包，這些記錄在 `world-meta`，不一致時 `clone`/`switch` 要警告，因為重新生成的地形可能跟原本不同。
 - **switch/restore**：沒存的 chunk 視同 untracked，不會被覆蓋。

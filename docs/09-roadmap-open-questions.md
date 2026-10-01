@@ -21,9 +21,10 @@
 | 15 | diff 顯示色 | 四端共用一套色票：**新增綠、移除紅、修改黃、衝突紫**，並搭配不同呈現方式（實心外框 / 鬼影 / 虛線 / 閃爍）讓色盲也分得出；可換色盲色票或自訂（使用者建議，2026-09-30） | [06](06-diff-merge.md) §1.1、[10](10-web-frontend.md) |
 | 16 | `.wgignore` 範本 | `init` 時可選**創造模式**與**生存模式**兩份範本：創造範本維持全部追蹤（只附註解範例）；生存範本預設排除自然刷出、會消失的生物與掉落物／經驗球／投射物（使用者決定，2026-10-01） | [02](02-data-model.md) §5.1 |
 | 17 | 大世界託管 | 所有 pack **一律切成 < 100 MB**；小世界可直接放 GitHub 等一般 git 託管，大世界放自架服務（自架 WorldGit Hub、Gitea…）（使用者決定，2026-10-01，結束待討論 A） | [03](03-storage-backend.md)、[07](07-remote-hub.md) §2 |
-| 18 | 每個維度一個 repo | 主世界、地獄、終界與自訂維度**各自是獨立的 repo**；世界層級資料（`world-meta`）放在主世界 repo，主世界 repo 記錄其他維度 repo 的清單（使用者決定，2026-10-01） | [02](02-data-model.md) §2.1、[08](08-architecture.md) §4 |
+| 18 | 每個維度一個 repo | 主世界、地獄、終界與自訂維度**各自是獨立的 repo**（一個維度＝一個世界＝一個 repo，也可以只用其中一個）；世界層級資料（`world-meta`）放在主世界 repo，主世界 repo 記錄其他維度 repo 的清單（使用者決定，2026-10-01） | [02](02-data-model.md) §2.1、[08](08-architecture.md) §4 |
 | 19 | 只存玩家改過的 chunk | 做成**可設定的選項，預設關閉**：預設仍儲存所有變動（含自然生成的 chunk）；開啟後未被改過的自然地形不存，clone／切換時依種子重新生成（使用者決定，2026-10-01，補充 #2） | [02](02-data-model.md) §7.1 |
 | 20 | Hub 打包 | Hub 提供 **OCI 容器映像**，Docker 與 Podman（含 rootless）都要能直接部署；附 compose 檔。Cloudflare 等雲端平台暫不考慮（使用者決定，2026-10-01） | [07](07-remote-hub.md) §4.1 |
+| 21 | 設定檔格式 | **所有設定檔統一用 YAML**，不用 TOML：插件／模組／CLI 的本機設定 `worldgit.yml`、Hub 的 Spring Boot `application.yml`、repo 內的設定（例如 `track: modified-only`）。Paper 插件的 `config.yml` 與 Spring Boot 本來就是 YAML（使用者決定，2026-10-01） | [02](02-data-model.md) §5、[08](08-architecture.md) |
 | 13 | 實作方式 | 程式碼由 **Codex（gpt-6.1-sol，透過 Codex 插件）**撰寫，包含需要網路與 Minecraft 伺服器的驗證（已開啟 Codex 寫入沙盒的網路存取）。先前的 Phase 0 實驗由 Sonnet 5.5 子代理執行。Codex 撞到用量限制時由 Sonnet 5.5 子代理接手（2026-10-01） | [CLAUDE.md](../CLAUDE.md) |
 
 ## 路線圖（四端並行）
