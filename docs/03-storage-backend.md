@@ -46,3 +46,21 @@ overworld/r.0.0/c.3.7/entities.bin
 - 一個典型生存伺服器世界（例如 5k～20k chunk）初次 init 的物件數、repo 大小、耗時
 - 一般遊玩 1 小時後一次 commit 的新增大小
 - 在 GitHub 上 push/clone 的實際表現
+
+## Phase 0 量測結果（2026-10-01，`experiments/06-survival-scale/`）
+
+26.2 Paper，Chunky 預生成 20,521 個 full chunk（3 核心機器，數字為量級）：
+
+| 項目 | 數字 |
+|---|---|
+| init | 112.5 秒、RSS 481 MB、210,538 個物件；串流寫入版 RSS 420 MB、樹完全相同 |
+| gc 後 pack | **110.3 MB**（每 chunk 約 5.4 KB）；gc 主要省磁碟區塊（58 MB → 7 MB 佔用），內容 bytes 不再變小（blob 已是 zstd） |
+| 增量 commit | 小改動 1.2 秒／35 KB；探索 289 個新 chunk 2.8 秒／1.6 MB |
+| 外推（線性） | 10 萬 chunk 約 540 MB、9–10 分鐘；100 萬 chunk 約 5.4 GB、90–100 分鐘 |
+| push／clone（本機 smart HTTP） | 首次 push 110 MB：C git 2.9 秒、JGit 4.8 秒；clone 6–8 秒；增量 push/fetch 約 1.6 MB、< 1 秒 |
+| `clone --depth 1` | **不省流量**（112 MB），因為最新 commit 的樹就是整個世界 |
+
+發現與待辦：
+- **單一 pack 已超過 GitHub 的 100 MB 單檔限制**（2 萬 chunk 就碰到）。見 [09](09-roadmap-open-questions.md)「待討論的決策」。
+- 原型問題：JGit gc 留下重複 pack；串流版會產生 dangling tree；init 尚未平行化讀 region、也沒 profile 過瓶頸。
+- 尚未測：Gitea、partial／sparse clone、真實網路。

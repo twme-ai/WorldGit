@@ -44,19 +44,21 @@
 
 ## 待討論的決策
 
-目前沒有。
+| # | 議題 | 背景 | 選項 |
+|---|---|---|---|
+| A | 大世界放在 GitHub 等一般 git 託管的方式 | 2 萬 chunk 的世界 gc 後是一個 110 MB 的 pack，超過 GitHub 單檔 100 MB 限制；GitHub 也建議 repo 小於數 GB，100 萬 chunk 約 5.4 GB（`experiments/06-survival-scale/`） | ① 設 `pack.packSizeLimit` 切成多個 < 100 MB 的 pack（最簡單，但 GitHub 對大 repo 仍有限制）② 主要託管在 WorldGit Hub／Gitea 等自架服務，GitHub 只當小世界或備份 ③ 依維度／區域拆成多個 repo（submodule 式）④ 只存玩家改過的 chunk，自然地形靠種子重建（與決定 #7「已生成都追蹤」衝突） |
 
 ## Phase 0 要驗證的技術風險
 
 - [x] 各種方塊/block entity 的正規化是否穩定（箱子、告示牌、生怪磚、講台上的書）（見 `experiments/02-core-proto/REPORT.md`）：兩版重寫 697 個 chunk 後假 diff 為 0
 - [x] 生物正規化：哪些欄位要忽略、容許距離設多少才不會有雜訊又不會漏掉真正的變動（見 `experiments/02-core-proto/REPORT.md`）：黏性 2 格，忽略清單見報告 §1.4；長時間漂移尚未測
-- [ ] 預設全部追蹤（含掉落物、自然刷怪）時，一般生存伺服器的 `status` 雜訊量與每次 commit 的大小
-- [ ] 追蹤所有已生成 chunk 時，大型伺服器（數萬 chunk）的初次 `init` 大小與耗時
+- [x] 預設全部追蹤（含掉落物、自然刷怪）時，一般生存伺服器的 `status` 雜訊量與每次 commit 的大小（見 `experiments/06-survival-scale/REPORT.md`）
+- [x] 追蹤所有已生成 chunk 時，大型伺服器（數萬 chunk）的初次 `init` 大小與耗時（見 `experiments/06-survival-scale/REPORT.md`）：2 萬 chunk 112 秒、110 MB
 - [x] 刪除光照資料後寫回，1.21.11 與 26.2 是否都能正確重算（見 `experiments/02-core-proto/REPORT.md`）：Paper 兩版皆與原本相同；Fabric/原版伺服器未測
 - [x] POI 資料丟棄後是否會被正確重建（見 `experiments/02-core-proto/REPORT.md`）：寫回時必須刪除 POI 檔中的對應紀錄才會重建
 - [x] 在 Paper 上替換已載入 chunk 的 section 後，客戶端更新與實體同步的正確做法（兩個版本）（見 `experiments/03-paper-poc/REPORT.md`）：四平台成功；section 內實體與客戶端光照尚未驗證
 - [x] 1.21.11 與 26.2 的存檔目錄結構與 chunk/實體 NBT 差異（見 `experiments/00-env/REPORT.md`）
-- [ ] 大世界的 init 耗時與 repo 大小；在 GitHub/Gitea 上 push/clone 的實際表現
+- [~] 大世界的 init 耗時與 repo 大小；在 GitHub/Gitea 上 push/clone 的實際表現（本機 smart HTTP 已測；Gitea、真實網路、GitHub 未測，見待討論 A）
 - [x] chunk unsaved 旗標 + region 時間戳能否抓到所有變動（含 FAWE），以及誤報量（見 `experiments/03-paper-poc/REPORT.md`）：方塊/BE 成立，需讀原始欄位、處理同秒碰撞；實體沒有旗標，另行處理
 - [x] FAWE 的 `EditSessionEvent` 在各種模式下是否都能看到逐格變動（見 `experiments/03-paper-poc/REPORT.md`）：bulk 模式看不到逐格，只有 Region 與每 chunk 寫入數；需設 `extent.allowed-plugins`；`//regen`、筆刷未測
 - [x] **前端實驗 A**（見 `experiments/04-deepslate/REPORT.md`）：用 deepslate 渲染 WorldGit 正規化後的一個 section（含多種非完整方塊），評估正確性、效能與介接成本

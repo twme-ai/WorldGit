@@ -1,0 +1,114 @@
+[
+  {
+    "profile": "tol0",
+    "before_disk": 30502912,
+    "after_disk": 3891200,
+    "size": {
+      "looseObjects": 30,
+      "looseBytes": 8388,
+      "packFiles": 1,
+      "packBytes": 3575259
+    },
+    "wall_s": 2.3337081619974924,
+    "rss_bytes": 290934784,
+    "xmx": "1G"
+  },
+  {
+    "profile": "tol2",
+    "before_disk": 30498816,
+    "after_disk": 3891200,
+    "size": {
+      "looseObjects": 30,
+      "looseBytes": 8388,
+      "packFiles": 1,
+      "packBytes": 3574427
+    },
+    "wall_s": 3.4435781619977206,
+    "rss_bytes": 290295808,
+    "xmx": "1G"
+  },
+  {
+    "profile": "tol4",
+    "before_disk": 30494720,
+    "after_disk": 3891200,
+    "size": {
+      "looseObjects": 30,
+      "looseBytes": 8388,
+      "packFiles": 1,
+      "packBytes": 3573790
+    },
+    "wall_s": 2.5052521269972203,
+    "rss_bytes": 285278208,
+    "xmx": "1G"
+  },
+  {
+    "profile": "items",
+    "before_disk": 30478336,
+    "after_disk": 3862528,
+    "size": {
+      "looseObjects": 27,
+      "looseBytes": 7568,
+      "packFiles": 1,
+      "packBytes": 3570527
+    },
+    "wall_s": 3.442257550996146,
+    "rss_bytes": 292257792,
+    "xmx": "1G"
+  },
+  {
+    "profile": "orbs",
+    "before_disk": 30502912,
+    "after_disk": 3891200,
+    "size": {
+      "looseObjects": 30,
+      "looseBytes": 8388,
+      "packFiles": 1,
+      "packBytes": 3574375
+    },
+    "wall_s": 2.579351398999279,
+    "rss_bytes": 291696640,
+    "xmx": "1G"
+  },
+  {
+    "profile": "wild",
+    "before_disk": 29921280,
+    "after_disk": 3739648,
+    "size": {
+      "looseObjects": 19,
+      "looseBytes": 5715,
+      "packFiles": 1,
+      "packBytes": 3516402
+    },
+    "wall_s": 2.40554315099871,
+    "rss_bytes": 272105472,
+    "xmx": "1G"
+  },
+  {
+    "profile": "extra",
+    "before_disk": 30498816,
+    "after_disk": 3887104,
+    "size": {
+      "looseObjects": 30,
+      "looseBytes": 8388,
+      "packFiles": 1,
+      "packBytes": 3572820
+    },
+    "wall_s": 2.248885226996208,
+    "rss_bytes": 291766272,
+    "xmx": "1G"
+  },
+  {
+    "profile": "combo",
+    "before_disk": 30478336,
+    "after_disk": 3858432,
+    "size": {
+      "looseObjects": 27,
+      "looseBytes": 7568,
+      "packFiles": 1,
+      "packBytes": 3568900
+    },
+    "wall_s": 2.4873315610020654,
+    "rss_bytes": 290451456,
+    "xmx": "1G"
+  }
+]

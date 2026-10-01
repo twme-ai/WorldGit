@@ -16,6 +16,7 @@
 
 - 若採用 JGit 後端（見 [03](03-storage-backend.md)）：直接使用 git 的 smart HTTP / SSH 協定，Hub 可以先用現成的 git 伺服器（Gitea、GitHub）當儲存，自己只做「看世界」的層。
 - push/pull 只傳對方沒有的 section，通常一次幾百 KB～數 MB。
+- Phase 0 實測（`experiments/06-survival-scale/`）：2 萬 chunk 世界首次 push／clone 約 110 MB、數秒（本機）；之後增量約 1–2 MB。`--depth 1` 不省流量。**單一 pack 會超過 GitHub 100 MB 單檔限制**，要分 pack 或改用自架／Hub 儲存（見 [09](09-roadmap-open-questions.md) 待討論）。
 - **部分 clone**：大伺服器（數十 GB）只想拉某區域 → 路徑本身就帶座標（`overworld/r.x.z/...`），可用 git 的 sparse-checkout / partial clone 以 region 為單位篩選。
 
 ## 3. Hub（類 GitHub 網頁端）功能

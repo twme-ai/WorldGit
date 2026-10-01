@@ -1,0 +1,134 @@
+[
+  {
+    "client": "c",
+    "operation": "first-push",
+    "wall_s": 2.8560726040013833,
+    "rss_bytes": 119857152,
+    "locked": true,
+    "request_body": 110275756,
+    "response_body": 266,
+    "requests": 3
+  },
+  {
+    "client": "c",
+    "operation": "clone-initial",
+    "wall_s": 5.959126884998113,
+    "rss_bytes": 34271232,
+    "locked": true,
+    "request_body": 392,
+    "response_body": 110339785,
+    "requests": 3
+  },
+  {
+    "client": "c",
+    "operation": "incremental-push",
+    "wall_s": 0.4507684470008826,
+    "rss_bytes": 15392768,
+    "locked": true,
+    "request_body": 1582151,
+    "response_body": 266,
+    "requests": 3
+  },
+  {
+    "client": "c",
+    "operation": "incremental-fetch",
+    "wall_s": 0.4596470090036746,
+    "rss_bytes": 135290880,
+    "locked": true,
+    "request_body": 594,
+    "response_body": 1559103,
+    "requests": 3
+  },
+  {
+    "client": "c",
+    "operation": "clone-full",
+    "wall_s": 6.072273913996469,
+    "rss_bytes": 34492416,
+    "locked": true,
+    "request_body": 392,
+    "response_body": 111894316,
+    "requests": 3,
+    "repo_disk_bytes": 118804480,
+    "commit_count": 3,
+    "pack_bytes": 111830652
+  },
+  {
+    "client": "c",
+    "operation": "clone-depth1",
+    "wall_s": 6.300633345999813,
+    "rss_bytes": 135294976,
+    "locked": true,
+    "request_body": 419,
+    "response_body": 111881048,
+    "requests": 3,
+    "repo_disk_bytes": 118792192,
+    "commit_count": 1,
+    "pack_bytes": 111817686
+  },
+  {
+    "client": "jgit",
+    "operation": "first-push",
+    "wall_s": 4.7571572919987375,
+    "rss_bytes": 332001280,
+    "locked": true,
+    "request_body": 110275747,
+    "response_body": 4325,
+    "requests": 2
+  },
+  {
+    "client": "jgit",
+    "operation": "clone-initial",
+    "wall_s": 7.4430020449945005,
+    "rss_bytes": 256872448,
+    "locked": true,
+    "request_body": 267,
+    "response_body": 110339390,
+    "requests": 3
+  },
+  {
+    "client": "jgit",
+    "operation": "incremental-push",
+    "wall_s": 0.8481417930015596,
+    "rss_bytes": 107851776,
+    "locked": true,
+    "request_body": 1582030,
+    "response_body": 3171,
+    "requests": 2
+  },
+  {
+    "client": "jgit",
+    "operation": "incremental-fetch",
+    "wall_s": 0.9392842140005087,
+    "rss_bytes": 89391104,
+    "locked": true,
+    "request_body": 293,
+    "response_body": 1557617,
+    "requests": 3
+  },
+  {
+    "client": "jgit",
+    "operation": "clone-full",
+    "wall_s": 7.686034355996526,
+    "rss_bytes": 249032704,
+    "locked": true,
+    "request_body": 268,
+    "response_body": 111896088,
+    "requests": 3,
+    "repo_disk_bytes": 117886976,
+    "commit_count": 3,
+    "pack_bytes": 111831119
+  },
+  {
+    "client": "jgit",
+    "operation": "clone-depth1",
+    "wall_s": 7.60794063800131,
+    "rss_bytes": 256229376,
+    "locked": true,
+    "request_body": 274,
+    "response_body": 111881930,
+    "requests": 3,
+    "repo_disk_bytes": 117874688,
+    "commit_count": 1,
+    "pack_bytes": 111818153
+  }
+]

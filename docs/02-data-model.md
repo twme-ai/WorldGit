@@ -105,6 +105,7 @@ field minecraft:villager Gossips
 行為規則：
 - 被忽略的內容在 `commit` 時不存、`status`/`diff` 不顯示，`switch`/`restore` 時**保持活世界裡的現狀不動**（對應 git 的「untracked 檔案不會被 checkout 覆蓋」）。
 - 修改 `.wgignore` 本身也是一個變動，要 commit 才生效。之前已追蹤、之後才被忽略的東西，會在下一次 commit 從快照中移除（等同 `git rm --cached`），並在 `status` 裡提示。
+- Phase 0 實測（`experiments/06-survival-scale/`）：生存模擬中 `entity * !persistent` 讓 commit 大小少 15%、實體增減少 98%；只排除掉落物只少 0.5%。容許距離 0／2／4 格時被判為修改的實體 295／192／174，維持預設 2 格。依決定 #2 預設仍全部追蹤，`entity * !persistent` 放在範本裡當作**建議取消註解的第一行**，並在 `status` 實體雜訊多時提示。
 - `/wg init` 產生的預設 `.wgignore` 只有註解掉的範例行（例如 `# entity minecraft:item`），實際上什麼都不排除，符合「預設全部追蹤」。
 - 另外還有一份**不進版本控制**的本機設定 `worldgit.toml`，只放個別伺服器的設定（自動 commit 頻率、Hub 位址、權限），不放追蹤規則。
 

@@ -1,0 +1,903 @@
+{
+  "26.2": {
+    "records": 9,
+    "profiles": {
+      "tol0": {
+        "totals": {
+          "new_objects": 7429,
+          "new_loose_bytes": 3630116,
+          "chunksAdded": 369,
+          "chunksRemoved": 0,
+          "sectionsChanged": 4501,
+          "secAdded": 3070,
+          "secRemoved": 0,
+          "secModified": 1431,
+          "blocksChanged": 11678242,
+          "blocksNewChunks": 11662887,
+          "blocksExistingChanged": 15355,
+          "sectionsNewChunks": 3070,
+          "beChanged": 35,
+          "biomes": 369,
+          "ticks": 155,
+          "entAdded": 1869,
+          "entRemoved": 1289,
+          "entModified": 295,
+          "entRelocated": 0,
+          "entChanges": 3453
+        },
+        "categories": {
+          "natural": {
+            "added": 1668,
+            "removed": 1154,
+            "modified": 123
+          },
+          "player_related": {
+            "added": 6,
+            "removed": 0,
+            "modified": 105
+          },
+          "transient": {
+            "added": 195,
+            "removed": 135,
+            "modified": 67
+          }
+        }
+      },
+      "tol2": {
+        "totals": {
+          "new_objects": 7403,
+          "new_loose_bytes": 3621165,
+          "chunksAdded": 369,
+          "chunksRemoved": 0,
+          "sectionsChanged": 4501,
+          "secAdded": 3070,
+          "secRemoved": 0,
+          "secModified": 1431,
+          "blocksChanged": 11678242,
+          "blocksNewChunks": 11662887,
+          "blocksExistingChanged": 15355,
+          "sectionsNewChunks": 3070,
+          "beChanged": 35,
+          "biomes": 369,
+          "ticks": 155,
+          "entAdded": 1869,
+          "entRemoved": 1289,
+          "entModified": 192,
+          "entRelocated": 0,
+          "entChanges": 3350
+        },
+        "categories": {
+          "natural": {
+            "added": 1668,
+            "removed": 1154,
+            "modified": 100
+          },
+          "player_related": {
+            "added": 6,
+            "removed": 0,
+            "modified": 83
+          },
+          "transient": {
+            "added": 195,
+            "removed": 135,
+            "modified": 9
+          }
+        }
+      },
+      "tol4": {
+        "totals": {
+          "new_objects": 7397,
+          "new_loose_bytes": 3618941,
+          "chunksAdded": 369,
+          "chunksRemoved": 0,
+          "sectionsChanged": 4501,
+          "secAdded": 3070,
+          "secRemoved": 0,
+          "secModified": 1431,
+          "blocksChanged": 11678242,
+          "blocksNewChunks": 11662887,
+          "blocksExistingChanged": 15355,
+          "sectionsNewChunks": 3070,
+          "beChanged": 35,
+          "biomes": 369,
+          "ticks": 155,
+          "entAdded": 1869,
+          "entRemoved": 1289,
+          "entModified": 174,
+          "entRelocated": 0,
+          "entChanges": 3332
+        },
+        "categories": {
+          "natural": {
+            "added": 1668,
+            "removed": 1154,
+            "modified": 92
+          },
+          "player_related": {
+            "added": 6,
+            "removed": 0,
+            "modified": 74
+          },
+          "transient": {
+            "added": 195,
+            "removed": 135,
+            "modified": 8
+          }
+        }
+      },
+      "items": {
+        "totals": {
+          "new_objects": 7378,
+          "new_loose_bytes": 3604503,
+          "chunksAdded": 369,
+          "chunksRemoved": 0,
+          "sectionsChanged": 4501,
+          "secAdded": 3070,
+          "secRemoved": 0,
+          "secModified": 1431,
+          "blocksChanged": 11678242,
+          "blocksNewChunks": 11662887,
+          "blocksExistingChanged": 15355,
+          "sectionsNewChunks": 3070,
+          "beChanged": 35,
+          "biomes": 369,
+          "ticks": 155,
+          "entAdded": 1703,
+          "entRemoved": 1176,
+          "entModified": 189,
+          "entRelocated": 0,
+          "entChanges": 3068
+        },
+        "categories": {
+          "natural": {
+            "added": 1668,
+            "removed": 1154,
+            "modified": 100
+          },
+          "player_related": {
+            "added": 6,
+            "removed": 0,
+            "modified": 83
+          },
+          "transient": {
+            "added": 29,
+            "removed": 22,
+            "modified": 6
+          }
+        }
+      },
+      "orbs": {
+        "totals": {
+          "new_objects": 7403,
+          "new_loose_bytes": 3621371,
+          "chunksAdded": 369,
+          "chunksRemoved": 0,
+          "sectionsChanged": 4501,
+          "secAdded": 3070,
+          "secRemoved": 0,
+          "secModified": 1431,
+          "blocksChanged": 11678242,
+          "blocksNewChunks": 11662887,
+          "blocksExistingChanged": 15355,
+          "sectionsNewChunks": 3070,
+          "beChanged": 35,
+          "biomes": 369,
+          "ticks": 155,
+          "entAdded": 1869,
+          "entRemoved": 1289,
+          "entModified": 192,
+          "entRelocated": 0,
+          "entChanges": 3350
+        },
+        "categories": {
+          "natural": {
+            "added": 1668,
+            "removed": 1154,
+            "modified": 100
+          },
+          "player_related": {
+            "added": 6,
+            "removed": 0,
+            "modified": 83
+          },
+          "transient": {
+            "added": 195,
+            "removed": 135,
+            "modified": 9
+          }
+        }
+      },
+      "wild": {
+        "totals": {
+          "new_objects": 6256,
+          "new_loose_bytes": 3065269,
+          "chunksAdded": 369,
+          "chunksRemoved": 0,
+          "sectionsChanged": 4501,
+          "secAdded": 3070,
+          "secRemoved": 0,
+          "secModified": 1431,
+          "blocksChanged": 11678242,
+          "blocksNewChunks": 11662887,
+          "blocksExistingChanged": 15355,
+          "sectionsNewChunks": 3070,
+          "beChanged": 35,
+          "biomes": 369,
+          "ticks": 155,
+          "entAdded": 35,
+          "entRemoved": 22,
+          "entModified": 89,
+          "entRelocated": 0,
+          "entChanges": 146
+        },
+        "categories": {
+          "player_related": {
+            "added": 6,
+            "removed": 0,
+            "modified": 83
+          },
+          "transient": {
+            "added": 29,
+            "removed": 22,
+            "modified": 6
+          }
+        }
+      },
+      "extra": {
+        "totals": {
+          "new_objects": 7402,
+          "new_loose_bytes": 3609051,
+          "chunksAdded": 369,
+          "chunksRemoved": 0,
+          "sectionsChanged": 4501,
+          "secAdded": 3070,
+          "secRemoved": 0,
+          "secModified": 1431,
+          "blocksChanged": 11678242,
+          "blocksNewChunks": 11662887,
+          "blocksExistingChanged": 15355,
+          "sectionsNewChunks": 3070,
+          "beChanged": 35,
+          "biomes": 369,
+          "ticks": 155,
+          "entAdded": 1869,
+          "entRemoved": 1289,
+          "entModified": 188,
+          "entRelocated": 0,
+          "entChanges": 3346
+        },
+        "categories": {
+          "natural": {
+            "added": 1668,
+            "removed": 1154,
+            "modified": 100
+          },
+          "player_related": {
+            "added": 6,
+            "removed": 0,
+            "modified": 79
+          },
+          "transient": {
+            "added": 195,
+            "removed": 135,
+            "modified": 9
+          }
+        }
+      },
+      "combo": {
+        "totals": {
+          "new_objects": 7377,
+          "new_loose_bytes": 3593034,
+          "chunksAdded": 369,
+          "chunksRemoved": 0,
+          "sectionsChanged": 4501,
+          "secAdded": 3070,
+          "secRemoved": 0,
+          "secModified": 1431,
+          "blocksChanged": 11678242,
+          "blocksNewChunks": 11662887,
+          "blocksExistingChanged": 15355,
+          "sectionsNewChunks": 3070,
+          "beChanged": 35,
+          "biomes": 369,
+          "ticks": 155,
+          "entAdded": 1703,
+          "entRemoved": 1176,
+          "entModified": 185,
+          "entRelocated": 0,
+          "entChanges": 3064
+        },
+        "categories": {
+          "natural": {
+            "added": 1668,
+            "removed": 1154,
+            "modified": 100
+          },
+          "player_related": {
+            "added": 6,
+            "removed": 0,
+            "modified": 79
+          },
+          "transient": {
+            "added": 29,
+            "removed": 22,
+            "modified": 6
+          }
+        }
+      }
+    },
+    "bots": {
+      "explorer": {
+        "successes": {},
+        "failures": {
+          "sleep": 1
+        },
+        "deaths": 2,
+        "last_heartbeat": {
+          "time": 1790821867414,
+          "name": "Scale0",
+          "role": "explorer",
+          "event": "heartbeat",
+          "mode": "active",
+          "pos": {
+            "x": 8.227894237760523,
+            "y": 60.93150897620303,
+            "z": 57.78273804519647
+          },
+          "health": 20,
+          "food": 20,
+          "stats": {
+            "walk_intervals": 244,
+            "deaths": 2,
+            "sleep_failed": 1
+          },
+          "traveled": 0.19976320000000136,
+          "gameTime": 61536
+        }
+      },
+      "keeper": {
+        "successes": {},
+        "failures": {
+          "chest_place": 1,
+          "chest_store": 739,
+          "combat": 739,
+          "sleep": 424
+        },
+        "deaths": 235,
+        "last_heartbeat": {
+          "time": 1790821875226,
+          "name": "Scale3",
+          "role": "keeper",
+          "event": "heartbeat",
+          "mode": "active",
+          "pos": {
+            "x": 47.5,
+            "y": 190,
+            "z": 6.5
+          },
+          "health": 4.499999523162842,
+          "food": 20,
+          "stats": {
+            "chest_place_failed": 1,
+            "chest_store_failed": 732,
+            "combat_failed": 732,
+            "deaths": 231,
+            "sleep_failed": 417
+          },
+          "traveled": 1.599999999999909,
+          "gameTime": 61669
+        }
+      },
+      "builder": {
+        "successes": {},
+        "failures": {
+          "build": 124,
+          "farm": 148,
+          "breed": 106,
+          "renovate": 615,
+          "sleep": 5
+        },
+        "deaths": 200,
+        "last_heartbeat": {
+          "time": 1790821872822,
+          "name": "Scale2",
+          "role": "builder",
+          "event": "heartbeat",
+          "mode": "active",
+          "pos": {
+            "x": 34.5,
+            "y": 190,
+            "z": 6.5
+          },
+          "health": 12,
+          "food": 20,
+          "stats": {
+            "build_failed": 124,
+            "farm_failed": 147,
+            "breed_failed": 105,
+            "deaths": 197,
+            "renovate_failed": 607,
+            "sleep_failed": 5
+          },
+          "traveled": 37.54347777258258,
+          "gameTime": 61610
+        }
+      },
+      "miner": {
+        "successes": {},
+        "failures": {
+          "mine": 742,
+          "chop": 742,
+          "drop": 248,
+          "sleep": 4
+        },
+        "deaths": 119,
+        "last_heartbeat": {
+          "time": 1790821870286,
+          "name": "Scale1",
+          "role": "miner",
+          "event": "heartbeat",
+          "mode": "active",
+          "pos": {
+            "x": 21.5,
+            "y": 190,
+            "z": 6.5
+          },
+          "health": 9.833333015441895,
+          "food": 20,
+          "stats": {
+            "mine_failed": 733,
+            "chop_failed": 733,
+            "drop_failed": 245,
+            "deaths": 116,
+            "sleep_failed": 4
+          },
+          "traveled": 36.39999999999998,
+          "gameTime": 61569
+        }
+      }
+    },
+    "game_seconds": 1839.2
+  },
+  "1.21.11": {
+    "records": 5,
+    "profiles": {
+      "tol0": {
+        "totals": {
+          "new_objects": 726,
+          "new_loose_bytes": 353071,
+          "chunksAdded": 38,
+          "chunksRemoved": 0,
+          "sectionsChanged": 463,
+          "secAdded": 342,
+          "secRemoved": 0,
+          "secModified": 121,
+          "blocksChanged": 1237197,
+          "blocksNewChunks": 1234849,
+          "blocksExistingChanged": 2348,
+          "sectionsNewChunks": 342,
+          "beChanged": 10,
+          "biomes": 38,
+          "ticks": 13,
+          "entAdded": 222,
+          "entRemoved": 22,
+          "entModified": 4,
+          "entRelocated": 0,
+          "entChanges": 248
+        },
+        "categories": {
+          "natural": {
+            "added": 180,
+            "removed": 16,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 1,
+            "removed": 0,
+            "modified": 4
+          },
+          "transient": {
+            "added": 41,
+            "removed": 6,
+            "modified": 0
+          }
+        }
+      },
+      "tol2": {
+        "totals": {
+          "new_objects": 726,
+          "new_loose_bytes": 353065,
+          "chunksAdded": 38,
+          "chunksRemoved": 0,
+          "sectionsChanged": 463,
+          "secAdded": 342,
+          "secRemoved": 0,
+          "secModified": 121,
+          "blocksChanged": 1237197,
+          "blocksNewChunks": 1234849,
+          "blocksExistingChanged": 2348,
+          "sectionsNewChunks": 342,
+          "beChanged": 10,
+          "biomes": 38,
+          "ticks": 13,
+          "entAdded": 222,
+          "entRemoved": 22,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 247
+        },
+        "categories": {
+          "natural": {
+            "added": 180,
+            "removed": 16,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 1,
+            "removed": 0,
+            "modified": 3
+          },
+          "transient": {
+            "added": 41,
+            "removed": 6,
+            "modified": 0
+          }
+        }
+      },
+      "tol4": {
+        "totals": {
+          "new_objects": 726,
+          "new_loose_bytes": 353080,
+          "chunksAdded": 38,
+          "chunksRemoved": 0,
+          "sectionsChanged": 463,
+          "secAdded": 342,
+          "secRemoved": 0,
+          "secModified": 121,
+          "blocksChanged": 1237197,
+          "blocksNewChunks": 1234849,
+          "blocksExistingChanged": 2348,
+          "sectionsNewChunks": 342,
+          "beChanged": 10,
+          "biomes": 38,
+          "ticks": 13,
+          "entAdded": 222,
+          "entRemoved": 22,
+          "entModified": 1,
+          "entRelocated": 0,
+          "entChanges": 245
+        },
+        "categories": {
+          "natural": {
+            "added": 180,
+            "removed": 16,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 1,
+            "removed": 0,
+            "modified": 1
+          },
+          "transient": {
+            "added": 41,
+            "removed": 6,
+            "modified": 0
+          }
+        }
+      },
+      "items": {
+        "totals": {
+          "new_objects": 726,
+          "new_loose_bytes": 351225,
+          "chunksAdded": 38,
+          "chunksRemoved": 0,
+          "sectionsChanged": 463,
+          "secAdded": 342,
+          "secRemoved": 0,
+          "secModified": 121,
+          "blocksChanged": 1237197,
+          "blocksNewChunks": 1234849,
+          "blocksExistingChanged": 2348,
+          "sectionsNewChunks": 342,
+          "beChanged": 10,
+          "biomes": 38,
+          "ticks": 13,
+          "entAdded": 181,
+          "entRemoved": 17,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 201
+        },
+        "categories": {
+          "natural": {
+            "added": 180,
+            "removed": 16,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 1,
+            "removed": 0,
+            "modified": 3
+          },
+          "transient": {
+            "added": 0,
+            "removed": 1,
+            "modified": 0
+          }
+        }
+      },
+      "orbs": {
+        "totals": {
+          "new_objects": 726,
+          "new_loose_bytes": 353105,
+          "chunksAdded": 38,
+          "chunksRemoved": 0,
+          "sectionsChanged": 463,
+          "secAdded": 342,
+          "secRemoved": 0,
+          "secModified": 121,
+          "blocksChanged": 1237197,
+          "blocksNewChunks": 1234849,
+          "blocksExistingChanged": 2348,
+          "sectionsNewChunks": 342,
+          "beChanged": 10,
+          "biomes": 38,
+          "ticks": 13,
+          "entAdded": 222,
+          "entRemoved": 21,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 246
+        },
+        "categories": {
+          "natural": {
+            "added": 180,
+            "removed": 16,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 1,
+            "removed": 0,
+            "modified": 3
+          },
+          "transient": {
+            "added": 41,
+            "removed": 5,
+            "modified": 0
+          }
+        }
+      },
+      "wild": {
+        "totals": {
+          "new_objects": 610,
+          "new_loose_bytes": 297275,
+          "chunksAdded": 38,
+          "chunksRemoved": 0,
+          "sectionsChanged": 463,
+          "secAdded": 342,
+          "secRemoved": 0,
+          "secModified": 121,
+          "blocksChanged": 1237197,
+          "blocksNewChunks": 1234849,
+          "blocksExistingChanged": 2348,
+          "sectionsNewChunks": 342,
+          "beChanged": 10,
+          "biomes": 38,
+          "ticks": 13,
+          "entAdded": 1,
+          "entRemoved": 0,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 4
+        },
+        "categories": {
+          "player_related": {
+            "added": 1,
+            "removed": 0,
+            "modified": 3
+          }
+        }
+      },
+      "extra": {
+        "totals": {
+          "new_objects": 726,
+          "new_loose_bytes": 351993,
+          "chunksAdded": 38,
+          "chunksRemoved": 0,
+          "sectionsChanged": 463,
+          "secAdded": 342,
+          "secRemoved": 0,
+          "secModified": 121,
+          "blocksChanged": 1237197,
+          "blocksNewChunks": 1234849,
+          "blocksExistingChanged": 2348,
+          "sectionsNewChunks": 342,
+          "beChanged": 10,
+          "biomes": 38,
+          "ticks": 13,
+          "entAdded": 222,
+          "entRemoved": 22,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 247
+        },
+        "categories": {
+          "natural": {
+            "added": 180,
+            "removed": 16,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 1,
+            "removed": 0,
+            "modified": 3
+          },
+          "transient": {
+            "added": 41,
+            "removed": 6,
+            "modified": 0
+          }
+        }
+      },
+      "combo": {
+        "totals": {
+          "new_objects": 726,
+          "new_loose_bytes": 350165,
+          "chunksAdded": 38,
+          "chunksRemoved": 0,
+          "sectionsChanged": 463,
+          "secAdded": 342,
+          "secRemoved": 0,
+          "secModified": 121,
+          "blocksChanged": 1237197,
+          "blocksNewChunks": 1234849,
+          "blocksExistingChanged": 2348,
+          "sectionsNewChunks": 342,
+          "beChanged": 10,
+          "biomes": 38,
+          "ticks": 13,
+          "entAdded": 181,
+          "entRemoved": 16,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 200
+        },
+        "categories": {
+          "natural": {
+            "added": 180,
+            "removed": 16,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 1,
+            "removed": 0,
+            "modified": 3
+          }
+        }
+      }
+    },
+    "bots": {
+      "explorer": {
+        "successes": {},
+        "failures": {},
+        "deaths": 0,
+        "last_heartbeat": {
+          "time": 1790822651960,
+          "name": "Scale0",
+          "role": "explorer",
+          "event": "heartbeat",
+          "mode": "active",
+          "pos": {
+            "x": 8.30023679999287,
+            "y": 61.724554186709575,
+            "z": 35.174672750795246
+          },
+          "health": 20,
+          "food": 20,
+          "stats": {
+            "walk_intervals": 44
+          },
+          "traveled": 10.097332794399856,
+          "gameTime": 14100
+        }
+      },
+      "keeper": {
+        "successes": {},
+        "failures": {
+          "chest_place": 1,
+          "chest_store": 138,
+          "combat": 138,
+          "sleep": 27
+        },
+        "deaths": 42,
+        "last_heartbeat": {
+          "time": 1790822659728,
+          "name": "Scale3",
+          "role": "keeper",
+          "event": "heartbeat",
+          "mode": "active",
+          "pos": {
+            "x": 47.5,
+            "y": 190,
+            "z": 6.5
+          },
+          "health": 9.833333015441895,
+          "food": 20,
+          "stats": {
+            "chest_place_failed": 1,
+            "chest_store_failed": 136,
+            "combat_failed": 136,
+            "deaths": 41,
+            "sleep_failed": 25
+          },
+          "traveled": 0,
+          "gameTime": 14247
+        }
+      },
+      "builder": {
+        "successes": {},
+        "failures": {
+          "build": 124,
+          "farm": 28,
+          "breed": 20,
+          "renovate": 13
+        },
+        "deaths": 12,
+        "last_heartbeat": {
+          "time": 1790822657253,
+          "name": "Scale2",
+          "role": "builder",
+          "event": "heartbeat",
+          "mode": "active",
+          "pos": {
+            "x": 34.5,
+            "y": 190,
+            "z": 6.5
+          },
+          "health": 3.333333969116211,
+          "food": 20,
+          "stats": {
+            "build_failed": 124,
+            "farm_failed": 27,
+            "breed_failed": 20,
+            "deaths": 11,
+            "renovate_failed": 11
+          },
+          "traveled": 0.19999999999998863,
+          "gameTime": 14200
+        }
+      },
+      "miner": {
+        "successes": {},
+        "failures": {
+          "mine": 138,
+          "chop": 138,
+          "drop": 46
+        },
+        "deaths": 0,
+        "last_heartbeat": {
+          "time": 1790822654799,
+          "name": "Scale1",
+          "role": "miner",
+          "event": "heartbeat",
+          "mode": "active",
+          "pos": {
+            "x": 21.5,
+            "y": 190,
+            "z": 6.5
+          },
+          "health": 20,
+          "food": 20,
+          "stats": {
+            "mine_failed": 134,
+            "chop_failed": 134,
+            "drop_failed": 45
+          },
+          "traveled": 0,
+          "gameTime": 14145
+        }
+      }
+    },
+    "game_seconds": 342.05
+  }
+}

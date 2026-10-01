@@ -1,0 +1,9 @@
+# WorldGit 預設追蹤所有非玩家實體；以下範例需由管理者自行取消註解。
+# 排除短命、可再生的掉落物與經驗球：
+# entity minecraft:item
+# entity minecraft:experience_orb
+# 僅追蹤明確持久化、命名、馴服及固定建築/載具實體：
+# entity * !persistent
+# !persistent 的正式語義應由版本 adapter 判斷；06 原型只讀 NBT 標記。
+# 可把前面排除的類型加回：
+# !entity minecraft:item

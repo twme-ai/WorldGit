@@ -1,0 +1,3670 @@
+[
+  {
+    "tag": "00-baseline",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 0.4046999100028188,
+    "game_time": 1655,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 4.682649485002912,
+        "rss_bytes": 329252864,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 5523,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 32,
+        "millis": 4576,
+        "commit": "08ee3d82bd860e4c234649ff2f44e49a64deb5ce",
+        "new_objects": 6277,
+        "new_loose_bytes": 3068474,
+        "loose_objects": 6277,
+        "loose_bytes": 3068474,
+        "head": "08ee3d82bd860e4c234649ff2f44e49a64deb5ce"
+      },
+      "tol2": {
+        "wall_s": 4.801758276997134,
+        "rss_bytes": 326049792,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 5523,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 32,
+        "millis": 4694,
+        "commit": "5f1fc17aa0069e995322e186f2f73edcee7f9ddc",
+        "new_objects": 6277,
+        "new_loose_bytes": 3068474,
+        "loose_objects": 6277,
+        "loose_bytes": 3068474,
+        "head": "5f1fc17aa0069e995322e186f2f73edcee7f9ddc"
+      },
+      "tol4": {
+        "wall_s": 4.4872408699957305,
+        "rss_bytes": 330432512,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 5523,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 32,
+        "millis": 4363,
+        "commit": "5955dbe805bd5590ac91a76efb2581ebb9186518",
+        "new_objects": 6277,
+        "new_loose_bytes": 3068474,
+        "loose_objects": 6277,
+        "loose_bytes": 3068474,
+        "head": "5955dbe805bd5590ac91a76efb2581ebb9186518"
+      },
+      "items": {
+        "wall_s": 4.422521960004815,
+        "rss_bytes": 328273920,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 5523,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 28,
+        "millis": 4311,
+        "commit": "7461846d83af09cbac69fcca1d8d9417a9fb3b98",
+        "new_objects": 6270,
+        "new_loose_bytes": 3065078,
+        "loose_objects": 6270,
+        "loose_bytes": 3065078,
+        "head": "7461846d83af09cbac69fcca1d8d9417a9fb3b98"
+      },
+      "orbs": {
+        "wall_s": 4.272127474992885,
+        "rss_bytes": 325414912,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 5523,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 32,
+        "millis": 4175,
+        "commit": "d55bb77e85b1f4575a6a660810c0e3909586c06f",
+        "new_objects": 6278,
+        "new_loose_bytes": 3068491,
+        "loose_objects": 6278,
+        "loose_bytes": 3068491,
+        "head": "d55bb77e85b1f4575a6a660810c0e3909586c06f"
+      },
+      "wild": {
+        "wall_s": 4.6811686270011705,
+        "rss_bytes": 332091392,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 5523,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 20,
+        "millis": 4582,
+        "commit": "099fbdfc72c4ccec10cad38d1457e5553ae98ad2",
+        "new_objects": 6254,
+        "new_loose_bytes": 3060764,
+        "loose_objects": 6254,
+        "loose_bytes": 3060764,
+        "head": "099fbdfc72c4ccec10cad38d1457e5553ae98ad2"
+      },
+      "extra": {
+        "wall_s": 4.373361926001962,
+        "rss_bytes": 334446592,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 5523,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 32,
+        "millis": 4274,
+        "commit": "1a25005556e11425c3398742ef5ae456911aa06b",
+        "new_objects": 6277,
+        "new_loose_bytes": 3068096,
+        "loose_objects": 6277,
+        "loose_bytes": 3068096,
+        "head": "1a25005556e11425c3398742ef5ae456911aa06b"
+      },
+      "combo": {
+        "wall_s": 4.292361673004052,
+        "rss_bytes": 331681792,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 5523,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 28,
+        "millis": 4195,
+        "commit": "7fc44c525cee8568a7aa003e162b19f701a188f3",
+        "new_objects": 6270,
+        "new_loose_bytes": 3064805,
+        "loose_objects": 6270,
+        "loose_bytes": 3064805,
+        "head": "7fc44c525cee8568a7aa003e162b19f701a188f3"
+      }
+    },
+    "disk_bytes": 510853120
+  },
+  {
+    "tag": "02-setup",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 0.9082529699953739,
+    "game_time": 2685,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 3.718788534999476,
+        "rss_bytes": 337747968,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 39,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 7,
+        "millis": 3605,
+        "commit": "8dc47f73574961c33a9247a5179fcdf41064acf9",
+        "new_objects": 82,
+        "new_loose_bytes": 42982,
+        "loose_objects": 6359,
+        "loose_bytes": 3111456,
+        "head": "8dc47f73574961c33a9247a5179fcdf41064acf9",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 39,
+          "secAdded": 18,
+          "secRemoved": 0,
+          "secModified": 21,
+          "blocksChanged": 2785,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2785,
+          "sectionsNewChunks": 0,
+          "beChanged": 1,
+          "biomes": 0,
+          "ticks": 5,
+          "entAdded": 7,
+          "entRemoved": 0,
+          "entModified": 6,
+          "entRelocated": 0,
+          "entChanges": 13
+        },
+        "categories": {
+          "natural": {
+            "added": 5,
+            "removed": 0,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 4
+          },
+          "transient": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          }
+        }
+      },
+      "tol2": {
+        "wall_s": 3.9874716120029916,
+        "rss_bytes": 323416064,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 39,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 6,
+        "millis": 3881,
+        "commit": "3aabdab56341ccc9c711d7e178a9a11e32593db9",
+        "new_objects": 81,
+        "new_loose_bytes": 42197,
+        "loose_objects": 6358,
+        "loose_bytes": 3110671,
+        "head": "3aabdab56341ccc9c711d7e178a9a11e32593db9",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 39,
+          "secAdded": 18,
+          "secRemoved": 0,
+          "secModified": 21,
+          "blocksChanged": 2785,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2785,
+          "sectionsNewChunks": 0,
+          "beChanged": 1,
+          "biomes": 0,
+          "ticks": 5,
+          "entAdded": 7,
+          "entRemoved": 0,
+          "entModified": 4,
+          "entRelocated": 0,
+          "entChanges": 11
+        },
+        "categories": {
+          "natural": {
+            "added": 5,
+            "removed": 0,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 2
+          },
+          "transient": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          }
+        }
+      },
+      "tol4": {
+        "wall_s": 3.5605052579994663,
+        "rss_bytes": 333758464,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 39,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 6,
+        "millis": 3459,
+        "commit": "4fd7e39adaf538b494ad9962e8d67e629e753294",
+        "new_objects": 81,
+        "new_loose_bytes": 42193,
+        "loose_objects": 6358,
+        "loose_bytes": 3110667,
+        "head": "4fd7e39adaf538b494ad9962e8d67e629e753294",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 39,
+          "secAdded": 18,
+          "secRemoved": 0,
+          "secModified": 21,
+          "blocksChanged": 2785,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2785,
+          "sectionsNewChunks": 0,
+          "beChanged": 1,
+          "biomes": 0,
+          "ticks": 5,
+          "entAdded": 7,
+          "entRemoved": 0,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 10
+        },
+        "categories": {
+          "natural": {
+            "added": 5,
+            "removed": 0,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 2
+          },
+          "transient": {
+            "added": 0,
+            "removed": 0,
+            "modified": 1
+          }
+        }
+      },
+      "items": {
+        "wall_s": 3.771652893999999,
+        "rss_bytes": 338182144,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 39,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 6,
+        "millis": 3646,
+        "commit": "682d055f5c22a899e265740226ccff51755e7007",
+        "new_objects": 81,
+        "new_loose_bytes": 42132,
+        "loose_objects": 6351,
+        "loose_bytes": 3107210,
+        "head": "682d055f5c22a899e265740226ccff51755e7007",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 39,
+          "secAdded": 18,
+          "secRemoved": 0,
+          "secModified": 21,
+          "blocksChanged": 2785,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2785,
+          "sectionsNewChunks": 0,
+          "beChanged": 1,
+          "biomes": 0,
+          "ticks": 5,
+          "entAdded": 7,
+          "entRemoved": 0,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 10
+        },
+        "categories": {
+          "natural": {
+            "added": 5,
+            "removed": 0,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 2
+          },
+          "transient": {
+            "added": 0,
+            "removed": 0,
+            "modified": 1
+          }
+        }
+      },
+      "orbs": {
+        "wall_s": 3.5089960760014947,
+        "rss_bytes": 334716928,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 39,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 6,
+        "millis": 3411,
+        "commit": "7700fa7985ee891d89d009e6ae809e4882e28a9f",
+        "new_objects": 81,
+        "new_loose_bytes": 42155,
+        "loose_objects": 6359,
+        "loose_bytes": 3110646,
+        "head": "7700fa7985ee891d89d009e6ae809e4882e28a9f",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 39,
+          "secAdded": 18,
+          "secRemoved": 0,
+          "secModified": 21,
+          "blocksChanged": 2785,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2785,
+          "sectionsNewChunks": 0,
+          "beChanged": 1,
+          "biomes": 0,
+          "ticks": 5,
+          "entAdded": 7,
+          "entRemoved": 0,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 10
+        },
+        "categories": {
+          "natural": {
+            "added": 5,
+            "removed": 0,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 2
+          },
+          "transient": {
+            "added": 0,
+            "removed": 0,
+            "modified": 1
+          }
+        }
+      },
+      "wild": {
+        "wall_s": 4.12882532599906,
+        "rss_bytes": 335548416,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 39,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 3,
+        "millis": 4014,
+        "commit": "214a4946e1b0c4c0d0bd07832c45bf1bb79b2e8f",
+        "new_objects": 78,
+        "new_loose_bytes": 39907,
+        "loose_objects": 6332,
+        "loose_bytes": 3100671,
+        "head": "214a4946e1b0c4c0d0bd07832c45bf1bb79b2e8f",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 39,
+          "secAdded": 18,
+          "secRemoved": 0,
+          "secModified": 21,
+          "blocksChanged": 2785,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2785,
+          "sectionsNewChunks": 0,
+          "beChanged": 1,
+          "biomes": 0,
+          "ticks": 5,
+          "entAdded": 2,
+          "entRemoved": 0,
+          "entModified": 2,
+          "entRelocated": 0,
+          "entChanges": 4
+        },
+        "categories": {
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 2
+          }
+        }
+      },
+      "extra": {
+        "wall_s": 3.7858371090042056,
+        "rss_bytes": 336158720,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 39,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 6,
+        "millis": 3698,
+        "commit": "3b61db7737ca92cd9ee29d7eba668dc9c4ae0b70",
+        "new_objects": 81,
+        "new_loose_bytes": 42093,
+        "loose_objects": 6358,
+        "loose_bytes": 3110189,
+        "head": "3b61db7737ca92cd9ee29d7eba668dc9c4ae0b70",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 39,
+          "secAdded": 18,
+          "secRemoved": 0,
+          "secModified": 21,
+          "blocksChanged": 2785,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2785,
+          "sectionsNewChunks": 0,
+          "beChanged": 1,
+          "biomes": 0,
+          "ticks": 5,
+          "entAdded": 7,
+          "entRemoved": 0,
+          "entModified": 3,
+          "entRelocated": 0,
+          "entChanges": 10
+        },
+        "categories": {
+          "natural": {
+            "added": 5,
+            "removed": 0,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 1
+          },
+          "transient": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          }
+        }
+      },
+      "combo": {
+        "wall_s": 3.3594031579996226,
+        "rss_bytes": 334336000,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 39,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 6,
+        "millis": 3257,
+        "commit": "230ed4153992ee775e701c3bcd84712fb035c708",
+        "new_objects": 81,
+        "new_loose_bytes": 41963,
+        "loose_objects": 6351,
+        "loose_bytes": 3106768,
+        "head": "230ed4153992ee775e701c3bcd84712fb035c708",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 39,
+          "secAdded": 18,
+          "secRemoved": 0,
+          "secModified": 21,
+          "blocksChanged": 2785,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2785,
+          "sectionsNewChunks": 0,
+          "beChanged": 1,
+          "biomes": 0,
+          "ticks": 5,
+          "entAdded": 7,
+          "entRemoved": 0,
+          "entModified": 1,
+          "entRelocated": 0,
+          "entChanges": 8
+        },
+        "categories": {
+          "natural": {
+            "added": 5,
+            "removed": 0,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 1
+          }
+        }
+      }
+    },
+    "disk_bytes": 532635648
+  },
+  {
+    "tag": "03-standing",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 0.5185106920034741,
+    "game_time": 9388,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 3.749793304996274,
+        "rss_bytes": 326762496,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 74,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 8,
+        "millis": 3636,
+        "commit": "1ef68e7191eb9ccff71bde6b687db7757775210a",
+        "new_objects": 142,
+        "new_loose_bytes": 77988,
+        "loose_objects": 6501,
+        "loose_bytes": 3189444,
+        "head": "1ef68e7191eb9ccff71bde6b687db7757775210a",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 74,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 74,
+          "blocksChanged": 1479,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1479,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 3,
+          "entAdded": 33,
+          "entRemoved": 11,
+          "entModified": 5,
+          "entRelocated": 0,
+          "entChanges": 49
+        },
+        "categories": {
+          "natural": {
+            "added": 33,
+            "removed": 5,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 5
+          },
+          "transient": {
+            "added": 0,
+            "removed": 6,
+            "modified": 0
+          }
+        }
+      },
+      "tol2": {
+        "wall_s": 3.3730186620014138,
+        "rss_bytes": 327360512,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 74,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 8,
+        "millis": 3266,
+        "commit": "774eaa9cc5914691b4b699ea6db21e3bd2180ae2",
+        "new_objects": 142,
+        "new_loose_bytes": 77946,
+        "loose_objects": 6500,
+        "loose_bytes": 3188617,
+        "head": "774eaa9cc5914691b4b699ea6db21e3bd2180ae2",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 74,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 74,
+          "blocksChanged": 1479,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1479,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 3,
+          "entAdded": 33,
+          "entRemoved": 11,
+          "entModified": 2,
+          "entRelocated": 0,
+          "entChanges": 46
+        },
+        "categories": {
+          "natural": {
+            "added": 33,
+            "removed": 5,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          },
+          "transient": {
+            "added": 0,
+            "removed": 6,
+            "modified": 0
+          }
+        }
+      },
+      "tol4": {
+        "wall_s": 3.855319755995879,
+        "rss_bytes": 325816320,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 74,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 7,
+        "millis": 3723,
+        "commit": "d4cbb1236cdc069b2da5a606f849cfc8141557e0",
+        "new_objects": 140,
+        "new_loose_bytes": 77252,
+        "loose_objects": 6498,
+        "loose_bytes": 3187919,
+        "head": "d4cbb1236cdc069b2da5a606f849cfc8141557e0",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 74,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 74,
+          "blocksChanged": 1479,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1479,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 3,
+          "entAdded": 33,
+          "entRemoved": 11,
+          "entModified": 0,
+          "entRelocated": 0,
+          "entChanges": 44
+        },
+        "categories": {
+          "natural": {
+            "added": 33,
+            "removed": 5,
+            "modified": 0
+          },
+          "transient": {
+            "added": 0,
+            "removed": 6,
+            "modified": 0
+          }
+        }
+      },
+      "items": {
+        "wall_s": 3.573293304994877,
+        "rss_bytes": 325427200,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 74,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 6,
+        "millis": 3446,
+        "commit": "ea926e517cdc5c12347442e19334d1f09ec9e2ef",
+        "new_objects": 141,
+        "new_loose_bytes": 77396,
+        "loose_objects": 6492,
+        "loose_bytes": 3184606,
+        "head": "ea926e517cdc5c12347442e19334d1f09ec9e2ef",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 74,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 74,
+          "blocksChanged": 1479,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1479,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 3,
+          "entAdded": 33,
+          "entRemoved": 6,
+          "entModified": 2,
+          "entRelocated": 0,
+          "entChanges": 41
+        },
+        "categories": {
+          "natural": {
+            "added": 33,
+            "removed": 5,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          },
+          "transient": {
+            "added": 0,
+            "removed": 1,
+            "modified": 0
+          }
+        }
+      },
+      "orbs": {
+        "wall_s": 3.67771931799507,
+        "rss_bytes": 331452416,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 74,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 8,
+        "millis": 3577,
+        "commit": "54be9de7db4f60b622681d32547413bf060f3cc4",
+        "new_objects": 142,
+        "new_loose_bytes": 77981,
+        "loose_objects": 6501,
+        "loose_bytes": 3188627,
+        "head": "54be9de7db4f60b622681d32547413bf060f3cc4",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 74,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 74,
+          "blocksChanged": 1479,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1479,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 3,
+          "entAdded": 33,
+          "entRemoved": 10,
+          "entModified": 2,
+          "entRelocated": 0,
+          "entChanges": 45
+        },
+        "categories": {
+          "natural": {
+            "added": 33,
+            "removed": 5,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          },
+          "transient": {
+            "added": 0,
+            "removed": 5,
+            "modified": 0
+          }
+        }
+      },
+      "wild": {
+        "wall_s": 3.2855250380016514,
+        "rss_bytes": 326864896,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 74,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 2,
+        "millis": 3179,
+        "commit": "59aebca8d706c19ac318f5ce32f299e813b0df7b",
+        "new_objects": 134,
+        "new_loose_bytes": 71310,
+        "loose_objects": 6466,
+        "loose_bytes": 3171981,
+        "head": "59aebca8d706c19ac318f5ce32f299e813b0df7b",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 74,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 74,
+          "blocksChanged": 1479,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1479,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 3,
+          "entAdded": 0,
+          "entRemoved": 0,
+          "entModified": 2,
+          "entRelocated": 0,
+          "entChanges": 2
+        },
+        "categories": {
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          }
+        }
+      },
+      "extra": {
+        "wall_s": 3.423072746998514,
+        "rss_bytes": 335351808,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 74,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 8,
+        "millis": 3313,
+        "commit": "ac1cb44ae49ca655e5c7dabc023aefd69a302f41",
+        "new_objects": 142,
+        "new_loose_bytes": 77839,
+        "loose_objects": 6500,
+        "loose_bytes": 3188028,
+        "head": "ac1cb44ae49ca655e5c7dabc023aefd69a302f41",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 74,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 74,
+          "blocksChanged": 1479,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1479,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 3,
+          "entAdded": 33,
+          "entRemoved": 11,
+          "entModified": 2,
+          "entRelocated": 0,
+          "entChanges": 46
+        },
+        "categories": {
+          "natural": {
+            "added": 33,
+            "removed": 5,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          },
+          "transient": {
+            "added": 0,
+            "removed": 6,
+            "modified": 0
+          }
+        }
+      },
+      "combo": {
+        "wall_s": 3.879100786994968,
+        "rss_bytes": 328990720,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3823,
+        "sectionsChanged": 74,
+        "chunksTracked": 698,
+        "chunksScanned": 3823,
+        "entityChunksChanged": 6,
+        "millis": 3761,
+        "commit": "2a380c8a7dda0ac49f3554bb23c28e2db9e7bb5f",
+        "new_objects": 141,
+        "new_loose_bytes": 77308,
+        "loose_objects": 6492,
+        "loose_bytes": 3184076,
+        "head": "2a380c8a7dda0ac49f3554bb23c28e2db9e7bb5f",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 74,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 74,
+          "blocksChanged": 1479,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1479,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 3,
+          "entAdded": 33,
+          "entRemoved": 5,
+          "entModified": 2,
+          "entRelocated": 0,
+          "entChanges": 40
+        },
+        "categories": {
+          "natural": {
+            "added": 33,
+            "removed": 5,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 2
+          }
+        }
+      }
+    },
+    "disk_bytes": 556425216
+  },
+  {
+    "tag": "active-01",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 1.0561345520036411,
+    "game_time": 16234,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 4.256244910000532,
+        "rss_bytes": 337756160,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3896,
+        "sectionsChanged": 1083,
+        "chunksTracked": 800,
+        "chunksScanned": 3896,
+        "entityChunksChanged": 110,
+        "millis": 4140,
+        "commit": "c2bd06815ad8ac64b0d88b243aff05c46e407ba3",
+        "new_objects": 1569,
+        "new_loose_bytes": 764852,
+        "loose_objects": 8070,
+        "loose_bytes": 3954296,
+        "head": "c2bd06815ad8ac64b0d88b243aff05c46e407ba3",
+        "diff": {
+          "chunksAdded": 102,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1083,
+          "secAdded": 866,
+          "secRemoved": 0,
+          "secModified": 217,
+          "blocksChanged": 3272440,
+          "blocksNewChunks": 3269405,
+          "blocksExistingChanged": 3035,
+          "sectionsNewChunks": 866,
+          "beChanged": 12,
+          "biomes": 102,
+          "ticks": 45,
+          "entAdded": 348,
+          "entRemoved": 36,
+          "entModified": 19,
+          "entRelocated": 0,
+          "entChanges": 403
+        },
+        "categories": {
+          "natural": {
+            "added": 252,
+            "removed": 36,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 4,
+            "removed": 0,
+            "modified": 19
+          },
+          "transient": {
+            "added": 92,
+            "removed": 0,
+            "modified": 0
+          }
+        }
+      },
+      "tol2": {
+        "wall_s": 4.800253656001587,
+        "rss_bytes": 339451904,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3896,
+        "sectionsChanged": 1083,
+        "chunksTracked": 800,
+        "chunksScanned": 3896,
+        "entityChunksChanged": 109,
+        "millis": 4636,
+        "commit": "3705924813ed5be33a82bd28ecbbbde16f525598",
+        "new_objects": 1568,
+        "new_loose_bytes": 764290,
+        "loose_objects": 8068,
+        "loose_bytes": 3952907,
+        "head": "3705924813ed5be33a82bd28ecbbbde16f525598",
+        "diff": {
+          "chunksAdded": 102,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1083,
+          "secAdded": 866,
+          "secRemoved": 0,
+          "secModified": 217,
+          "blocksChanged": 3272440,
+          "blocksNewChunks": 3269405,
+          "blocksExistingChanged": 3035,
+          "sectionsNewChunks": 866,
+          "beChanged": 12,
+          "biomes": 102,
+          "ticks": 45,
+          "entAdded": 348,
+          "entRemoved": 36,
+          "entModified": 13,
+          "entRelocated": 0,
+          "entChanges": 397
+        },
+        "categories": {
+          "natural": {
+            "added": 252,
+            "removed": 36,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 4,
+            "removed": 0,
+            "modified": 13
+          },
+          "transient": {
+            "added": 92,
+            "removed": 0,
+            "modified": 0
+          }
+        }
+      },
+      "tol4": {
+        "wall_s": 5.0231764420022955,
+        "rss_bytes": 332099584,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3896,
+        "sectionsChanged": 1083,
+        "chunksTracked": 800,
+        "chunksScanned": 3896,
+        "entityChunksChanged": 109,
+        "millis": 4906,
+        "commit": "77c10513dbce1014cc8a588d6bcca4281e6c2f0e",
+        "new_objects": 1568,
+        "new_loose_bytes": 764249,
+        "loose_objects": 8066,
+        "loose_bytes": 3952168,
+        "head": "77c10513dbce1014cc8a588d6bcca4281e6c2f0e",
+        "diff": {
+          "chunksAdded": 102,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1083,
+          "secAdded": 866,
+          "secRemoved": 0,
+          "secModified": 217,
+          "blocksChanged": 3272440,
+          "blocksNewChunks": 3269405,
+          "blocksExistingChanged": 3035,
+          "sectionsNewChunks": 866,
+          "beChanged": 12,
+          "biomes": 102,
+          "ticks": 45,
+          "entAdded": 348,
+          "entRemoved": 36,
+          "entModified": 11,
+          "entRelocated": 0,
+          "entChanges": 395
+        },
+        "categories": {
+          "natural": {
+            "added": 252,
+            "removed": 36,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 4,
+            "removed": 0,
+            "modified": 11
+          },
+          "transient": {
+            "added": 92,
+            "removed": 0,
+            "modified": 0
+          }
+        }
+      },
+      "items": {
+        "wall_s": 4.829470819000562,
+        "rss_bytes": 335769600,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3896,
+        "sectionsChanged": 1083,
+        "chunksTracked": 800,
+        "chunksScanned": 3896,
+        "entityChunksChanged": 104,
+        "millis": 4698,
+        "commit": "c7bf210eb40f355bcf80a9ebaf7f2fdffcd9f70b",
+        "new_objects": 1559,
+        "new_loose_bytes": 758332,
+        "loose_objects": 8051,
+        "loose_bytes": 3942938,
+        "head": "c7bf210eb40f355bcf80a9ebaf7f2fdffcd9f70b",
+        "diff": {
+          "chunksAdded": 102,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1083,
+          "secAdded": 866,
+          "secRemoved": 0,
+          "secModified": 217,
+          "blocksChanged": 3272440,
+          "blocksNewChunks": 3269405,
+          "blocksExistingChanged": 3035,
+          "sectionsNewChunks": 866,
+          "beChanged": 12,
+          "biomes": 102,
+          "ticks": 45,
+          "entAdded": 256,
+          "entRemoved": 36,
+          "entModified": 13,
+          "entRelocated": 0,
+          "entChanges": 305
+        },
+        "categories": {
+          "natural": {
+            "added": 252,
+            "removed": 36,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 4,
+            "removed": 0,
+            "modified": 13
+          }
+        }
+      },
+      "orbs": {
+        "wall_s": 4.995886144999531,
+        "rss_bytes": 328445952,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3896,
+        "sectionsChanged": 1083,
+        "chunksTracked": 800,
+        "chunksScanned": 3896,
+        "entityChunksChanged": 109,
+        "millis": 4829,
+        "commit": "2cfb984c2b4c0826708ec3826c838b9413257d15",
+        "new_objects": 1568,
+        "new_loose_bytes": 764324,
+        "loose_objects": 8069,
+        "loose_bytes": 3952951,
+        "head": "2cfb984c2b4c0826708ec3826c838b9413257d15",
+        "diff": {
+          "chunksAdded": 102,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1083,
+          "secAdded": 866,
+          "secRemoved": 0,
+          "secModified": 217,
+          "blocksChanged": 3272440,
+          "blocksNewChunks": 3269405,
+          "blocksExistingChanged": 3035,
+          "sectionsNewChunks": 866,
+          "beChanged": 12,
+          "biomes": 102,
+          "ticks": 45,
+          "entAdded": 348,
+          "entRemoved": 36,
+          "entModified": 13,
+          "entRelocated": 0,
+          "entChanges": 397
+        },
+        "categories": {
+          "natural": {
+            "added": 252,
+            "removed": 36,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 4,
+            "removed": 0,
+            "modified": 13
+          },
+          "transient": {
+            "added": 92,
+            "removed": 0,
+            "modified": 0
+          }
+        }
+      },
+      "wild": {
+        "wall_s": 4.602348417996836,
+        "rss_bytes": 331448320,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3896,
+        "sectionsChanged": 1083,
+        "chunksTracked": 800,
+        "chunksScanned": 3896,
+        "entityChunksChanged": 12,
+        "millis": 4444,
+        "commit": "6a036f4c47db370364060491ed11ece04b0f693c",
+        "new_objects": 1416,
+        "new_loose_bytes": 689234,
+        "loose_objects": 7882,
+        "loose_bytes": 3861215,
+        "head": "6a036f4c47db370364060491ed11ece04b0f693c",
+        "diff": {
+          "chunksAdded": 102,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1083,
+          "secAdded": 866,
+          "secRemoved": 0,
+          "secModified": 217,
+          "blocksChanged": 3272440,
+          "blocksNewChunks": 3269405,
+          "blocksExistingChanged": 3035,
+          "sectionsNewChunks": 866,
+          "beChanged": 12,
+          "biomes": 102,
+          "ticks": 45,
+          "entAdded": 4,
+          "entRemoved": 0,
+          "entModified": 13,
+          "entRelocated": 0,
+          "entChanges": 17
+        },
+        "categories": {
+          "player_related": {
+            "added": 4,
+            "removed": 0,
+            "modified": 13
+          }
+        }
+      },
+      "extra": {
+        "wall_s": 4.5268670880032005,
+        "rss_bytes": 338116608,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3896,
+        "sectionsChanged": 1083,
+        "chunksTracked": 800,
+        "chunksScanned": 3896,
+        "entityChunksChanged": 108,
+        "millis": 4428,
+        "commit": "e843a3d1cecd433abc9a82f5ddb39a77d479f4c8",
+        "new_objects": 1567,
+        "new_loose_bytes": 762228,
+        "loose_objects": 8067,
+        "loose_bytes": 3950256,
+        "head": "e843a3d1cecd433abc9a82f5ddb39a77d479f4c8",
+        "diff": {
+          "chunksAdded": 102,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1083,
+          "secAdded": 866,
+          "secRemoved": 0,
+          "secModified": 217,
+          "blocksChanged": 3272440,
+          "blocksNewChunks": 3269405,
+          "blocksExistingChanged": 3035,
+          "sectionsNewChunks": 866,
+          "beChanged": 12,
+          "biomes": 102,
+          "ticks": 45,
+          "entAdded": 348,
+          "entRemoved": 36,
+          "entModified": 11,
+          "entRelocated": 0,
+          "entChanges": 395
+        },
+        "categories": {
+          "natural": {
+            "added": 252,
+            "removed": 36,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 4,
+            "removed": 0,
+            "modified": 11
+          },
+          "transient": {
+            "added": 92,
+            "removed": 0,
+            "modified": 0
+          }
+        }
+      },
+      "combo": {
+        "wall_s": 4.373280312000134,
+        "rss_bytes": 326336512,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 3896,
+        "sectionsChanged": 1083,
+        "chunksTracked": 800,
+        "chunksScanned": 3896,
+        "entityChunksChanged": 103,
+        "millis": 4243,
+        "commit": "5fd95f7d80dfce289a11090dd3952cef38f246ad",
+        "new_objects": 1558,
+        "new_loose_bytes": 756438,
+        "loose_objects": 8050,
+        "loose_bytes": 3940514,
+        "head": "5fd95f7d80dfce289a11090dd3952cef38f246ad",
+        "diff": {
+          "chunksAdded": 102,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1083,
+          "secAdded": 866,
+          "secRemoved": 0,
+          "secModified": 217,
+          "blocksChanged": 3272440,
+          "blocksNewChunks": 3269405,
+          "blocksExistingChanged": 3035,
+          "sectionsNewChunks": 866,
+          "beChanged": 12,
+          "biomes": 102,
+          "ticks": 45,
+          "entAdded": 256,
+          "entRemoved": 36,
+          "entModified": 11,
+          "entRelocated": 0,
+          "entChanges": 303
+        },
+        "categories": {
+          "natural": {
+            "added": 252,
+            "removed": 36,
+            "modified": 0
+          },
+          "player_related": {
+            "added": 4,
+            "removed": 0,
+            "modified": 11
+          }
+        }
+      }
+    },
+    "disk_bytes": 628580352
+  },
+  {
+    "tag": "active-02",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 0.8304613009968307,
+    "game_time": 22240,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 4.569830043001275,
+        "rss_bytes": 337145856,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4246,
+        "sectionsChanged": 1220,
+        "chunksTracked": 924,
+        "chunksScanned": 4246,
+        "entityChunksChanged": 162,
+        "millis": 4472,
+        "commit": "4fa4d38fe9d5d342b1e3a369d8a2687722b49e2b",
+        "new_objects": 1691,
+        "new_loose_bytes": 809422,
+        "loose_objects": 9761,
+        "loose_bytes": 4763718,
+        "head": "4fa4d38fe9d5d342b1e3a369d8a2687722b49e2b",
+        "diff": {
+          "chunksAdded": 124,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1220,
+          "secAdded": 992,
+          "secRemoved": 0,
+          "secModified": 228,
+          "blocksChanged": 3920825,
+          "blocksNewChunks": 3918429,
+          "blocksExistingChanged": 2396,
+          "sectionsNewChunks": 992,
+          "beChanged": 5,
+          "biomes": 124,
+          "ticks": 22,
+          "entAdded": 185,
+          "entRemoved": 228,
+          "entModified": 50,
+          "entRelocated": 0,
+          "entChanges": 463
+        },
+        "categories": {
+          "natural": {
+            "added": 160,
+            "removed": 165,
+            "modified": 12
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 22
+          },
+          "transient": {
+            "added": 25,
+            "removed": 63,
+            "modified": 16
+          }
+        }
+      },
+      "tol2": {
+        "wall_s": 4.3204256820026785,
+        "rss_bytes": 340185088,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4246,
+        "sectionsChanged": 1220,
+        "chunksTracked": 924,
+        "chunksScanned": 4246,
+        "entityChunksChanged": 160,
+        "millis": 4217,
+        "commit": "10bec3fccb0fc630ed69e654398fe621e049afea",
+        "new_objects": 1687,
+        "new_loose_bytes": 807959,
+        "loose_objects": 9755,
+        "loose_bytes": 4760866,
+        "head": "10bec3fccb0fc630ed69e654398fe621e049afea",
+        "diff": {
+          "chunksAdded": 124,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1220,
+          "secAdded": 992,
+          "secRemoved": 0,
+          "secModified": 228,
+          "blocksChanged": 3920825,
+          "blocksNewChunks": 3918429,
+          "blocksExistingChanged": 2396,
+          "sectionsNewChunks": 992,
+          "beChanged": 5,
+          "biomes": 124,
+          "ticks": 22,
+          "entAdded": 185,
+          "entRemoved": 228,
+          "entModified": 27,
+          "entRelocated": 0,
+          "entChanges": 440
+        },
+        "categories": {
+          "natural": {
+            "added": 160,
+            "removed": 165,
+            "modified": 11
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 25,
+            "removed": 63,
+            "modified": 0
+          }
+        }
+      },
+      "tol4": {
+        "wall_s": 5.026742069996544,
+        "rss_bytes": 336478208,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4246,
+        "sectionsChanged": 1220,
+        "chunksTracked": 924,
+        "chunksScanned": 4246,
+        "entityChunksChanged": 159,
+        "millis": 4892,
+        "commit": "fffa7396af147faf8fabfcf96a5f3c5021a244ba",
+        "new_objects": 1685,
+        "new_loose_bytes": 807250,
+        "loose_objects": 9751,
+        "loose_bytes": 4759418,
+        "head": "fffa7396af147faf8fabfcf96a5f3c5021a244ba",
+        "diff": {
+          "chunksAdded": 124,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1220,
+          "secAdded": 992,
+          "secRemoved": 0,
+          "secModified": 228,
+          "blocksChanged": 3920825,
+          "blocksNewChunks": 3918429,
+          "blocksExistingChanged": 2396,
+          "sectionsNewChunks": 992,
+          "beChanged": 5,
+          "biomes": 124,
+          "ticks": 22,
+          "entAdded": 185,
+          "entRemoved": 228,
+          "entModified": 25,
+          "entRelocated": 0,
+          "entChanges": 438
+        },
+        "categories": {
+          "natural": {
+            "added": 160,
+            "removed": 165,
+            "modified": 9
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 25,
+            "removed": 63,
+            "modified": 0
+          }
+        }
+      },
+      "items": {
+        "wall_s": 4.265261382999597,
+        "rss_bytes": 339062784,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4246,
+        "sectionsChanged": 1220,
+        "chunksTracked": 924,
+        "chunksScanned": 4246,
+        "entityChunksChanged": 159,
+        "millis": 4173,
+        "commit": "081894619c4b3efbadcdfcc7deb466e576c7201e",
+        "new_objects": 1687,
+        "new_loose_bytes": 806392,
+        "loose_objects": 9738,
+        "loose_bytes": 4749330,
+        "head": "081894619c4b3efbadcdfcc7deb466e576c7201e",
+        "diff": {
+          "chunksAdded": 124,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1220,
+          "secAdded": 992,
+          "secRemoved": 0,
+          "secModified": 228,
+          "blocksChanged": 3920825,
+          "blocksNewChunks": 3918429,
+          "blocksExistingChanged": 2396,
+          "sectionsNewChunks": 992,
+          "beChanged": 5,
+          "biomes": 124,
+          "ticks": 22,
+          "entAdded": 173,
+          "entRemoved": 165,
+          "entModified": 27,
+          "entRelocated": 0,
+          "entChanges": 365
+        },
+        "categories": {
+          "natural": {
+            "added": 160,
+            "removed": 165,
+            "modified": 11
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 13,
+            "removed": 0,
+            "modified": 0
+          }
+        }
+      },
+      "orbs": {
+        "wall_s": 4.811198126997624,
+        "rss_bytes": 334475264,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4246,
+        "sectionsChanged": 1220,
+        "chunksTracked": 924,
+        "chunksScanned": 4246,
+        "entityChunksChanged": 160,
+        "millis": 4704,
+        "commit": "2850446158bed68f4787a3186926487980c8e831",
+        "new_objects": 1687,
+        "new_loose_bytes": 807995,
+        "loose_objects": 9756,
+        "loose_bytes": 4760946,
+        "head": "2850446158bed68f4787a3186926487980c8e831",
+        "diff": {
+          "chunksAdded": 124,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1220,
+          "secAdded": 992,
+          "secRemoved": 0,
+          "secModified": 228,
+          "blocksChanged": 3920825,
+          "blocksNewChunks": 3918429,
+          "blocksExistingChanged": 2396,
+          "sectionsNewChunks": 992,
+          "beChanged": 5,
+          "biomes": 124,
+          "ticks": 22,
+          "entAdded": 185,
+          "entRemoved": 228,
+          "entModified": 27,
+          "entRelocated": 0,
+          "entChanges": 440
+        },
+        "categories": {
+          "natural": {
+            "added": 160,
+            "removed": 165,
+            "modified": 11
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 25,
+            "removed": 63,
+            "modified": 0
+          }
+        }
+      },
+      "wild": {
+        "wall_s": 4.585131136998825,
+        "rss_bytes": 336941056,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4246,
+        "sectionsChanged": 1220,
+        "chunksTracked": 924,
+        "chunksScanned": 4246,
+        "entityChunksChanged": 30,
+        "millis": 4484,
+        "commit": "d122bbe5b9505f96666e9da90a4267ec5027b1f2",
+        "new_objects": 1540,
+        "new_loose_bytes": 738060,
+        "loose_objects": 9422,
+        "loose_bytes": 4599275,
+        "head": "d122bbe5b9505f96666e9da90a4267ec5027b1f2",
+        "diff": {
+          "chunksAdded": 124,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1220,
+          "secAdded": 992,
+          "secRemoved": 0,
+          "secModified": 228,
+          "blocksChanged": 3920825,
+          "blocksNewChunks": 3918429,
+          "blocksExistingChanged": 2396,
+          "sectionsNewChunks": 992,
+          "beChanged": 5,
+          "biomes": 124,
+          "ticks": 22,
+          "entAdded": 13,
+          "entRemoved": 0,
+          "entModified": 16,
+          "entRelocated": 0,
+          "entChanges": 29
+        },
+        "categories": {
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 13,
+            "removed": 0,
+            "modified": 0
+          }
+        }
+      },
+      "extra": {
+        "wall_s": 4.408512865004013,
+        "rss_bytes": 341098496,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4246,
+        "sectionsChanged": 1220,
+        "chunksTracked": 924,
+        "chunksScanned": 4246,
+        "entityChunksChanged": 160,
+        "millis": 4238,
+        "commit": "61bf8e516cc7f95002c7700345eeecb1cb064c0b",
+        "new_objects": 1687,
+        "new_loose_bytes": 806288,
+        "loose_objects": 9754,
+        "loose_bytes": 4756544,
+        "head": "61bf8e516cc7f95002c7700345eeecb1cb064c0b",
+        "diff": {
+          "chunksAdded": 124,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1220,
+          "secAdded": 992,
+          "secRemoved": 0,
+          "secModified": 228,
+          "blocksChanged": 3920825,
+          "blocksNewChunks": 3918429,
+          "blocksExistingChanged": 2396,
+          "sectionsNewChunks": 992,
+          "beChanged": 5,
+          "biomes": 124,
+          "ticks": 22,
+          "entAdded": 185,
+          "entRemoved": 228,
+          "entModified": 27,
+          "entRelocated": 0,
+          "entChanges": 440
+        },
+        "categories": {
+          "natural": {
+            "added": 160,
+            "removed": 165,
+            "modified": 11
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 25,
+            "removed": 63,
+            "modified": 0
+          }
+        }
+      },
+      "combo": {
+        "wall_s": 4.880119575995195,
+        "rss_bytes": 343089152,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4246,
+        "sectionsChanged": 1220,
+        "chunksTracked": 924,
+        "chunksScanned": 4246,
+        "entityChunksChanged": 159,
+        "millis": 4728,
+        "commit": "990269ce533c53034af9176973e813cb0699cc54",
+        "new_objects": 1687,
+        "new_loose_bytes": 804792,
+        "loose_objects": 9737,
+        "loose_bytes": 4745306,
+        "head": "990269ce533c53034af9176973e813cb0699cc54",
+        "diff": {
+          "chunksAdded": 124,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1220,
+          "secAdded": 992,
+          "secRemoved": 0,
+          "secModified": 228,
+          "blocksChanged": 3920825,
+          "blocksNewChunks": 3918429,
+          "blocksExistingChanged": 2396,
+          "sectionsNewChunks": 992,
+          "beChanged": 5,
+          "biomes": 124,
+          "ticks": 22,
+          "entAdded": 173,
+          "entRemoved": 165,
+          "entModified": 27,
+          "entRelocated": 0,
+          "entChanges": 365
+        },
+        "categories": {
+          "natural": {
+            "added": 160,
+            "removed": 165,
+            "modified": 11
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 13,
+            "removed": 0,
+            "modified": 0
+          }
+        }
+      }
+    },
+    "disk_bytes": 707805184
+  },
+  {
+    "tag": "active-03",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 1.00786140600394,
+    "game_time": 28202,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 4.74652311400132,
+        "rss_bytes": 330899456,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4303,
+        "sectionsChanged": 680,
+        "chunksTracked": 973,
+        "chunksScanned": 4303,
+        "entityChunksChanged": 198,
+        "millis": 4630,
+        "commit": "c49ac164309369ff1d350fe1be35fca222842852",
+        "new_objects": 1225,
+        "new_loose_bytes": 605434,
+        "loose_objects": 10986,
+        "loose_bytes": 5369152,
+        "head": "c49ac164309369ff1d350fe1be35fca222842852",
+        "diff": {
+          "chunksAdded": 49,
+          "chunksRemoved": 0,
+          "sectionsChanged": 680,
+          "secAdded": 397,
+          "secRemoved": 0,
+          "secModified": 283,
+          "blocksChanged": 1510319,
+          "blocksNewChunks": 1506955,
+          "blocksExistingChanged": 3364,
+          "sectionsNewChunks": 397,
+          "beChanged": 5,
+          "biomes": 49,
+          "ticks": 39,
+          "entAdded": 388,
+          "entRemoved": 195,
+          "entModified": 50,
+          "entRelocated": 0,
+          "entChanges": 633
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 179,
+            "modified": 22
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 21
+          },
+          "transient": {
+            "added": 30,
+            "removed": 16,
+            "modified": 7
+          }
+        }
+      },
+      "tol2": {
+        "wall_s": 4.678417730996443,
+        "rss_bytes": 337092608,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4303,
+        "sectionsChanged": 680,
+        "chunksTracked": 973,
+        "chunksScanned": 4303,
+        "entityChunksChanged": 195,
+        "millis": 4565,
+        "commit": "b52b8d07055d762e9c5dcf4083ed9187b47e7e69",
+        "new_objects": 1218,
+        "new_loose_bytes": 603120,
+        "loose_objects": 10973,
+        "loose_bytes": 5363986,
+        "head": "b52b8d07055d762e9c5dcf4083ed9187b47e7e69",
+        "diff": {
+          "chunksAdded": 49,
+          "chunksRemoved": 0,
+          "sectionsChanged": 680,
+          "secAdded": 397,
+          "secRemoved": 0,
+          "secModified": 283,
+          "blocksChanged": 1510319,
+          "blocksNewChunks": 1506955,
+          "blocksExistingChanged": 3364,
+          "sectionsNewChunks": 397,
+          "beChanged": 5,
+          "biomes": 49,
+          "ticks": 39,
+          "entAdded": 388,
+          "entRemoved": 195,
+          "entModified": 33,
+          "entRelocated": 0,
+          "entChanges": 616
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 179,
+            "modified": 17
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 30,
+            "removed": 16,
+            "modified": 0
+          }
+        }
+      },
+      "tol4": {
+        "wall_s": 4.7380995040002745,
+        "rss_bytes": 329523200,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4303,
+        "sectionsChanged": 680,
+        "chunksTracked": 973,
+        "chunksScanned": 4303,
+        "entityChunksChanged": 195,
+        "millis": 4621,
+        "commit": "ee56839471e51a7118d0606838a33bbd5007561d",
+        "new_objects": 1218,
+        "new_loose_bytes": 603111,
+        "loose_objects": 10969,
+        "loose_bytes": 5362529,
+        "head": "ee56839471e51a7118d0606838a33bbd5007561d",
+        "diff": {
+          "chunksAdded": 49,
+          "chunksRemoved": 0,
+          "sectionsChanged": 680,
+          "secAdded": 397,
+          "secRemoved": 0,
+          "secModified": 283,
+          "blocksChanged": 1510319,
+          "blocksNewChunks": 1506955,
+          "blocksExistingChanged": 3364,
+          "sectionsNewChunks": 397,
+          "beChanged": 5,
+          "biomes": 49,
+          "ticks": 39,
+          "entAdded": 388,
+          "entRemoved": 195,
+          "entModified": 31,
+          "entRelocated": 0,
+          "entChanges": 614
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 179,
+            "modified": 16
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 15
+          },
+          "transient": {
+            "added": 30,
+            "removed": 16,
+            "modified": 0
+          }
+        }
+      },
+      "items": {
+        "wall_s": 4.734458206003183,
+        "rss_bytes": 331309056,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4303,
+        "sectionsChanged": 680,
+        "chunksTracked": 973,
+        "chunksScanned": 4303,
+        "entityChunksChanged": 193,
+        "millis": 4635,
+        "commit": "a9f6a6a0481f5b6e6f9176a60e0b90cb53e4c0f6",
+        "new_objects": 1213,
+        "new_loose_bytes": 600579,
+        "loose_objects": 10951,
+        "loose_bytes": 5349909,
+        "head": "a9f6a6a0481f5b6e6f9176a60e0b90cb53e4c0f6",
+        "diff": {
+          "chunksAdded": 49,
+          "chunksRemoved": 0,
+          "sectionsChanged": 680,
+          "secAdded": 397,
+          "secRemoved": 0,
+          "secModified": 283,
+          "blocksChanged": 1510319,
+          "blocksNewChunks": 1506955,
+          "blocksExistingChanged": 3364,
+          "sectionsNewChunks": 397,
+          "beChanged": 5,
+          "biomes": 49,
+          "ticks": 39,
+          "entAdded": 368,
+          "entRemoved": 183,
+          "entModified": 33,
+          "entRelocated": 0,
+          "entChanges": 584
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 179,
+            "modified": 17
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 10,
+            "removed": 4,
+            "modified": 0
+          }
+        }
+      },
+      "orbs": {
+        "wall_s": 4.620820436997747,
+        "rss_bytes": 336957440,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4303,
+        "sectionsChanged": 680,
+        "chunksTracked": 973,
+        "chunksScanned": 4303,
+        "entityChunksChanged": 195,
+        "millis": 4495,
+        "commit": "e05d91853f718e9335cc3e8142b28e776c64ea88",
+        "new_objects": 1218,
+        "new_loose_bytes": 603155,
+        "loose_objects": 10974,
+        "loose_bytes": 5364101,
+        "head": "e05d91853f718e9335cc3e8142b28e776c64ea88",
+        "diff": {
+          "chunksAdded": 49,
+          "chunksRemoved": 0,
+          "sectionsChanged": 680,
+          "secAdded": 397,
+          "secRemoved": 0,
+          "secModified": 283,
+          "blocksChanged": 1510319,
+          "blocksNewChunks": 1506955,
+          "blocksExistingChanged": 3364,
+          "sectionsNewChunks": 397,
+          "beChanged": 5,
+          "biomes": 49,
+          "ticks": 39,
+          "entAdded": 388,
+          "entRemoved": 195,
+          "entModified": 33,
+          "entRelocated": 0,
+          "entChanges": 616
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 179,
+            "modified": 17
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 30,
+            "removed": 16,
+            "modified": 0
+          }
+        }
+      },
+      "wild": {
+        "wall_s": 4.881329937001283,
+        "rss_bytes": 331350016,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4303,
+        "sectionsChanged": 680,
+        "chunksTracked": 973,
+        "chunksScanned": 4303,
+        "entityChunksChanged": 30,
+        "millis": 4769,
+        "commit": "64d2f83fca8bf2ea89e7a4db47e5bc5755c66d37",
+        "new_objects": 1011,
+        "new_loose_bytes": 500370,
+        "loose_objects": 10433,
+        "loose_bytes": 5099645,
+        "head": "64d2f83fca8bf2ea89e7a4db47e5bc5755c66d37",
+        "diff": {
+          "chunksAdded": 49,
+          "chunksRemoved": 0,
+          "sectionsChanged": 680,
+          "secAdded": 397,
+          "secRemoved": 0,
+          "secModified": 283,
+          "blocksChanged": 1510319,
+          "blocksNewChunks": 1506955,
+          "blocksExistingChanged": 3364,
+          "sectionsNewChunks": 397,
+          "beChanged": 5,
+          "biomes": 49,
+          "ticks": 39,
+          "entAdded": 10,
+          "entRemoved": 4,
+          "entModified": 16,
+          "entRelocated": 0,
+          "entChanges": 30
+        },
+        "categories": {
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 16
+          },
+          "transient": {
+            "added": 10,
+            "removed": 4,
+            "modified": 0
+          }
+        }
+      },
+      "extra": {
+        "wall_s": 4.520270052998967,
+        "rss_bytes": 331931648,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4303,
+        "sectionsChanged": 680,
+        "chunksTracked": 973,
+        "chunksScanned": 4303,
+        "entityChunksChanged": 195,
+        "millis": 4416,
+        "commit": "b371e26dbb0ab4da9ca1c1fb8fd8db665393c906",
+        "new_objects": 1218,
+        "new_loose_bytes": 600976,
+        "loose_objects": 10972,
+        "loose_bytes": 5357520,
+        "head": "b371e26dbb0ab4da9ca1c1fb8fd8db665393c906",
+        "diff": {
+          "chunksAdded": 49,
+          "chunksRemoved": 0,
+          "sectionsChanged": 680,
+          "secAdded": 397,
+          "secRemoved": 0,
+          "secModified": 283,
+          "blocksChanged": 1510319,
+          "blocksNewChunks": 1506955,
+          "blocksExistingChanged": 3364,
+          "sectionsNewChunks": 397,
+          "beChanged": 5,
+          "biomes": 49,
+          "ticks": 39,
+          "entAdded": 388,
+          "entRemoved": 195,
+          "entModified": 32,
+          "entRelocated": 0,
+          "entChanges": 615
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 179,
+            "modified": 17
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 15
+          },
+          "transient": {
+            "added": 30,
+            "removed": 16,
+            "modified": 0
+          }
+        }
+      },
+      "combo": {
+        "wall_s": 5.2145045310026035,
+        "rss_bytes": 330895360,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4303,
+        "sectionsChanged": 680,
+        "chunksTracked": 973,
+        "chunksScanned": 4303,
+        "entityChunksChanged": 193,
+        "millis": 5084,
+        "commit": "4fc2f865963afc86bb621d6a41647ab024b073e2",
+        "new_objects": 1213,
+        "new_loose_bytes": 598535,
+        "loose_objects": 10950,
+        "loose_bytes": 5343841,
+        "head": "4fc2f865963afc86bb621d6a41647ab024b073e2",
+        "diff": {
+          "chunksAdded": 49,
+          "chunksRemoved": 0,
+          "sectionsChanged": 680,
+          "secAdded": 397,
+          "secRemoved": 0,
+          "secModified": 283,
+          "blocksChanged": 1510319,
+          "blocksNewChunks": 1506955,
+          "blocksExistingChanged": 3364,
+          "sectionsNewChunks": 397,
+          "beChanged": 5,
+          "biomes": 49,
+          "ticks": 39,
+          "entAdded": 368,
+          "entRemoved": 183,
+          "entModified": 32,
+          "entRelocated": 0,
+          "entChanges": 583
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 179,
+            "modified": 17
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 15
+          },
+          "transient": {
+            "added": 10,
+            "removed": 4,
+            "modified": 0
+          }
+        }
+      }
+    },
+    "disk_bytes": 770318336
+  },
+  {
+    "tag": "active-04",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 0.6397306919971015,
+    "game_time": 34194,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 5.025123701001576,
+        "rss_bytes": 331579392,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 222,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 169,
+        "millis": 4926,
+        "commit": "8be808ba90e8a71f19080dd25e6eebd9c6af9bbf",
+        "new_objects": 591,
+        "new_loose_bytes": 286412,
+        "loose_objects": 11577,
+        "loose_bytes": 5655564,
+        "head": "8be808ba90e8a71f19080dd25e6eebd9c6af9bbf",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 222,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 222,
+          "blocksChanged": 1674,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1674,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 11,
+          "entAdded": 229,
+          "entRemoved": 302,
+          "entModified": 46,
+          "entRelocated": 0,
+          "entChanges": 577
+        },
+        "categories": {
+          "natural": {
+            "added": 207,
+            "removed": 288,
+            "modified": 29
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 17
+          },
+          "transient": {
+            "added": 22,
+            "removed": 14,
+            "modified": 0
+          }
+        }
+      },
+      "tol2": {
+        "wall_s": 4.524945072000264,
+        "rss_bytes": 333651968,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 222,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 169,
+        "millis": 4368,
+        "commit": "ac19b0384b3763d2949b8c0df3043230022a2599",
+        "new_objects": 591,
+        "new_loose_bytes": 286364,
+        "loose_objects": 11564,
+        "loose_bytes": 5650350,
+        "head": "ac19b0384b3763d2949b8c0df3043230022a2599",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 222,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 222,
+          "blocksChanged": 1674,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1674,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 11,
+          "entAdded": 229,
+          "entRemoved": 302,
+          "entModified": 40,
+          "entRelocated": 0,
+          "entChanges": 571
+        },
+        "categories": {
+          "natural": {
+            "added": 207,
+            "removed": 288,
+            "modified": 26
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 14
+          },
+          "transient": {
+            "added": 22,
+            "removed": 14,
+            "modified": 0
+          }
+        }
+      },
+      "tol4": {
+        "wall_s": 5.067151958995964,
+        "rss_bytes": 336039936,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 222,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 167,
+        "millis": 4963,
+        "commit": "faf4133508677e4f8ac16409c0d39a3b9280cb87",
+        "new_objects": 587,
+        "new_loose_bytes": 284834,
+        "loose_objects": 11556,
+        "loose_bytes": 5647363,
+        "head": "faf4133508677e4f8ac16409c0d39a3b9280cb87",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 222,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 222,
+          "blocksChanged": 1674,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1674,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 11,
+          "entAdded": 229,
+          "entRemoved": 302,
+          "entModified": 35,
+          "entRelocated": 0,
+          "entChanges": 566
+        },
+        "categories": {
+          "natural": {
+            "added": 207,
+            "removed": 288,
+            "modified": 23
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 12
+          },
+          "transient": {
+            "added": 22,
+            "removed": 14,
+            "modified": 0
+          }
+        }
+      },
+      "items": {
+        "wall_s": 4.510630768003466,
+        "rss_bytes": 332595200,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 222,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 166,
+        "millis": 4405,
+        "commit": "c706348e2717413288ba12fb44b9a4e424f72163",
+        "new_objects": 588,
+        "new_loose_bytes": 284912,
+        "loose_objects": 11539,
+        "loose_bytes": 5634821,
+        "head": "c706348e2717413288ba12fb44b9a4e424f72163",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 222,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 222,
+          "blocksChanged": 1674,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1674,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 11,
+          "entAdded": 212,
+          "entRemoved": 289,
+          "entModified": 40,
+          "entRelocated": 0,
+          "entChanges": 541
+        },
+        "categories": {
+          "natural": {
+            "added": 207,
+            "removed": 288,
+            "modified": 26
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 14
+          },
+          "transient": {
+            "added": 5,
+            "removed": 1,
+            "modified": 0
+          }
+        }
+      },
+      "orbs": {
+        "wall_s": 4.819150864001131,
+        "rss_bytes": 333811712,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 222,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 169,
+        "millis": 4644,
+        "commit": "cdec5eaeb6136e5263d9ffc649178759361bb33f",
+        "new_objects": 591,
+        "new_loose_bytes": 286397,
+        "loose_objects": 11565,
+        "loose_bytes": 5650498,
+        "head": "cdec5eaeb6136e5263d9ffc649178759361bb33f",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 222,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 222,
+          "blocksChanged": 1674,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1674,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 11,
+          "entAdded": 229,
+          "entRemoved": 302,
+          "entModified": 40,
+          "entRelocated": 0,
+          "entChanges": 571
+        },
+        "categories": {
+          "natural": {
+            "added": 207,
+            "removed": 288,
+            "modified": 26
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 14
+          },
+          "transient": {
+            "added": 22,
+            "removed": 14,
+            "modified": 0
+          }
+        }
+      },
+      "wild": {
+        "wall_s": 4.742043381003896,
+        "rss_bytes": 341917696,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 222,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 23,
+        "millis": 4634,
+        "commit": "c62d984ed23515b412607d54f778b891af5e1d62",
+        "new_objects": 429,
+        "new_loose_bytes": 206530,
+        "loose_objects": 10862,
+        "loose_bytes": 5306175,
+        "head": "c62d984ed23515b412607d54f778b891af5e1d62",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 222,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 222,
+          "blocksChanged": 1674,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1674,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 11,
+          "entAdded": 5,
+          "entRemoved": 1,
+          "entModified": 14,
+          "entRelocated": 0,
+          "entChanges": 20
+        },
+        "categories": {
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 14
+          },
+          "transient": {
+            "added": 5,
+            "removed": 1,
+            "modified": 0
+          }
+        }
+      },
+      "extra": {
+        "wall_s": 4.278008631001285,
+        "rss_bytes": 334696448,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 222,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 169,
+        "millis": 4178,
+        "commit": "7a2bff4e1eafa70633f9b118d35b1107502e5fc3",
+        "new_objects": 591,
+        "new_loose_bytes": 284730,
+        "loose_objects": 11563,
+        "loose_bytes": 5642250,
+        "head": "7a2bff4e1eafa70633f9b118d35b1107502e5fc3",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 222,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 222,
+          "blocksChanged": 1674,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1674,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 11,
+          "entAdded": 229,
+          "entRemoved": 302,
+          "entModified": 39,
+          "entRelocated": 0,
+          "entChanges": 570
+        },
+        "categories": {
+          "natural": {
+            "added": 207,
+            "removed": 288,
+            "modified": 26
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 13
+          },
+          "transient": {
+            "added": 22,
+            "removed": 14,
+            "modified": 0
+          }
+        }
+      },
+      "combo": {
+        "wall_s": 4.5766523700003745,
+        "rss_bytes": 331448320,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 222,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 166,
+        "millis": 4457,
+        "commit": "8111f855c464b968d16fc1208a933e4e66085df2",
+        "new_objects": 588,
+        "new_loose_bytes": 283348,
+        "loose_objects": 11538,
+        "loose_bytes": 5627189,
+        "head": "8111f855c464b968d16fc1208a933e4e66085df2",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 222,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 222,
+          "blocksChanged": 1674,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 1674,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 11,
+          "entAdded": 212,
+          "entRemoved": 289,
+          "entModified": 39,
+          "entRelocated": 0,
+          "entChanges": 540
+        },
+        "categories": {
+          "natural": {
+            "added": 207,
+            "removed": 288,
+            "modified": 26
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 13
+          },
+          "transient": {
+            "added": 5,
+            "removed": 1,
+            "modified": 0
+          }
+        }
+      }
+    },
+    "disk_bytes": 812294144
+  },
+  {
+    "tag": "active-05",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 0.7292753130022902,
+    "game_time": 40175,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 4.451602945002378,
+        "rss_bytes": 331571200,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 254,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 205,
+        "millis": 4357,
+        "commit": "f98ed1e97a3cef555161d627ea61c8b1f5c84406",
+        "new_objects": 702,
+        "new_loose_bytes": 335124,
+        "loose_objects": 12279,
+        "loose_bytes": 5990688,
+        "head": "f98ed1e97a3cef555161d627ea61c8b1f5c84406",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 254,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 254,
+          "blocksChanged": 2065,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2065,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 7,
+          "entAdded": 336,
+          "entRemoved": 285,
+          "entModified": 63,
+          "entRelocated": 0,
+          "entChanges": 684
+        },
+        "categories": {
+          "natural": {
+            "added": 333,
+            "removed": 244,
+            "modified": 25
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 17
+          },
+          "transient": {
+            "added": 3,
+            "removed": 41,
+            "modified": 21
+          }
+        }
+      },
+      "tol2": {
+        "wall_s": 5.778759683998942,
+        "rss_bytes": 328884224,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 254,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 204,
+        "millis": 5652,
+        "commit": "9baddc22ea3291bfde81ce8607c20d9bfa95106e",
+        "new_objects": 700,
+        "new_loose_bytes": 334557,
+        "loose_objects": 12264,
+        "loose_bytes": 5984907,
+        "head": "9baddc22ea3291bfde81ce8607c20d9bfa95106e",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 254,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 254,
+          "blocksChanged": 2065,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2065,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 7,
+          "entAdded": 336,
+          "entRemoved": 285,
+          "entModified": 46,
+          "entRelocated": 0,
+          "entChanges": 667
+        },
+        "categories": {
+          "natural": {
+            "added": 333,
+            "removed": 244,
+            "modified": 21
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 17
+          },
+          "transient": {
+            "added": 3,
+            "removed": 41,
+            "modified": 8
+          }
+        }
+      },
+      "tol4": {
+        "wall_s": 4.653160216003016,
+        "rss_bytes": 334467072,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 254,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 204,
+        "millis": 4549,
+        "commit": "ad71ed6663e11df0d76dc3ed458dbc4c24eb1350",
+        "new_objects": 700,
+        "new_loose_bytes": 334535,
+        "loose_objects": 12256,
+        "loose_bytes": 5981898,
+        "head": "ad71ed6663e11df0d76dc3ed458dbc4c24eb1350",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 254,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 254,
+          "blocksChanged": 2065,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2065,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 7,
+          "entAdded": 336,
+          "entRemoved": 285,
+          "entModified": 43,
+          "entRelocated": 0,
+          "entChanges": 664
+        },
+        "categories": {
+          "natural": {
+            "added": 333,
+            "removed": 244,
+            "modified": 20
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 15
+          },
+          "transient": {
+            "added": 3,
+            "removed": 41,
+            "modified": 8
+          }
+        }
+      },
+      "items": {
+        "wall_s": 4.411600798004656,
+        "rss_bytes": 335192064,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 254,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 201,
+        "millis": 4304,
+        "commit": "894162f7235bfa62819feaafadfa0e4f2e687d9b",
+        "new_objects": 696,
+        "new_loose_bytes": 332293,
+        "loose_objects": 12235,
+        "loose_bytes": 5967114,
+        "head": "894162f7235bfa62819feaafadfa0e4f2e687d9b",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 254,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 254,
+          "blocksChanged": 2065,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2065,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 7,
+          "entAdded": 334,
+          "entRemoved": 261,
+          "entModified": 44,
+          "entRelocated": 0,
+          "entChanges": 639
+        },
+        "categories": {
+          "natural": {
+            "added": 333,
+            "removed": 244,
+            "modified": 21
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 17
+          },
+          "transient": {
+            "added": 1,
+            "removed": 17,
+            "modified": 6
+          }
+        }
+      },
+      "orbs": {
+        "wall_s": 4.900983257000917,
+        "rss_bytes": 330633216,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 254,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 204,
+        "millis": 4803,
+        "commit": "1a2fafa6901d41f21ceda41031e0f0c486aa7382",
+        "new_objects": 700,
+        "new_loose_bytes": 334589,
+        "loose_objects": 12265,
+        "loose_bytes": 5985087,
+        "head": "1a2fafa6901d41f21ceda41031e0f0c486aa7382",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 254,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 254,
+          "blocksChanged": 2065,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2065,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 7,
+          "entAdded": 336,
+          "entRemoved": 285,
+          "entModified": 46,
+          "entRelocated": 0,
+          "entChanges": 667
+        },
+        "categories": {
+          "natural": {
+            "added": 333,
+            "removed": 244,
+            "modified": 21
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 17
+          },
+          "transient": {
+            "added": 3,
+            "removed": 41,
+            "modified": 8
+          }
+        }
+      },
+      "wild": {
+        "wall_s": 4.610704837999947,
+        "rss_bytes": 335126528,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 254,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 32,
+        "millis": 4513,
+        "commit": "b4160384fc51d6b8163214b8dfcaa08811a86c02",
+        "new_objects": 489,
+        "new_loose_bytes": 230580,
+        "loose_objects": 11351,
+        "loose_bytes": 5536755,
+        "head": "b4160384fc51d6b8163214b8dfcaa08811a86c02",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 254,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 254,
+          "blocksChanged": 2065,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2065,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 7,
+          "entAdded": 1,
+          "entRemoved": 17,
+          "entModified": 23,
+          "entRelocated": 0,
+          "entChanges": 41
+        },
+        "categories": {
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 17
+          },
+          "transient": {
+            "added": 1,
+            "removed": 17,
+            "modified": 6
+          }
+        }
+      },
+      "extra": {
+        "wall_s": 4.863650221006537,
+        "rss_bytes": 333414400,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 254,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 204,
+        "millis": 4706,
+        "commit": "058a3e2b17c9e8f47383bd561b4cdab4c2d61bff",
+        "new_objects": 700,
+        "new_loose_bytes": 332473,
+        "loose_objects": 12263,
+        "loose_bytes": 5974723,
+        "head": "058a3e2b17c9e8f47383bd561b4cdab4c2d61bff",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 254,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 254,
+          "blocksChanged": 2065,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2065,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 7,
+          "entAdded": 336,
+          "entRemoved": 285,
+          "entModified": 46,
+          "entRelocated": 0,
+          "entChanges": 667
+        },
+        "categories": {
+          "natural": {
+            "added": 333,
+            "removed": 244,
+            "modified": 21
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 17
+          },
+          "transient": {
+            "added": 3,
+            "removed": 41,
+            "modified": 8
+          }
+        }
+      },
+      "combo": {
+        "wall_s": 4.733005984002375,
+        "rss_bytes": 331972608,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4339,
+        "sectionsChanged": 254,
+        "chunksTracked": 973,
+        "chunksScanned": 4339,
+        "entityChunksChanged": 201,
+        "millis": 4625,
+        "commit": "023b8a5317736ce0afd39a7e62e8dd02aa5c526a",
+        "new_objects": 696,
+        "new_loose_bytes": 330274,
+        "loose_objects": 12234,
+        "loose_bytes": 5957463,
+        "head": "023b8a5317736ce0afd39a7e62e8dd02aa5c526a",
+        "diff": {
+          "chunksAdded": 0,
+          "chunksRemoved": 0,
+          "sectionsChanged": 254,
+          "secAdded": 0,
+          "secRemoved": 0,
+          "secModified": 254,
+          "blocksChanged": 2065,
+          "blocksNewChunks": 0,
+          "blocksExistingChanged": 2065,
+          "sectionsNewChunks": 0,
+          "beChanged": 0,
+          "biomes": 0,
+          "ticks": 7,
+          "entAdded": 334,
+          "entRemoved": 261,
+          "entModified": 44,
+          "entRelocated": 0,
+          "entChanges": 639
+        },
+        "categories": {
+          "natural": {
+            "added": 333,
+            "removed": 244,
+            "modified": 21
+          },
+          "player_related": {
+            "added": 0,
+            "removed": 0,
+            "modified": 17
+          },
+          "transient": {
+            "added": 1,
+            "removed": 17,
+            "modified": 6
+          }
+        }
+      }
+    },
+    "disk_bytes": 857653248
+  },
+  {
+    "tag": "active-06",
+    "version": "26.2",
+    "locked": true,
+    "snapshot_pause_s": 0.8541998479995527,
+    "game_time": 46172,
+    "day_time": null,
+    "profiles": {
+      "tol0": {
+        "wall_s": 4.389894987994921,
+        "rss_bytes": 343973888,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4499,
+        "sectionsChanged": 1042,
+        "chunksTracked": 1067,
+        "chunksScanned": 4499,
+        "entityChunksChanged": 232,
+        "millis": 4286,
+        "commit": "aafd9130af238ef2a4d9f7433e4b9a718aef182f",
+        "new_objects": 1651,
+        "new_loose_bytes": 828872,
+        "loose_objects": 13930,
+        "loose_bytes": 6819560,
+        "head": "aafd9130af238ef2a4d9f7433e4b9a718aef182f",
+        "diff": {
+          "chunksAdded": 94,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1042,
+          "secAdded": 815,
+          "secRemoved": 0,
+          "secModified": 227,
+          "blocksChanged": 2970919,
+          "blocksNewChunks": 2968098,
+          "blocksExistingChanged": 2821,
+          "sectionsNewChunks": 815,
+          "beChanged": 13,
+          "biomes": 94,
+          "ticks": 31,
+          "entAdded": 383,
+          "entRemoved": 243,
+          "entModified": 67,
+          "entRelocated": 0,
+          "entChanges": 693
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 242,
+            "modified": 35
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 9
+          },
+          "transient": {
+            "added": 23,
+            "removed": 1,
+            "modified": 23
+          }
+        }
+      },
+      "tol2": {
+        "wall_s": 5.258117710996885,
+        "rss_bytes": 339402752,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4499,
+        "sectionsChanged": 1042,
+        "chunksTracked": 1067,
+        "chunksScanned": 4499,
+        "entityChunksChanged": 227,
+        "millis": 5154,
+        "commit": "f7cebf8086cf1752370bf23870d3cc2d6969accc",
+        "new_objects": 1639,
+        "new_loose_bytes": 824875,
+        "loose_objects": 13903,
+        "loose_bytes": 6809782,
+        "head": "f7cebf8086cf1752370bf23870d3cc2d6969accc",
+        "diff": {
+          "chunksAdded": 94,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1042,
+          "secAdded": 815,
+          "secRemoved": 0,
+          "secModified": 227,
+          "blocksChanged": 2970919,
+          "blocksNewChunks": 2968098,
+          "blocksExistingChanged": 2821,
+          "sectionsNewChunks": 815,
+          "beChanged": 13,
+          "biomes": 94,
+          "ticks": 31,
+          "entAdded": 383,
+          "entRemoved": 243,
+          "entModified": 33,
+          "entRelocated": 0,
+          "entChanges": 659
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 242,
+            "modified": 25
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 7
+          },
+          "transient": {
+            "added": 23,
+            "removed": 1,
+            "modified": 1
+          }
+        }
+      },
+      "tol4": {
+        "wall_s": 5.0762471449997975,
+        "rss_bytes": 338690048,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4499,
+        "sectionsChanged": 1042,
+        "chunksTracked": 1067,
+        "chunksScanned": 4499,
+        "entityChunksChanged": 227,
+        "millis": 4953,
+        "commit": "ac301426ab808b600347599d77d1c3b2859fbd9f",
+        "new_objects": 1639,
+        "new_loose_bytes": 824962,
+        "loose_objects": 13895,
+        "loose_bytes": 6806860,
+        "head": "ac301426ab808b600347599d77d1c3b2859fbd9f",
+        "diff": {
+          "chunksAdded": 94,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1042,
+          "secAdded": 815,
+          "secRemoved": 0,
+          "secModified": 227,
+          "blocksChanged": 2970919,
+          "blocksNewChunks": 2968098,
+          "blocksExistingChanged": 2821,
+          "sectionsNewChunks": 815,
+          "beChanged": 13,
+          "biomes": 94,
+          "ticks": 31,
+          "entAdded": 383,
+          "entRemoved": 243,
+          "entModified": 29,
+          "entRelocated": 0,
+          "entChanges": 655
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 242,
+            "modified": 24
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 5
+          },
+          "transient": {
+            "added": 23,
+            "removed": 1,
+            "modified": 0
+          }
+        }
+      },
+      "items": {
+        "wall_s": 4.7895813819995965,
+        "rss_bytes": 337317888,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4499,
+        "sectionsChanged": 1042,
+        "chunksTracked": 1067,
+        "chunksScanned": 4499,
+        "entityChunksChanged": 223,
+        "millis": 4682,
+        "commit": "cba7dfedb356fee7e31a9fb5ede77ad518e780a5",
+        "new_objects": 1635,
+        "new_loose_bytes": 821995,
+        "loose_objects": 13870,
+        "loose_bytes": 6789109,
+        "head": "cba7dfedb356fee7e31a9fb5ede77ad518e780a5",
+        "diff": {
+          "chunksAdded": 94,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1042,
+          "secAdded": 815,
+          "secRemoved": 0,
+          "secModified": 227,
+          "blocksChanged": 2970919,
+          "blocksNewChunks": 2968098,
+          "blocksExistingChanged": 2821,
+          "sectionsNewChunks": 815,
+          "beChanged": 13,
+          "biomes": 94,
+          "ticks": 31,
+          "entAdded": 360,
+          "entRemoved": 242,
+          "entModified": 32,
+          "entRelocated": 0,
+          "entChanges": 634
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 242,
+            "modified": 25
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 7
+          }
+        }
+      },
+      "orbs": {
+        "wall_s": 5.773127441003453,
+        "rss_bytes": 344850432,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4499,
+        "sectionsChanged": 1042,
+        "chunksTracked": 1067,
+        "chunksScanned": 4499,
+        "entityChunksChanged": 227,
+        "millis": 5672,
+        "commit": "f89ea31c9e0ad4d4a2a9a42f78450518eb2ad753",
+        "new_objects": 1639,
+        "new_loose_bytes": 824911,
+        "loose_objects": 13904,
+        "loose_bytes": 6809998,
+        "head": "f89ea31c9e0ad4d4a2a9a42f78450518eb2ad753",
+        "diff": {
+          "chunksAdded": 94,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1042,
+          "secAdded": 815,
+          "secRemoved": 0,
+          "secModified": 227,
+          "blocksChanged": 2970919,
+          "blocksNewChunks": 2968098,
+          "blocksExistingChanged": 2821,
+          "sectionsNewChunks": 815,
+          "beChanged": 13,
+          "biomes": 94,
+          "ticks": 31,
+          "entAdded": 383,
+          "entRemoved": 243,
+          "entModified": 33,
+          "entRelocated": 0,
+          "entChanges": 659
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 242,
+            "modified": 25
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 7
+          },
+          "transient": {
+            "added": 23,
+            "removed": 1,
+            "modified": 1
+          }
+        }
+      },
+      "wild": {
+        "wall_s": 5.372384879003221,
+        "rss_bytes": 342540288,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4499,
+        "sectionsChanged": 1042,
+        "chunksTracked": 1067,
+        "chunksScanned": 4499,
+        "entityChunksChanged": 12,
+        "millis": 5262,
+        "commit": "a7af17ab495005eae512219e5e830777c182e44b",
+        "new_objects": 1371,
+        "new_loose_bytes": 700495,
+        "loose_objects": 12722,
+        "loose_bytes": 6237250,
+        "head": "a7af17ab495005eae512219e5e830777c182e44b",
+        "diff": {
+          "chunksAdded": 94,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1042,
+          "secAdded": 815,
+          "secRemoved": 0,
+          "secModified": 227,
+          "blocksChanged": 2970919,
+          "blocksNewChunks": 2968098,
+          "blocksExistingChanged": 2821,
+          "sectionsNewChunks": 815,
+          "beChanged": 13,
+          "biomes": 94,
+          "ticks": 31,
+          "entAdded": 2,
+          "entRemoved": 0,
+          "entModified": 7,
+          "entRelocated": 0,
+          "entChanges": 9
+        },
+        "categories": {
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 7
+          }
+        }
+      },
+      "extra": {
+        "wall_s": 5.2082307300006505,
+        "rss_bytes": 345059328,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4499,
+        "sectionsChanged": 1042,
+        "chunksTracked": 1067,
+        "chunksScanned": 4499,
+        "entityChunksChanged": 227,
+        "millis": 5105,
+        "commit": "78d268fbb55b37ccad603db678a08d26607a433f",
+        "new_objects": 1639,
+        "new_loose_bytes": 822356,
+        "loose_objects": 13902,
+        "loose_bytes": 6797079,
+        "head": "78d268fbb55b37ccad603db678a08d26607a433f",
+        "diff": {
+          "chunksAdded": 94,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1042,
+          "secAdded": 815,
+          "secRemoved": 0,
+          "secModified": 227,
+          "blocksChanged": 2970919,
+          "blocksNewChunks": 2968098,
+          "blocksExistingChanged": 2821,
+          "sectionsNewChunks": 815,
+          "beChanged": 13,
+          "biomes": 94,
+          "ticks": 31,
+          "entAdded": 383,
+          "entRemoved": 243,
+          "entModified": 33,
+          "entRelocated": 0,
+          "entChanges": 659
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 242,
+            "modified": 25
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 7
+          },
+          "transient": {
+            "added": 23,
+            "removed": 1,
+            "modified": 1
+          }
+        }
+      },
+      "combo": {
+        "wall_s": 5.004161930999544,
+        "rss_bytes": 341368832,
+        "xmx": "1G",
+        "committed": "true",
+        "chunksRecomputed": 4499,
+        "sectionsChanged": 1042,
+        "chunksTracked": 1067,
+        "chunksScanned": 4499,
+        "entityChunksChanged": 223,
+        "millis": 4861,
+        "commit": "544a5257d480004cb5866fbfe019d2ee3f49680c",
+        "new_objects": 1635,
+        "new_loose_bytes": 819647,
+        "loose_objects": 13869,
+        "loose_bytes": 6777110,
+        "head": "544a5257d480004cb5866fbfe019d2ee3f49680c",
+        "diff": {
+          "chunksAdded": 94,
+          "chunksRemoved": 0,
+          "sectionsChanged": 1042,
+          "secAdded": 815,
+          "secRemoved": 0,
+          "secModified": 227,
+          "blocksChanged": 2970919,
+          "blocksNewChunks": 2968098,
+          "blocksExistingChanged": 2821,
+          "sectionsNewChunks": 815,
+          "beChanged": 13,
+          "biomes": 94,
+          "ticks": 31,
+          "entAdded": 360,
+          "entRemoved": 242,
+          "entModified": 32,
+          "entRelocated": 0,
+          "entChanges": 634
+        },
+        "categories": {
+          "natural": {
+            "added": 358,
+            "removed": 242,
+            "modified": 25
+          },
+          "player_related": {
+            "added": 2,
+            "removed": 0,
+            "modified": 7
+          }
+        }
+      }
+    },
+    "disk_bytes": 936390656
+  }
+]
