@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "worldgit_poc",
+  "version": "0.0.5",
+  "name": "WorldGit Phase 0 ghost diff",
+  "environment": "client",
+  "entrypoints": { "client": ["org.worldgit.fabric.WorldGitClient"] },
+  "depends": { "fabricloader": ">=0.19.5", "minecraft": "${minecraft}", "java": ">=${java}", "fabric-api": "*" }
+}

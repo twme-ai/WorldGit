@@ -10,3 +10,4 @@
 | `02-core-proto/` | core 原型：正規化、section 雜湊、JGit 映射、寫回 |
 | `03-paper-poc/` | 插件端 PoC：變動偵測、線上替換 section、Folia |
 | `04-deepslate/` | 前端實驗 A：deepslate 近景渲染與 diff 上色 |
+| `05-fabric-poc/` | Fabric 模組（1.21.11、26.2）鬼影 diff 顯示、插件↔模組握手協定 |

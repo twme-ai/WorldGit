@@ -1,0 +1,8 @@
+最終建置：tools/build.sh（2026-10-01 UTC）
+PROTOCOL_OK n=64 packets=1 maxBytes=611
+PROTOCOL_OK n=10000 packets=2 maxBytes=27662
+PROTOCOL_OK n=100000 packets=12 maxBytes=27995
+PROTOCOL_MALFORMED_AND_LARGE_PALETTE_OK
+BUILD SUCCESSFUL in 11s
+16 actionable tasks: 2 executed, 14 up-to-date
+完整 log：.work/fabric-poc/final-build.log

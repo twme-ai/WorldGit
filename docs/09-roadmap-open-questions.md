@@ -61,5 +61,6 @@
 - [x] FAWE 的 `EditSessionEvent` 在各種模式下是否都能看到逐格變動（見 `experiments/03-paper-poc/REPORT.md`）：bulk 模式看不到逐格，只有 Region 與每 chunk 寫入數；需設 `extent.allowed-plugins`；`//regen`、筆刷未測
 - [x] **前端實驗 A**（見 `experiments/04-deepslate/REPORT.md`）：用 deepslate 渲染 WorldGit 正規化後的一個 section（含多種非完整方塊），評估正確性、效能與介接成本
 - [x] **前端實驗 B**（見 `experiments/01-bluemap/REPORT.md`）：評估 BlueMap 核心能否以 WorldGit 的 tree 為輸入產生 tile（不經過實際的世界資料夾）
+- [x] Fabric 客戶端鬼影 diff 顯示與插件↔模組握手，1.21.11 與 26.2（見 `experiments/05-fabric-poc/REPORT.md`）：兩版真正客戶端截圖驗證；大量格數需分塊裁切與包圍盒
 - [ ] 新 3D 檢視器在大範圍（數千 chunk）下的效能：網格生成速度、記憶體、瀏覽器端幀率
 - [~] Folia 在 1.21.11 / 26.2 的釋出狀態，以及 region 排程下 switch 大量 chunk 的效能（見 `experiments/03-paper-poc/REPORT.md`）：1.21.11 正式版、26.2 仍 BETA，兩者功能驗證通過；大量 chunk 的壓力測試未做

@@ -1,0 +1,190 @@
+{
+  "jars": [
+    {
+      "path": ".work/fabric-poc/build/protocol/libs/protocol-0.0.5.jar",
+      "bytes": 15150,
+      "sha256": "a099791555df9a75f26c5287ff3df2c1eea92bb2ba2f15ec89fe116ec87084a4",
+      "class_major": 65
+    },
+    {
+      "path": ".work/fabric-poc/build/paper/libs/worldgit-fabric-poc-paper.jar",
+      "bytes": 29429,
+      "sha256": "4a2b00c9642efa04040b8524faa561c0eec47c360fc6acd742d6ca333c824b0f",
+      "class_major": 65
+    },
+    {
+      "path": ".work/fabric-poc/build/client121/libs/worldgit-fabric-poc-1.21.11-0.0.5.jar",
+      "bytes": 40679,
+      "sha256": "7106d7e551bb068b1b0ff40201b4a6e2d80c2f4e8c22c99b007925e8260d9a26",
+      "class_major": 65,
+      "fabric_mod": {
+        "schemaVersion": 1,
+        "id": "worldgit_poc",
+        "version": "0.0.5",
+        "name": "WorldGit Phase 0 ghost diff",
+        "environment": "client",
+        "entrypoints": {
+          "client": [
+            "org.worldgit.fabric.WorldGitClient"
+          ]
+        },
+        "depends": {
+          "fabricloader": ">=0.19.5",
+          "minecraft": "1.21.11",
+          "java": ">=21",
+          "fabric-api": "*"
+        },
+        "jars": [
+          {
+            "file": "META-INF/jars/protocol-0.0.5.jar"
+          }
+        ]
+      }
+    },
+    {
+      "path": ".work/fabric-poc/build/client262/libs/worldgit-fabric-poc-26.2-0.0.5.jar",
+      "bytes": 41229,
+      "sha256": "417ee53ea86a3b948ace93cbf29518d4a1bd9ab99eaa6ebf9f03420739b129db",
+      "class_major": 69,
+      "fabric_mod": {
+        "schemaVersion": 1,
+        "id": "worldgit_poc",
+        "version": "0.0.5",
+        "name": "WorldGit Phase 0 ghost diff",
+        "environment": "client",
+        "entrypoints": {
+          "client": [
+            "org.worldgit.fabric.WorldGitClient"
+          ]
+        },
+        "depends": {
+          "fabricloader": ">=0.19.5",
+          "minecraft": "26.2",
+          "java": ">=25",
+          "fabric-api": "*"
+        },
+        "jars": [
+          {
+            "file": "META-INF/jars/protocol-0.0.5.jar"
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "screenshots/1.21.11-10000-overview.png",
+      "bytes": 569065,
+      "sha256": "2e1a7f75908072545e5fcf2e5e1750d2d91f7e48f0737c00383cf4f68d524c99",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/1.21.11-100000-overview.png",
+      "bytes": 939258,
+      "sha256": "dea841d75571cb69d3bcb31c3016c63c1f5f2f7fd02108c1612fa6a88de9e75e",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/1.21.11-64-front.png",
+      "bytes": 206865,
+      "sha256": "4ae834086d71102e8e170ef8b56dea4297c5d9b325fb6a475d51ae1ee2fa1cd2",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/1.21.11-64-ghost-close.png",
+      "bytes": 364741,
+      "sha256": "1921b76e942974eaa63313c9f75be90838afc6304a607c849850ac96146d6fcf",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/1.21.11-64-pulse-later.png",
+      "bytes": 364321,
+      "sha256": "91c3a4366356c5298d9f5e3d79cc255d0198fd0ea33e4892a0db410e0581ca3b",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/1.21.11-64-side.png",
+      "bytes": 351829,
+      "sha256": "4855b20bcaf4f5cbd509185057f295bc29ac1c897519c0c3f3ecd65d1f64bda0",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/1.21.11-clear.png",
+      "bytes": 101388,
+      "sha256": "6b48df45c96effe5913d422830b6cbeb343367825462eaa9132c6bf6a94f04df",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/26.2-10000-overview.png",
+      "bytes": 568845,
+      "sha256": "a037b30250f4d65935b26257fcc7b2da5b634850ba8974e9bbe55e52b00a8810",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/26.2-100000-overview.png",
+      "bytes": 939411,
+      "sha256": "eebbeaf334a6bb2254c3692b6efa922a967b101350a8737aeb821a9c6e7bc191",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/26.2-64-front.png",
+      "bytes": 205990,
+      "sha256": "7db26f415160ca980a1a8a5d8f7333c64103b362296cedd140469c2b89a105d2",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/26.2-64-ghost-close.png",
+      "bytes": 364869,
+      "sha256": "55c8e2d5fc4649b5b0a40e3bd0025b42f76fba8e495f5e11897bb35c835a2998",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/26.2-64-pulse-later.png",
+      "bytes": 363954,
+      "sha256": "fcedf2007b5f82a5b971171613fe720abfe7a2658f93530e0c89dd172686c703",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/26.2-64-side.png",
+      "bytes": 356395,
+      "sha256": "1676be2e3f61a8ae7faa76003f1801e92f19a8b6ded836a80210d7dfe709fe96",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "path": "screenshots/26.2-clear.png",
+      "bytes": 101915,
+      "sha256": "436b11310edbfe3d6dbac0bc50b7bba5c6463120aa82603afa5deec60fc4b9de",
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "baseline_after_final_runs": {
+    "1.21.11": {
+      "files": 49,
+      "aggregate_sha256": "6547c744fadb7e083048e39da0c5480f35c9095ce84969c1b091c44895cd7b05",
+      "aggregate_algorithm": "sorted relative UTF-8 path bytes followed by file content bytes; no delimiter",
+      "same_as_2026_10_01_00_20_observation": true,
+      "latest_mtime_utc_epoch": 1790784711.98978
+    },
+    "26.2": {
+      "files": 67,
+      "aggregate_sha256": "37e06fa4355bcbad6c997194dc08983a300b17823e5107560169b49a02c19116",
+      "aggregate_algorithm": "sorted relative UTF-8 path bytes followed by file content bytes; no delimiter",
+      "same_as_2026_10_01_00_20_observation": true,
+      "latest_mtime_utc_epoch": 1790784883.2073822
+    }
+  }
+}

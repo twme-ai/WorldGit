@@ -1,0 +1,6 @@
+plugins { id 'java-library' }
+java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
+tasks.withType(JavaCompile).configureEach { options.release = 21; options.encoding = 'UTF-8' }
+tasks.register('checkProtocol', JavaExec) { dependsOn testClasses; classpath = sourceSets.test.runtimeClasspath; mainClass = 'org.worldgit.protocol.ProtocolCheck' }
+check.dependsOn checkProtocol
+test.enabled = false // 檢查程式是零相依 main；不交由 JUnit discovery。

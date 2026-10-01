@@ -1,0 +1,6 @@
+plugins { id 'java' }
+java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
+repositories { maven { url = 'https://repo.papermc.io/repository/maven-public/' } }
+dependencies { implementation project(':protocol'); compileOnly 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT' }
+tasks.withType(JavaCompile).configureEach { options.release = 21; options.encoding = 'UTF-8' }
+jar { archiveFileName = 'worldgit-fabric-poc-paper.jar'; from project(':protocol').sourceSets.main.output }

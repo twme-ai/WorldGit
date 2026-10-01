@@ -1,0 +1,30 @@
+def modern = project.name == 'client262'
+def mc = modern ? '26.2' : '1.21.11'
+def jdk = modern ? 25 : 21
+base { archivesName = "worldgit-fabric-poc-${mc}" }
+java { toolchain.languageVersion = JavaLanguageVersion.of(jdk) }
+dependencies {
+    minecraft "com.mojang:minecraft:${mc}"
+    if (!modern) mappings loom.officialMojangMappings()
+    add(modern ? 'implementation' : 'modImplementation', 'net.fabricmc:fabric-loader:0.19.5')
+    add(modern ? 'implementation' : 'modImplementation', "net.fabricmc.fabric-api:fabric-api:${modern ? '0.161.0+26.2' : '0.141.6+1.21.11'}")
+    implementation project(':protocol')
+    include project(':protocol')
+}
+sourceSets.main.java.srcDir '../client-common/src/main/java'
+sourceSets.main.resources.srcDir '../client-common/src/main/resources'
+tasks.withType(JavaCompile).configureEach { options.release = jdk; options.encoding = 'UTF-8' }
+tasks.processResources { inputs.property 'minecraft', mc; inputs.property 'java', jdk; filesMatching('fabric.mod.json') { expand(minecraft: mc, java: jdk) } }
+loom {
+    runs {
+        client {
+            client()
+            runDir "../../../.work/fabric-poc/client-${mc}"
+            programArgs '--username', 'WgFabric', '--width', '1280', '--height', '720'
+            vmArgs '-Xmx2G', '-XX:ActiveProcessorCount=3', '-XX:-UsePerfData', "-Djava.io.tmpdir=${rootDir}/../../.work/fabric-poc/tmp", "-Djna.tmpdir=${rootDir}/../../.work/fabric-poc/tmp", "-Dio.netty.native.workdir=${rootDir}/../../.work/fabric-poc/tmp"
+            if (project.hasProperty('autotest')) {
+                vmArgs '-Dwgpoc.autotest=true', "-Dwgpoc.port=${modern ? 25632 : 25631}", "-Dwgpoc.version=${mc}", "-Dwgpoc.root=${rootDir}/../.."
+            }
+        }
+    }
+}

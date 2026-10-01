@@ -1,0 +1,6 @@
+allprojects {
+    group = 'org.worldgit.poc'
+    version = '0.0.5'
+    layout.buildDirectory = file("${rootDir}/../../.work/fabric-poc/build/${project.name}")
+    repositories { mavenCentral(); maven { url = 'https://maven.fabricmc.net/' } }
+}

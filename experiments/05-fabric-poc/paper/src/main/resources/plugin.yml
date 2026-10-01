@@ -1,0 +1,11 @@
+name: WorldGitFabricPoc
+version: 0.0.5
+main: org.worldgit.paper.PocPlugin
+api-version: '1.21.11'
+commands:
+  wgpoc:
+    description: 本機鬼影 diff 示範（會修改測試世界，clear 還原示範）
+    permission: wgpoc.demo
+permissions:
+  wgpoc.demo:
+    default: op
