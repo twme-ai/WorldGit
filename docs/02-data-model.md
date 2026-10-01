@@ -60,6 +60,7 @@ commit                               # 屬於某一個維度的 repo（§2.1）
 | 實體 `attributes` 列表順序（每次存檔可能不同） | 依 `id` 排序；沒有 modifier 的 `movement_speed` 由伺服器惰性補上，比較時略過（Phase 0 發現） |
 | 光照（BlockLight/SkyLight）、Heightmaps、`isLightOn` | **丟棄**，寫回時讓伺服器重算（Phase 0 已驗證：寫回時移除光照、`starlight.*`、Heightmaps，Paper 兩版載入後重算的光照與原本逐 nibble 相同） |
 | `LastUpdate`、`InhabitedTime`、`Status`、`PostProcessing`、`xPos/yPos/zPos` | 丟棄（寫回時固定為 full / 保留目標世界原值）；`DataVersion` 記在 world-meta |
+| structures 的 `References` | chunk 座標集合的 long[] 依數值排序；MC 的 LongSet 重寫可能重排，同一集合不得造成假 diff（Phase 1 真正 Paper 地獄維度發現） |
 | 排程 tick（`block_ticks`/`fluid_ticks`） | 依 (y,z,x,id,p,t) 排序；`t` 易變，待定是否量化 |
 | POI（村民工作站） | **不存**；寫回時**必須刪除**範圍內 chunk 的 POI，伺服器載入時會由方塊重建（Phase 0 已驗證兩版；保留舊 POI 會留下過期紀錄、新工作站不會被登記） |
 | block entity 內的暫態欄位（熔爐燃燒時間、生怪磚倒數…） | 依方塊類型設定「忽略欄位」表；預設保留容器內容（箱子裡的東西是建築的一部分） |
@@ -104,6 +105,7 @@ entity * !persistent in area 0 -64 0 1000 320 1000   # 某範圍內所有自然�
 # ── NBT 欄位（只忽略欄位，實體/方塊本身仍追蹤）──
 field minecraft:furnace BurnTime CookTime
 field minecraft:villager Gossips
+field worldgit:map *                 # 地圖的 world-meta 不追蹤
 
 # ── 否定：把前面排除的東西加回來（跟 .gitignore 的 ! 一樣，後面的規則優先）──
 !entity minecraft:item in area 100 60 100 120 80 120   # 展示用的掉落物
@@ -189,3 +191,14 @@ entity minecraft:tnt                 # 點燃的 TNT
 | 生物繁殖/死亡造成的合併衝突 | 同一 UUID 兩邊都改 → 衝突；只有一邊生出新 UUID → 直接加入；只有一邊死亡 → 直接移除。衝突區域以生物所在位置併入方塊衝突分群 |
 
 這一段的正規化規則會是 Phase 0 的重點驗證項目之一。
+
+## Phase 1 實作細節（2026-10-01）
+
+- 正式 blob 使用 `WG + kind + version=1` envelope 與 zstd；與 Phase 0 blob 不相容。chunk section 可解回不可變中性模型，NBT IO 另有深度/大小限制。
+- bare repo 沒有一般 working tree。可編輯 `.wgignore` 位於 `<repo>/.wgignore` sidecar，commit 寫進 root blob；repo 設定的 sidecar 為 `worldgit-repo.yml`，主世界提交於 `world-meta/worldgit.yml`，其他維度提交於 root `worldgit.yml`，使單獨使用維度 repo 也能保留設定。本機 `worldgit.yml` 位於一組 repo 的上層，不進版本控制。
+- `track: modified-only` 本次只完成讀寫、init 寫入、版本控制與明確提示，**自然 chunk 篩選尚未生效**。
+- `area` 含端點；biome 以 4×4×4 sample 起點判斷，排除 sample 用空字串表示，整個 section 的 sample 都排除則不存。structures 維持 chunk 原子 blob，不裁切結構的 bounding box。
+- `field` 支援 `*` wildcard 與 `!field` 加回普通內建忽略欄位；id/UUID/Pos 是中性實體模型必要欄位，不能移除。玩家永遠不追蹤。
+- `EntitySemantics` 讓版本 adapter 提供 tag 與 persistence；離線 `EntityTagRegistry` 帶兩版 vanilla tag 資料，依 level.dat 的 `DataPacks.Enabled` 順序載入資料夾/ZIP 的 entity_type tags，支援 replace、tag 參照與 optional entries。參照在覆寫完後才展開，停用的 pack 不載入；缺少 pack 會提示，未知 tag、必要參照遺失、循環、schema/大小錯誤會明確報錯。模組注入的未知內建 pack 仍需線上 adapter。persistence 的明確旗標與常見不會消失的實體類型是保守近似，不能精確替代伺服器的 despawn 判斷。
+- world-meta 的 field selector 使用 `worldgit:level`、`worldgit:map`、`worldgit:scoreboard`、`worldgit:boss_events`、`worldgit:gamerules`、`worldgit:border`、`worldgit:worldgen`；比對 canonical NBT 根 compound 欄位。`field worldgit:map *` 排除所有地圖，`!field` 同樣後面優先。空 compound 不存，活世界資料不刪除；repo 設定不受這些規則影響。
+- 世界 metadata 擷取 1.21.11 的 `game_rules`、spawn、worldgen、邊界，以及 26.2 各維度 `data/minecraft/{game_rules,world_border,world_gen_settings}.dat`，地圖/記分板另存 canonical NBT。完整跨版本 world-meta 的還原/DataFixer 流程仍是 Phase 2。

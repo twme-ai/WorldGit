@@ -9,8 +9,8 @@
 每個 section blob 就是 git 裡的一個檔案，路徑例如：
 
 ```
-overworld/r.0.0/c.3.7/s.5.bin
-overworld/r.0.0/c.3.7/entities.bin
+r.0.0/c.3.7/s.5.bin
+r.0.0/c.3.7/entities.bin
 ```
 
 **免費得到：**
@@ -65,6 +65,14 @@ overworld/r.0.0/c.3.7/entities.bin
   - 所有 repo 一律設定 `pack.packSizeLimit`（預設 95 MB，留安全邊際），`init`、gc 與 push 時產生的 pack 都不超過這個大小；
   - 小世界可直接放 GitHub 等一般 git 託管，大世界放自架服務（WorldGit Hub、Gitea…）；
   - 每個維度是獨立 repo（[02](02-data-model.md) §2.1），單一 repo 也因此變小。
-  - 注意：push 時 git 是把要傳的物件組成一個傳輸用的 pack 送出，伺服器端也可能有單次請求大小限制；首次 push 大世界時要能分批推送（依 region 範圍分成多個 commit 或多次 push），由 Phase 1 實作與驗證。
+  - 注意：push 時 git 是把要傳的物件組成一個傳輸用的 pack 送出，伺服器端也可能有單次請求大小限制；首次 push 大世界時要能分批推送（依 region 範圍分成多個 commit 或多次 push），由後續遠端傳輸任務實作與驗證。本次只完成本機儲存的 pack 限制。
 - 原型問題：JGit gc 留下重複 pack；串流版會產生 dangling tree；init 尚未平行化讀 region、也沒 profile 過瓶頸。
 - 尚未測：Gitea、partial／sparse clone、真實網路。
+
+## Phase 1 的 pack 實作補充（2026-10-01）
+
+每維度 bare repo 設 `pack.packSizeLimit = 95000000`，但 JGit 7.3 的 `PackConfig` / `PackWriter` 不讀取這項分割設定；只寫 config 並不足以讓 JGit GC 符合決定 #17。正式 `JGitStore.repack()` / `gc()` 使用 JGit PackWriter，自行依 zlib 的壓縮上界分組，禁用 delta/reuse，確保每個 pack ≤ 95,000,000 bytes。分組各自完整、不依賴另一個 pack 的 delta；先安裝全部 pack 與 index，再移除舊 pack 與已打包 loose objects。測試實際產生超過 95 MB 的物件，確認分包及重新開啟後完整可讀。
+
+停用 JGit 自動 GC，所有 WorldGit 維護經 `DimensionRepository` 的 operation lock 與有界 repack API。外部 JGit GC 沒有上述保證。GC 目前保守保留不可達 loose objects，尚未提供到期 prune；pack 不使用 delta 的大小與效能代價列於 [Phase 1 報告](11-phase1-progress.md)。
+
+依據：[JGit 7.3 PackConfig 原始碼](https://github.com/eclipse-jgit/jgit/blob/v7.3.0.202506031305-r/org.eclipse.jgit/src/org/eclipse/jgit/storage/pack/PackConfig.java)、[PackWriter 原始碼](https://github.com/eclipse-jgit/jgit/blob/v7.3.0.202506031305-r/org.eclipse.jgit/src/org/eclipse/jgit/internal/storage/pack/PackWriter.java)。

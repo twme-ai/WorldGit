@@ -28,12 +28,12 @@
 規則：
 - **衝突在解決流程中的三種狀態**：選 ours / theirs / base 時，方塊內容跟著切換，外框維持紫色；已解決的區域改成暗灰色外框，全部解決後消失。
 - **色盲友善**：紅綠色盲會分不出新增和移除，所以顏色之外一定搭配**不同的呈現方式**（新增 = 實心外框、移除 = 鬼影方塊、修改 = 虛線或角標、衝突 = 閃爍），不只靠顏色辨識。`worldgit.yml`、模組設定與網頁偏好都可以改用色盲色票（例如新增藍 / 移除橘）或自訂色票。
-- **CLI**：比照 git，輸出到終端機時預設上色，導向檔案或 `--no-color` 時不上色；`--json` 輸出類型字串（`added`/`removed`/`modified`/`conflict`），不帶顏色。
+- **CLI**：比照 git，輸出到終端機時預設上色，導向檔案或 `--color=never` 時不上色；`--format=json` 輸出類型字串（`added`/`removed`/`modified`/`conflict`），不帶顏色。
 - 方塊太多時（例如數萬格），遊戲內改畫「區域包圍盒」，顏色取該區域內最重要的類型：衝突 > 修改 > 移除 > 新增。
 - Phase 0 已在 Fabric 模組兩版實作這套顏色與呈現方式（`experiments/05-fabric-poc/`，截圖在 `screenshots/`）；實測 10 萬格逐格畫太重，證實需要上一條的包圍盒。
 
 輸出：
-- **CLI**：`wgit diff main castle-v2 --stat` → 每個 chunk 的 +/-/~/! 統計；`--json` 給工具用
+- **CLI**：`wgit diff main castle-v2` → 每個 chunk 的 +/-/~/! 統計；`--format=json` 給工具用
 - **遊戲內**：有 Fabric 模組時客戶端渲染鬼影與外框；只有插件時用 display entity 發光描邊，方塊太多時改為「區域包圍盒」描邊
 - **網頁**：3D 檢視器，左右並排 / 疊圖 / 滑桿切換（見 [10](10-web-frontend.md)）
 
@@ -111,3 +111,11 @@ for 每個 section 位置（取三邊 tree 的聯集）:
 
 - 兩邊 DataVersion 不同 → 先把兩邊（與 base）都升級到較新的版本再比較，否則幾乎所有 section 都會因格式/方塊 ID 變化而衝突。
 - 兩邊的 `.wgignore` 不同 → 先把 `.wgignore` 本身當成一般檔案合併（可能衝突），再用合併後的規則過濾兩邊內容；在合併報告中列出規則差異。
+
+## Phase 1 的中性 diff 模型（2026-10-01）
+
+`WorldDiff` 由 core 提供，包含 `SectionChange`、`BlockChange`（含 BE 前後 NBT）、`EntityChange`、`BiomeChange`、`BlobChange`；四種 `ChangeKind` 小寫名稱為 added/removed/modified/conflict。同格 state 與 BE 都變化只計一格。實體在各維度內以 UUID 全域比對。
+
+預設 capture/CLI 使用 SUMMARY：只算 section 的 +/-/~/!，不建立幾千萬筆方塊物件；biome 用 `sampleIndex=-1` 與 count 表示 section 統計。BLOCKS 模式才展開逐格與逐 biome sample。Hub/Fabric 可用 `DiffEngine.compare(..., Detail.BLOCKS, Set<ChunkPos>)` 限定顯示視窗，範圍外方塊/biome 不解碼；實體先全域比對再裁切，跨視窗移動不會變成錯誤的新增/移除。
+
+CLI 的正式機器介面是 `--format=json`，明細另加 `--blocks`；無參數為 HEAD→世界，一參數為該 commit→世界，兩參數為 commit→commit。`NO_COLOR` 存在時一律關色，包含 `--color=always`。色票與 symbol/style 統一由 `protocol.DiffPalette` 提供。

@@ -129,3 +129,13 @@ Ignored: 2 chunks in area "刷怪塔"
 ```
 
 遊戲內：`/wg status show` 用粒子或 display entity 把變動 chunk 的邊框描出來，10 秒後消失。
+
+## Phase 1 的離線 index 與作者 API（2026-10-01）
+
+正式 index 是 repo sidecar `worldgit.index`，包含版本、HEAD、規則/追蹤設定/容許距離雜湊、最近 working snapshot tree，以及每個 chunk 的 terrain/entity timestamp、sector location、compressed payload SHA-256 與檔案 fingerprint（奈秒 mtime、size、fileKey；`.mcc` 另記屬性）。mtime/size 可先排除沒改的檔案；同秒不確定窗或檔案屬性改變時重讀 payload。只有 hash 不同才解析 NBT。status 可以重用上次尚未提交的 tree，而不是每次從 HEAD 重新做同一個變動；黏性仍以 HEAD 為錨點。損毀、HEAD/規則不符、全量模式會從空樹重建，包含移除磁碟上已刪除的 chunk。
+
+`CommitMetadata` 使用主要 `author` 與 `committer`；多位 `Contribution` 包含姓名/email、player UUID、chunk 集合及 cause。除了 `Co-authored-by`，也用 `WorldGit-Contribution` trailer 保存可還原的完整歸屬。`WorldGit-DataVersion/Dimension/Source/Auto/Snapshot` trailers 由 core 統一產生與驗證。
+
+index 也綁定 `SnapshotSource.normalizationFingerprint()`。離線 fingerprint 包含正規化政策、DataVersion、已啟用 datapack 的解析後 entity tag registry；即使 `.mca` 與 `.wgignore` 沒變，tag 定義改變也會重建快照，移除新規則排除的舊實體。線上 adapter 必須在政策/tag registry 改變時更新 fingerprint，重啟後也要做一次完整 dirty 初始化。
+
+線上來源由 `platform-api.LiveWorld` 提供；它延伸 core 的 `SnapshotSource`。`DirtyChunkTracker` 採 generation，擷取 batch 後有新事件時，acknowledge 不會清掉新事件。插件要在背景 repo executor 做 commit，region 執行緒只複製快照；成功後才 acknowledge，status 不清 dirty。強制存檔、同 tick/跨 tick 的一致性與實體 storage 排程仍由版本 adapter 負責。

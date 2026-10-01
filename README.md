@@ -1,54 +1,61 @@
 # WorldGit
 
-> 把 git 的「平行時空」模型搬進 Minecraft 世界：存檔點（commit）、分支（branch）、切換（switch）、合併（merge）、雲端同步（push / pull）。
+Minecraft 世界的 git 式版本控制。世界是 working tree，每個維度是獨立 git repo；以正規化 section 儲存快照，共用歷史給 CLI、Paper/Folia、Fabric 與 Hub。
 
-**目前狀態：設計討論階段，尚未實作任何程式碼。** 本 repo 只放思考成果與規劃，所有結論都還可以推翻。
+Phase 0 已完成；本次提供 Phase 1 的 JVM 基礎與離線 CLI。**Paper、Fabric、Hub 尚未建立**；restore、switch、merge、遠端傳輸屬於後續階段。[實作與驗收紀錄](docs/11-phase1-progress.md) 列出實際結果及限制。
 
-## 要解決的三個核心問題
+| 模組 | 責任 | Java |
+|---|---|---|
+| [core](core/README.md) | Anvil/NBT、正規化、JGit、維度 repo、commit/status/log/diff、YAML 與 `.wgignore` | 21 |
+| platform-api | `LiveWorld`、dirty generation、離線來源、session lock、Phase 2 apply/lock 介面 | 21 |
+| protocol | 協定 v2、hello/diff/status/clear、色票、≤ 28,000 bytes 分包與重組 | 21 |
+| [cli](cli/README.md) | `wgit init/status/commit/log/diff`、JSON、終端色彩、fat jar | 21 |
 
-| # | 玩家的痛點 | git 對應 | 本專案的解法（摘要） |
-|---|---|---|---|
-| 1 | 蓋爛了想回去，但備份一堆世界資料夾，越開越亂 | `switch` / `checkout` / `restore` | **只有一個「活的世界」**（working tree），切換分支是「原地換掉有差異的區塊」，不是再開一個世界。需要並排比較時才開系統託管的暫時世界（worktree），用完自動回收。 |
-| 2 | 兩個人各自蓋，合併很痛苦、合併後又難復原 | `merge` / `diff` | 以 **chunk section（16×16×16）為單位做三方合併**，只有兩邊都改到同一格方塊才算衝突；衝突以「區域」為單位呈現，在遊戲內可一鍵切換「主線 / 分支 / 原本 / 自己改」，網頁端有 3D 預覽。合併本身是一個 commit，隨時可退。 |
-| 3 | 想要明確的存檔點 | `commit` | 手動 `/wg commit`、登出自動 commit、定時 commit。**只存有變動的 section**（內容定址 + 去重），所以每次 commit 都很便宜，不是整個世界複製一份。 |
-| 4 | 換電腦 / 給別人接手 | `push` / `pull` / `clone` | 網頁端（類 GitHub 的 Hub）＋ 可部分 clone（只拉某個區域）。 |
+根 Gradle 只納入上述模組；未來 paper、fabric（Loom）、hub 可新增各自的 Gradle project 與 toolchain。core 不引用任何 Minecraft 類別，Hub 可用 Java 25 依賴 Java 21 的 core。
 
-## 已決定的方向（2026-09-30）
+## 建置與使用
 
-- 儲存後端用 **JGit**（真正的 git 物件庫）
-- **除了玩家以外全部預設追蹤**（所有生物、掉落物等實體、所有已生成的地形），不想追蹤的用 `.wgignore` 排除
-- **Paper 插件、Fabric 模組、CLI、網頁 Hub 四端同等優先**，主要使用者是多人伺服器；Fabric 模組同時是 Paper 伺服器玩家的客戶端顯示端
-- 首發支援 **Paper / Fabric 的 1.21.11 與 26.2**，長期越廣越好
-- 網頁 Hub **自架與公開服務都要**；後端 Java，前端全新撰寫
-- **Folia 首發就支援**
-- 切換分支時**不移動玩家**，只給短暫的傷害保護
+需要 JDK 21。Wrapper 固定 Gradle 9.6.1 並驗證 distribution SHA-256；依賴版本在 Gradle 慣例的 `gradle/libs.versions.toml`，WorldGit 設定全部是 YAML。
 
-詳見 [docs/09-roadmap-open-questions.md](docs/09-roadmap-open-questions.md)。
-
-## 文件索引
-
-| 文件 | 內容 |
-|---|---|
-| [docs/00-original-notes.md](docs/00-original-notes.md) | 原始構想筆記（原文） |
-| [docs/01-concept-mapping.md](docs/01-concept-mapping.md) | **每個 git 行為在 Minecraft 裡代表什麼**（完整對照表） |
-| [docs/02-data-model.md](docs/02-data-model.md) | 世界要怎麼變成 git 物件：粒度、正規化、雜湊、哪些資料要追蹤 |
-| [docs/03-storage-backend.md](docs/03-storage-backend.md) | 儲存後端：直接用 JGit（真的 git）還是自製物件庫 |
-| [docs/04-commit-and-status.md](docs/04-commit-and-status.md) | commit / status / 自動存檔點 / 變更追蹤 |
-| [docs/05-switch-restore.md](docs/05-switch-restore.md) | 在「活的世界」上切換時間點、局部還原、worktree |
-| [docs/06-diff-merge.md](docs/06-diff-merge.md) | diff 與三方合併、衝突區域、遊戲內與網頁的衝突解決介面 |
-| [docs/07-remote-hub.md](docs/07-remote-hub.md) | push / pull / clone 與網頁端 Hub（PR、預覽、下載） |
-| [docs/08-architecture.md](docs/08-architecture.md) | 四個端（core / 插件 / 模組 / CLI / 網頁）的切分與技術選型 |
-| [docs/09-roadmap-open-questions.md](docs/09-roadmap-open-questions.md) | 分階段路線圖與**待討論的決策清單** |
-| [docs/10-web-frontend.md](docs/10-web-frontend.md) | 網頁前端（全新撰寫）與 3D 世界檢視器的設計 |
-
-## 一句話架構
-
+```sh
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export GRADLE_USER_HOME="$PWD/.work/gradle-home"
+./gradlew --no-daemon --max-workers=1 build
+./wgit --world /srv/minecraft/world init --template creative
+./wgit --world /srv/minecraft/world status
+./wgit --world /srv/minecraft/world commit -m '城堡完成'
+./wgit --world /srv/minecraft/world log
+./wgit --world /srv/minecraft/world diff HEAD~1 HEAD --blocks
 ```
-                ┌──────────── worldgit-core (純 JVM，無 MC 依賴) ────────────┐
-                │ Anvil/NBT 解析 · 正規化 · 物件庫 · diff · 三方合併 · 傳輸協定 │
-                └───────┬───────────────┬───────────────┬───────────────┬──────┘
-                        │               │               │               │
-                 Paper 插件  ◀───▶ Fabric 模組        CLI (wgit)      Hub 伺服器
-               (多人伺服器、線上    (客戶端鬼影預覽/    (離線世界、      (網頁、PR、
-                commit/切換/合併)   單人存檔完整功能)   腳本/CI)        3D diff 檢視)
+
+可指定世界資料夾或含 `world/` 的伺服器資料夾；預設目前目錄。支援 1.21.11 的 Paper 三資料夾／原版 DIM-1、DIM1，以及 26.2 的 `dimensions/<namespace>/<path>/`。repo 放在世界外的 `<server>/.worldgit/<world>/<namespace>.<path>/`。
+
+發佈產物是 `cli/build/libs/wgit.jar`，也可 `java -jar wgit.jar …`；根 `wgit` 可用 `WGIT_JAR` 指向發佈 jar。運行中的世界會因 `session.lock` 警告並拒絕離線操作。
+
+## 測試
+
+```sh
+# CI 用的小型真實世界 fixture 與單元測試；不需要 .work 世界。
+./gradlew --no-daemon --max-workers=1 build
+
+# 完整 baseline 驗證；世界不存在時由 JUnit 自動略過。
+flock .work/bench.lock ./gradlew --no-daemon --max-workers=1 :core:integrationTest
+
+# > 95 MB 的實際 pack 分割測試（記憶體與磁碟負載）。
+flock .work/bench.lock ./gradlew --no-daemon --max-workers=1 :core:packLimitTest
+
+# 真正 Paper 的複本重寫；腳本自行取得 bench.lock，finally 關閉伺服器。
+./gradlew --no-daemon --max-workers=1 :cli:acceptanceToolsJar :cli:fatJar
+python3 scripts/verify-paper.py
+
+# 大世界 CLI 量測；腳本自行拿鎖；沒有 raw 世界時可由保留的 Phase 0 repo 重建。
+python3 scripts/benchmark-scale.py
 ```
+
+本機腳本產物在 `.work/phase1/`，為避免蓋掉證據，已存在的驗證目錄會報錯。刪除或搬走自己的舊驗證產物後才重跑。CI 不啟動 Minecraft、不跑大型 pack 測試。
+
+可用 `WGIT_VERIFY_DIR`／`WGIT_BENCH_DIR` 指定新的驗證目錄。重現本次最終數字時，Paper 使用 `WGIT_VERIFY_STABLE_SOURCE="$PWD/.work/phase1/paper-fixed"`（前次暖機的 baseline 複本）；大型量測使用 `WGIT_BENCH_SOURCE="$PWD/.work/phase1/scale/run"`（由 Phase 0 repo 重建的世界），來源與限制見進度報告。
+
+## 設計文件
+
+[概念](docs/01-concept-mapping.md)、[資料模型](docs/02-data-model.md)、[儲存](docs/03-storage-backend.md)、[commit/status](docs/04-commit-and-status.md)、[diff](docs/06-diff-merge.md)、[架構](docs/08-architecture.md)、[決策與路線圖](docs/09-roadmap-open-questions.md)、[Phase 1 實作與驗收](docs/11-phase1-progress.md)。Phase 0 原型保留於 `experiments/`，正式程式不依賴它們。

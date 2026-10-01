@@ -1,0 +1,6 @@
+# WorldGit 創造模式範本：預設追蹤一切（玩家除外）。
+# 有需要時取消註解：
+# entity minecraft:item              # 掉落物
+# entity minecraft:experience_orb    # 經驗球
+# entity #minecraft:arrows           # 箭
+# entity * !persistent               # 自然刷出、會自然消失的生物

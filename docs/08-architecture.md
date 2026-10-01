@@ -36,7 +36,7 @@ interface LiveWorld {                       // 由 paper / fabric 實作；cli �
 }
 ```
 
-core 只認識 `LiveWorld`，所以同一套 commit/switch/merge 邏輯在插件、模組、CLI 都能跑；CLI 的 `LiveWorld` 就是直接讀寫 region 檔的離線實作，也是最容易寫單元測試的那個。
+正式依賴方向是 core 定義 `SnapshotSource`，platform-api 的 `LiveWorld` 延伸它；core 不反向依賴 platform-api，避免模組循環。同一套 capture/commit 邏輯在插件、模組、CLI 都能跑；CLI 的 `LiveWorld` 就是直接讀寫 region 檔的離線實作，也是最容易寫單元測試的那個。
 
 ## 2. 各端的角色
 
@@ -57,7 +57,7 @@ core 只認識 `LiveWorld`，所以同一套 commit/switch/merge 邏輯在插件
 | NBT/Anvil | 自寫精簡讀寫器（離線）；線上則直接從伺服器記憶體結構取資料 | 避免依賴大型函式庫；可參考現有開源 NBT 函式庫 |
 | 儲存 | JGit | 見 [03](03-storage-backend.md) |
 | 壓縮 | zstd（section 編碼層）+ git 自身的 zlib | |
-| CLI 發佈 | GraalVM native-image 單一執行檔，或 jlink 精簡 JRE | |
+| CLI 發佈 | Phase 1 採 Java 21 fat jar + `wgit` 腳本；native-image／jlink 延後 | 無需另外編譯各 OS 的原生執行檔 |
 | Hub 後端 | **Java 25 + Spring Boot**（已決定，2026-09-30：為了嵌入需要 Java 25 的 BlueMap core），直接重用 core；git 協定用 JGit 的 `GitServlet` | 需要在伺服器端做合併與世界 zip 組裝；Spring 的 OAuth、權限、速率限制對公開服務現成可用；虛擬執行緒處理大量 git 連線。替代：Javalin（較輕，但 OAuth/權限要自己組） |
 | Hub 前端 | **全新撰寫**（不沿用 BlockForge）：TypeScript + Vite，3D 用 Three.js 加上自寫的 chunk 網格生成器 | 見 [10](10-web-frontend.md) |
 | 遊戲內預覽 | 插件：display entity / 假方塊封包（可參考既有的 VirtualEntities、WorldEditDisplay 經驗）；模組：客戶端渲染 | |
@@ -161,3 +161,13 @@ PoC 用一個對 1.21.11 Mojang 名稱 server jar 編譯的 jar 同時跑兩版�
 - 照 §1 的規劃，每個 MC 版本一個 adapter 模組，用 paperweight-userdev 各自編譯，讓差異在編譯期出現。
 - CI 加上「對另一版 server jar 的二進位相容檢查」（PoC 的 `tools/check_binary_compat.py`）。
 - Java 21 bytecode 在 26.2（Java 25）上可以直接跑。
+
+## Phase 1 API 與磁碟版面補充（2026-10-01）
+
+正式 API 摘要在 [core README](../core/README.md) 與 [進度報告](11-phase1-progress.md)。`DimensionRepository` 是單維度入口；`WorldRepositories` 協調一組維度，使用共用 snapshot trailer，保留並列出每維度成功/無變動/失敗。repo HEAD 採條件更新，operation lock 涵蓋 index、HEAD 與 pack 維護。
+
+自訂維度的 repo 名仍以 namespace 與 path 組成；兩部分內的 `.` 編成 `%2E`，path 的 `/` 編成 `%2F`，避免路徑穿越及不同 id 的名稱碰撞。預設三維度仍是 `minecraft.overworld`、`minecraft.the_nether`、`minecraft.the_end`。
+
+protocol 正式版為 v2；hello 帶版本、nonce、capabilities 與色票；diff 帶 section palette 的前後 state；status 帶 section/chunk 包圍盒與統計；clear 取消 preview。≤ 28,000 bytes 分包，收齊才發布，批次最多 100,000 entries/8 MiB。與 Phase 0 v1 不相容，平台 handshake 需檢查版本。詳見 [protocol](../protocol/README.md)。
+
+CLI 發佈先採 Java 21 fat jar 與 `wgit` 腳本，native-image 延後。Phase 2 的 `apply/lockEdits/flush/notifyPlayers` 已在 LiveWorld 預留，離線 apply 尚未開放。

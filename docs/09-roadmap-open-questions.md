@@ -6,7 +6,7 @@
 |---|---|---|---|
 | 1 | 儲存後端 | **JGit**，core 內保留 `ObjectStore` / `RefStore` 介面，之後視量測結果再評估 | [03](03-storage-backend.md) |
 | 2 | 追蹤範圍 | **除了玩家以外全部預設追蹤**：所有生物（含自然刷出的怪物）、掉落物/經驗球/投射物等暫態實體、所有已生成的 chunk（下載即得完整世界）。生物移動的雜訊以正規化、UUID 全域比對、容許距離處理。「只存玩家改過的 chunk」為可選設定、預設關閉（#19） | [02](02-data-model.md) §4、§7、§8 |
-| 2a | 排除規則 | **`.wgignore`**：類似 `.gitignore`、放在 repo 內被版本控制；可依維度、座標範圍、實體類型、NBT 欄位排除，支援 `!` 加回 | [02](02-data-model.md) §5 |
+| 2a | 排除規則 | **`.wgignore`**：類似 `.gitignore`、放在 repo 內被版本控制；可依座標範圍、實體類型/tag、NBT 欄位排除，支援 `!` 加回與後面優先。每個維度各有 repo 與規則，不再支援 `dimension` 規則（2026-10-01） | [02](02-data-model.md) §5 |
 | 3 | 平台優先順序 | **插件、模組、CLI、網頁四端同等優先**；主要使用者是多人伺服器；Fabric 模組除了單人世界，也要作為 Paper 伺服器玩家的客戶端顯示端 | [08](08-architecture.md) §2、§6 |
 | 4 | 支援範圍 | 長期越廣越好；**首發 Paper 與 Fabric 的 1.21.11 與 26.2** | [08](08-architecture.md) §5 |
 | 5 | 網頁端 | 類 GitHub 的網頁檢視端是正式目標（原始筆記中「用不到」為筆誤） | [07](07-remote-hub.md) |
@@ -72,3 +72,9 @@
 - [x] Fabric 客戶端鬼影 diff 顯示與插件↔模組握手，1.21.11 與 26.2（見 `experiments/05-fabric-poc/REPORT.md`）：兩版真正客戶端截圖驗證；大量格數需分塊裁切與包圍盒
 - [x] 新 3D 檢視器在大範圍（數千 chunk）下的效能：網格生成速度、記憶體、瀏覽器端幀率（見 `experiments/07-viewer-scale/REPORT.md`）：完整細節只能做相機附近，其餘 LOD + 串流；幾何可壓到 50 MB 以下，整體工作集約 128–160 MiB；真 GPU 幀率未測
 - [x] Folia 在 1.21.11 / 26.2 的釋出狀態，以及 region 排程下 switch 大量 chunk 的效能（見 `experiments/03-paper-poc/`、`experiments/08-folia-switch/REPORT.md`）：1,008 chunk 的 A → B → A 三平台全部正確；Folia 約 Paper 的 2.9 倍；預設每 region 每 tick 8 section / 5 ms
+
+## Phase 1 第一個實作任務（2026-10-01）
+
+已建立 Java 21 的 core、platform-api、protocol、CLI 正式 monorepo；Paper/Fabric/Hub 留待接續任務，因此「四端同一份歷史」的整體驗收尚未完成。共用 API、測試與量測見 [11 — Phase 1 進度](11-phase1-progress.md)。`modified-only` 本次只記錄設定，功能尚未生效；其餘限制逐項列在報告，不視為已完成。
+
+真實 Paper 的地獄重寫新增發現：structures `References` 的 long[] 是集合，LongSet 序列化順序會交替改變；正式正規化已補數值排序，並新增回歸測試。這是 #18 每維度 repo 的正式驗證發現，不變更追蹤範圍決策。
