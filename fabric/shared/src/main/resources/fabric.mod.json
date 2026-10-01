@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "worldgit",
+  "version": "${version}",
+  "name": "WorldGit",
+  "description": "Git-style version control for Minecraft worlds.",
+  "license": "MIT",
+  "environment": "*",
+  "mixins": ["worldgit.mixins.json"],
+  "entrypoints": {
+    "main": ["org.worldgit.fabric.WorldGitMod"],
+    "client": ["org.worldgit.fabric.client.WorldGitClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "${minecraft}",
+    "java": ">=${java}",
+    "fabric-api": "*"
+  }
+}

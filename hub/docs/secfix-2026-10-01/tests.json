@@ -1,0 +1,19 @@
+{
+  "core": {
+    "tests": 33,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "hub": {
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "web": {
+    "tests": 8,
+    "failures": 0
+  },
+  "jarSha256": "e6e9dcee4149ada00d35070db9388f8dc32f7daf728e9be11394069860d9fd67"
+}

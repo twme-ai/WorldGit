@@ -2,6 +2,7 @@ package org.worldgit.core.anvil;
 
 import java.io.*;
 import java.util.*;
+import org.worldgit.core.normalize.DecodeBudget;
 
 /** NBT 邊界層；compound 輸出固定排序。讀取限制避免損毀資料配置無界記憶體。 */
 public final class Nbt {
@@ -86,6 +87,7 @@ public final class Nbt {
   private static Object read(DataInputStream in, int type, int depth, Budget budget)
       throws IOException {
     if (depth > 64 || ++budget.nodes > 1_000_000) throw new IOException("NBT 深度或節點數超過限制");
+    DecodeBudget.nodes(1);
     return switch (type) {
       case 1 -> in.readByte();
       case 2 -> in.readShort();
@@ -116,6 +118,8 @@ public final class Nbt {
             || n > 1_000_000
             || (element == 0 && n != 0)
             || n > in.available()) throw new IOException("NBT list 長度或型別無效");
+        DecodeBudget.checkNodes(n);
+        if ((long) budget.nodes + n > 1_000_000) throw new IOException("NBT 節點數超過限制");
         var values = new ArrayList<Object>(n);
         for (int i = 0; i < n; i++) values.add(read(in, element, depth + 1, budget));
         yield new ListTag(element, values);

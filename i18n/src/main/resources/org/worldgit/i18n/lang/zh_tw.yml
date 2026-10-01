@@ -1,0 +1,201 @@
+# WorldGit 訊息（MiniMessage 格式）。參數是 MiniMessage 標籤，例如 <count>。
+# 鍵：common.* 共用；paper.* / fabric.* 屬於各平台。
+# diff 色彩依 docs/06 §1.1，請用 <wg_added>、<wg_removed>、<wg_modified>、<wg_conflict> 標籤，色盲色票才會全面生效。
+common:
+  prefix: "<gray>[<white>WorldGit</white>]</gray> "
+  no-permission: "<red>你沒有權限執行這個操作。</red>"
+  error: "<red>錯誤：<message></red>"
+
+paper:
+  help:
+    title: "WorldGit - Minecraft 世界的版本控制"
+    init: "  /wg init [--template creative|survival]  建立 repo 並做第一次快照"
+    status: "  /wg status [--show] [--full]  顯示上次 commit 後的變動"
+    commit: "  /wg commit -m <訊息>  建立存檔點（沒有變動就不建立）"
+    log: "  /wg log [數量]  存檔點歷史"
+    diff: "  /wg diff [--show] [--radius <chunk>]  顯示你附近的方塊差異"
+    clear: "  /wg clear  清除客戶端預覽"
+    reload: "  /wg reload  重新載入語言覆寫檔"
+  error:
+    permission: "<red>你沒有權限使用 /wg <sub>（worldgit.command.<sub>）。</red>"
+    debug-permission: "<red>你沒有權限（worldgit.debug）。</red>"
+    unknown-command: "<red>未知的子指令：<sub></red>"
+    help-command: "用 /wg help 查看用法。"
+    internal: "<red>內部錯誤：<message></red>"
+    unknown-option: "<red>未知參數：<option></red>"
+    init-template: "<red>--template 必須是 creative 或 survival。</red>"
+    commit-usage: "<red>用法：/wg commit -m <訊息></red>"
+    commit-empty: "<red>commit 訊息不可空白。</red>"
+    log-limit: "<red>數量必須是 1–100。</red>"
+    diff-player: "<red>/wg diff 以你所在位置為中心，只能由玩家使用。</red>"
+    diff-radius: "<red>--radius 必須是 1–32。</red>"
+    diff-not-tracked: "<red>這個世界沒有被 WorldGit 追蹤。</red>"
+    not-initialized: "<red>這個維度尚未 init。</red>"
+    player-only: "<red>只有玩家有客戶端預覽。</red>"
+  init:
+    start: "開始 init（範本 <template>）；大型世界需要一些時間。"
+    done: "init 完成。"
+  status:
+    title: "自上次 commit 以來的變動<suffix>"
+    full-suffix: "（完整比對）"
+    dimension: "<aqua><dimension></aqua>"
+    section-count: "  section <count>"
+    entity-count: "  實體 <count>"
+    biome-count: "  biome <count>"
+    clean: "  沒有變動（檢查了 <candidates> 個候選 chunk）。"
+    section-label: "[<region> <chunk> y<y>]"
+    section-hover: "x <x0>～<x1>  y <y0>～<y1>  z <z0>～<z1>"
+    more: "  …另有 <count> 個 section"
+    warning: "  ! <text>"
+    authors: "作者（chunk 數）：<names>"
+    show-no-mod: "你的客戶端沒有 WorldGit 模組，無法顯示描邊；上面的清單可點擊座標。"
+    show-no-data: "你所在的維度沒有可顯示的資料。"
+    show-empty: "沒有變動，已清除預覽。"
+    show-sent: "已送出 <count> 個 section 的描邊（<packets> 個封包）。"
+  commit:
+    start: "建立存檔點…"
+    dimension-failed: "<red>  <dimension> 失敗：<message></red>"
+    dimension-changed: "<green>  <dimension></green> <yellow><commit></yellow>"
+    below-threshold: "<gray>  <dimension> 有 <count> 個 section 變動，但低於自動存檔門檻。</gray>"
+    unchanged: "<gray>  <dimension> 沒有變動，沒有產生 commit。</gray>"
+    summary: "存檔點：<items>"
+    summary-auto: "自動存檔點：<items>"
+  log:
+    title: "最近 <count> 個存檔點"
+    row: "<gray><time></gray> <message> <aqua><author></aqua>"
+    auto: " <gray>[自動]</gray>"
+    hover: "committer：<committer>\nsource：<source>\nsnapshot：<snapshot>"
+    dimension-failed: "<red><dimension>：<message></red>"
+    empty: "還沒有任何 commit。"
+  diff:
+    title: "<dimension> 身邊 <radius> chunk 內的方塊差異"
+    symbol:
+      added: "<wg_added><symbol><count></wg_added>"
+      removed: "<wg_removed><symbol><count></wg_removed>"
+      modified: "<wg_modified><symbol><count></wg_modified>"
+      conflict: "<wg_conflict><symbol><count></wg_conflict>"
+    block-label:
+      added: "<wg_added><symbol> <x>,<y>,<z></wg_added>"
+      removed: "<wg_removed><symbol> <x>,<y>,<z></wg_removed>"
+      modified: "<wg_modified><symbol> <x>,<y>,<z></wg_modified>"
+      conflict: "<wg_conflict><symbol> <x>,<y>,<z></wg_conflict>"
+    block-hover: "<before> → <after>"
+    click-to-teleport: "<dark_gray>點擊把傳送指令放進聊天欄</dark_gray>"
+    no-mod: "你的客戶端沒有 WorldGit 模組，無法顯示鬼影；上面的清單可點擊座標。"
+    empty: "沒有方塊差異，已清除預覽。"
+    too-large: "差異超過 <count> 格，改以區域包圍盒描邊（<packets> 個封包）。"
+    sent: "已送出 <count> 格的鬼影（<packets> 個封包，協定 v<version>）。"
+    send-failed: "<red>送出預覽失敗：<message></red>"
+    more: "  …另有 <count> 格"
+  clear:
+    done: "已清除預覽。"
+  reload:
+    done: "<green>已重新載入語言覆寫檔。</green>"
+
+# ---- Fabric 模組（fabric.*）----
+fabric:
+  help:
+    title: "<aqua>WorldGit</aqua> - Minecraft 世界的版本控制"
+    init: '  <white>/wg init</white> <gray>[--template creative|survival] [--track all|modified-only]</gray>'
+    status: '  <white>/wg status</white> <gray>[--full] [--blocks] [--show]</gray>'
+    commit: '  <white>/wg commit -m</white> <gray>\<訊息></gray>'
+    log: '  <white>/wg log</white> <gray>[n]</gray>'
+    diff: '  <white>/wg diff</white> <gray>[\<修訂> [\<修訂>]] [--blocks] [--show]</gray>'
+    clear: '  <white>/wg clear</white> <gray>- 清除你客戶端上的描邊與鬼影</gray>'
+    info: '  <white>/wg info</white> <gray>- 路徑與客戶端握手狀態</gray>'
+    reload: '  <white>/wg reload</white> <gray>- 重新載入語言覆寫檔</gray>'
+  status:
+    clean: "沒有未提交的變動。"
+    dirty: "未提交的變動（相對於 HEAD）："
+    dimension: "<aqua><dimension></aqua>  <chunks> chunks，<sections> sections  <wg_added>+<added></wg_added> <wg_removed>-<removed></wg_removed> <wg_modified>~<modified></wg_modified> <wg_conflict>!<conflict></wg_conflict>"
+    extra: "<gray>  實體 <entities>，biome <biomes>，metadata <metadata></gray>"
+    section: "<gray>  c.<x>.<z> s.<y></gray>  <wg_added>+<added></wg_added> <wg_removed>-<removed></wg_removed> <wg_modified>~<modified></wg_modified> <wg_conflict>!<conflict></wg_conflict>"
+    more: "<gray>  ... 另有 <count> 個 section</gray>"
+    dimension-failed: "<red><dimension> 失敗：<message></red>"
+  warning: "<gray>提示：<text></gray>"
+  diff:
+    block:
+      added: "<wg_added>    + (<x>,<y>,<z>) <before> -> <after></wg_added>"
+      removed: "<wg_removed>    - (<x>,<y>,<z>) <before> -> <after></wg_removed>"
+      modified: "<wg_modified>    ~ (<x>,<y>,<z>) <before> -> <after></wg_modified>"
+      conflict: "<wg_conflict>    ! (<x>,<y>,<z>) <before> -> <after></wg_conflict>"
+    block-more: "<gray>    ...</gray>"
+    entity:
+      added: "<wg_added>  + 實體 <type> <uuid></wg_added>"
+      removed: "<wg_removed>  - 實體 <type> <uuid></wg_removed>"
+      modified: "<wg_modified>  ~ 實體 <type> <uuid></wg_modified>"
+      conflict: "<wg_conflict>  ! 實體 <type> <uuid></wg_conflict>"
+    range-head: "HEAD -> 目前的世界"
+    range-one: "<from> -> 目前的世界"
+    range-two: "<from> -> <to>"
+    too-large: "<gray>提示：<dimension> 的變動超過 2000 格，不逐格列出（用 --show 看描邊）。</gray>"
+  init:
+    progress: "初始化中（存檔並建立第一次完整快照，大世界需要一些時間）..."
+  commit:
+    done-init: "<green>初始化完成：<count> 個維度，snapshot <snapshot>。</green>"
+    done: "<green>已提交：<count> 個維度，snapshot <snapshot>。</green>"
+    nothing: "沒有變動，未建立 commit。"
+    incomplete: "<red>未完全成功：<ok> 個維度成功、<failed> 個失敗。</red>"
+    dim:
+      changed: "<green>  <dimension></green> <gray><commit></gray>  <wg_added>+<added></wg_added> <wg_removed>-<removed></wg_removed> <wg_modified>~<modified></wg_modified> <wg_conflict>!<conflict></wg_conflict>"
+      unchanged: "<gray>  <dimension> 沒有變動</gray>"
+      skipped: "<gray>  <dimension> 已 init，略過</gray>"
+      failed: "<red>  <dimension> 失敗：<message></red>"
+  log:
+    empty: "還沒有任何 commit。"
+    header: "歷史（新 → 舊）："
+    row: "<aqua><snapshot></aqua> <message> <gray><author>  <time></gray>"
+    row-auto: "<aqua><snapshot></aqua> <message> <gray>[自動]  <author>  <time></gray>"
+    dimensions: "<gray>    <dimensions></gray>"
+  preview:
+    empty: "沒有變動，沒有東西可以顯示。"
+    ghost: "<green>已送出預覽：<cells> 格逐格外框／鬼影（/wg clear 清除）。</green>"
+    outline: "<green>已送出預覽：<count> 個區域外框（/wg clear 清除）。</green>"
+    cleared: "<green>已清除預覽。</green>"
+    no-mod: "<red>你的客戶端沒有安裝 WorldGit 模組（或握手尚未完成），無法顯示描邊與鬼影。握手狀態：<state> <reason></red>"
+    player-only: "<red>--show 只能由玩家使用。</red>"
+  info:
+    title: "WorldGit 資訊（Minecraft <version>）"
+    world: "<gray>  世界：<path></gray>"
+    repo: "<gray>  repo：<path></gray>"
+    handshake: "<gray>  你的客戶端握手：<state> <reason></gray>"
+    tracked: "<gray>  已追蹤維度：<dimensions></gray>"
+    untracked: "<gray>  已追蹤維度：（尚未 init）</gray>"
+  reload:
+    done: "<green>已重新載入語言覆寫檔。</green>"
+  error:
+    unknown-option: "<red>未知選項：<option></red>"
+    option-needs-value: "<red>選項 <option> 需要一個值。</red>"
+    option-no-value: "<red>選項 <option> 不接受值。</red>"
+    template: "<red>--template 必須是 creative 或 survival；--track 必須是 all 或 modified-only。</red>"
+    empty-message: "<red>commit 訊息不可空白。</red>"
+    diff-args: "<red>diff 最多兩個修訂：/wg diff [a [b]]</red>"
+    not-initialized: "<red>這個世界尚未 init，請先執行 /wg init。</red>"
+    not-started: "<red>WorldGit 尚未啟動。</red>"
+    invalid-dimension: "<red><message></red>"
+  commit-message:
+    init: "初始化世界"
+    auto-interval: "定時自動存檔"
+    auto-logout: "登出自動存檔：<player>"
+    auto-stop: "伺服器關閉自動存檔"
+  client:
+    value:
+      'on': "開啟"
+      'off': "關閉"
+      connected: "已連線"
+      waiting: "等待握手"
+      palette-auto: "自動"
+      palette-default: "預設"
+      palette-colorblind: "色盲"
+    palette: "<green>diff 色票已設為 <palette>。</green>"
+    palette-invalid: "<red>色票必須是 auto、default 或 colorblind。</red>"
+    see-through: "<green>穿透顯示：<state>。</green>"
+    reloaded: "<green>已重新載入客戶端設定。</green>"
+    reload-failed: "<red>無法重新載入客戶端設定：<message></red>"
+    cleared: "<green>已清除預覽。</green>"
+    status:
+      title: "WorldGit 客戶端"
+      connection: "<gray>  伺服器握手：<state></gray>"
+      preview: "<gray>  <dimension> 的預覽：<sections> 個區域、<cells> 格，其中 <detail> 個區塊顯示明細</gray>"
+      no-preview: "<gray>  目前沒有顯示任何預覽。</gray>"
+      settings: "<gray>  色票：<palette>，穿透：<seethrough></gray>"

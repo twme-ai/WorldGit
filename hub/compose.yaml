@@ -1,0 +1,39 @@
+# docker compose 與 podman compose 通用。
+# 先建立 chmod 600 的管理員密碼／token 檔（不用固定 token 時仍提供空檔案）。
+# 設 WORLDGIT_ADMIN_PASSWORD_FILE、WORLDGIT_ADMIN_TOKEN_FILE 為宿主檔案路徑，再執行 compose up。
+# 預設只綁 127.0.0.1（對外請放在反向代理／TLS 後面）；資料在具名 volume worldgit-data（/data）。
+name: worldgit
+services:
+  hub:
+    image: localhost/worldgit-hub:latest
+    build:
+      context: ..
+      dockerfile: hub/Containerfile
+    ports:
+      - "${WORLDGIT_HUB_BIND:-127.0.0.1}:${WORLDGIT_HUB_PORT:-8091}:8080"
+    environment:
+      WORLDGIT_HUB_BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/admin-password
+      WORLDGIT_HUB_BOOTSTRAP_ADMIN_TOKEN_FILE: /run/secrets/admin-token
+      # 切換 PostgreSQL：SPRING_DATASOURCE_URL / _USERNAME / _PASSWORD / _DRIVER_CLASS_NAME=org.postgresql.Driver
+    secrets:
+      - source: admin-password
+        target: admin-password
+      - source: admin-token
+        target: admin-token
+    volumes:
+      - worldgit-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /actuator/health/liveness HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q UP <&3'"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+volumes:
+  worldgit-data:
+
+secrets:
+  admin-password:
+    file: "${WORLDGIT_ADMIN_PASSWORD_FILE:?請指定管理員密碼檔案}"
+  admin-token:
+    file: "${WORLDGIT_ADMIN_TOKEN_FILE:?請指定 token 檔案（不用固定 token 時提供空檔案）}"

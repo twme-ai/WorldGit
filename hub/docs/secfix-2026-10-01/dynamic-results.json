@@ -1,0 +1,365 @@
+[
+  {
+    "test": "create alice",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"id\":\"caeeeaa7-ed40-4adf-a4da-32339b311dec\",\"username\":\"alice\",\"admin\":false}"
+  },
+  {
+    "test": "create bob",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"id\":\"2bf5da1b-5d6e-4957-b73b-f8436a4374b5\",\"username\":\"bob\",\"admin\":false}"
+  },
+  {
+    "test": "create public",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"owner\":\"alice\",\"name\":\"public\",\"displayName\":\"public\",\"description\":\"\",\"public\":true,\"createdAt\":1790853027568}"
+  },
+  {
+    "test": "H1 REST anonymous public=True exists=True",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"owner\":\"alice\",\"name\":\"public\",\"displayName\":\"public\",\"description\":\"\",\"public\":true,\"createdAt\":1790853027568,\"dimensions\":[{\"id\":\"minecraft:overworld\",\"repo\":\"minecraft.overworld\",\"head\":null,\"headTime\":null,\"commits\":0}],\"latest\":null,\"role\":\"re"
+  },
+  {
+    "test": "H1 Git anonymous public=True exists=True",
+    "status": 401,
+    "expected": 401,
+    "body": "authentication required\n"
+  },
+  {
+    "test": "H1 REST other public=True exists=True",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"owner\":\"alice\",\"name\":\"public\",\"displayName\":\"public\",\"description\":\"\",\"public\":true,\"createdAt\":1790853027568,\"dimensions\":[{\"id\":\"minecraft:overworld\",\"repo\":\"minecraft.overworld\",\"head\":null,\"headTime\":null,\"commits\":0}],\"latest\":null,\"role\":\"re"
+  },
+  {
+    "test": "H1 Git other public=True exists=True",
+    "status": 404,
+    "expected": 404,
+    "body": "001e# service=git-upload-pack\n00000020ERR Git repository not found"
+  },
+  {
+    "test": "H1 REST owner public=True exists=True",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"owner\":\"alice\",\"name\":\"public\",\"displayName\":\"public\",\"description\":\"\",\"public\":true,\"createdAt\":1790853027568,\"dimensions\":[{\"id\":\"minecraft:overworld\",\"repo\":\"minecraft.overworld\",\"head\":null,\"headTime\":null,\"commits\":0}],\"latest\":null,\"role\":\"ow"
+  },
+  {
+    "test": "H1 Git owner public=True exists=True",
+    "status": 404,
+    "expected": 404,
+    "body": "001e# service=git-upload-pack\n00000020ERR Git repository not found"
+  },
+  {
+    "test": "H1 REST anonymous public=True exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "{\"error\":\"找不到世界 alice/public-missing\"}"
+  },
+  {
+    "test": "H1 Git anonymous public=True exists=False",
+    "status": 401,
+    "expected": 401,
+    "body": "authentication required\n"
+  },
+  {
+    "test": "H1 REST other public=True exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "{\"error\":\"找不到世界 alice/public-missing\"}"
+  },
+  {
+    "test": "H1 Git other public=True exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "repository not found\n"
+  },
+  {
+    "test": "H1 REST owner public=True exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "{\"error\":\"找不到世界 alice/public-missing\"}"
+  },
+  {
+    "test": "H1 Git owner public=True exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "repository not found\n"
+  },
+  {
+    "test": "create secret",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"owner\":\"alice\",\"name\":\"secret\",\"displayName\":\"secret\",\"description\":\"\",\"public\":false,\"createdAt\":1790853027719}"
+  },
+  {
+    "test": "H1 REST anonymous public=False exists=True",
+    "status": 404,
+    "expected": 404,
+    "body": "{\"error\":\"找不到世界 alice/secret\"}"
+  },
+  {
+    "test": "H1 Git anonymous public=False exists=True",
+    "status": 401,
+    "expected": 401,
+    "body": "authentication required\n"
+  },
+  {
+    "test": "H1 REST other public=False exists=True",
+    "status": 404,
+    "expected": 404,
+    "body": "{\"error\":\"找不到世界 alice/secret\"}"
+  },
+  {
+    "test": "H1 Git other public=False exists=True",
+    "status": 404,
+    "expected": 404,
+    "body": "repository not found\n"
+  },
+  {
+    "test": "H1 REST owner public=False exists=True",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"owner\":\"alice\",\"name\":\"secret\",\"displayName\":\"secret\",\"description\":\"\",\"public\":false,\"createdAt\":1790853027719,\"dimensions\":[{\"id\":\"minecraft:overworld\",\"repo\":\"minecraft.overworld\",\"head\":null,\"headTime\":null,\"commits\":0}],\"latest\":null,\"role\":\"o"
+  },
+  {
+    "test": "H1 Git owner public=False exists=True",
+    "status": 404,
+    "expected": 404,
+    "body": "001e# service=git-upload-pack\n00000020ERR Git repository not found"
+  },
+  {
+    "test": "H1 REST anonymous public=False exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "{\"error\":\"找不到世界 alice/secret-missing\"}"
+  },
+  {
+    "test": "H1 Git anonymous public=False exists=False",
+    "status": 401,
+    "expected": 401,
+    "body": "authentication required\n"
+  },
+  {
+    "test": "H1 REST other public=False exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "{\"error\":\"找不到世界 alice/secret-missing\"}"
+  },
+  {
+    "test": "H1 Git other public=False exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "repository not found\n"
+  },
+  {
+    "test": "H1 REST owner public=False exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "{\"error\":\"找不到世界 alice/secret-missing\"}"
+  },
+  {
+    "test": "H1 Git owner public=False exists=False",
+    "status": 404,
+    "expected": 404,
+    "body": "repository not found\n"
+  },
+  {
+    "test": "M1 headers /",
+    "status": 200,
+    "headers": {
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+      "Strict-Transport-Security": "max-age=31536000"
+    }
+  },
+  {
+    "test": "M1 headers /api/v1/worlds",
+    "status": 200,
+    "headers": {
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+      "Strict-Transport-Security": "max-age=31536000"
+    }
+  },
+  {
+    "test": "M1 headers /api/v1/worlds/alice/missing",
+    "status": 404,
+    "headers": {
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+      "Strict-Transport-Security": "max-age=31536000"
+    }
+  },
+  {
+    "test": "M1 headers /actuator/health",
+    "status": 200,
+    "headers": {
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+      "Strict-Transport-Security": "max-age=31536000"
+    }
+  },
+  {
+    "test": "M1 headers /git/alice/missing/minecraft.overworld.git/info/refs",
+    "status": 401,
+    "headers": {
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+      "Strict-Transport-Security": "max-age=31536000"
+    }
+  },
+  {
+    "test": "normal fixture push",
+    "returncode": 0
+  },
+  {
+    "test": "M3 high compression fixture",
+    "blobs": [
+      {
+        "raw": 4194389,
+        "compressed": 240,
+        "ratio": 17476.6
+      },
+      {
+        "raw": 4194389,
+        "compressed": 240,
+        "ratio": 17476.6
+      },
+      {
+        "raw": 4194389,
+        "compressed": 240,
+        "ratio": 17476.6
+      },
+      {
+        "raw": 4194389,
+        "compressed": 240,
+        "ratio": 17476.6
+      }
+    ]
+  },
+  {
+    "test": "M3 /chunks?x0=0&z0=0&x1=3&z1=0",
+    "status": 413,
+    "expected": 413,
+    "body": "{\"error\":\"資料超過聚合解析預算（解壓縮位元組），請縮小請求或分批推送\"}"
+  },
+  {
+    "test": "M3 /diff?x0=0&z0=0&x1=3&z1=0",
+    "status": 413,
+    "expected": 413,
+    "body": "{\"error\":\"資料超過聚合解析預算（解壓縮位元組），請縮小請求或分批推送\"}"
+  },
+  {
+    "test": "M3 /tiles/0/0.png",
+    "status": 413,
+    "expected": 413,
+    "body": "{\"error\":\"資料超過聚合解析預算（解壓縮位元組），請縮小請求或分批推送\"}"
+  },
+  {
+    "test": "M3 /tiles/0/0.height",
+    "status": 413,
+    "expected": 413,
+    "body": "{\"error\":\"資料超過聚合解析預算（解壓縮位元組），請縮小請求或分批推送\"}"
+  },
+  {
+    "test": "M3 health after bounded decode",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"status\":\"UP\",\"groups\":[\"liveness\",\"readiness\"]}"
+  },
+  {
+    "test": "L1 invalid tree",
+    "status": 400,
+    "expected": 400,
+    "body": "{\"error\":\"世界 tree 座標無效\"}"
+  },
+  {
+    "test": "M3 trailer budget push rejection",
+    "returncode": 1,
+    "output": "To http://127.0.0.1:8093/git/admin/compression/minecraft.overworld.git\n ! [remote rejected] HEAD -> main (push 被拒：trailer 數量超過 1024)\nerror: failed to push some refs to 'http://127.0.0.1:8093/git/admin/compression/minecraft.overworld.git'\n"
+  },
+  {
+    "test": "L2 create expiring PAT",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"token\":\"wgt_S0yZZeHhbN8NBLBxMjQ46WQgExGHQpGWMOakawL_gPM\"}"
+  },
+  {
+    "test": "L2 PAT authentication",
+    "status": 200,
+    "expected": 200,
+    "body": "{\"user\":{\"id\":\"caeeeaa7-ed40-4adf-a4da-32339b311dec\",\"username\":\"alice\",\"admin\":false}}"
+  },
+  {
+    "test": "L2 audit fields",
+    "token": {
+      "id": "5149146a-d1f3-463e-a7d3-7791808beb1c",
+      "name": "short-lived",
+      "kind": "PAT",
+      "createdAt": 1790853029642,
+      "expiresAt": 1790899200000,
+      "lastUsedAt": 1790853029648
+    }
+  },
+  {
+    "test": "M4 login failure 0",
+    "status": 401,
+    "expected": 401,
+    "body": "{\"error\":\"帳號或密碼錯誤\"}"
+  },
+  {
+    "test": "M4 login failure 1",
+    "status": 401,
+    "expected": 401,
+    "body": "{\"error\":\"帳號或密碼錯誤\"}"
+  },
+  {
+    "test": "M4 login failure 2",
+    "status": 401,
+    "expected": 401,
+    "body": "{\"error\":\"帳號或密碼錯誤\"}"
+  },
+  {
+    "test": "M4 login failure 3",
+    "status": 401,
+    "expected": 401,
+    "body": "{\"error\":\"帳號或密碼錯誤\"}"
+  },
+  {
+    "test": "M4 login failure 4",
+    "status": 401,
+    "expected": 401,
+    "body": "{\"error\":\"帳號或密碼錯誤\"}"
+  },
+  {
+    "test": "M4 temporary lock",
+    "status": 429,
+    "expected": 429,
+    "body": "{\"error\":\"認證嘗試過多，請稍後重試\"}"
+  },
+  {
+    "test": "M4 Git Basic lock and ignored spoofed XFF",
+    "status": 429,
+    "expected": 429,
+    "body": "認證嘗試過多，請稍後重試\n"
+  }
+]

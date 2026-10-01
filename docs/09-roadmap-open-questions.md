@@ -25,6 +25,8 @@
 | 19 | 只存玩家改過的 chunk | 做成**可設定的選項，預設關閉**：預設仍儲存所有變動（含自然生成的 chunk）；開啟後未被改過的自然地形不存，clone／切換時依種子重新生成（使用者決定，2026-10-01，補充 #2） | [02](02-data-model.md) §7.1 |
 | 20 | Hub 打包 | Hub 提供 **OCI 容器映像**，Docker 與 Podman（含 rootless）都要能直接部署；附 compose 檔。Cloudflare 等雲端平台暫不考慮（使用者決定，2026-10-01） | [07](07-remote-hub.md) §4.1 |
 | 21 | 設定檔格式 | **所有設定檔統一用 YAML**，不用 TOML：插件／模組／CLI 的本機設定 `worldgit.yml`、Hub 的 Spring Boot `application.yml`、repo 內的設定（例如 `track: modified-only`）。Paper 插件的 `config.yml` 與 Spring Boot 本來就是 YAML（使用者決定，2026-10-01） | [02](02-data-model.md) §5、[08](08-architecture.md) |
+| 22 | 多語言 | **插件與模組支援多語言**，訊息用 **MiniMessage** 格式：共用的 `i18n` 模組放 YAML 語言檔（內建 `en_us`、`zh_tw`），依玩家客戶端語言顯示，找不到時退回 `en_us`；伺服器管理者可放覆寫檔只改部分訊息。Paper 直接用內建的 Adventure/MiniMessage；Fabric 用 Adventure 的 Fabric 平台（兩版皆可用時），否則自行把 MiniMessage 轉成原版 Text。diff 色彩用自訂標籤，讓色盲色票全面生效（使用者建議，2026-10-01） | [08](08-architecture.md) §1 |
+| 23 | 專案網域 | 使用者已購入 **`worldgit.org`**（2026-10-01），與套件根 `org.worldgit` 一致。之後用於專案網站與文件；是否架設官方公開 Hub（例如 `hub.worldgit.org`）另行決定。因 Hub 可能公開上線，Phase 1 起 Hub 依公開網路服務的標準做安全審查。 | [07](07-remote-hub.md) |
 | 13 | 實作方式 | 程式碼由 **Codex（gpt-6.1-sol，透過 Codex 插件）**撰寫，包含需要網路與 Minecraft 伺服器的驗證（已開啟 Codex 寫入沙盒的網路存取）。先前的 Phase 0 實驗由 Sonnet 5.5 子代理執行。Codex 撞到用量限制時由 Sonnet 5.5 子代理接手（2026-10-01） | [CLAUDE.md](../CLAUDE.md) |
 
 ## 路線圖（四端並行）

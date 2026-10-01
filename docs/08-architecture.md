@@ -14,6 +14,7 @@ worldgit/
 │   └─ config/      .wgignore 解析（版本控制內）、worldgit.yml（本機設定）
 ├─ platform-api/    「活的世界」抽象：讀快照、套用變更、鎖定、通知玩家
 ├─ protocol/        插件/模組 ↔ 客戶端模組的網路封包定義（diff 預覽、衝突資訊）
+├─ i18n/            多語言訊息表：YAML 語言檔（MiniMessage 字串）、語言退回、管理者覆寫（決定 #22）
 ├─ paper/           Paper 插件：實作 platform-api + 指令/GUI/預覽
 │   ├─ common/      與版本無關的部分（只用 Bukkit/Paper API）
 │   ├─ v1_21_11/    需要伺服器內部程式碼（NMS）的部分，每個 MC 版本一個薄轉接層
@@ -171,3 +172,13 @@ PoC 用一個對 1.21.11 Mojang 名稱 server jar 編譯的 jar 同時跑兩版�
 protocol 正式版為 v2；hello 帶版本、nonce、capabilities 與色票；diff 帶 section palette 的前後 state；status 帶 section/chunk 包圍盒與統計；clear 取消 preview。≤ 28,000 bytes 分包，收齊才發布，批次最多 100,000 entries/8 MiB。與 Phase 0 v1 不相容，平台 handshake 需檢查版本。詳見 [protocol](../protocol/README.md)。
 
 CLI 發佈先採 Java 21 fat jar 與 `wgit` 腳本，native-image 延後。Phase 2 的 `apply/lockEdits/flush/notifyPlayers` 已在 LiveWorld 預留，離線 apply 尚未開放。
+
+### Phase 1 Fabric 實作補充（2026-10-01）
+
+正式 `fabric/` 分成純 Java 21 的 `logic`、共用 Minecraft 原始碼 `shared`，以及 `mc1_21_11`／`mc26_2` 兩個薄轉接層；各自產出 Java 21／25 jar。沿用 PoC 的 Loom 1.17.21、Loader 0.19.5、Fabric API 0.141.6／0.161.0。Adventure Fabric 6.8.0／7.1.1 已在兩版實機驗證，伺服器及 `/wgc` 都透過共用 i18n YAML 與 MiniMessage，原版 Component 由 Adventure 平台轉換；開關、握手狀態與色票名稱也可翻譯。
+
+runtime 在世界載入前建立；`LevelChunk.markUnsaved` mixin 將變動保留在 generation tracker，避免單人世界的原版存檔清除旗標後漏掉 status。原版旗標、載入／玩家事件、實體 chunk、磁碟 index 仍一起參與候選篩選；最後以正規化雜湊決定差異。快照在伺服器執行緒複製，背景 repo executor 計算；關閉時透過自有 task 佇列在伺服器執行緒處理 flush／複製，避免原版 execute 在停止期間於呼叫者執行緒執行。
+
+正式渲染改為 section 分塊、視錐／距離裁切、每幀明細建置配額、遠處包圍盒與 GPU 網格釋放。色盲設定切換會重建明細。兩版 Xvfb 真客戶端已驗證 1 section 的真實世界 diff、強制存檔後 dirty 保留、3,072 格合成預覽的遠／近 LOD、clear 和繁中顯示；這不是 100,000 格的效能量測。1.21.11 client gametest 需停用 Fabric 測試框架的 NetworkSynchronizer 才能載入整合世界，26.2 不需要；此開關只在測試 run 設定。
+
+完整驗收、Paper 插件副本的時間戳及限制見 [Phase 1 進度](11-phase1-progress.md)／[Fabric README](../fabric/README.md)。資源包重載、Sodium／Iris、硬體 GPU、準星前後 state UI、實體／biome 模型及 Phase 2 操作仍未提供。

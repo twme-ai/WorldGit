@@ -88,7 +88,22 @@ public final class DimensionRepository implements AutoCloseable {
   public Status status(
       SnapshotSource source, Map<DimensionId, String> dimensions, double tolerance, boolean full)
       throws IOException {
-    Capture c = capture(source, dimensions, tolerance, full);
+    return status(source, dimensions, tolerance, full, DiffEngine.Detail.SUMMARY, null);
+  }
+
+  /**
+   * 指定明細層級與 chunk 視窗的 status：遊戲內預覽只需要玩家附近的方塊級差異，不必展開整個世界。
+   * window 為 null 表示全世界；實體仍全域比對後才裁切（見 DiffEngine）。
+   */
+  public Status status(
+      SnapshotSource source,
+      Map<DimensionId, String> dimensions,
+      double tolerance,
+      boolean full,
+      DiffEngine.Detail detail,
+      Set<ChunkPos> window)
+      throws IOException {
+    Capture c = capture(source, dimensions, tolerance, full, detail, window);
     c.index.save(directory.resolve("worldgit.index"));
     return c.status;
   }
@@ -99,12 +114,27 @@ public final class DimensionRepository implements AutoCloseable {
       CommitMetadata metadata,
       double tolerance)
       throws IOException {
+    return commit(source, dimensions, metadata, tolerance, status -> true);
+  }
+
+  /**
+   * 擷取後先問 gate：回傳 false 時不寫 commit（仍更新 index，行為同 status）。自動 commit 用它實作「小變動合併到較長間隔」，
+   * 不必先 status 再 commit 而重複擷取一次。初始 commit（沒有 HEAD）不受 gate 影響。
+   */
+  public CommitResult commit(
+      SnapshotSource source,
+      Map<DimensionId, String> dimensions,
+      CommitMetadata metadata,
+      double tolerance,
+      java.util.function.Predicate<Status> gate)
+      throws IOException {
     if (!dimension.equals(metadata.dimension())) throw new IOException("metadata 維度與 repo 不符");
     if (metadata.mcDataVersion() != source.dataVersion())
       throw new IOException("metadata DataVersion 與來源不符");
-    Capture c = capture(source, dimensions, tolerance, false);
+    Capture c = capture(source, dimensions, tolerance, false, DiffEngine.Detail.SUMMARY, null);
     String id = null;
-    if (c.head == null || !c.status.diff.empty()) id = store.commit(c.tree, c.head, metadata);
+    if (c.head == null || (!c.status.diff.empty() && gate.test(c.status)))
+      id = store.commit(c.tree, c.head, metadata);
     String head = id == null ? c.head : id;
     new ScanIndex(
             head == null ? "" : head,
@@ -117,7 +147,12 @@ public final class DimensionRepository implements AutoCloseable {
   }
 
   private Capture capture(
-      SnapshotSource source, Map<DimensionId, String> dimensions, double tolerance, boolean full)
+      SnapshotSource source,
+      Map<DimensionId, String> dimensions,
+      double tolerance,
+      boolean full,
+      DiffEngine.Detail detail,
+      Set<ChunkPos> window)
       throws IOException {
     if (!dimension.equals(source.dimension())) throw new IOException("快照來源維度不符");
     String head = store.head(), base = head == null ? null : store.readCommit(head).tree();
@@ -195,7 +230,7 @@ public final class DimensionRepository implements AutoCloseable {
     if (config.track() == WorldGitConfig.Track.MODIFIED_ONLY)
       warnings.add("track: modified-only 已記錄；Phase 1 尚未篩選自然地形，目前仍追蹤全部 full chunk。");
     var diff =
-        new DiffEngine(store).compare(dimension, base, tree, tolerance, DiffEngine.Detail.SUMMARY);
+        new DiffEngine(store).compare(dimension, base, tree, tolerance, detail, window);
     if (diff.entities().size() > 50) warnings.add("實體變動較多；可考慮生存範本或 entity * !persistent。");
     var status =
         new Status(diff, scan.candidates().size(), scan.payloadsRead(), ignoreChanged, warnings);

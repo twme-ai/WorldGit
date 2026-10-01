@@ -134,6 +134,8 @@ public final class DiffEngine {
   }
 
   private void walk(String a, String b, String path, List<Leaf> leaves) throws IOException {
+    DecodeBudget.work(1);
+    if (path.chars().filter(c -> c == '/').count() > 64) throw new IOException("tree 深度超過限制");
     if (Objects.equals(a, b)) return;
     var at = store.readTree(a);
     var bt = store.readTree(b);
@@ -153,9 +155,12 @@ public final class DiffEngine {
     }
   }
 
-  private static ChunkPos chunk(String name) {
+  private static ChunkPos chunk(String name) throws IOException {
     String[] p = name.split("\\.");
-    return new ChunkPos(Integer.parseInt(p[1]), Integer.parseInt(p[2]));
+    try {
+      if (p.length != 3 || !p[0].equals("c")) throw new IllegalArgumentException();
+      return new ChunkPos(Integer.parseInt(p[1]), Integer.parseInt(p[2]));
+    } catch (IllegalArgumentException e) { throw new IOException("chunk tree 座標無效", e); }
   }
 
   private static ChangeKind kind(Object a, Object b) {
@@ -163,13 +168,15 @@ public final class DiffEngine {
   }
 
   public static List<BlockChange> blocks(ChunkPos chunk, int y, Section a, Section b) {
-    return sectionDelta(chunk, y, a, b, Detail.BLOCKS).changes;
+    try { return sectionDelta(chunk, y, a, b, Detail.BLOCKS).changes; }
+    catch (IOException e) { throw new UncheckedIOException(e); }
   }
 
   private record SectionDelta(List<BlockChange> changes, Counts counts) {}
 
   private static SectionDelta sectionDelta(
-      ChunkPos chunk, int y, Section a, Section b, Detail detail) {
+      ChunkPos chunk, int y, Section a, Section b, Detail detail) throws IOException {
+    DecodeBudget.work(4096);
     long[] counts = new long[4];
     var changes = new ArrayList<BlockChange>();
     var ae = a.blockEntities();
@@ -186,6 +193,8 @@ public final class DiffEngine {
                   : after.air() ? ChangeKind.REMOVED : ChangeKind.MODIFIED;
       counts[kind.ordinal()]++;
       if (detail == Detail.SUMMARY) continue;
+      // 小型 uniform section 也可能展開成 4096 個 diff 物件；配置前計入預算。
+      DecodeBudget.decoded(256L + (ab == null ? 0L : ab.length * 3L) + (bb == null ? 0L : bb.length * 3L));
       var pos =
           new BlockPos(
               chunk.x() * 16 + (i & 15), y * 16 + (i >> 8), chunk.z() * 16 + ((i >> 4) & 15));

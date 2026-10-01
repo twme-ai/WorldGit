@@ -1,0 +1,22 @@
+[
+  {
+    "test": "M2 bounded pack rejection at 4096 bytes",
+    "code": 1,
+    "output": "error: remote unpack failed: error Pack exceeds the limit of 4,096 bytes, rejecting the pack\nTo http://127.0.0.1:8094/git/admin/oversize/minecraft.overworld.git\n ! [remote rejected] HEAD -> main (n/a (unpacker error))\nerror: failed to push some refs to 'http://127.0.0.1:8094/git/admin/oversize/minecraft.overworld.git'\n",
+    "leftoverPacks": 0
+  },
+  {
+    "test": "M2 owner quota across worlds, before auto-create",
+    "status": 413,
+    "body": "owner 儲存配額已超過 1048576 bytes；請刪除世界或聯絡管理員調整配額\n"
+  },
+  {
+    "test": "L2 expired PAT",
+    "status": 401
+  },
+  {
+    "test": "M4 direct Git Basic temporary lock",
+    "status": 429,
+    "retryAfter": "300"
+  }
+]

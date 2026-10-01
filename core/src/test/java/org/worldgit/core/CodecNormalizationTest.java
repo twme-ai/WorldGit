@@ -203,4 +203,35 @@ class CodecNormalizationTest {
     Files.write(file, new byte[5]);
     assertThrows(IOException.class, () -> new RegionFile(file));
   }
+
+  @Test
+  void regionOfRunningServerEmptyAndUnpaddedTail() throws Exception {
+    Path dir =
+        Files.createTempDirectory(
+            Path.of(System.getProperty("worldgit.projectRoot"), ".work"), "region-test-");
+    // Minecraft 第一次寫入前會留下 0 byte 的 .mca：視為沒有任何 chunk，不是損毀。
+    Path empty = dir.resolve("r.0.0.mca");
+    Files.write(empty, new byte[0]);
+    try (var r = new RegionFile(empty)) {
+      for (int i = 0; i < 1024; i++) assertFalse(r.has(i));
+    }
+    // 執行中的伺服器尚未關閉檔案時，最後一個 chunk 不一定補滿 4096 byte：仍可讀。
+    Path live = dir.resolve("r.0.1.mca");
+    var raw = new Nbt.Compound().with("test", "tail");
+    RegionFile.update(live, Map.of(5, raw), 9);
+    byte[] all = Files.readAllBytes(live);
+    int length = java.nio.ByteBuffer.wrap(all).getInt(8192) + 4;
+    Files.write(live, java.util.Arrays.copyOf(all, 8192 + length));
+    try (var r = new RegionFile(live)) {
+      assertArrayEquals(Nbt.write(raw), Nbt.write(r.read(5)));
+    }
+    // 真的被截斷（payload 不完整）仍要報錯。
+    Files.write(live, java.util.Arrays.copyOf(all, 8192 + length - 3));
+    try (var r = new RegionFile(live)) {
+      assertThrows(IOException.class, () -> r.read(5));
+    }
+    // 資料起點在檔案之外是損毀。
+    Files.write(live, java.util.Arrays.copyOf(all, 8192));
+    assertThrows(IOException.class, () -> new RegionFile(live));
+  }
 }

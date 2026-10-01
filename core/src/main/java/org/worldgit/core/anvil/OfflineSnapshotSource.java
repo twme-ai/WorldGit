@@ -20,9 +20,18 @@ public final class OfflineSnapshotSource implements SnapshotSource {
   private int reads;
   private EntityTagRegistry registry;
 
+  private final EntityTagRegistry.PackResolver packResolver;
+
   public OfflineSnapshotSource(WorldLayout layout, WorldLayout.Dimension dimension) {
+    this(layout, dimension, null);
+  }
+
+  /** packResolver：平台 adapter 提供的模組 datapack tag（可為 null）。 */
+  public OfflineSnapshotSource(
+      WorldLayout layout, WorldLayout.Dimension dimension, EntityTagRegistry.PackResolver packResolver) {
     this.layout = layout;
     this.dimension = dimension;
+    this.packResolver = packResolver;
   }
 
   @Override
@@ -36,7 +45,7 @@ public final class OfflineSnapshotSource implements SnapshotSource {
   }
 
   private EntityTagRegistry registry() throws IOException {
-    if (registry == null) registry = EntityTagRegistry.load(layout.world(), dataVersion());
+    if (registry == null) registry = EntityTagRegistry.load(layout.world(), dataVersion(), packResolver);
     return registry;
   }
 

@@ -25,6 +25,8 @@ public final class RegionFile implements AutoCloseable {
     rz = Integer.parseInt(m.group(2));
     channel = FileChannel.open(path, StandardOpenOption.READ);
     try {
+      // Minecraft 在第一次寫入前會留下 0 byte 的 .mca（entities/、poi/ 常見）：視為沒有任何 chunk。
+      if (channel.size() == 0) return;
       if (channel.size() < 8192) throw new IOException("region 標頭截斷：" + path);
       ByteBuffer header = ByteBuffer.allocate(8192);
       readFully(channel, header, 0);
@@ -38,7 +40,9 @@ public final class RegionFile implements AutoCloseable {
         int off = locations[i] >>> 8, count = locations[i] & 255;
         if (off < 2
             || count == 0
-            || (long) (off + count) * 4096 > channel.size()
+            // 執行中的伺服器還沒關閉檔案時，最後一個 chunk 的尾端不一定已補滿 4096；只要求資料起點在檔內，
+            // 實際長度由 payload() 的 n 與 readFully 檢查（截斷會報錯，不會靜默少存）。
+            || (long) off * 4096 + 5 > channel.size()
             || sectors.nextSetBit(off) >= 0 && sectors.nextSetBit(off) < off + count)
           throw new IOException("region sector 無效或重疊：" + path + " index=" + i);
         sectors.set(off, off + count);

@@ -9,21 +9,40 @@ import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.*;
 import org.eclipse.jgit.treewalk.*;
 import org.worldgit.core.model.CommitMetadata;
+import org.worldgit.core.normalize.DecodeBudget;
 
 /** JGit 細節止於此模組；public API 使用十六進位 id，不洩漏 JGit 類別。單一操作需持有 RepoLock。 */
 public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   public static final long PACK_LIMIT = 95_000_000L;
   private static final String MAIN = "refs/heads/main";
-  private final FileRepository repo;
+  private final Repository repo;
+  private final boolean ownsRepo;
   private final ObjectInserter inserter;
   private final ObjectReader reader;
+
+  /**
+   * 唯讀存取一個由呼叫端共享管理的 JGit Repository（例如 Hub 的 RepositoryCache）。每個 store 有自己的
+   * ObjectReader，因此可在各執行緒各開一個；close() 只釋放 reader，不關閉 repository，寫入方法會失敗。
+   */
+  public static JGitStore readOnly(Repository shared) {
+    return new JGitStore(shared);
+  }
+
+  private JGitStore(Repository shared) {
+    repo = shared;
+    ownsRepo = false;
+    inserter = null;
+    reader = shared.newObjectReader();
+  }
 
   public JGitStore(Path directory, boolean create) throws IOException {
     if (!create && !Files.isRegularFile(directory.resolve("HEAD")))
       throw new IOException("尚未 init：" + directory);
-    repo = new FileRepository(directory.toFile());
+    var opened = new FileRepository(directory.toFile());
+    repo = opened;
+    ownsRepo = true;
     if (create && !Files.exists(directory.resolve("HEAD"))) {
-      repo.create(true);
+      opened.create(true);
       repo.updateRef("HEAD").link(MAIN);
     }
     var config = repo.getConfig();
@@ -37,6 +56,7 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
 
   @Override
   public String writeBlob(byte[] data) throws IOException {
+    requireWritable();
     if (data.length > NbtLimit()) throw new IOException("blob 超過 32 MiB；請分割資料");
     return inserter.insert(Constants.OBJ_BLOB, data).name();
   }
@@ -47,11 +67,15 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
 
   @Override
   public byte[] readBlob(String id) throws IOException {
-    return reader.open(ObjectId.fromString(id), Constants.OBJ_BLOB).getBytes(NbtLimit());
+    var loader = reader.open(ObjectId.fromString(id), Constants.OBJ_BLOB);
+    DecodeBudget.read(loader.getSize());
+    DecodeBudget.objects(1);
+    return loader.getBytes(NbtLimit());
   }
 
   @Override
   public String writeTree(Collection<Entry> entries) throws IOException {
+    requireWritable();
     var formatter = new TreeFormatter();
     var sorted = new ArrayList<>(entries);
     sorted.sort(
@@ -73,9 +97,12 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   public SortedMap<String, Entry> readTree(String id) throws IOException {
     var result = new TreeMap<String, Entry>();
     if (id == null) return result;
+    DecodeBudget.objects(1);
+    DecodeBudget.read(reader.open(ObjectId.fromString(id), Constants.OBJ_TREE).getSize());
     var parser = new CanonicalTreeParser();
     parser.reset(reader, ObjectId.fromString(id));
     while (!parser.eof()) {
+      DecodeBudget.work(1);
       String name = parser.getEntryPathString();
       Kind kind = parser.getEntryFileMode().equals(FileMode.TREE) ? Kind.TREE : Kind.BLOB;
       result.put(name, new Entry(name, kind, parser.getEntryObjectId().name()));
@@ -86,7 +113,7 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
 
   @Override
   public void flush() throws IOException {
-    inserter.flush();
+    if (inserter != null) inserter.flush();
   }
 
   @Override
@@ -110,6 +137,7 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   }
 
   private Commit convert(RevCommit c) throws IOException {
+    if (c.getRawBuffer().length > 1_048_576) throw new IOException("commit 物件超過 1 MiB");
     var a = c.getAuthorIdent();
     var b = c.getCommitterIdent();
     var m =
@@ -143,6 +171,7 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
 
   @Override
   public String commit(String tree, String expected, CommitMetadata m) throws IOException {
+    requireWritable();
     CommitBuilder c = new CommitBuilder();
     c.setTreeId(ObjectId.fromString(tree));
     if (expected != null) c.setParentId(ObjectId.fromString(expected));
@@ -164,8 +193,9 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   }
 
   public List<Long> repack() throws IOException {
+    requireWritable();
     flush();
-    return BoundedRepack.run(repo, PACK_LIMIT);
+    return BoundedRepack.run((FileRepository) repo, PACK_LIMIT);
   }
 
   public List<Long> gc() throws IOException {
@@ -174,8 +204,12 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
 
   @Override
   public void close() {
-    inserter.close();
+    if (inserter != null) inserter.close();
     reader.close();
-    repo.close();
+    if (ownsRepo) repo.close();
+  }
+
+  private void requireWritable() throws IOException {
+    if (inserter == null) throw new IOException("唯讀 store 不能寫入");
   }
 }

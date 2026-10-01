@@ -1,16 +1,21 @@
 [versions]
 jgit = "7.3.0.202506031305-r"
 zstd = "1.5.6-6"
-lz4 = "1.8.0"
+lz4 = "1.11.4"
 yaml = "2.4"
 picocli = "4.7.7"
 jackson = "2.18.3"
 junit = "5.12.2"
 slf4j = "2.0.17"
+fabricLoader = "0.19.5"
+loom = "1.17.21"
+fabricApi121 = "0.141.6+1.21.11"
+fabricApi262 = "0.161.0+26.2"
+
 [libraries]
 jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
 zstd = { module = "com.github.luben:zstd-jni", version.ref = "zstd" }
-lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
+lz4 = { module = "at.yawk.lz4:lz4-java", version.ref = "lz4" }
 yaml = { module = "org.yaml:snakeyaml", version.ref = "yaml" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 jackson = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
@@ -18,3 +23,15 @@ junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
+fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabricLoader" }
+fabric-api-mc1211 = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi121" }
+fabric-api-mc262 = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi262" }
+
+adventure-fabric-mc1211 = { module = "net.kyori:adventure-platform-fabric", version = "6.8.0" }
+adventure-fabric-mc262 = { module = "net.kyori:adventure-platform-fabric", version = "7.1.1" }
+javaewah = { module = "com.googlecode.javaewah:JavaEWAH", version = "1.2.3" }
+commons-codec = { module = "commons-codec:commons-codec", version = "1.18.0" }
+
+[plugins]
+fabric-loom-remap = { id = "net.fabricmc.fabric-loom-remap", version.ref = "loom" }
+fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "loom" }

@@ -1,0 +1,16 @@
+.git
+.work
+.gradle
+**/build
+**/node_modules
+**/dist
+experiments
+docs
+paper
+fabric
+cli
+i18n
+platform-api
+hub/docs
+hub/deploy
+*.md

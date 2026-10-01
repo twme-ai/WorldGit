@@ -54,10 +54,18 @@ Hub 以 **OCI 容器映像**發佈，**Docker 與 Podman 都要能直接部署**
 - 映像支援 amd64 與 arm64；健康檢查用 Spring Boot actuator 的 health endpoint。
 - CI 對映像做冒煙測試：分別用 Docker 與 rootless Podman 啟動，跑一次 push → 網頁讀取。
 
+**Phase 1 實作狀態（2026-10-01）**：`hub/Containerfile`（node 建前端 → Gradle 建 jar → `eclipse-temurin:25-jre`，非 root uid 10001，資料在 `/data`，映像約 400 MB）、`hub/compose.yaml`、`hub/deploy/` 的 Quadlet 範例與 `hub/scripts/container-smoke.sh` 已完成。已用 Podman 4.9.3（root 模式）驗證 `podman build`、`podman run` 的 push → API／網頁讀取冒煙測試，以及 `podman-compose up`（healthcheck 變 healthy）。**尚未驗證**：rootless Podman、Docker（語法只用兩者共通部分）、arm64 映像、Quadlet 單元實際由 systemd 啟動。建置 context 必須是 repo 根目錄（`podman build -f hub/Containerfile .`）；`.dockerignore` 排除 paper／fabric 等其他模組。CI 目前只做 `docker build`，冒煙測試尚未進 CI。
+
 設計上的影響：
 - 儲存層與帳號層都要做成可替換的介面（本機/S3、SQLite/PostgreSQL、本機帳號/OAuth）。
 - 從第一版就要支援**多租戶**（使用者、組織、repo 權限），自架版只是「只有一個組織」的特例。
 - 自架版與公開服務之間可以互相 push/pull（都是標準 git 協定），所以使用者可以隨時搬家。
+
+### 4.2 上線前必做（worldgit.org，決定 #23）
+
+安全修補與實測見 [Hub 安全審查](../hub/docs/security-review-2026-10-01.md)。公開部署必須使用 TLS 反向代理、開啟 `worldgit.hub.security.hsts`，只有代理確實覆寫 X-Forwarded-For 時才能設定可信代理 IP；配置 owner 配額、解析預算與認證限流，檢查磁碟餘裕與 secrets 權限。現有配額／限流以單 Hub 實例為界；水平擴充前必須實作共享狀態。Git 未帶認證一律 challenge，公開 clone 使用明確的 anonymous／空密碼；REST 私人與不存在一律 404。
+
+**政策項目仍需部署者完成，本次未實作自助註冊或 bootstrap 政策變更**：開放自助註冊前決定信箱驗證、註冊限流、保留字與冒充名稱處理、濫用檢舉政策。正式環境須以 secret 提供 bootstrap 密碼，避免使用印在 log 的隨機密碼；上線時更換並妥善保存管理員密碼，建立具到期日 PAT、撤銷不再使用的 bootstrap token，停止在一般操作中使用 bootstrap 憑證。既有永不過期 PAT 也應檢視並重建；新 PAT 已有預設期限與最後使用時間。
 
 ## 5. 伺服器 ↔ Hub 的整合
 

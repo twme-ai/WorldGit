@@ -1,0 +1,26 @@
+[
+  {
+    "package": "org.apache.tomcat.embed:tomcat-embed-core",
+    "version": "10.1.60",
+    "jarEntry": "BOOT-INF/lib/tomcat-embed-core-10.1.60.jar",
+    "result": {}
+  },
+  {
+    "package": "com.fasterxml.jackson.core:jackson-databind",
+    "version": "2.21.7",
+    "jarEntry": "BOOT-INF/lib/jackson-databind-2.21.7.jar",
+    "result": {}
+  },
+  {
+    "package": "org.postgresql:postgresql",
+    "version": "42.7.13",
+    "jarEntry": "BOOT-INF/lib/postgresql-42.7.13.jar",
+    "result": {}
+  },
+  {
+    "package": "at.yawk.lz4:lz4-java",
+    "version": "1.11.4",
+    "jarEntry": "BOOT-INF/lib/lz4-java-1.11.4.jar",
+    "result": {}
+  }
+]

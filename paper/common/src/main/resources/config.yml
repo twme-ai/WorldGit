@@ -1,0 +1,46 @@
+# WorldGit 插件設定（YAML，決定 #21）。
+# 追蹤規則（.wgignore）與 repo 設定不在這裡：它們在 .worldgit/<世界>/<維度>/ 內，跟世界一起被版本控制。
+# palette 與 entity-tolerance 與 CLI 共用 .worldgit/<世界>/worldgit.yml。
+
+# 背景普查已載入 chunk 的 unsaved 旗標的間隔（ticks）。旗標只是候選，最終以內容雜湊為準。
+dirty-poll-interval-ticks: 40
+
+commit:
+  # 擷取快照時，每個 tick 在擁有執行緒上最多複製幾個 chunk（Folia 為每個 region）。
+  # 越小越不影響 TPS，但大量變動時 commit 越久。複製只做 palette container 與 NBT 的複製；
+  # 編碼、雜湊、寫 repo 都在背景執行緒。
+  chunks-per-tick: 8
+  # 已複製但尚未被背景消化的 chunk 上限（限制記憶體）。
+  snapshot-window: 256
+  timeout-seconds: 600
+
+auto-commit:
+  enabled: true
+  # 定時檢查的間隔；沒有任何變動不會產生 commit。
+  interval-minutes: 15
+  # 小變動（section 數少於 min-changed-sections）最久合併到這個時間才寫。
+  max-wait-minutes: 30
+  # 定時存檔點所需的最少方塊 section 變動數。生存伺服器站著不動也有隨機刻底噪（作物、樹葉），
+  # Phase 0 實測建議調高（例如 100）。
+  min-changed-sections: 1
+  # 只有實體變動（沒有方塊變動）時是否觸發。
+  entity-only-triggers: false
+  # 玩家登出後（延遲幾秒合併多人登出）建立存檔點；作者歸屬記錄這段期間改過的人。
+  on-quit: true
+  quit-delay-seconds: 10
+  # 伺服器關閉前建立存檔點（Paper；Folia 沒有單一擁有執行緒，略過）。
+  on-shutdown: true
+
+show:
+  # /wg diff 以玩家為中心展開方塊級差異的 chunk 半徑。
+  radius-chunks: 6
+  # 傳給客戶端模組鬼影的格數上限（協定上限 100000）；超過改送區域描邊。
+  max-cells: 100000
+
+# 主控台與沒有客戶端語言資訊時使用的語言；玩家會優先使用自己的客戶端語言。
+language: zh_tw
+
+server-identity:
+  # 自動 commit 的 committer（玩家是 author）。
+  name: WorldGit Server
+  email: worldgit@server.invalid

@@ -90,6 +90,31 @@ class EntityTagRegistryTest {
   }
 
   @Test
+  void fabricBuiltInPacksAreResolvedByAdapterOrToleratedWithWarning() throws Exception {
+    Path world = world("26.2");
+    packs(world, "vanilla", "fabric-convention-tags-v2");
+    var offline = EntityTagRegistry.load(world, 4903);
+    assertTrue(offline.warnings().stream().anyMatch(w -> w.contains("fabric-convention-tags-v2")));
+    assertThrows(IllegalArgumentException.class, () -> offline.inTag("c:bosses", "minecraft:wither"));
+    var resolved =
+        EntityTagRegistry.load(
+            world,
+            4903,
+            pack ->
+                pack.equals("fabric-convention-tags-v2")
+                    ? java.util.Map.of(
+                        "c:bosses",
+                        "{\"values\":[\"minecraft:wither\"]}".getBytes(StandardCharsets.UTF_8))
+                    : null);
+    assertTrue(resolved.inTag("c:bosses", "minecraft:wither"));
+    assertTrue(resolved.warnings().isEmpty());
+    assertNotEquals(offline.fingerprint(), resolved.fingerprint());
+    // 其他未知的內建/模組 pack 仍然明確失敗。
+    packs(world, "vanilla", "somemod");
+    assertThrows(IOException.class, () -> EntityTagRegistry.load(world, 4903));
+  }
+
+  @Test
   void cyclesRequiredReferencesAndSchemaErrors() throws Exception {
     Path world = world("26.2"), pack = world.resolve("datapacks/custom");
     packs(world, "vanilla", "file/custom");

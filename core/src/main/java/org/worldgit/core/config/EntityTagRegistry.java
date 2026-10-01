@@ -53,7 +53,21 @@ public final class EntityTagRegistry implements EntitySemantics {
     return values.contains(type);
   }
 
+  /**
+   * 由平台 adapter 提供「模組內建 datapack」的 entity tag 資源（例如 Fabric 的 mod id 同時是 pack 名稱）。
+   * 回傳 tag id（{@code namespace:path}）對 JSON bytes；pack 不認得時回傳 null。
+   */
+  @FunctionalInterface
+  public interface PackResolver {
+    Map<String, byte[]> tags(String pack) throws IOException;
+  }
+
   public static EntityTagRegistry load(Path world, int dataVersion) throws IOException {
+    return load(world, dataVersion, null);
+  }
+
+  public static EntityTagRegistry load(Path world, int dataVersion, PackResolver resolver)
+      throws IOException {
     var definitions = new TreeMap<String, List<Value>>();
     var warnings = new ArrayList<String>();
     var level = WorldLayout.readGzip(world.resolve("level.dat")).compound("Data");
@@ -133,6 +147,15 @@ public final class EntityTagRegistry implements EntitySemantics {
           }
         }
         // 這兩版的內建 feature packs 與 Paper 本身沒有 entity_type tag 資料。
+      } else if (resolver != null && resolver.tags(pack) != null) {
+        for (var e : new TreeMap<>(resolver.tags(pack)).entrySet()) {
+          total = budget(total, e.getValue().length);
+          merge(definitions, e.getKey(), e.getValue(), pack + "!" + e.getKey());
+        }
+      } else if (pack.equals("fabric") || pack.startsWith("fabric-")) {
+        // Fabric API 的內建 pack 只有 c: 慣例 tag；沒有 adapter 時（CLI 離線）略過並記錄，
+        // 只有引用 #c:… 的忽略規則會因「找不到 tag」而明確失敗。
+        warnings.add("Fabric 內建 datapack " + pack + " 的 entity tag 離線未載入（#c:… tag 無法使用）。");
       } else if (!Set.of(
               "paper", "minecart_improvements", "redstone_experiments", "trade_rebalance")
           .contains(pack)) {

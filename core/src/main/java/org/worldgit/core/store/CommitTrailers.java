@@ -3,6 +3,7 @@ package org.worldgit.core.store;
 import java.io.*;
 import java.time.Instant;
 import java.util.*;
+import org.worldgit.core.normalize.DecodeBudget;
 import org.worldgit.core.model.*;
 import org.worldgit.core.model.CommitMetadata.*;
 
@@ -44,6 +45,10 @@ public final class CommitTrailers {
 
   public static CommitMetadata parse(Identity author, Identity committer, Instant time, String full)
       throws IOException {
+    if (full.length() > 1_048_576) throw new IOException("commit 訊息超過 1 MiB 字元限制");
+    DecodeBudget.objects(1);
+    DecodeBudget.read((long) full.length() * 2);
+    int trailerCount = 0, chunkCount = 0;
     int split = full.stripTrailing().lastIndexOf("\n\n");
     if (split < 0) throw new IOException("缺少 WorldGit trailers");
     String message = full.substring(0, split);
@@ -51,14 +56,21 @@ public final class CommitTrailers {
     var contributions = new ArrayList<Contribution>();
     try {
       for (String line : full.substring(split + 2).split("\\R")) {
+        if (++trailerCount > 1024) throw new IOException("trailer 數量超過 1024");
+        DecodeBudget.work(1);
         int colon = line.indexOf(": ");
         if (colon < 0) throw new IOException("trailer 格式無效");
         String key = line.substring(0, colon), value = line.substring(colon + 2);
         if (key.equals("WorldGit-Contribution")) {
+          DecodeBudget.decoded(((long) value.length() + 3) / 4 * 3);
           var n = org.worldgit.core.anvil.Nbt.read(Base64.getUrlDecoder().decode(value));
+          chunkCount += n.list("chunks").values().size();
+          if (chunkCount > 100_000) throw new IOException("contribution chunk 總數超過 100000");
+          DecodeBudget.work(n.list("chunks").values().size());
           var chunks = new TreeSet<ChunkPos>();
           for (Object v : n.list("chunks").values()) {
-            String[] p = ((String) v).split(",");
+            String[] p = ((String) v).split(",", -1);
+            if (p.length != 2) throw new IOException("contribution chunk 座標無效");
             chunks.add(new ChunkPos(Integer.parseInt(p[0]), Integer.parseInt(p[1])));
           }
           contributions.add(

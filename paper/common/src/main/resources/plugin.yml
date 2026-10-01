@@ -1,0 +1,53 @@
+name: WorldGit
+version: ${version}
+main: org.worldgit.paper.WorldGitPlugin
+api-version: "1.21"
+folia-supported: true
+description: Minecraft 世界的 git 式版本控制（commit、status、diff、自動存檔點、作者歸屬）
+website: https://github.com/twme-ai/WorldGit
+softdepend: [FastAsyncWorldEdit, WorldEdit]
+commands:
+  wg:
+    description: WorldGit — 世界版本控制
+    usage: /wg <init|status|commit|log|diff|clear|reload|help>
+    aliases: [worldgit]
+permissions:
+  worldgit.admin:
+    description: 所有 WorldGit 指令與通知
+    default: op
+    children:
+      worldgit.command.init: true
+      worldgit.command.status: true
+      worldgit.command.commit: true
+      worldgit.command.log: true
+      worldgit.command.diff: true
+      worldgit.command.clear: true
+      worldgit.command.reload: true
+      worldgit.notify: true
+  worldgit.command.init:
+    description: /wg init（建立 repo，對大型世界很耗時）
+    default: op
+  worldgit.command.status:
+    description: /wg status
+    default: op
+  worldgit.command.commit:
+    description: /wg commit
+    default: op
+  worldgit.command.log:
+    description: /wg log
+    default: true
+  worldgit.command.diff:
+    description: /wg diff
+    default: op
+  worldgit.command.clear:
+    description: /wg clear（清除自己客戶端的預覽）
+    default: true
+  worldgit.command.reload:
+    description: /wg reload（重新載入語言覆寫檔）
+    default: op
+  worldgit.notify:
+    description: 收到自動 commit 的通知
+    default: op
+  worldgit.debug:
+    description: 開發／驗收工具（/wg debug …）；預設只有主控台
+    default: false

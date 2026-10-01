@@ -1,0 +1,25 @@
+{
+  "name": "worldgit-hub-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WorldGit Hub 前端：repo（世界）首頁、commit 列表、單一 commit 的 3D 檢視與 diff 上色",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "screenshots": "node scripts/screenshots.mjs"
+  },
+  "dependencies": {
+    "deepslate": "0.27.2",
+    "gl-matrix": "^3.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "playwright-core": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.3"
+  }
+}

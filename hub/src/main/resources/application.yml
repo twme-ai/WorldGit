@@ -1,0 +1,84 @@
+# WorldGit Hub 設定（決定 #21：YAML）。環境變數可覆寫，例如 WORLDGIT_HUB_DATA_DIR、SERVER_PORT、
+# SPRING_DATASOURCE_URL（切換 PostgreSQL）、WORLDGIT_HUB_BOOTSTRAP_ADMIN_PASSWORD。
+server:
+  address: 0.0.0.0          # 容器內綁全部介面；本機直接執行請用 --server.address=127.0.0.1
+  port: 8080
+  forward-headers-strategy: none # 來源 IP 由 Hub 的可信代理清單判斷
+  compression:
+    enabled: true
+    min-response-size: 1KB
+    mime-types: application/json,application/octet-stream,text/html,text/css,application/javascript,text/javascript,image/svg+xml
+  tomcat:
+    max-swallow-size: 2MB
+    max-http-form-post-size: 1MB
+spring:
+  application:
+    name: worldgit-hub
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    # 預設 SQLite（單檔，放在 data-dir）。公開服務改成 jdbc:postgresql://host/db 並設 username/password。
+    url: jdbc:sqlite:${worldgit.hub.data-dir:data}/hub.db
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 4
+      data-source-properties:
+        busy_timeout: 5000
+        journal_mode: WAL
+        foreign_keys: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+worldgit:
+  hub:
+    data-dir: data
+    auto-create-worlds: true      # push 到不存在的世界時，自動建立（私人）
+    bootstrap:
+      admin-user: admin
+      admin-password: ""          # 空白＝隨機密碼並印在 log
+      admin-token: ""             # 非空＝固定的管理員 token（CI／冒煙測試）
+    git:
+      max-pack-bytes: 95000000
+      pack-limit-bytes: 95000000  # 決定 #17：每個 pack 必須 < 100 MB
+      owner-quota-bytes: 10737418240 # 每個 owner 所有世界／維度總和（10 GiB）
+    security:
+      hsts: false                # TLS 反向代理後才開啟
+      trusted-proxies: []         # 只信任明確列出的代理 IP；代理必須覆寫 X-Forwarded-For
+    limits:
+      decoded-bytes: 268435456
+      read-bytes: 134217728
+      nodes: 1000000
+      objects: 100000
+      work: 50000000
+    auth:
+      attempts: 30
+      failures: 5
+      window-seconds: 60
+      lock-seconds: 300
+      max-keys: 10000
+    tokens:
+      pat-days: 90
+    assets:
+      source-dir: ""              # 已解開的 client jar 目錄（<id>/assets、<id>/data）；空白＝從 Mojang 下載
+    minecraft-versions:
+      - { id: "1.21.11", data-version: 4671 }
+      - { id: "26.2", data-version: 4903 }
+logging:
+  level:
+    org.eclipse.jgit: warn

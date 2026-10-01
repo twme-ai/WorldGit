@@ -216,4 +216,38 @@ class RepositoryFixtureTest {
         failing.dimensions().values().stream()
             .allMatch(o -> !o.success() && "IllegalStateException".equals(o.error())));
   }
+
+  @Test
+  void repositoryGateRejectsCommitAndWindowExpandsBlocksOnlyInsideWindow() throws Exception {
+    TestWorlds.copy(TestWorlds.fixture("26.2"), temp);
+    var layout = WorldLayout.discover(temp);
+    var world = new WorldRepositories(layout);
+    assertTrue(world.init(DimensionId.OVERWORLD, "creative", WorldGitConfig.Track.ALL, AUTHOR).success());
+    var dimension = layout.dimensions().get(DimensionId.OVERWORLD);
+    ChunkPos pos = new ChunkPos(0, 0);
+    int sectionY = 0;
+    try (var region = new RegionFile(dimension.region().resolve(pos.regionName() + ".mca"))) {
+      var raw = region.read(pos.regionIndex());
+      sectionY = raw.list("sections").values().stream()
+          .map(o -> ((Nbt.Compound) o).integer("Y", 0))
+          .filter(y -> y == 0)
+          .findFirst().orElseThrow();
+    }
+    TestWorlds.oneBlock(layout, DimensionId.OVERWORLD, pos, sectionY, 0);
+    var repoPath = world.tracked().get(DimensionId.OVERWORLD);
+    var metadata = new CommitMetadata(AUTHOR, AUTHOR, "gate", java.time.Instant.now(), layout.dataVersion(),
+        DimensionId.OVERWORLD, CommitMetadata.Source.PLUGIN, false, UUID.randomUUID(), List.of());
+    try (var repo = new DimensionRepository(repoPath, DimensionId.OVERWORLD, false);
+        var source = new OfflineSnapshotSource(layout, dimension)) {
+      var window = repo.status(source, world.manifest(), 2, false, org.worldgit.core.diff.DiffEngine.Detail.BLOCKS, Set.of(pos));
+      assertEquals(1, window.diff().sections().size());
+      assertEquals(1, window.diff().counts().added() + window.diff().counts().removed() + window.diff().counts().modified());
+      var rejected = repo.commit(source, world.manifest(), metadata, 2, ignored -> false);
+      assertFalse(rejected.changed());
+      assertEquals(1, repo.log(10).size());
+      var accepted = repo.commit(source, world.manifest(), metadata, 2, ignored -> true);
+      assertTrue(accepted.changed());
+      assertEquals(2, repo.log(10).size());
+    }
+  }
 }

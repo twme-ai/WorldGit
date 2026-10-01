@@ -1,0 +1,131 @@
+package org.worldgit.fabric.logic;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.Set;
+import org.worldgit.core.anvil.RegionFile;
+import org.worldgit.core.config.WorldGitConfig;
+import org.worldgit.protocol.Protocol;
+
+/**
+ * Fabric 伺服端（專用伺服器與單人世界的整合伺服器）設定，YAML。
+ *
+ * <p>與 CLI 共用的世界本機設定（調色盤、實體容許距離）仍在 {@code .worldgit/<world>/worldgit.yml}，
+ * 這裡只放模組自己的行為。
+ */
+public record ServerConfig(
+    String locale,
+    String defaultTemplate,
+    WorldGitConfig.Track track,
+    int writePermissionLevel,
+    int readPermissionLevel,
+    AutoCommit autoCommit,
+    Identity identity,
+    Preview preview) {
+  public record AutoCommit(
+      boolean onLogout, boolean onStop, int intervalMinutes, int minChangedChunks) {}
+
+  public record Identity(String serverName, String serverEmail, String playerEmailDomain) {}
+
+  public record Preview(int maxGhostCells, int packetsPerTick) {}
+
+  public static final String FILE_NAME = "worldgit-server.yml";
+
+  public static ServerConfig defaults() {
+    try {
+      return parse("", "<defaults>");
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  public static ServerConfig parse(String text, String source) throws IOException {
+    var root = YamlFile.parse(text, source);
+    String locale = org.worldgit.i18n.MessageCatalog.normalizeLocale(root.string("locale", "en_us", null));
+    String template = root.string("default-template", "creative", Set.of("creative", "survival"));
+    String trackText = root.string("track", "all", Set.of("all", "modified-only"));
+    int write = root.integer("permission-level", 2, 0, 4);
+    int read = root.integer("read-permission-level", 0, 0, 4);
+    var auto = root.section("auto-commit");
+    var autoCommit =
+        new AutoCommit(
+            auto.bool("on-logout", true),
+            auto.bool("on-stop", true),
+            auto.integer("interval-minutes", 10, 0, 24 * 60),
+            auto.integer("min-changed-chunks", 1, 1, 1_000_000));
+    auto.rejectUnknown();
+    var id = root.section("identity");
+    var identity =
+        new Identity(
+            identityText(id.string("server-name", "WorldGit Server", null), source),
+            identityText(id.string("server-email", "worldgit@localhost", null), source),
+            identityText(id.string("player-email-domain", "players.worldgit.local", null), source));
+    id.rejectUnknown();
+    var pv = root.section("preview");
+    var preview =
+        new Preview(
+            pv.integer("max-ghost-cells", Protocol.MAX_ENTRIES, 1, Protocol.MAX_ENTRIES),
+            pv.integer("packets-per-tick", 4, 1, 64));
+    pv.rejectUnknown();
+    root.rejectUnknown();
+    return new ServerConfig(
+        locale,
+        template,
+        trackText.equals("all") ? WorldGitConfig.Track.ALL : WorldGitConfig.Track.MODIFIED_ONLY,
+        write,
+        read,
+        autoCommit,
+        identity,
+        preview);
+  }
+
+  private static String identityText(String s, String source) throws IOException {
+    if (s.isBlank() || s.matches("(?s).*[\\r\\n<>].*"))
+      throw new IOException(source + "：identity 欄位不可空白或含 < > 換行");
+    return s;
+  }
+
+  /** 讀取設定；檔案不存在時寫入附說明的預設檔，讓管理員知道有哪些選項。 */
+  public static ServerConfig load(Path dir) throws IOException {
+    Path file = dir.resolve(FILE_NAME);
+    if (!Files.exists(file)) {
+      Files.createDirectories(dir);
+      RegionFile.atomicWrite(file, DEFAULT_TEXT.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+    return parse(Files.readString(file), file.toString());
+  }
+
+  public static final String DEFAULT_TEXT =
+      """
+      # WorldGit Fabric 伺服端設定（單人世界與專用伺服器共用）
+      # 調色盤與實體容許距離在世界的 .worldgit/<world>/worldgit.yml（與 wgit CLI 共用）。
+
+      # 伺服器主控台訊息與寫進 git 歷史的自動 commit 訊息所用的語言（玩家看到的訊息依各自的客戶端語言）。
+      # 內建 en_us、zh_tw；可在 config/worldgit/lang/<locale>.yml 覆寫部分訊息。
+      locale: en_us
+
+      # /wg init 沒指定 --template 時使用的 .wgignore 範本：creative | survival
+      default-template: creative
+      # 新 repo 的追蹤範圍：all | modified-only（目前 modified-only 只記錄設定）
+      track: all
+
+      # 需要的 op 等級（0-4）。單人世界的擁有者一律允許。
+      permission-level: 2        # init / commit / clear
+      read-permission-level: 0   # status / log / diff
+
+      auto-commit:
+        on-logout: true          # 專用伺服器：玩家登出時，若他本次改過 chunk
+        on-stop: true            # 伺服器關閉、離開單人世界時
+        interval-minutes: 10     # 定時；0 = 關閉
+        min-changed-chunks: 1    # 定時 commit 至少要有幾個候選 chunk
+
+      identity:
+        server-name: WorldGit Server
+        server-email: worldgit@localhost
+        player-email-domain: players.worldgit.local   # 玩家 email = <uuid>@此網域
+
+      preview:
+        max-ghost-cells: 100000  # 超過時改送區域包圍盒（上限 100000）
+        packets-per-tick: 4      # 每個 tick 對單一玩家最多送幾個預覽封包
+      """;
+}

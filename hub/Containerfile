@@ -1,0 +1,49 @@
+# WorldGit Hub 的 OCI 映像（Docker 與 Podman 通用語法；doc 07 §4.1）。
+# 建置 context 必須是 repo 根目錄：
+#   podman build -f hub/Containerfile -t worldgit-hub .      （或 docker build -f hub/Containerfile ...）
+# 執行：資料集中在 /data（SQLite、世界 repo、資源快取），以非 root（uid 10001）執行，埠 8080。
+
+# 基底的 tag 保留在 FROM／COPY；digest 為多架構 index。更新方式：
+#   skopeo inspect --raw docker://docker.io/library/<tag> | sha256sum
+# 對照 registry Docker-Content-Digest，更新四處 digest 後重新 build 與 container-smoke。
+# ---- 1. 前端（Vite） ----
+FROM docker.io/library/node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS web
+WORKDIR /src/hub/web
+COPY hub/web/package.json hub/web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY hub/web/ ./
+RUN npm run build
+
+# ---- 2. 後端（Gradle，Java 25；core 以 Java 21 toolchain 編譯，所以同時帶一份 JDK 21） ----
+FROM docker.io/library/eclipse-temurin:25-jdk@sha256:119a3d18f160a3e7655a66034d0f43beee31cd7b3b9142d57a5de29772011de6 AS build
+COPY --from=docker.io/library/eclipse-temurin:21-jdk@sha256:4d06038800655fe1211760cd561de70ef2ed7a47f5d69255e9834414602b7026 /opt/java/openjdk /opt/jdk21
+WORKDIR /src
+COPY gradlew gradlew.bat settings.gradle.kts build.gradle.kts gradle.properties ./
+COPY gradle ./gradle
+COPY core ./core
+COPY protocol ./protocol
+COPY hub/build.gradle.kts ./hub/build.gradle.kts
+COPY hub/src ./hub/src
+COPY --from=web /src/hub/web/dist ./hub/web/dist
+# settings.gradle.kts 宣告的其他專案（paper／fabric 等）在映像建置 context 中不存在，建立空目錄讓 Gradle 設定階段通過
+RUN for p in $(grep -o '"[a-z0-9_:-]*"' settings.gradle.kts | tr -d '"'); do mkdir -p "$(echo "$p" | tr : /)"; done
+# --configure-on-demand：只設定 hub 需要的專案（paper／fabric 不在映像建置 context 內）
+RUN ./gradlew --no-daemon --max-workers=1 --configure-on-demand \
+      -Porg.gradle.java.installations.paths=/opt/jdk21 \
+      :hub:bootJar -x test
+
+# ---- 3. 執行期 ----
+FROM docker.io/library/eclipse-temurin:25-jre@sha256:8da0490fa9a3c26867012019565948eef0ee69438f5c75ac28146967bae984b5
+RUN groupadd --system --gid 10001 worldgit \
+ && useradd --system --uid 10001 --gid 10001 --home-dir /data --shell /usr/sbin/nologin worldgit \
+ && mkdir -p /data && chown worldgit:worldgit /data
+COPY --from=build /src/hub/build/libs/worldgit-hub.jar /app/worldgit-hub.jar
+ENV WORLDGIT_HUB_DATA_DIR=/data \
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+VOLUME /data
+WORKDIR /data
+USER 10001:10001
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /actuator/health/liveness HTTP/1.0\r\n\r\n" >&3 && grep -q "\"UP\"" <&3'
+ENTRYPOINT ["java", "-jar", "/app/worldgit-hub.jar"]

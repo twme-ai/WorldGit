@@ -23,6 +23,8 @@ public final class SnapshotCodec {
   private static byte[] decode(int kind, byte[] blob) throws IOException {
     long size = Zstd.getFrameContentSize(blob);
     if (size < 4 || size > Nbt.MAX_BYTES) throw new IOException("blob zstd 長度無效");
+    DecodeBudget.objects(1);
+    DecodeBudget.decoded(size); // 在配置及解壓縮之前扣除跨物件預算
     byte[] raw = new byte[(int) size];
     long n = Zstd.decompress(raw, blob);
     if (Zstd.isError(n) || n != size) throw new IOException("blob zstd 解碼失敗");
@@ -71,8 +73,10 @@ public final class SnapshotCodec {
 
   public static Section section(byte[] blob) throws IOException {
     var in = new DataInputStream(new ByteArrayInputStream(decode(1, blob)));
+    DecodeBudget.work(4096);
     int count = in.readUnsignedShort();
     if (count < 1 || count > 4096) throw new IOException("section palette 大小無效");
+    DecodeBudget.decoded((long) count * 128 + 4096 * 8L); // 調色盤物件及展開後 block 引用
     var palette = new ArrayList<BlockState>();
     for (int i = 0; i < count; i++) {
       String name = in.readUTF();
@@ -87,6 +91,7 @@ public final class SnapshotCodec {
     }
     int bits = in.readUnsignedByte();
     if (bits != ChunkNormalizer.ceilLog2(count)) throw new IOException("section bits 無效");
+    DecodeBudget.work(4096L * Math.max(1, bits));
     byte[] packed = in.readNBytes((4096 * bits + 7) / 8);
     if (packed.length != (4096 * bits + 7) / 8) throw new EOFException();
     var blocks = new ArrayList<BlockState>();

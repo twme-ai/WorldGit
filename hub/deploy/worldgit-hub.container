@@ -1,0 +1,30 @@
+# Podman Quadlet（systemd 整合）。安裝：
+#   rootless：  cp worldgit-hub.container worldgit-hub.volume ~/.config/containers/systemd/
+#               systemctl --user daemon-reload && systemctl --user start worldgit-hub
+#   root：      放到 /etc/containers/systemd/，使用 systemctl（不加 --user）
+# 先建置映像：podman build -f hub/Containerfile -t localhost/worldgit-hub:latest .
+# 管理員密碼：podman secret create worldgit-admin-password -   （stdin 輸入）
+[Unit]
+Description=WorldGit Hub
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=localhost/worldgit-hub:latest
+ContainerName=worldgit-hub
+PublishPort=127.0.0.1:8091:8080
+Volume=worldgit-hub.volume:/data:Z
+Secret=worldgit-admin-password,type=mount,target=admin-password,uid=10001,mode=0400
+Environment=WORLDGIT_HUB_BOOTSTRAP_ADMIN_PASSWORD_FILE=/run/secrets/admin-password
+# 具名 volume 由 Podman 建立，首次掛載時依映像內 /data 的擁有者（uid 10001）設定權限，rootless 亦同。
+HealthCmd=bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /actuator/health/liveness HTTP/1.0\r\n\r\n" >&3 && grep -q UP <&3'
+HealthStartPeriod=60s
+HealthInterval=30s
+AutoUpdate=local
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

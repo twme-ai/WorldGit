@@ -1,0 +1,202 @@
+# WorldGit messages (MiniMessage format). Placeholders are MiniMessage tags such as <count>.
+# Keys: common.* are shared; paper.* / fabric.* belong to each platform.
+# Diff colors follow docs/06 §1.1; use the <wg_added>, <wg_removed>, <wg_modified>, <wg_conflict> tags
+# so that the colorblind palette applies everywhere.
+common:
+  prefix: "<gray>[<white>WorldGit</white>]</gray> "
+  no-permission: "<red>You do not have permission to do that.</red>"
+  error: "<red>Error: <message></red>"
+
+paper:
+  help:
+    title: "WorldGit - version control for Minecraft worlds"
+    init: "  /wg init [--template creative|survival]  create repository and initial snapshot"
+    status: "  /wg status [--show] [--full]  show changes since the last commit"
+    commit: "  /wg commit -m <message>  create a snapshot (no changes means no commit)"
+    log: "  /wg log [count]  commit history"
+    diff: "  /wg diff [--show] [--radius <chunks>]  block-level changes near you"
+    clear: "  /wg clear  clear the client preview"
+    reload: "  /wg reload  reload language overrides"
+  error:
+    permission: "<red>You do not have permission to use /wg <sub> (worldgit.command.<sub>).</red>"
+    debug-permission: "<red>You do not have permission (worldgit.debug).</red>"
+    unknown-command: "<red>Unknown subcommand: <sub></red>"
+    help-command: "Use /wg help for usage."
+    internal: "<red>Internal error: <message></red>"
+    unknown-option: "<red>Unknown option: <option></red>"
+    init-template: "<red>--template must be creative or survival.</red>"
+    commit-usage: "<red>Usage: /wg commit -m <message></red>"
+    commit-empty: "<red>The commit message must not be empty.</red>"
+    log-limit: "<red>Count must be between 1 and 100.</red>"
+    diff-player: "<red>/wg diff is centered on your position and can only be used by a player.</red>"
+    diff-radius: "<red>--radius must be between 1 and 32.</red>"
+    diff-not-tracked: "<red>This world is not tracked by WorldGit.</red>"
+    not-initialized: "<red>This dimension has not been initialized.</red>"
+    player-only: "<red>Only players have a client preview.</red>"
+  init:
+    start: "Starting init (template <template>); large worlds take time."
+    done: "Initialization complete."
+  status:
+    title: "Changes since the last commit<suffix>"
+    full-suffix: " (full comparison)"
+    dimension: "<aqua><dimension></aqua>"
+    section-count: "  sections <count>"
+    entity-count: "  entities <count>"
+    biome-count: "  biomes <count>"
+    clean: "  No changes (checked <candidates> candidates)."
+    section-label: "[<region> <chunk> y<y>]"
+    section-hover: "x <x0>..<x1>  y <y0>..<y1>  z <z0>..<z1>"
+    more: "  ... <count> more sections"
+    warning: "  ! <text>"
+    authors: "Authors (chunks): <names>"
+    show-no-mod: "Your client does not have the WorldGit mod, so outlines cannot be shown. The chat list above has clickable coordinates."
+    show-no-data: "No displayable data in your current dimension."
+    show-empty: "No changes; preview cleared."
+    show-sent: "Sent <count> section outline(s) (<packets> packets)."
+  commit:
+    start: "Creating snapshot..."
+    dimension-failed: "<red>  <dimension> failed: <message></red>"
+    dimension-changed: "<green>  <dimension></green> <yellow><commit></yellow>"
+    below-threshold: "<gray>  <dimension> has <count> changed section(s), below the automatic commit threshold.</gray>"
+    unchanged: "<gray>  <dimension> has no changes; no commit was created.</gray>"
+    summary: "Snapshot: <items>"
+    summary-auto: "Automatic snapshot: <items>"
+  log:
+    title: "Recent <count> snapshot(s)"
+    row: "<gray><time></gray> <message> <aqua><author></aqua>"
+    auto: " <gray>[auto]</gray>"
+    hover: "committer: <committer>\nsource: <source>\nsnapshot: <snapshot>"
+    dimension-failed: "<red><dimension>: <message></red>"
+    empty: "No commits yet."
+  diff:
+    title: "<dimension> block changes within <radius> chunk(s)"
+    symbol:
+      added: "<wg_added><symbol><count></wg_added>"
+      removed: "<wg_removed><symbol><count></wg_removed>"
+      modified: "<wg_modified><symbol><count></wg_modified>"
+      conflict: "<wg_conflict><symbol><count></wg_conflict>"
+    block-label:
+      added: "<wg_added><symbol> <x>,<y>,<z></wg_added>"
+      removed: "<wg_removed><symbol> <x>,<y>,<z></wg_removed>"
+      modified: "<wg_modified><symbol> <x>,<y>,<z></wg_modified>"
+      conflict: "<wg_conflict><symbol> <x>,<y>,<z></wg_conflict>"
+    block-hover: "<before> -> <after>"
+    click-to-teleport: "<dark_gray>Click to suggest a teleport command</dark_gray>"
+    no-mod: "Your client does not have the WorldGit mod, so ghosts cannot be shown. The list above has clickable coordinates."
+    empty: "No block changes; preview cleared."
+    too-large: "Changes exceed <count> blocks; sent region outlines (<packets> packets)."
+    sent: "Sent <count> block ghost(s) (<packets> packets, protocol v<version>)."
+    send-failed: "<red>Could not send preview: <message></red>"
+    more: "  ... <count> more blocks"
+  clear:
+    done: "Preview cleared."
+  reload:
+    done: "<green>Language overrides reloaded.</green>"
+
+# ---- Fabric mod (fabric.*) ----
+fabric:
+  help:
+    title: "<aqua>WorldGit</aqua> - version control for Minecraft worlds"
+    init: '  <white>/wg init</white> <gray>[--template creative|survival] [--track all|modified-only]</gray>'
+    status: '  <white>/wg status</white> <gray>[--full] [--blocks] [--show]</gray>'
+    commit: '  <white>/wg commit -m</white> <gray>\<message></gray>'
+    log: '  <white>/wg log</white> <gray>[n]</gray>'
+    diff: '  <white>/wg diff</white> <gray>[\<revision> [\<revision>]] [--blocks] [--show]</gray>'
+    clear: '  <white>/wg clear</white> <gray>- remove outlines and ghosts from your client</gray>'
+    info: '  <white>/wg info</white> <gray>- paths and client handshake state</gray>'
+    reload: '  <white>/wg reload</white> <gray>- reload language overrides</gray>'
+  status:
+    clean: "No uncommitted changes."
+    dirty: "Uncommitted changes (compared with HEAD):"
+    dimension: "<aqua><dimension></aqua>  <chunks> chunks, <sections> sections  <wg_added>+<added></wg_added> <wg_removed>-<removed></wg_removed> <wg_modified>~<modified></wg_modified> <wg_conflict>!<conflict></wg_conflict>"
+    extra: "<gray>  entities <entities>, biomes <biomes>, metadata <metadata></gray>"
+    section: "<gray>  c.<x>.<z> s.<y></gray>  <wg_added>+<added></wg_added> <wg_removed>-<removed></wg_removed> <wg_modified>~<modified></wg_modified> <wg_conflict>!<conflict></wg_conflict>"
+    more: "<gray>  ... <count> more sections</gray>"
+    dimension-failed: "<red><dimension> failed: <message></red>"
+  warning: "<gray>Note: <text></gray>"
+  diff:
+    block:
+      added: "<wg_added>    + (<x>,<y>,<z>) <before> -> <after></wg_added>"
+      removed: "<wg_removed>    - (<x>,<y>,<z>) <before> -> <after></wg_removed>"
+      modified: "<wg_modified>    ~ (<x>,<y>,<z>) <before> -> <after></wg_modified>"
+      conflict: "<wg_conflict>    ! (<x>,<y>,<z>) <before> -> <after></wg_conflict>"
+    block-more: "<gray>    ...</gray>"
+    entity:
+      added: "<wg_added>  + entity <type> <uuid></wg_added>"
+      removed: "<wg_removed>  - entity <type> <uuid></wg_removed>"
+      modified: "<wg_modified>  ~ entity <type> <uuid></wg_modified>"
+      conflict: "<wg_conflict>  ! entity <type> <uuid></wg_conflict>"
+    range-head: "HEAD -> current world"
+    range-one: "<from> -> current world"
+    range-two: "<from> -> <to>"
+    too-large: "<gray>Note: <dimension> has more than 2000 changed blocks, so they are not listed (use --show for outlines).</gray>"
+  init:
+    progress: "Initializing (saving the world and creating the first full snapshot; large worlds take a while)..."
+  commit:
+    done-init: "<green>Initialization complete: <count> dimension(s), snapshot <snapshot>.</green>"
+    done: "<green>Committed: <count> dimension(s), snapshot <snapshot>.</green>"
+    nothing: "No changes, so no commit was created."
+    incomplete: "<red>Incomplete: <ok> dimension(s) succeeded, <failed> failed.</red>"
+    dim:
+      changed: "<green>  <dimension></green> <gray><commit></gray>  <wg_added>+<added></wg_added> <wg_removed>-<removed></wg_removed> <wg_modified>~<modified></wg_modified> <wg_conflict>!<conflict></wg_conflict>"
+      unchanged: "<gray>  <dimension> no changes</gray>"
+      skipped: "<gray>  <dimension> is already initialized, skipped</gray>"
+      failed: "<red>  <dimension> failed: <message></red>"
+  log:
+    empty: "No commits yet."
+    header: "History (newest first):"
+    row: "<aqua><snapshot></aqua> <message> <gray><author>  <time></gray>"
+    row-auto: "<aqua><snapshot></aqua> <message> <gray>[auto]  <author>  <time></gray>"
+    dimensions: "<gray>    <dimensions></gray>"
+  preview:
+    empty: "No changes, nothing to show."
+    ghost: "<green>Preview sent: <cells> block(s) as outlines and ghosts (/wg clear removes them).</green>"
+    outline: "<green>Preview sent: <count> region outline(s) (/wg clear removes them).</green>"
+    cleared: "<green>Preview cleared.</green>"
+    no-mod: "<red>Your client does not have the WorldGit mod, or the handshake has not finished, so outlines and ghosts cannot be shown. Handshake state: <state> <reason></red>"
+    player-only: "<red>--show can only be used by a player.</red>"
+  info:
+    title: "WorldGit info (Minecraft <version>)"
+    world: "<gray>  World: <path></gray>"
+    repo: "<gray>  Repository: <path></gray>"
+    handshake: "<gray>  Your client handshake: <state> <reason></gray>"
+    tracked: "<gray>  Tracked dimensions: <dimensions></gray>"
+    untracked: "<gray>  Tracked dimensions: (not initialized)</gray>"
+  reload:
+    done: "<green>Language overrides reloaded.</green>"
+  error:
+    unknown-option: "<red>Unknown option: <option></red>"
+    option-needs-value: "<red>The option <option> needs a value.</red>"
+    option-no-value: "<red>The option <option> does not take a value.</red>"
+    template: "<red>--template must be creative or survival, and --track must be all or modified-only.</red>"
+    empty-message: "<red>The commit message must not be empty.</red>"
+    diff-args: "<red>diff takes at most two revisions: /wg diff [a [b]]</red>"
+    not-initialized: "<red>This world is not initialized. Run /wg init first.</red>"
+    not-started: "<red>WorldGit is not running.</red>"
+    invalid-dimension: "<red><message></red>"
+  commit-message:
+    init: "Initialize world"
+    auto-interval: "Auto-save (scheduled)"
+    auto-logout: "Auto-save on logout: <player>"
+    auto-stop: "Auto-save on server stop"
+  client:
+    value:
+      'on': "on"
+      'off': "off"
+      connected: "connected"
+      waiting: "waiting"
+      palette-auto: "automatic"
+      palette-default: "default"
+      palette-colorblind: "colorblind"
+    palette: "<green>Diff palette set to <palette>.</green>"
+    palette-invalid: "<red>Palette must be auto, default or colorblind.</red>"
+    see-through: "<green>See-through rendering: <state>.</green>"
+    reloaded: "<green>Client settings reloaded.</green>"
+    reload-failed: "<red>Could not reload client settings: <message></red>"
+    cleared: "<green>Preview cleared.</green>"
+    status:
+      title: "WorldGit client"
+      connection: "<gray>  Server handshake: <state></gray>"
+      preview: "<gray>  Preview in <dimension>: <sections> region(s), <cells> block(s), <detail> in detail</gray>"
+      no-preview: "<gray>  No preview is being shown.</gray>"
+      settings: "<gray>  Palette: <palette>, see-through: <seethrough></gray>"
