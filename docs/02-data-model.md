@@ -17,25 +17,35 @@
 ## 2. 物件階層
 
 ```
-commit
+commit                               # 屬於某一個維度的 repo（§2.1）
  ├─ parents: [..]                    # merge commit 有兩個
- ├─ meta: author(s), message, time, mcDataVersion, source(plugin/mod/cli), auto?
+ ├─ meta: author(s), message, time, mcDataVersion, dimension, source(plugin/mod/cli), auto?
  └─ root tree
-     ├─ dimension "minecraft:overworld"
-     │   ├─ region r.0.0            # tree：最多 1024 個 chunk
-     │   │   ├─ chunk c.3.7         # tree
-     │   │   │   ├─ s.-4 … s.19     # blob：section（方塊 + 該 section 內的 block entity）
-     │   │   │   ├─ biomes          # blob：整個 chunk 的 biome（很少變，獨立出來避免假 diff）
-     │   │   │   ├─ entities        # blob：該 chunk 內被追蹤的實體（依 UUID 排序）
-     │   │   │   ├─ ticks           # blob：排程中的 block/fluid tick（可選，紅石/水流才需要）
-     │   │   │   └─ structures      # blob：chunk 的結構資料（村莊、要塞…），空則不存（Phase 0 補上，否則還原出的 chunk 會遺失結構資訊）
-     │   │   └─ …
+     ├─ .wgignore                    # 該維度的排除規則（§5）
+     ├─ region r.0.0                 # tree：最多 1024 個 chunk
+     │   ├─ chunk c.3.7              # tree
+     │   │   ├─ s.-4 … s.19          # blob：section（方塊 + 該 section 內的 block entity）
+     │   │   ├─ biomes               # blob：整個 chunk 的 biome（很少變，獨立出來避免假 diff）
+     │   │   ├─ entities             # blob：該 chunk 內被追蹤的實體（依 UUID 排序）
+     │   │   ├─ ticks                # blob：排程中的 block/fluid tick（可選，紅石/水流才需要）
+     │   │   └─ structures           # blob：chunk 的結構資料（村莊、要塞…），空則不存（Phase 0 補上，否則還原出的 chunk 會遺失結構資訊）
      │   └─ …
-     ├─ dimension "minecraft:the_nether" …
-     └─ world-meta                   # blob：被追蹤的 level.dat 欄位子集（出生點、gamerule…可選）
+     ├─ …
+     ├─ world-meta                   # 只在主世界 repo：被追蹤的 level.dat 欄位子集（出生點、gamerule…）、地圖、記分板
+     └─ dimensions                   # 只在主世界 repo：其他維度 repo 的清單（維度 id → repo 位址）
 ```
 
-只改了一格方塊時，一次 commit 新增的物件：1 個 section blob + chunk tree + region tree + dimension tree + root tree + commit，總計幾 KB（Phase 0 實測約 5–6 KB、9 個物件）。全空氣且無 block entity 的 section 不存（缺檔即空氣）。
+只改了一格方塊時，一次 commit 新增的物件：1 個 section blob + chunk tree + region tree + root tree + commit，總計幾 KB（Phase 0 實測約 5–6 KB、9 個物件；當時還有一層 dimension tree）。
+
+### 2.1 每個維度一個 repo（已決定，2026-10-01）
+
+主世界、地獄、終界，以及資料包加入的自訂維度，**各自是一個獨立的 git repo**（Phase 0 原型是一個 repo 內再分 dimension tree，正式版改掉）。
+
+- **理由**：單一 repo 的大小與 pack 數量變小，比較容易放進一般 git 託管（決定 #17）；只關心主世界的人不必下載地獄與終界；各維度的 `.wgignore`、自動 commit 頻率可以不同。
+- **主世界 repo 是入口**：放 `world-meta` 與 `dimensions` 清單；`clone` 主世界 repo 時，依清單一併 clone 其他維度（可用 `--dimension` 只拿部分維度）。沒有被 clone 的維度在世界裡就是未生成，打開時會正常生成。
+- **跨維度的一致性**：四端預設把所有維度當成一組操作——`commit`、`switch`、`branch`、`push`/`pull` 會對每個維度 repo 做同名的動作；各維度的 commit 在 trailer 記下同一個 `WorldGit-Snapshot` id，`log` 可依此把同一次存檔點顯示成一列。沒有變動的維度不產生 commit。
+- **不保證跨 repo 原子性**：例如 push 主世界成功、地獄失敗。客戶端要能重試，且 Hub 依 snapshot id 顯示「部分推送」。
+- 也可以只對單一維度操作（`--dimension minecraft:the_nether`），此時其他維度不動。全空氣且無 block entity 的 section 不存（缺檔即空氣）。
 
 ## 3. 正規化（決定 diff 準不準的關鍵）
 
@@ -70,7 +80,7 @@ commit
 | **所有生物**，包含自然刷出的怪物 | 追蹤 | 有人用生物做建築（凍結的生物雕像、村民交易所、動物園）。移動帶來的問題見 §8 |
 | 掉落物、經驗球、投射物、掉落中的方塊、點燃的 TNT | 追蹤 | 可用 `.wgignore` 排除（範本裡有現成的註解行） |
 | biome | 追蹤（獨立 blob） | 有些建築師會改 biome |
-| **所有已完全生成的 chunk**（`Status: full`，包含沒被玩家動過的自然地形） | 追蹤 | 從 repo 下載時要能拿到完整、可以直接開的世界，見 §7。生成到一半的邊緣 chunk（玩家看不到）不追蹤：Phase 0 測試世界中 2255 個 chunk 只有 626 個是 full |
+| **所有已完全生成的 chunk**（`Status: full`，包含沒被玩家動過的自然地形） | 追蹤（可設定成只存玩家改過的 chunk，預設關閉，見 §7.1） | 從 repo 下載時要能拿到完整、可以直接開的世界，見 §7。生成到一半的邊緣 chunk（玩家看不到）不追蹤：Phase 0 測試世界中 2255 個 chunk 只有 626 個是 full |
 | 玩家資料（背包、位置、進度） | **不追蹤**（寫死，不能用 `.wgignore` 反向開啟） | 不是世界的一部分；切換分支時沒收玩家的東西會很奇怪 |
 | 地圖（map_*.dat）、記分板、世界邊界、gamerule | 追蹤 | 屬於 `world-meta`，同樣可排除 |
 
@@ -81,9 +91,6 @@ commit
 git 的 `.gitignore` 只能比對路徑，但世界需要依「座標範圍」「實體類型」「NBT 欄位」排除，所以語法是以關鍵字開頭的一行一規則（草案）：
 
 ```gitignore
-# ── 維度 ─────────────────────────────
-dimension minecraft:the_end
-
 # ── 座標範圍（x1 y1 z1 x2 y2 z2）─────
 area 500 -64 500 600 320 600        # 刷怪塔，方塊和實體都不追蹤
 
@@ -105,9 +112,41 @@ field minecraft:villager Gossips
 行為規則：
 - 被忽略的內容在 `commit` 時不存、`status`/`diff` 不顯示，`switch`/`restore` 時**保持活世界裡的現狀不動**（對應 git 的「untracked 檔案不會被 checkout 覆蓋」）。
 - 修改 `.wgignore` 本身也是一個變動，要 commit 才生效。之前已追蹤、之後才被忽略的東西，會在下一次 commit 從快照中移除（等同 `git rm --cached`），並在 `status` 裡提示。
+- 每個維度是獨立 repo（§2.1），所以 `.wgignore` 也是每個維度一份；不想追蹤整個維度，就不要為它建 repo（`init --dimension` 只選要的維度），不再用 `dimension` 規則。
 - Phase 0 實測（`experiments/06-survival-scale/`）：生存模擬中 `entity * !persistent` 讓 commit 大小少 15%、實體增減少 98%；只排除掉落物只少 0.5%。容許距離 0／2／4 格時被判為修改的實體 295／192／174，維持預設 2 格。依決定 #2 預設仍全部追蹤，`entity * !persistent` 放在範本裡當作**建議取消註解的第一行**，並在 `status` 實體雜訊多時提示。
-- `/wg init` 產生的預設 `.wgignore` 只有註解掉的範例行（例如 `# entity minecraft:item`），實際上什麼都不排除，符合「預設全部追蹤」。
+- `/wg init` 會詢問要用哪份範本（§5.1）；沒有指定時用創造模式範本，只有註解掉的範例行，實際上什麼都不排除，符合「預設全部追蹤」。
 - 另外還有一份**不進版本控制**的本機設定 `worldgit.toml`，只放個別伺服器的設定（自動 commit 頻率、Hub 位址、權限），不放追蹤規則。
+
+### 5.1 創造模式與生存模式範本（已決定，2026-10-01）
+
+WorldGit 主要給建築（創造模式）玩家用，但生存伺服器也會用，兩者的雜訊來源差很多，所以 `init` 提供兩份範本（`/wg init --template creative|survival`，CLI 與模組同名參數）。範本只是起點，產生後就是一般的 `.wgignore`，可以自由修改。
+
+**創造模式（`creative`，預設）**：建築世界通常關掉生怪、生物多半是刻意擺放的，維持全部追蹤。
+
+```gitignore
+# WorldGit 創造模式範本：預設追蹤一切（玩家除外）。
+# 有需要時取消註解：
+# entity minecraft:item              # 掉落物
+# entity minecraft:experience_orb    # 經驗球
+# entity #minecraft:arrows           # 箭
+# entity * !persistent               # 自然刷出、會自然消失的生物
+```
+
+**生存模式（`survival`）**：依 Phase 0 量測（`experiments/06-survival-scale/`），自然刷怪佔實體增減的 98%，排除會消失的東西。被命名、馴服、拴住、`PersistenceRequired` 的生物，以及盔甲座、展示框、畫、display entity、船、礦車仍然追蹤。
+
+```gitignore
+# WorldGit 生存模式範本：排除會自然消失、反覆出現的實體。
+entity * !persistent                 # 自然刷出、會自然消失的生物
+entity minecraft:item                # 掉落物
+entity minecraft:experience_orb      # 經驗球
+entity #minecraft:arrows             # 箭（含光靈箭）
+entity minecraft:falling_block       # 掉落中的方塊
+entity minecraft:tnt                 # 點燃的 TNT
+# 熔爐等的燃燒進度本來就忽略；要更安靜可再加：
+# field minecraft:villager Gossips
+```
+
+`!persistent` 的確切判斷（哪些實體算會自然消失）由各版本的 adapter 決定，不只看 NBT 旗標；Phase 0 原型只讀 `PersistenceRequired`。
 
 ## 6. 雜湊
 
@@ -118,11 +157,21 @@ field minecraft:villager Gossips
 
 **決定：所有已生成的 chunk 都進版本控制。** 從 Hub 下載或 `clone` 時拿到的是完整世界，打開就跟原本一模一樣，不需要靠種子重新生成、也不怕 MC 版本改變地形生成。
 
-背景說明（之前的疑問）：玩家跑去探索時，遊戲會生成新的 chunk，雖然沒人在上面蓋東西，它仍然是「世界多出來的內容」。之前的選項是「只追蹤玩家改過的 chunk，自然地形靠種子重建」，這樣 repo 比較小，但下載下來的世界可能不完整或跟原本不同，所以不採用。
+背景說明（之前的疑問）：玩家跑去探索時，遊戲會生成新的 chunk，雖然沒人在上面蓋東西，它仍然是「世界多出來的內容」。之前的選項是「只追蹤玩家改過的 chunk，自然地形靠種子重建」，這樣 repo 比較小，但下載下來的世界可能不完整或跟原本不同，所以不當預設，改成可選設定（§7.1）。
 
 代價與對策：
 - **第一次 `init` 比較大**：要把整個已生成的世界存一次。只算一次，之後都是增量；全空氣、全石頭這類相同的 section 會去重成同一個物件。
 - **「兩邊都探索了同一塊新區域」的合併**：同種子、同 MC 版本下生成出來的 chunk 內容相同，雜湊相同，直接無衝突。如果版本不同導致生成結果不同，而且兩邊都沒有玩家改動紀錄（[04](04-commit-and-status.md) §4 的作者歸屬可以判斷），就自動採用目前分支的版本，並在合併報告中列出，不當成需要人處理的衝突。
+
+### 7.1 選項：只存玩家改過的 chunk（已決定，2026-10-01，預設關閉）
+
+上面的「全部追蹤」是**預設值**。使用者可以在 repo 設定中開啟 `track = modified-only`，此時沒被玩家改過的自然地形不存進 repo。
+
+- **設定放在 repo 裡**（主世界 repo 的 `world-meta`，跟世界一起被版本控制），不放本機的 `worldgit.toml`：clone 的人必須知道哪些 chunk 是故意不存的。
+- **什麼算「改過」**：WorldGit 觀察到的任何一次方塊、block entity、biome 或被追蹤實體的變動（[04](04-commit-and-status.md) 的偵測機制）。開啟前就存在的 chunk，以 `init` 時與種子重新生成結果比對判斷；比對太貴時可選擇保守地全部視為改過。
+- **clone 與切換**：沒存的 chunk 由伺服器依種子重新生成。需要相同的種子、MC 版本、世界生成設定與資料包，這些記錄在 `world-meta`，不一致時 `clone`/`switch` 要警告，因為重新生成的地形可能跟原本不同。
+- **switch/restore**：沒存的 chunk 視同 untracked，不會被覆蓋。
+- 好處是 repo 小很多（大型生存伺服器大多數 chunk 只是探索過）；代價就是上面這些相容性限制，所以預設關閉。
 
 ## 8. 追蹤生物帶來的問題與對策
 

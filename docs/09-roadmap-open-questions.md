@@ -5,7 +5,7 @@
 | # | 議題 | 決定 | 影響文件 |
 |---|---|---|---|
 | 1 | 儲存後端 | **JGit**，core 內保留 `ObjectStore` / `RefStore` 介面，之後視量測結果再評估 | [03](03-storage-backend.md) |
-| 2 | 追蹤範圍 | **除了玩家以外全部預設追蹤**：所有生物（含自然刷出的怪物）、掉落物/經驗球/投射物等暫態實體、所有已生成的 chunk（下載即得完整世界）。生物移動的雜訊以正規化、UUID 全域比對、容許距離處理 | [02](02-data-model.md) §4、§7、§8 |
+| 2 | 追蹤範圍 | **除了玩家以外全部預設追蹤**：所有生物（含自然刷出的怪物）、掉落物/經驗球/投射物等暫態實體、所有已生成的 chunk（下載即得完整世界）。生物移動的雜訊以正規化、UUID 全域比對、容許距離處理。「只存玩家改過的 chunk」為可選設定、預設關閉（#19） | [02](02-data-model.md) §4、§7、§8 |
 | 2a | 排除規則 | **`.wgignore`**：類似 `.gitignore`、放在 repo 內被版本控制；可依維度、座標範圍、實體類型、NBT 欄位排除，支援 `!` 加回 | [02](02-data-model.md) §5 |
 | 3 | 平台優先順序 | **插件、模組、CLI、網頁四端同等優先**；主要使用者是多人伺服器；Fabric 模組除了單人世界，也要作為 Paper 伺服器玩家的客戶端顯示端 | [08](08-architecture.md) §2、§6 |
 | 4 | 支援範圍 | 長期越廣越好；**首發 Paper 與 Fabric 的 1.21.11 與 26.2** | [08](08-architecture.md) §5 |
@@ -19,6 +19,11 @@
 | 12 | 網頁前端參考 | 參考 BlueMap 等既有地圖/渲染專案，採「伺服器預先渲染 tile + 瀏覽器即時網格」混合架構；**依 Phase 0 實驗結果：遠景嵌入 BlueMap core，近景 / diff 用 deepslate 的模型層加自寫網格生成與繪製** | [10](10-web-frontend.md) §9 |
 | 14 | Hub 的 Java 版本 | **Hub 用 Java 25**（BlueMap 5.x 需要）；core、插件、模組、CLI 維持 Java 21 相容 | [08](08-architecture.md) §3、`experiments/01-bluemap/REPORT.md` |
 | 15 | diff 顯示色 | 四端共用一套色票：**新增綠、移除紅、修改黃、衝突紫**，並搭配不同呈現方式（實心外框 / 鬼影 / 虛線 / 閃爍）讓色盲也分得出；可換色盲色票或自訂（使用者建議，2026-09-30） | [06](06-diff-merge.md) §1.1、[10](10-web-frontend.md) |
+| 16 | `.wgignore` 範本 | `init` 時可選**創造模式**與**生存模式**兩份範本：創造範本維持全部追蹤（只附註解範例）；生存範本預設排除自然刷出、會消失的生物與掉落物／經驗球／投射物（使用者決定，2026-10-01） | [02](02-data-model.md) §5.1 |
+| 17 | 大世界託管 | 所有 pack **一律切成 < 100 MB**；小世界可直接放 GitHub 等一般 git 託管，大世界放自架服務（自架 WorldGit Hub、Gitea…）（使用者決定，2026-10-01，結束待討論 A） | [03](03-storage-backend.md)、[07](07-remote-hub.md) §2 |
+| 18 | 每個維度一個 repo | 主世界、地獄、終界與自訂維度**各自是獨立的 repo**；世界層級資料（`world-meta`）放在主世界 repo，主世界 repo 記錄其他維度 repo 的清單（使用者決定，2026-10-01） | [02](02-data-model.md) §2.1、[08](08-architecture.md) §4 |
+| 19 | 只存玩家改過的 chunk | 做成**可設定的選項，預設關閉**：預設仍儲存所有變動（含自然生成的 chunk）；開啟後未被改過的自然地形不存，clone／切換時依種子重新生成（使用者決定，2026-10-01，補充 #2） | [02](02-data-model.md) §7.1 |
+| 20 | Hub 打包 | Hub 提供 **OCI 容器映像**，Docker 與 Podman（含 rootless）都要能直接部署；附 compose 檔。Cloudflare 等雲端平台暫不考慮（使用者決定，2026-10-01） | [07](07-remote-hub.md) §4.1 |
 | 13 | 實作方式 | 程式碼由 **Codex（gpt-6.1-sol，透過 Codex 插件）**撰寫，包含需要網路與 Minecraft 伺服器的驗證（已開啟 Codex 寫入沙盒的網路存取）。先前的 Phase 0 實驗由 Sonnet 5.5 子代理執行。Codex 撞到用量限制時由 Sonnet 5.5 子代理接手（2026-10-01） | [CLAUDE.md](../CLAUDE.md) |
 
 ## 路線圖（四端並行）
@@ -44,9 +49,9 @@
 
 ## 待討論的決策
 
-| # | 議題 | 背景 | 選項 |
-|---|---|---|---|
-| A | 大世界放在 GitHub 等一般 git 託管的方式 | 2 萬 chunk 的世界 gc 後是一個 110 MB 的 pack，超過 GitHub 單檔 100 MB 限制；GitHub 也建議 repo 小於數 GB，100 萬 chunk 約 5.4 GB（`experiments/06-survival-scale/`） | ① 設 `pack.packSizeLimit` 切成多個 < 100 MB 的 pack（最簡單，但 GitHub 對大 repo 仍有限制）② 主要託管在 WorldGit Hub／Gitea 等自架服務，GitHub 只當小世界或備份 ③ 依維度／區域拆成多個 repo（submodule 式）④ 只存玩家改過的 chunk，自然地形靠種子重建（與決定 #7「已生成都追蹤」衝突） |
+目前沒有。
+
+（A「大世界放在 GitHub 等一般 git 託管的方式」已於 2026-10-01 決定：① 切 pack、② 大世界自架、③ 改為「每個維度一個 repo」、④ 改為可設定且預設關閉，見決定 #17–#19。）
 
 ## Phase 0 要驗證的技術風險
 
@@ -58,7 +63,7 @@
 - [x] POI 資料丟棄後是否會被正確重建（見 `experiments/02-core-proto/REPORT.md`）：寫回時必須刪除 POI 檔中的對應紀錄才會重建
 - [x] 在 Paper 上替換已載入 chunk 的 section 後，客戶端更新與實體同步的正確做法（兩個版本）（見 `experiments/03-paper-poc/REPORT.md`）：四平台成功；section 內實體與客戶端光照尚未驗證
 - [x] 1.21.11 與 26.2 的存檔目錄結構與 chunk/實體 NBT 差異（見 `experiments/00-env/REPORT.md`）
-- [~] 大世界的 init 耗時與 repo 大小；在 GitHub/Gitea 上 push/clone 的實際表現（本機 smart HTTP 已測；Gitea、真實網路、GitHub 未測，見待討論 A）
+- [~] 大世界的 init 耗時與 repo 大小；在 GitHub/Gitea 上 push/clone 的實際表現（本機 smart HTTP 已測；Gitea、真實網路、GitHub 未測；託管方式見決定 #17）
 - [x] chunk unsaved 旗標 + region 時間戳能否抓到所有變動（含 FAWE），以及誤報量（見 `experiments/03-paper-poc/REPORT.md`）：方塊/BE 成立，需讀原始欄位、處理同秒碰撞；實體沒有旗標，另行處理
 - [x] FAWE 的 `EditSessionEvent` 在各種模式下是否都能看到逐格變動（見 `experiments/03-paper-poc/REPORT.md`）：bulk 模式看不到逐格，只有 Region 與每 chunk 寫入數；需設 `extent.allowed-plugins`；`//regen`、筆刷未測
 - [x] **前端實驗 A**（見 `experiments/04-deepslate/REPORT.md`）：用 deepslate 渲染 WorldGit 正規化後的一個 section（含多種非完整方塊），評估正確性、效能與介接成本

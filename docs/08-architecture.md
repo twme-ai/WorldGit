@@ -70,9 +70,14 @@ core 只認識 `LiveWorld`，所以同一套 commit/switch/merge 邏輯在插件
 ├─ world/                   ← working tree（MC 自己管）
 ├─ world_nether/ …
 └─ .worldgit/
-    └─ world/               ← git 物件庫（bare repo）+ index（chunk 時間戳/雜湊快取）+ worldgit.toml（本機設定）
-                              # .wgignore 在 repo 的 tree 裡，跟世界內容一起被版本控制
+    └─ world/
+        ├─ worldgit.toml        ← 本機設定（不進版本控制）
+        ├─ minecraft.overworld/ ← 每個維度一個 bare repo + index（chunk 時間戳/雜湊快取）
+        ├─ minecraft.the_nether/
+        └─ minecraft.the_end/   # .wgignore 在各 repo 的 tree 裡，跟世界內容一起被版本控制
 ```
+
+每個維度是獨立 repo（已決定，2026-10-01，見 [02](02-data-model.md) §2.1）。core 需要一層「世界 = 一組維度 repo」的管理：對每個 repo 做同名操作、寫入共用的 `WorldGit-Snapshot` trailer、處理部分失敗。
 
 放在世界資料夾外面：MC 不會碰到、傳統的世界備份不會把歷史也打包進去、刪世界不會連歷史一起刪。
 

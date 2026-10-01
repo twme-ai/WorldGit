@@ -16,8 +16,8 @@
 
 - 若採用 JGit 後端（見 [03](03-storage-backend.md)）：直接使用 git 的 smart HTTP / SSH 協定，Hub 可以先用現成的 git 伺服器（Gitea、GitHub）當儲存，自己只做「看世界」的層。
 - push/pull 只傳對方沒有的 section，通常一次幾百 KB～數 MB。
-- Phase 0 實測（`experiments/06-survival-scale/`）：2 萬 chunk 世界首次 push／clone 約 110 MB、數秒（本機）；之後增量約 1–2 MB。`--depth 1` 不省流量。**單一 pack 會超過 GitHub 100 MB 單檔限制**，要分 pack 或改用自架／Hub 儲存（見 [09](09-roadmap-open-questions.md) 待討論）。
-- **部分 clone**：大伺服器（數十 GB）只想拉某區域 → 路徑本身就帶座標（`overworld/r.x.z/...`），可用 git 的 sparse-checkout / partial clone 以 region 為單位篩選。
+- Phase 0 實測（`experiments/06-survival-scale/`）：2 萬 chunk 世界首次 push／clone 約 110 MB、數秒（本機）；之後增量約 1–2 MB。`--depth 1` 不省流量。**單一 pack 會超過 GitHub 100 MB 單檔限制**。已決定（[09](09-roadmap-open-questions.md) #17）：pack 一律切成 < 100 MB；小世界可放 GitHub，大世界放自架服務；每個維度是獨立 repo（#18），各自 push/pull。
+- **部分 clone**：大伺服器（數十 GB）只想拉某區域 → 先依維度選 repo，repo 內路徑本身就帶座標（`r.x.z/c.x.z/...`），可用 git 的 sparse-checkout / partial clone 以 region 為單位篩選。
 
 ## 3. Hub（類 GitHub 網頁端）功能
 
@@ -38,10 +38,21 @@
 | | 自架版 | 公開服務 |
 |---|---|---|
 | 對象 | 想把資料留在自己手上的伺服器、團隊 | 單人玩家、小團隊、不想架設的人 |
-| 形式 | 單一 Docker image（或 jar），內建資料庫預設用 SQLite、repo 存本機磁碟 | 同一個 image，改用 PostgreSQL + 物件儲存（S3 相容），可水平擴充 |
+| 形式 | 單一容器映像（Docker／Podman 皆可，見 §4.1；或直接跑 jar），內建資料庫預設用 SQLite、repo 存本機磁碟 | 同一個 image，改用 PostgreSQL + 物件儲存（S3 相容），可水平擴充 |
 | 帳號 | 本機帳號，可選 OAuth | OAuth 登入（GitHub、Discord、Microsoft 帳號…） |
 | 額外需求 | — | 容量配額、速率限制、濫用檢舉、公開/私人 repo、帳單（若有） |
 | Minecraft 端設定 | `/wg remote add origin https://hub.example.com/team/world` | 同樣語法，指向公開服務網址 |
+
+### 4.1 容器打包（已決定，2026-10-01）
+
+Hub 以 **OCI 容器映像**發佈，**Docker 與 Podman 都要能直接部署**（[09](09-roadmap-open-questions.md) #20）：
+
+- 一個映像同時涵蓋自架版與公開服務，差別只在環境變數／設定檔（資料庫、物件儲存、OAuth）。
+- 以非 root 使用者執行、不依賴 Docker 專屬功能，確保 **rootless Podman** 可用；資料目錄（repo、SQLite、BlueMap tile 快取）集中在一個 volume（例如 `/data`），在 SELinux 主機上用 `:Z` 掛載。
+- 提供 `compose.yaml`（`docker compose` 與 `podman compose` 共用）：預設只有 Hub 一個服務；公開服務的範例再加上 PostgreSQL 與 S3 相容儲存（例如 MinIO）。
+- 另外提供 Podman 的 Quadlet（systemd）範例，方便不用 compose 的 Linux 主機開機自動啟動。
+- 映像支援 amd64 與 arm64；健康檢查用 Spring Boot actuator 的 health endpoint。
+- CI 對映像做冒煙測試：分別用 Docker 與 rootless Podman 啟動，跑一次 push → 網頁讀取。
 
 設計上的影響：
 - 儲存層與帳號層都要做成可替換的介面（本機/S3、SQLite/PostgreSQL、本機帳號/OAuth）。

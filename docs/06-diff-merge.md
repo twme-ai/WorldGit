@@ -2,7 +2,7 @@
 
 ## 1. diff
 
-兩個 tree 的比較是分層短路的：root 雜湊相同 → 沒差；否則往下比 dimension → region → chunk → section，只有雜湊不同的 section 才解開比較方塊。所以就算世界很大，diff 的成本只跟「變動量」有關。
+兩個 tree 的比較是分層短路的：root 雜湊相同 → 沒差；否則往下比 region（每個維度是獨立 repo，見 [02](02-data-model.md) §2.1）→ region → chunk → section，只有雜湊不同的 section 才解開比較方塊。所以就算世界很大，diff 的成本只跟「變動量」有關。
 
 方塊級 diff 的結果：
 

@@ -61,6 +61,10 @@ overworld/r.0.0/c.3.7/entities.bin
 | `clone --depth 1` | **不省流量**（112 MB），因為最新 commit 的樹就是整個世界 |
 
 發現與待辦：
-- **單一 pack 已超過 GitHub 的 100 MB 單檔限制**（2 萬 chunk 就碰到）。見 [09](09-roadmap-open-questions.md)「待討論的決策」。
+- **單一 pack 已超過 GitHub 的 100 MB 單檔限制**（2 萬 chunk 就碰到）。已決定（[09](09-roadmap-open-questions.md) #17）：
+  - 所有 repo 一律設定 `pack.packSizeLimit`（預設 95 MB，留安全邊際），`init`、gc 與 push 時產生的 pack 都不超過這個大小；
+  - 小世界可直接放 GitHub 等一般 git 託管，大世界放自架服務（WorldGit Hub、Gitea…）；
+  - 每個維度是獨立 repo（[02](02-data-model.md) §2.1），單一 repo 也因此變小。
+  - 注意：push 時 git 是把要傳的物件組成一個傳輸用的 pack 送出，伺服器端也可能有單次請求大小限制；首次 push 大世界時要能分批推送（依 region 範圍分成多個 commit 或多次 push），由 Phase 1 實作與驗證。
 - 原型問題：JGit gc 留下重複 pack；串流版會產生 dangling tree；init 尚未平行化讀 region、也沒 profile 過瓶頸。
 - 尚未測：Gitea、partial／sparse clone、真實網路。

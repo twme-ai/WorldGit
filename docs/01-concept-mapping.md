@@ -9,12 +9,12 @@
 | repository | 一個被追蹤的世界（或世界中的一塊區域）及其全部歷史 | 歷史存在世界資料夾**外面**（例如 `<server>/.worldgit/<world>/`），避免 MC 自己的存檔／備份工具碰到它。 |
 | working tree | **正在被遊玩的那個世界**（活的世界） | 玩家在裡面放方塊就等於在改 working tree。 |
 | blob | 一個 chunk section（16×16×16）的正規化內容；一個 chunk 的實體列表（含所有生物，不含玩家） | 詳見 [02](02-data-model.md)。 |
-| tree | 維度 → region(32×32 chunk) → chunk → section 的階層 | 沒變的子樹直接共用雜湊，所以 commit 很便宜。 |
+| tree | region(32×32 chunk) → chunk → section 的階層（每個維度是獨立 repo） | 沒變的子樹直接共用雜湊，所以 commit 很便宜。 |
 | commit | **存檔點**：某一刻整個被追蹤範圍的快照 + 作者 + 訊息 + MC 版本 | 作者可以是多位（這段時間內改過方塊的玩家）。 |
 | HEAD | 活的世界目前「站在」哪個 commit / 分支上 | 顯示在 scoreboard / bossbar / `/wg status`。 |
 | branch | 一條平行時空 | 例如 `main`、`castle-v2`、`alice/redstone-test`。 |
 | index / staging area | 大多情況**省略**：commit 時直接收整個世界的變動 | 進階用法：`/wg add <選取範圍>` 只把某區域的變動放進下一個 commit（「我只想存城堡，不想存旁邊的實驗」）。 |
-| .gitignore | **`.wgignore`**：放在 repo 根目錄、被版本控制的排除規則 | 可依維度、座標範圍、實體類型、NBT 欄位排除，支援 `!` 加回。預設什麼都不排除。詳見 [02](02-data-model.md) §5。 |
+| .gitignore | **`.wgignore`**：放在 repo 根目錄、被版本控制的排除規則 | 可依座標範圍、實體類型、NBT 欄位排除，支援 `!` 加回。預設什麼都不排除。詳見 [02](02-data-model.md) §5。 |
 | remote | Hub 上的同名 repo 或另一台伺服器 | |
 | conflict | 兩個分支自共同祖先以來**都改了同一格方塊（或同一個實體）且結果不同** | 以「衝突區域」呈現，而非一格一格。 |
 
