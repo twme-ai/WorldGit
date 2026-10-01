@@ -47,7 +47,7 @@ commit
 | block state 屬性順序 | 屬性依鍵名排序 |
 | NBT compound 鍵順序 | 依鍵名排序後序列化 |
 | Paper 加的欄位（chunk/section 的 `starlight.*`；實體的 `Paper.*`、`Bukkit.*`、`Spigot.*`、`WorldUUID*`） | 丟棄（Phase 0 發現） |
-| 實體 `attributes` 列表順序（每次存檔可能不同） | 依 `id` 排序（Phase 0 發現） |
+| 實體 `attributes` 列表順序（每次存檔可能不同） | 依 `id` 排序；沒有 modifier 的 `movement_speed` 由伺服器惰性補上，比較時略過（Phase 0 發現） |
 | 光照（BlockLight/SkyLight）、Heightmaps、`isLightOn` | **丟棄**，寫回時讓伺服器重算（Phase 0 已驗證：寫回時移除光照、`starlight.*`、Heightmaps，Paper 兩版載入後重算的光照與原本逐 nibble 相同） |
 | `LastUpdate`、`InhabitedTime`、`Status`、`PostProcessing`、`xPos/yPos/zPos` | 丟棄（寫回時固定為 full / 保留目標世界原值）；`DataVersion` 記在 world-meta |
 | 排程 tick（`block_ticks`/`fluid_ticks`） | 依 (y,z,x,id,p,t) 排序；`t` 易變，待定是否量化 |

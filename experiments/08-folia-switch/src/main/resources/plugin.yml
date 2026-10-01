@@ -1,0 +1,10 @@
+name: WorldGitPoc
+version: 0.1
+main: wg.poc.PocPlugin
+api-version: "1.21"
+folia-supported: true
+softdepend: [packetevents, FastAsyncWorldEdit, WorldEdit]
+commands:
+  wgpoc:
+    description: WorldGit PoC test driver
+    usage: /wgpoc <sub> [args]
