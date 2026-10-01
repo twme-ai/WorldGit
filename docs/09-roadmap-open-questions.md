@@ -19,7 +19,7 @@
 | 12 | 網頁前端參考 | 參考 BlueMap 等既有地圖/渲染專案，採「伺服器預先渲染 tile + 瀏覽器即時網格」混合架構；**依 Phase 0 實驗結果：遠景嵌入 BlueMap core，近景 / diff 用 deepslate 的模型層加自寫網格生成與繪製** | [10](10-web-frontend.md) §9 |
 | 14 | Hub 的 Java 版本 | **Hub 用 Java 25**（BlueMap 5.x 需要）；core、插件、模組、CLI 維持 Java 21 相容 | [08](08-architecture.md) §3、`experiments/01-bluemap/REPORT.md` |
 | 15 | diff 顯示色 | 四端共用一套色票：**新增綠、移除紅、修改黃、衝突紫**，並搭配不同呈現方式（實心外框 / 鬼影 / 虛線 / 閃爍）讓色盲也分得出；可換色盲色票或自訂（使用者建議，2026-09-30） | [06](06-diff-merge.md) §1.1、[10](10-web-frontend.md) |
-| 13 | 實作方式 | 程式碼由 **Codex（gpt-6.1-sol，透過 Codex 插件）**撰寫，包含需要網路與 Minecraft 伺服器的驗證（已開啟 Codex 寫入沙盒的網路存取）。先前的 Phase 0 實驗由 Sonnet 5.5 子代理執行 | [CLAUDE.md](../CLAUDE.md) |
+| 13 | 實作方式 | 程式碼由 **Codex（gpt-6.1-sol，透過 Codex 插件）**撰寫，包含需要網路與 Minecraft 伺服器的驗證（已開啟 Codex 寫入沙盒的網路存取）。先前的 Phase 0 實驗由 Sonnet 5.5 子代理執行。Codex 撞到用量限制時由 Sonnet 5.5 子代理接手（2026-10-01） | [CLAUDE.md](../CLAUDE.md) |
 
 ## 路線圖（四端並行）
 
