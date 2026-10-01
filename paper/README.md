@@ -71,6 +71,6 @@ timeout 3600 python3 paper/tools/benchmark.py paper 1.21.11 10000
 
 結果、console log 與失敗歷史在 `.work/paper-delivery/`。benchmark 先載入／init／暖機，再量測兩輪各 1,000 或 10,000 個變動 chunk；per-copy 耗時是擁有執行緒阻塞時間，probe 是出生點所屬 region 的 tick 間隔，包含 GC 與伺服器其他工作。Folia probe 不代表所有 region。
 
-CI 對選定 adapter 與其內部類別檢查 NMS 方法／欄位描述子、存取權限與反射 unsaved 欄位。Paperclip 先 patch 出真正 server jar；同目錄不同版本不共用錯誤 cache。CI 的 Fill v3 下載網址**未對線上 API 驗證**：本機服務端曾回 429／503／504；CI 執行仍待實際確認。
+CI 對選定 adapter 與其內部類別檢查 NMS 方法／欄位描述子、存取權限與反射 unsaved 欄位。Paperclip 先 patch 出真正 server jar；同目錄不同版本不共用錯誤 cache。CI 的 Fill v3 下載已在 GitHub Actions 實跑驗證（2026-10-01）；本機開發環境呼叫時曾回 429／503／504，`fetch_paper.py` 會重試。
 
 具體結果與限制見 [Phase 1 進度](../docs/11-phase1-progress.md)。Phase 2 的 switch／restore／保護／merge 尚未提供。

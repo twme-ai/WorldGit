@@ -228,7 +228,7 @@ mod 場景最初握手成功但封包為 0，原因是 bot3／bot4 沒有 op；�
 - 世界級 metadata 除 gamerule 外仍以已落盤內容為準；正在修改但尚未保存的地圖／記分板等沒有完整的活資料擷取。
 - display entity fallback、真正客戶端渲染／截圖與四端共同 push 的端到端流程不由本次 bot 封包測試證明；Fabric／Hub 的實際畫面驗收見各自章節。Phase 2 apply／switch／restore／保護尚未實作。
 - FAWE 的 `//regen`、筆刷、schematic、biome 修改模式未逐一驗證；沒有 PacketEvents 補充監聽，內容雜湊仍是最終真相。
-- CI 用 `https://fill.papermc.io/v3/projects/paper/versions/<version>/builds/latest` 的 `downloads["server:default"].url`，**未對線上 API 驗證**。本機 Fill v3／舊 API 曾回 429／503／504；v2 不支援以 latest 當 build id。CI 的實際網路下載仍需線上跑確認。
+- CI 用 `https://fill.papermc.io/v3/projects/paper/versions/<version>/builds/latest` 的 `downloads["server:default"].url`。2026-10-01 GitHub Actions 實跑已驗證（run 36863841643：1.21.11 build 132、26.2 build 129 下載成功，三組二進位相容檢查通過）。本機開發環境呼叫 Fill v3／舊 API 曾回 429／503／504；v2 不支援以 latest 當 build id。
 
 本端的共用改動是向後相容的 `DimensionRepository.status(detail, window)`／`commit(gate)` 與測試、`i18n` 的 Paper 鍵，以及 settings／CI 的最小增補；沒有修改 `hub/`、`fabric/` 或 experiments，沒有 git commit／push。
 
