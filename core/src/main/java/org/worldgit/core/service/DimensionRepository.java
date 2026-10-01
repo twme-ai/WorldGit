@@ -128,13 +128,28 @@ public final class DimensionRepository implements AutoCloseable {
       double tolerance,
       java.util.function.Predicate<Status> gate)
       throws IOException {
+    if (OperationState.partial(directory.getParent())) throw new IOException("世界為 PARTIAL，請先 switch --force 或 reset --hard 恢復");
     if (!dimension.equals(metadata.dimension())) throw new IOException("metadata 維度與 repo 不符");
     if (metadata.mcDataVersion() != source.dataVersion())
       throw new IOException("metadata DataVersion 與來源不符");
     Capture c = capture(source, dimensions, tolerance, false, DiffEngine.Detail.SUMMARY, null);
+    var status=c.status;
+    String commitTree=c.tree;
+    var keptUntracked=WorldOperations.untracked(directory);
+    if (!keptUntracked.isEmpty() && !metadata.auto()) {
+      String base=c.head==null ? null : store.readCommit(c.head).tree();
+      status=new Status(new DiffEngine(store).compare(dimension,base,c.tree,tolerance,DiffEngine.Detail.SUMMARY),
+          status.candidates(),status.payloadsRead(),status.ignoreChanged(),status.warnings());
+    } else if (!keptUntracked.isEmpty()) {
+      var editor=new TreeEditor(store,c.tree);
+      String base=c.head==null ? null : store.readCommit(c.head).tree();
+      for(var pos:keptUntracked) if(TreeEditor.find(store,base,pos.treePath())==null) editor.remove(pos.treePath());
+      commitTree=editor.write();store.flush();
+    }
     String id = null;
-    if (c.head == null || (!c.status.diff.empty() && gate.test(c.status)))
-      id = store.commit(c.tree, c.head, metadata);
+    if (c.head == null || (!status.diff.empty() && gate.test(status)))
+      id = store.commit(commitTree, c.head, metadata);
+    if (id != null && !metadata.auto()) Files.deleteIfExists(directory.resolve("untracked.yml"));
     String head = id == null ? c.head : id;
     new ScanIndex(
             head == null ? "" : head,
@@ -143,8 +158,17 @@ public final class DimensionRepository implements AutoCloseable {
             c.index.scannedAt(),
             c.index.chunks())
         .save(directory.resolve("worldgit.index"));
-    return new CommitResult(id, c.status);
+    return new CommitResult(id, status);
   }
+
+  /** 全量 capture 的中性 tree；不移動 HEAD。apply 不可依賴舊 index 的候選猜測。 */
+  public String workingTree(SnapshotSource source, Map<DimensionId,String> dimensions, double tolerance) throws IOException {
+    Capture capture = capture(source, dimensions, tolerance, true, DiffEngine.Detail.SUMMARY, null);
+    capture.index.save(directory.resolve("worldgit.index"));
+    return capture.tree;
+  }
+
+  public void invalidateIndex() throws IOException { Files.deleteIfExists(directory.resolve("worldgit.index")); }
 
   private Capture capture(
       SnapshotSource source,
@@ -229,8 +253,17 @@ public final class DimensionRepository implements AutoCloseable {
     if (ignoreChanged) warnings.add(".wgignore 已修改；新規則排除的已追蹤內容會在下次 commit 從快照移除。");
     if (config.track() == WorldGitConfig.Track.MODIFIED_ONLY)
       warnings.add("track: modified-only 已記錄；Phase 1 尚未篩選自然地形，目前仍追蹤全部 full chunk。");
-    var diff =
-        new DiffEngine(store).compare(dimension, base, tree, tolerance, detail, window);
+    String comparison = tree;
+    var untracked = WorldOperations.untracked(directory);
+    if (!untracked.isEmpty() && base != null) {
+      var comparisonEditor = new TreeEditor(store, tree);
+      for (var pos : untracked)
+        if (TreeEditor.find(store, base, pos.treePath()) == null) comparisonEditor.remove(pos.treePath());
+      comparison = comparisonEditor.write(); store.flush();
+      warnings.add("保留的 untracked chunk：" + untracked.size() + "；explicit commit 會將它們重新納入追蹤。");
+    }
+    if (OperationState.partial(directory.getParent())) warnings.add("世界為 PARTIAL，需全範圍重套恢復。");
+    var diff = new DiffEngine(store).compare(dimension, base, comparison, tolerance, detail, window);
     if (diff.entities().size() > 50) warnings.add("實體變動較多；可考慮生存範本或 entity * !persistent。");
     var status =
         new Status(diff, scan.candidates().size(), scan.payloadsRead(), ignoreChanged, warnings);

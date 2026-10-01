@@ -79,15 +79,16 @@ public class DataService {
   }
 
   /** 視窗內的實體（JSON）；若 commit 有 parent，附上每個 UUID 的 diff 種類。 */
-  public ArrayNode entities(WorldRow w, DimensionId dim, String rev, Window win) throws IOException {
+  public ArrayNode entities(WorldRow w, DimensionId dim, String rev, String base, boolean plain, Window win) throws IOException {
     CommitInfo c = commit(w, dim, rev);
     var out = json.createArrayNode();
     try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
       var nav = new TreeNav(h.store(), c.tree());
       Map<UUID, String> kinds = new HashMap<>();
       var removed = new ArrayList<org.worldgit.core.diff.WorldDiff.EntityChange>();
-      if (!c.parents().isEmpty()) {
-        String baseTree = h.store().readCommit(c.parents().get(0)).tree();
+      String baseId = base != null && !base.isBlank() ? commit(w, dim, base).id() : c.parents().isEmpty() ? null : c.parents().get(0);
+      if (!plain && baseId != null) {
+        String baseTree = h.store().readCommit(baseId).tree();
         var diff = new DiffEngine(h.store()).compare(dim, baseTree, c.tree(), HistoryService.TOLERANCE, DiffEngine.Detail.SUMMARY, new HashSet<>(win.chunks()));
         for (var e : diff.entities()) {
           kinds.put(e.uuid(), e.kind().name().toLowerCase(Locale.ROOT));

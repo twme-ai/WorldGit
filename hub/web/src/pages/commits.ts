@@ -1,4 +1,6 @@
-import { ApiError, api, type SnapshotRow } from '../api.ts'
+import { ApiError, api, type BranchPage, type SnapshotRow } from '../api.ts'
+import { branchOptions } from '../compare.ts'
+import { navigate } from '../router.ts'
 import { fmtFull, h, link } from '../ui.ts'
 import { snapshotRow } from './shared.ts'
 
@@ -6,14 +8,18 @@ import { snapshotRow } from './shared.ts'
 export async function commitsPage(root: HTMLElement, owner: string, world: string) {
   const body = h('div', { class: 'card' }, h('p', { class: 'empty' }, '載入中…'))
   const moreBox = h('div', { class: 'row', style: 'justify-content:center;margin-top:10px' })
+  const branch = new URLSearchParams(location.search).get('branch')
+  const picker = h('span', { class: 'row small', style: 'gap:6px' })
   root.append(h('div', { class: 'crumbs' }, link('/', '世界'), ' / ', link(`/${owner}/${world}`, `${owner}/${world}`), ' / ', h('b', {}, 'commits')),
-    h('h1', {}, 'Commit 歷史'), body, moreBox)
+    h('div', { class: 'row' }, h('h1', {}, 'Commit 歷史'), picker, link(`/${owner}/${world}/branches`, '所有分支 →', 'small')), body, moreBox)
+  void api.branches(owner, world).then((page) => picker.replaceChildren(branchSelect(page, branch, (b) =>
+    navigate(`/${owner}/${world}/commits${b && b !== page.defaultBranch ? `?branch=${encodeURIComponent(b)}` : ''}`)))).catch(() => {})
   let declared: string[] = []
   let before: number | null = null
   let first = true
   const load = async () => {
     try {
-      const page = await api.snapshots(owner, world, 40, before, true)
+      const page = await api.snapshots(owner, world, 40, before, true, branch)
       declared = page.declaredDimensions
       if (first) { body.replaceChildren(); first = false }
       renderRows(body, page.snapshots, owner, world, declared)
@@ -41,4 +47,12 @@ function renderRows(box: HTMLElement, rows: SnapshotRow[], owner: string, world:
     }
     i = j
   }
+}
+
+/** 分支下拉：預設分支排最前；選擇後由呼叫端決定要做什麼。 */
+export function branchSelect(page: BranchPage, current: string | null, onPick: (branch: string) => void): HTMLElement {
+  const selected = current ?? page.defaultBranch
+  return h('label', { style: 'display:inline-flex;gap:6px;align-items:center;margin:0' }, '分支',
+    h('select', { 'aria-label': '分支', onChange: (e: Event) => onPick((e.target as HTMLSelectElement).value) },
+      ...branchOptions(page.branches).map((n) => h('option', { value: n, selected: n === selected }, n === page.defaultBranch ? `${n}（預設）` : n))))
 }

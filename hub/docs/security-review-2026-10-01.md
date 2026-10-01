@@ -211,3 +211,15 @@
 - （後續已驗證 rootless Podman 與 Quadlet，見 docs/11）未做 arm64 的容器環境差異驗證（`.work/handoff/hub.md` 已註明這些是已知未做項目）。
 - 未對前端 3D 檢視器（`viewer/*.ts`、WebGL shader、Web Worker）做逐行審查，僅檢查其資料反序列化（`wire.ts`）入口與已知的字串/HTML sink；深入的 WebGL/shader 層與記憶體安全（WASM 等）未在範圍內逐行覆蓋。
 - 未對 `AssetPipeline.java`（資源包處理管線本身，讀取 Mojang client jar 內的模型/材質並轉成 `atlas.json` 等）做詳細的 zip bomb／畸形 JSON 的壓力測試，僅讀過其呼叫鏈（`ResourceSource.zip`／`directory`），未發現該檔案本身有長度上限檢查；由於 client jar 來源已鎖定在設定檔白名單的 Minecraft 版本並經 SHA-1 驗證，攻擊面有限，但若之後允許管理員自行上傳任意 client jar，建議另外審查 `AssetPipeline.java` 的 zip bomb 防護（未在本次範圍內逐行確認是否已有上限）。
+
+## Phase 2 Hub 新增端點驗證（2026-10-01，任務 H）
+
+範圍：`GET /branches?base=…`、`GET /compare?a=…&b=…`、`/snapshots?branch=…`、3D `diff/entities?base=commit` 與 `entities?plain=true`。
+
+- 新控制器先用 `Access.world(..., READER)` 授權，再解析 revision／讀取 refs、資料或快取。匿名／已登入的他人讀私人世界都回 **404**，與不存在世界相同；擁有者可讀、公開空世界可匿名讀分支。branches／compare 回 `Cache-Control: no-store`。
+- SecurityFilter 的每次請求 DecodeBudget 覆蓋新服務的 core diff、commit trailer、snapshot 歷史走訪；Refs 的輕量 snapshot 走訪也計入輸入 bytes／物件／工作量。64-byte 解壓預算的 compare 以 **413** 失敗，分支資料仍可讀。
+- 回應在輸出更多內容前檢查：JSON 最多 **4 MiB**，3D wire 最多 **16 MiB**；world 最多 32 維度／500 分支，compare chunk／section 清單全維度合計上限 2000／6000，實體樣本每維度 200、metadata 50。清單截斷旗標與完整統計分開。501 分支、過大 JSON、wire 邊界及跨維度清單截斷均有測試；視窗仍最多 1024 chunk。wire 的字串／表及方塊 section 數／Y 皆在縮窄整數前檢查範圍。
+- 新 compare 統計不建立磁碟快取，也不寫 refs／repo；既有 smart HTTP 收包限制、owner 配額與鎖維持原實作，完整 Hub 建置包含既有配額回歸測試。前／後模式仍使用現有 chunk／tile 資源管線。
+- 3D、分支、含斜線分支深連結、四個呈現模式、URL 重載、全 chunk 移除鬼影與 viewer 釋放，在**正式 CSP** 下通過 Playwright；同源 Worker 可用，CSP 違規／console error／page error／失敗資源回應均 **0**。測試字型／CSS 由同源回應提供，未放寬 CSP 或使用 inline stylesheet。
+
+重跑：`hub/scripts/phase2-acceptance.sh`。證據見 `.work/hub-phase2-h/latest-run.txt` 指向的 `acceptance.json`；四張精選截圖在 `hub/docs/screenshots/phase2/`（402,184 bytes）。最終 `:hub:build` 有 29 個後端測試全綠、前端 21 個測試全綠；過大 section 截斷測試專用工作預算調至 1 億，產品預設仍 5000 萬。測試只在 127.0.0.1:18097，持有 `.work/bench.lock`，結束關閉 Hub／瀏覽器。

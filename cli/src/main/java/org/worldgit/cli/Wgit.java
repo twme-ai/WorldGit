@@ -30,7 +30,8 @@ import picocli.CommandLine.Model.CommandSpec;
       Wgit.Status.class,
       Wgit.Commit.class,
       Wgit.Log.class,
-      Wgit.Diff.class
+      Wgit.Diff.class,
+      Wgit.Restore.class, Wgit.Switch.class, Wgit.Branch.class, Wgit.Reset.class, Wgit.StashCommand.class, Wgit.Verify.class
     })
 public final class Wgit implements Runnable {
   enum Color {
@@ -528,4 +529,117 @@ public final class Wgit implements Runnable {
       return ok ? 0 : 1;
     }
   }
+  private int printApply(WorldOperations.Result result) throws IOException {
+    if (format == Format.json) json(result);
+    else {
+      var config = WorldGitConfig.readLocal(layout().repositoryRoot().resolve("worldgit.yml"));
+      spec.commandLine().getOut().println(result.state());
+      for (var entry : result.dimensions().entrySet()) {
+        var stats = entry.getValue();
+        spec.commandLine().getOut().printf("%s：%s，biome %d，%s，%s，untracked 保留 %d，metadata %d%n",
+            entry.getKey(), colored(ChangeKind.MODIFIED, "~ chunks="+stats.chunks()+" sections="+stats.sections(), config),
+            stats.biomeSections(), colored(ChangeKind.ADDED, "+ entities="+stats.entityPuts(), config),
+            colored(ChangeKind.REMOVED, "- entities="+stats.entityRemoves()+" chunks="+stats.chunkDeletes(), config),
+            stats.untrackedKept(), stats.metaFiles());
+      }
+      if (result.error() != null) spec.commandLine().getErr().println("PARTIAL：" + result.error());
+    }
+    return result.success() ? 0 : 1;
+  }
+
+  private void requireWholeGroup() throws IOException {
+    if (dimension != null) throw new IOException("branch、switch、reset、stash 必須對所有維度同步；--dimension 僅適用 restore／verify 與讀取指令。");
+  }
+  abstract static class ApplyCommand extends Subcommand {
+    @Option(names="--dry-run", description="只列出預計改動的 section／chunk 數") boolean dryRun;
+  }
+  abstract static class RangeCommand extends ApplyCommand {
+    @Option(names="--chunks", description="chunk 中心 x,z,半徑（正方形，含端點）") String chunks;
+    @Option(names="--box", description="方塊 x1,y1,z1,x2,y2,z2（含端點）") String box;
+    org.worldgit.core.apply.Scope range() throws IOException {
+      if(chunks!=null && box!=null) throw new IOException("--chunks 與 --box 不可同時指定");
+      try {
+        if(chunks!=null) { int[] c=coordinates(chunks,3); return org.worldgit.core.apply.Scope.chunkRadius(c[0],c[1],c[2]); }
+        if(box!=null) { int[] b=coordinates(box,6); return org.worldgit.core.apply.Scope.box(b[0],b[1],b[2],b[3],b[4],b[5]); }
+        return org.worldgit.core.apply.Scope.all();
+      } catch(IllegalArgumentException ex) { throw new IOException("範圍座標無效："+ex.getMessage(),ex); }
+    }
+    private static int[] coordinates(String text,int count) {
+      String[] parts=text.split(","); if(parts.length!=count) throw new IllegalArgumentException("需要 "+count+" 個逗號分隔整數");
+      return Arrays.stream(parts).map(String::trim).mapToInt(Integer::parseInt).toArray();
+    }
+  }
+  @Command(name="restore",mixinStandardHelpOptions=true,description="還原指定快照／範圍，不移動 HEAD")
+  static final class Restore extends RangeCommand {
+    @Parameters(index="0") String revision;
+    @Option(names="--delete-untracked",description="刪除目標沒有的整個 chunk（預設保留）") boolean delete;
+    @Override public Integer call() throws Exception {
+      try(var operations=new WorldOperations(root.layout())) { return root.printApply(operations.restore(revision,root.selected(),range(),dryRun,delete)); }
+    }
+  }
+  @Command(name="switch",mixinStandardHelpOptions=true,description="所有維度原地切換；commit 會進入 detached HEAD")
+  static final class Switch extends ApplyCommand {
+    @Parameters(index="0") String revision;
+    @Option(names="--stash") boolean stash;
+    @Option(names="--force") boolean force;
+    @Option(names="--delete-untracked") boolean delete;
+    @Override public Integer call() throws Exception {
+      root.requireWholeGroup();
+      try(var operations=new WorldOperations(root.layout())) { return root.printApply(operations.switchTo(revision,stash,force,dryRun,delete)); }
+    }
+  }
+  @Command(name="branch",mixinStandardHelpOptions=true,description="同步列出／建立／刪除各維度同名分支")
+  static final class Branch extends Subcommand {
+    @Parameters(index="0",arity="0..1") String name;
+    @Parameters(index="1",arity="0..1") String start;
+    @Option(names="-d") boolean delete;
+    @Override public Integer call() throws Exception {
+      root.requireWholeGroup();
+      try(var operations=new WorldOperations(root.layout())) {
+        if(name!=null) { if(delete) { if(start!=null) throw new IOException("刪除分支不接受 start"); operations.deleteBranch(name); } else operations.createBranch(name,start); }
+        else if(delete) throw new IOException("-d 需要分支名稱");
+        var branches=operations.branches();
+        if(root.format==Format.json) root.json(branches);
+        else for(var branch:branches) root.spec.commandLine().getOut().println((branch.current() ? "* " : "  ")+branch.name()+" "+branch.commits()+(branch.consistent() ? "" : " [PARTIAL]"));
+        return 0;
+      }
+    }
+  }
+  @Command(name="reset",mixinStandardHelpOptions=true,description="全範圍還原；有 commit 參數時改寫歷史（禁止對已 push 歷史使用）")
+  static final class Reset extends ApplyCommand {
+    @Option(names="--hard",required=true) boolean hard;
+    @Option(names="--force") boolean force;
+    @Parameters(arity="0..1") String revision;
+    @Override public Integer call() throws Exception {
+      root.requireWholeGroup();
+      try(var operations=new WorldOperations(root.layout())) { return root.printApply(operations.resetHard(revision,force,dryRun)); }
+    }
+  }
+  @Command(name="stash",mixinStandardHelpOptions=true,description="多維度 stash push/pop/list/drop")
+  static final class StashCommand extends ApplyCommand {
+    enum Action { push,pop,list,drop }
+    @Parameters(index="0",defaultValue="push",arity="0..1") Action action;
+    @Parameters(index="1",defaultValue="0",arity="0..1",description="stash 索引，0 為最新") int index;
+    @Option(names={"-m","--message"}) String message;
+    @Override public Integer call() throws Exception {
+      root.requireWholeGroup();
+      try(var operations=new WorldOperations(root.layout())) {
+        if(action==Action.push) return root.printApply(operations.stashPush(message,dryRun));
+        if(action==Action.pop) return root.printApply(operations.stashPop(index,dryRun));
+        if(action==Action.drop) { if(dryRun) throw new IOException("stash drop 不支援 --dry-run；請用 stash list"); operations.stashDrop(index); }
+        var stashes=operations.stashes();
+        if(root.format==Format.json) root.json(stashes);
+        else for(int i=0;i<stashes.size();i++) root.spec.commandLine().getOut().println("stash@{"+i+"} "+stashes.get(i).id()+" "+stashes.get(i).time()+" "+stashes.get(i).message());
+        return 0;
+      }
+    }
+  }
+  @Command(name="verify",mixinStandardHelpOptions=true,description="全量離線掃描世界與目標 tree；0 差異回傳 0")
+  static final class Verify extends RangeCommand {
+    @Parameters(defaultValue="HEAD",arity="0..1") String revision;
+    @Override public Integer call() throws Exception {
+      try(var operations=new WorldOperations(root.layout())) { return root.printApply(operations.verify(revision,root.selected(),range(),range().kind()==org.worldgit.core.apply.Scope.Kind.ALL)); }
+    }
+  }
+
 }

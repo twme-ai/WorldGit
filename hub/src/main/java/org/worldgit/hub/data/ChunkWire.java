@@ -32,6 +32,7 @@ final class ChunkWire {
   /** utf8 字串：u16 長度 + bytes。 */
   static void utf(DataOutputStream out, String s) throws IOException {
     byte[] b = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    if (b.length > 65535) throw new IOException("wire 字串超過 65535 bytes");
     out.writeShort(b.length);
     out.write(b);
   }
@@ -39,7 +40,8 @@ final class ChunkWire {
   static final class Table {
     final LinkedHashMap<String, Integer> ids = new LinkedHashMap<>();
 
-    int id(String s) {
+    int id(String s) throws IOException {
+      if (!ids.containsKey(s) && ids.size() >= 65535) throw new IOException("wire 調色盤超過 65535 項");
       return ids.computeIfAbsent(s, k -> ids.size());
     }
 
@@ -53,7 +55,7 @@ final class ChunkWire {
   static byte[] chunks(ObjectStore store, TreeNav nav, Collection<ChunkPos> window) throws IOException {
     var states = new Table();
     var biomes = new Table();
-    var body = new ByteArrayOutputStream();
+    var body = new LimitedBuffer();
     var out = new DataOutputStream(body);
     int count = 0;
     for (ChunkPos pos : window) {
@@ -67,9 +69,11 @@ final class ChunkWire {
         String n = e.getKey();
         if (n.startsWith("s.") && n.endsWith(".bin")) sections.add(Map.entry(Integer.parseInt(n.substring(2, n.length() - 4)), e.getValue()));
       }
+      if (sections.size() > 255) throw new IOException("wire section 數超過 255");
       out.writeByte(sections.size());
       for (var s : sections) {
         SectionBlob b = SectionBlob.parse(store.readBlob(s.getValue().id()));
+        if (s.getKey() < -128 || s.getKey() > 127) throw new IOException("wire section Y 超出範圍");
         out.writeByte(s.getKey());
         out.writeShort(b.palette().length);
         for (String p : b.palette()) out.writeShort(states.id(p));
@@ -100,7 +104,7 @@ final class ChunkWire {
         }
       }
     }
-    var result = new ByteArrayOutputStream();
+    var result = new LimitedBuffer();
     var head = new DataOutputStream(result);
     head.writeBytes("WGCK");
     head.writeByte(1);
@@ -135,7 +139,7 @@ final class ChunkWire {
 
   static byte[] diff(WorldDiff diff) throws IOException {
     var states = new Table();
-    var body = new ByteArrayOutputStream();
+    var body = new LimitedBuffer();
     var out = new DataOutputStream(body);
     int n = 0;
     for (var s : diff.sections()) {
@@ -143,6 +147,7 @@ final class ChunkWire {
       n++;
       out.writeInt(s.chunk().x());
       out.writeInt(s.chunk().z());
+      if (s.sectionY() < -128 || s.sectionY() > 127) throw new IOException("wire section Y 超出範圍");
       out.writeByte(s.sectionY());
       out.writeShort(s.blocks().size());
       for (var b : s.blocks()) {
@@ -152,7 +157,7 @@ final class ChunkWire {
         out.writeShort(states.id(b.before().canonical()));
       }
     }
-    var result = new ByteArrayOutputStream();
+    var result = new LimitedBuffer();
     var head = new DataOutputStream(result);
     head.writeBytes("WGDF");
     head.writeByte(1);

@@ -1,6 +1,5 @@
 package org.worldgit.hub.web;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.time.Duration;
@@ -15,10 +14,12 @@ import org.worldgit.hub.data.DataService.Window;
 @RequestMapping("/api/v1/worlds/{owner}/{world}/dims/{dim}/commits/{rev}")
 public class DataController {
   private static final MediaType BINARY = MediaType.APPLICATION_OCTET_STREAM;
+  private final com.fasterxml.jackson.databind.ObjectMapper json;
   private final Access access;
   private final DataService data;
 
-  public DataController(Access access, DataService data) {
+  public DataController(Access access, DataService data, com.fasterxml.jackson.databind.ObjectMapper json) {
+    this.json = json;
     this.access = access;
     this.data = data;
   }
@@ -44,10 +45,12 @@ public class DataController {
   }
 
   @GetMapping("/entities")
-  ArrayNode entities(HttpServletRequest req, @PathVariable String owner, @PathVariable String world, @PathVariable String dim,
-      @PathVariable String rev, @RequestParam int x0, @RequestParam int z0, @RequestParam int x1, @RequestParam int z1) throws IOException {
+  ResponseEntity<byte[]> entities(HttpServletRequest req, @PathVariable String owner, @PathVariable String world, @PathVariable String dim,
+      @PathVariable String rev, @RequestParam(required = false) String base, @RequestParam(defaultValue = "false") boolean plain,
+      @RequestParam int x0, @RequestParam int z0, @RequestParam int x1, @RequestParam int z1) throws IOException {
     var w = access.world(req, owner, world, Role.READER);
-    return data.entities(w, Access.dimension(dim), rev, new Window(x0, z0, x1, z1));
+    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).cacheControl(CacheControl.noStore())
+        .body(BoundedJson.encode(json, data.entities(w, Access.dimension(dim), rev, base, plain, new Window(x0, z0, x1, z1))));
   }
 
   @GetMapping("/tiles")

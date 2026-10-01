@@ -183,3 +183,17 @@ runtime 在世界載入前建立；`LevelChunk.markUnsaved` mixin 將變動保�
 正式渲染改為 section 分塊、視錐／距離裁切、每幀明細建置配額、遠處包圍盒與 GPU 網格釋放。色盲設定切換會重建明細。兩版 Xvfb 真客戶端已驗證 1 section 的真實世界 diff、強制存檔後 dirty 保留、3,072 格合成預覽的遠／近 LOD、clear 和繁中顯示；這不是 100,000 格的效能量測。1.21.11 client gametest 需停用 Fabric 測試框架的 NetworkSynchronizer 才能載入整合世界，26.2 不需要；此開關只在測試 run 設定。
 
 完整驗收、Paper 插件副本的時間戳及限制見 [Phase 1 進度](11-phase1-progress.md)／[Fabric README](../fabric/README.md)。資源包重載、Sodium／Iris、硬體 GPU、準星前後 state UI、實體／biome 模型及 Phase 2 操作仍未提供。
+
+## Phase 2 apply 介面（2026-10-01）
+
+core 的 `apply.ApplyPlan`／`ApplyPlanner` 不依賴 Minecraft，提供 section mask、biome samples、UUID entity 操作、world-meta、serialization／only／batches。`WorldOperations` 僅是離線世界組服務；Paper／Fabric 在自己的 repo executor 計畫，再交給 `platform.ApplyScheduler`，由平台實作 owner 排程。
+
+`LiveWorld.apply(ApplyPlan, ApplyBudget)` 的 future 表示該批已套用且 ticket 已釋放／失敗也清理；實體 remove 必須全維度查 UUID（含 passenger），put 依 Pos，不直接改線上 `.mca`。`nextApplyTick` 在當下真正 owner 的下一 tick 排程。預設 8 section／5 ms／24 chunk，有玩家模式 4／5 ms／16 chunk；時間是不可搶占 section 的軟預算，平台所有 lane 必須共享實際 region／tick 的計數，不把 32×32 格網當 Folia region。
+
+共用 ApplyScheduler 是保守的單維度、單批 coordinator，按 section 限額分批並維持 blocks→全部 entity remove→spawn→metadata 的 barrier。線上世界組呼叫端須先完成所有維度的 remove barrier，再開始任何維度的 spawn；不可逐維度完整套用而刪掉已移到另一維度的 UUID。離線 WorldOperations 透過 `OfflineApplier.applyAll` 已共用此 barrier。取消停止派發，等待在途 future 清理，再完成派出工作的 heightmap／光照／POI／封包／flush，最後解鎖與回報 PARTIAL；observer、光照或存檔任一失敗仍嘗試後續清理。執行緒 executor 必須存活到 result 完成；不在 owner thread 阻塞等另一 region。取消不反向復原。
+
+`lockEdits` 須涵蓋容器、活塞、流體、紅石、生物與第三方插件協調，可使用 tick freeze；close 恢復先前狀態。`finishApply` completion 表示衍生資料與玩家 chunk 封包已完成，`flush` 包含 terrain/entity/POI IO 持久化。通知排在玩家 EntityScheduler／server owner，`ApplyProgress` 含 operation、phase、完成批次／section、取消旗標，可轉為 bossbar／MiniMessage。
+
+`PlayerProtection` 帶 operation UUID 與 active：active=true 的 FALL／SUFFOCATION／DROWNING 保護持續到 active=false（成功、取消、失敗皆結束），再延續 duration=10 秒；須涵蓋中途加入範圍的玩家，不移動玩家、不用 Resistance。observer 在開始／每批／結束持久化操作狀態，失敗停止；只有 COMPLETE 加上呼叫端驗證 barrier 後才移動 HEAD。
+
+新增 LiveWorld 方法以清楚失敗的 default 保持 Phase 1 Paper／Fabric 二進位／原始碼相容，未實作的線上端不能宣稱已有 switch。OfflineWorld 提供真正 Anvil 寫回；完整離線流程與平台接手摘要見 [12](12-phase2-progress.md)。

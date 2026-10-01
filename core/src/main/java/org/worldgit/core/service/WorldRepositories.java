@@ -110,6 +110,7 @@ public final class WorldRepositories {
         } catch (Exception ex) {
           result.put(e.getKey(), new Outcome<>(null, error(ex)));
         }
+    recordGroup(snapshot,result);
     return new Batch<>(snapshot, result);
   }
 
@@ -133,7 +134,18 @@ public final class WorldRepositories {
       } catch (Exception ex) {
         result.put(e.getKey(), new Outcome<>(null, error(ex)));
       }
+    recordGroup(snapshot,result);
     return new Batch<>(snapshot, result);
+  }
+
+  /** 沒改變的維度也記下同一次 snapshot 的 HEAD，讓 hash 入口可精確配對。 */
+  private void recordGroup(UUID snapshot,SortedMap<DimensionId,Outcome<DimensionRepository.CommitResult>> result) {
+    for(var entry:result.entrySet()) if(entry.getValue().success()) {
+      try(var repo=new DimensionRepository(root().resolve(entry.getKey().directoryName()),entry.getKey(),false)) {
+        String head=repo.refs().head();
+        if(head!=null) repo.refs().updateRef("refs/worldgit/groups/"+snapshot,null,head);
+      } catch(IOException ex) { result.put(entry.getKey(),new Outcome<>(entry.getValue().value(),error(ex))); }
+    }
   }
 
   public Batch<DimensionRepository.Status> status(

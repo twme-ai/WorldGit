@@ -17,6 +17,7 @@ public final class CommitTrailers {
     append(b, "WorldGit-Source", m.source().name().toLowerCase(Locale.ROOT));
     append(b, "WorldGit-Auto", Boolean.toString(m.auto()));
     append(b, "WorldGit-Snapshot", m.snapshot().toString());
+    append(b, "WorldGit-Time", m.time().toString());
     for (var c : m.contributions()) {
       append(b, "Co-authored-by", c.author().git());
       var n =
@@ -84,11 +85,13 @@ public final class CommitTrailers {
       }
       String auto = values.get("WorldGit-Auto");
       if (!Set.of("true", "false").contains(auto)) throw new IOException("WorldGit-Auto 無效");
+      Instant preciseTime=values.containsKey("WorldGit-Time") ? Instant.parse(values.get("WorldGit-Time")) : time;
+      if(preciseTime.getEpochSecond()!=time.getEpochSecond()) throw new IOException("WorldGit-Time 與 git committer 時間不符");
       return new CommitMetadata(
           author,
           committer,
           message,
-          time,
+          preciseTime,
           Integer.parseInt(values.get("WorldGit-DataVersion")),
           new DimensionId(values.get("WorldGit-Dimension")),
           Source.valueOf(values.get("WorldGit-Source").toUpperCase(Locale.ROOT)),

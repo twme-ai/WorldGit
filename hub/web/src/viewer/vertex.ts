@@ -5,11 +5,12 @@
 //   6     4     u v         uint16 ×2。rect 模式：重複座標（1/256 張貼圖）；direct 模式：整張圖集的 0..65535 座標
 //  10     2     rect        uint16。圖集矩形表索引；0xFFFF = direct 模式（直接用 u/v）
 //  12     3     r g b       uint8，染色 × 面向明暗
-//  15     1     flags       bits 0-2 kind（0 無變動 1 新增 2 移除 3 修改 4 衝突）、bit 3 水（半透明度較高）、bit 4 純色（LOD，忽略貼圖）
+//  15     1     flags       bits 0-2 kind（0 無變動 1 新增 2 移除 3 修改 4 衝突）、bit 3 水（半透明度較高）、bit 4 純色（LOD，忽略貼圖）、bit 5 變動周圍一格
 export const VERTEX_BYTES = 16
 export const RECT_DIRECT = 0xffff
 export const FLAG_WATER = 8
 export const FLAG_FLAT = 16
+export const FLAG_CONTEXT = 32
 
 export class VertexBuilder {
   private buf = new ArrayBuffer(VERTEX_BYTES * 4 * 512)

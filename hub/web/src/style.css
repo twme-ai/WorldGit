@@ -85,3 +85,17 @@ form.stack { max-width: 380px; } form.stack input { width: 100%; }
 .toolbar .seg button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .chunklist { max-height: 240px; overflow: auto; font-family: var(--mono); font-size: .82rem; }
 .chunklist div { padding: 2px 6px; cursor: pointer; border-radius: 4px; display: flex; gap: 10px; } .chunklist div:hover { background: var(--panel2); }
+/* 分支與兩端比較 */
+.branch-base { margin: 12px 0; }
+.branch-name { font-family: var(--mono); font-weight: 600; overflow-wrap: anywhere; }
+.branch-message { margin: 5px 0; }
+.branch-warning { margin: 6px 0 0; }
+.compare-form { margin: 12px 0; }
+.compare-form label { display: flex; gap: 8px; align-items: center; margin: 0; }
+.compare-form input { width: min(28vw, 260px); }
+.compare-summary { margin: 12px 0; }
+.radius-select { display: inline-flex; gap: 6px; align-items: center; margin: 0; }
+.notice { padding: 10px 14px; border: 1px dashed var(--mod); border-radius: 6px; color: var(--muted); }
+.chunk-row { display: flex; align-items: center; gap: 10px; padding: 3px 6px; margin: 2px 0; width: 100%; text-align: left; font-family: var(--mono); font-size: .82rem; }
+.viewer .legend[hidden] { display: none; }
+@media (max-width: 600px) { .compare-form label { width: 100%; } .compare-form input { flex: 1; width: 100%; } }

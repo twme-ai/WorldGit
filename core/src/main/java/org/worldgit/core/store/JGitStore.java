@@ -171,16 +171,8 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
 
   @Override
   public String commit(String tree, String expected, CommitMetadata m) throws IOException {
-    requireWritable();
-    CommitBuilder c = new CommitBuilder();
-    c.setTreeId(ObjectId.fromString(tree));
-    if (expected != null) c.setParentId(ObjectId.fromString(expected));
-    c.setAuthor(new PersonIdent(m.author().name(), m.author().email(), m.time(), ZoneOffset.UTC));
-    c.setCommitter(
-        new PersonIdent(m.committer().name(), m.committer().email(), m.time(), ZoneOffset.UTC));
-    c.setMessage(CommitTrailers.message(m));
-    ObjectId id = inserter.insert(c);
-    flush();
+    String created = createCommit(tree, expected, m);
+    ObjectId id = ObjectId.fromString(created);
     RefUpdate update = repo.updateRef("HEAD");
     update.setExpectedOldObjectId(
         expected == null ? ObjectId.zeroId() : ObjectId.fromString(expected));
@@ -190,6 +182,100 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
     if (!Set.of(RefUpdate.Result.NEW, RefUpdate.Result.FAST_FORWARD, RefUpdate.Result.NO_CHANGE)
         .contains(result)) throw new IOException("HEAD 更新失敗（可能有並行寫入）：" + result);
     return id.name();
+  }
+
+  @Override
+  public String createCommit(String tree, String parent, CommitMetadata m) throws IOException {
+    requireWritable();
+    var builder = new CommitBuilder();
+    builder.setTreeId(ObjectId.fromString(tree));
+    if (parent != null) builder.setParentId(ObjectId.fromString(parent));
+    builder.setAuthor(new PersonIdent(m.author().name(), m.author().email(), m.time(), ZoneOffset.UTC));
+    builder.setCommitter(new PersonIdent(m.committer().name(), m.committer().email(), m.time(), ZoneOffset.UTC));
+    builder.setMessage(CommitTrailers.message(m));
+    String id = inserter.insert(builder).name();
+    flush();
+    // 讓 detached commit 與不變維度也可由 snapshot 找回；不依賴 reflog 到期。
+    updateRef("refs/worldgit/snapshots/" + m.snapshot() + "/" + id, null, id);
+    return id;
+  }
+
+  @Override
+  public Head headState() throws IOException {
+    var ref = repo.exactRef("HEAD");
+    String branch = ref != null && ref.isSymbolic() && ref.getTarget().getName().startsWith("refs/heads/")
+        ? ref.getTarget().getName().substring(11) : null;
+    return new Head(head(), branch);
+  }
+
+  public static void validateBranch(String name) throws IOException {
+    if (name == null || name.equals("HEAD") || name.startsWith("-")
+        || !Repository.isValidRefName("refs/heads/" + name)) throw new IOException("分支名稱無效：" + name);
+  }
+
+  @Override
+  public SortedMap<String,String> branches() throws IOException {
+    var result = new TreeMap<String,String>();
+    for (var ref : repo.getRefDatabase().getRefsByPrefix("refs/heads/"))
+      if (ref.getObjectId() != null) result.put(ref.getName().substring(11), ref.getObjectId().name());
+    return result;
+  }
+
+  @Override
+  public void updateRef(String name, String expected, String target) throws IOException {
+    requireWritable();
+    if (!Repository.isValidRefName(name) || name.equals("HEAD")) throw new IOException("ref 名稱無效：" + name);
+    var update = repo.updateRef(name);
+    update.setExpectedOldObjectId(expected == null ? ObjectId.zeroId() : ObjectId.fromString(expected));
+    update.setForceUpdate(true);
+    if (target != null) update.setNewObjectId(ObjectId.fromString(target));
+    update.setRefLogMessage("worldgit: refs", false);
+    checkResult(target == null ? update.delete() : update.update());
+  }
+
+  @Override
+  public void checkout(Head expected, Head target) throws IOException {
+    requireWritable();
+    if (!headState().equals(expected)) throw new IOException("HEAD 在切換期間改變");
+    if (target.branch() != null) {
+      validateBranch(target.branch());
+      if (!Objects.equals(branches().get(target.branch()), target.commit())) throw new IOException("目標分支指標已改變");
+      checkResult(repo.updateRef("HEAD").link("refs/heads/" + target.branch()));
+    } else {
+      var update = repo.updateRef("HEAD", true);
+      update.setExpectedOldObjectId(expected.commit() == null ? ObjectId.zeroId() : ObjectId.fromString(expected.commit()));
+      update.setNewObjectId(ObjectId.fromString(target.commit()));
+      update.setForceUpdate(true);
+      checkResult(update.update());
+    }
+  }
+
+  private static void checkResult(RefUpdate.Result result) throws IOException {
+    if (!Set.of(RefUpdate.Result.NEW, RefUpdate.Result.FAST_FORWARD, RefUpdate.Result.FORCED,
+        RefUpdate.Result.NO_CHANGE).contains(result)) throw new IOException("ref 更新失敗：" + result);
+  }
+
+  @Override
+  public List<Commit> allCommits() throws IOException {
+    try (var walk = new RevWalk(repo)) {
+      for (var ref : repo.getRefDatabase().getRefs()) {
+        if (ref.getObjectId() != null) {
+          var object = walk.parseAny(ref.getObjectId());
+          if (object instanceof RevCommit c) walk.markStart(c);
+        }
+      }
+      if (head() != null) walk.markStart(walk.parseCommit(ObjectId.fromString(head())));
+      var result = new ArrayList<Commit>();
+      for (var commit : walk) result.add(convert(commit));
+      return result;
+    }
+  }
+
+  @Override
+  public boolean isAncestor(String ancestor, String descendant) throws IOException {
+    try (var walk = new RevWalk(repo)) {
+      return walk.isMergedInto(walk.parseCommit(ObjectId.fromString(ancestor)), walk.parseCommit(ObjectId.fromString(descendant)));
+    }
   }
 
   public List<Long> repack() throws IOException {

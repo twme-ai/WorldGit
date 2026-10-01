@@ -28,7 +28,19 @@
 | 22 | 多語言 | **插件與模組支援多語言**，訊息用 **MiniMessage** 格式：共用的 `i18n` 模組放 YAML 語言檔（內建 `en_us`、`zh_tw`），依玩家客戶端語言顯示，找不到時退回 `en_us`；伺服器管理者可放覆寫檔只改部分訊息。Paper 直接用內建的 Adventure/MiniMessage；Fabric 用 Adventure 的 Fabric 平台（兩版皆可用時），否則自行把 MiniMessage 轉成原版 Text。diff 色彩用自訂標籤，讓色盲色票全面生效（使用者建議，2026-10-01） | [08](08-architecture.md) §1 |
 | 23 | 專案網域 | 使用者已購入 **`worldgit.org`**（2026-10-01），與套件根 `org.worldgit` 一致。之後用於專案網站與文件；是否架設官方公開 Hub（例如 `hub.worldgit.org`）另行決定。因 Hub 可能公開上線，Phase 1 起 Hub 依公開網路服務的標準做安全審查。 | [07](07-remote-hub.md) |
 | 24 | Folia 關閉前 commit 與無模組預覽 | **Folia 關閉前 commit 走離線路徑**：onDisable 沒有可用的 region 執行緒，改由 JVM 關閉鉤子等伺服器印出「All RegionFile I/O tasks to complete」（世界已存完）後，用 core 的離線掃描 commit（找不到訊號就放棄、不動世界）。**沒裝模組的玩家改用 `BlockDisplay` 發光描邊**（只對請求者可見、有數量上限與逾時、`/wg clear` 清除、不進實體快照）。（2026-10-01） | [11](11-phase1-progress.md) |
-| 13 | 實作方式 | 程式碼由 **Codex（gpt-6.1-sol，透過 Codex 插件）**撰寫，包含需要網路與 Minecraft 伺服器的驗證（已開啟 Codex 寫入沙盒的網路存取）。先前的 Phase 0 實驗由 Sonnet 5.5 子代理執行。Codex 撞到用量限制時由 Sonnet 5.5 子代理接手（2026-10-01） | [CLAUDE.md](../CLAUDE.md) |
+| 13 | 實作方式 | 程式碼由 **Codex（gpt-6.1-sol，透過 Codex 插件）**撰寫，包含需要網路與 Minecraft 伺服器的驗證（已開啟 Codex 寫入沙盒的網路存取）。先前的 Phase 0 實驗由 Sonnet 5.5 子代理執行。Codex 撞到用量限制時**等限制解除後交回 Codex 繼續，不改用 Sonnet**（2026-10-01 改定，取代同日「由 Sonnet 5.5 接手」的做法） | [CLAUDE.md](../CLAUDE.md) |
+| 25 | Phase 2 apply／離線寫回 | 中性 ApplyPlan（壓縮 section／mask、biome、UUID entity、metadata），分層短路。RegionWriter 就地更新 sector，zlib 寫入／LZ4 等讀取，支援外部 mcc；光照／Heightmaps／POI 丟棄重建。（2026-10-01） | [02](02-data-model.md)、[05](05-switch-restore.md) §7 |
+| 26 | 多維度 HEAD 與 PARTIAL | 同名分支全組同步；非分支 revision 全組 detached。全組預檢→journal→寫回→驗證→HEAD；refs 回復但部分世界不回滾，PARTIAL 以 force switch／reset 全量重套，阻擋新 commit。（2026-10-01） | [05](05-switch-restore.md) §7、[08](08-architecture.md) |
+| 27 | stash／reset | stash 為各維度獨立 commit＋refs/worldgit/stash／stash.yml；pop 限原基底與乾淨工作區，成功才 drop。reset hard 無 revision 不移動 HEAD，有 revision 必須 force 並禁止用於已 push 歷史。（2026-10-01） | [02](02-data-model.md)、[05](05-switch-restore.md) §7 |
+| 28 | DataFixer 與規則遷移限制 | 本次跨 DataVersion 明確拒絕（不改版本數字冒充升級）；目標 .wgignore 不同或 DataPacks 清單不同預檢拒絕。可靠快照升級與規則遷移留待後續。（2026-10-01） | [05](05-switch-restore.md) §7、[12](12-phase2-progress.md) |
+| 29 | metadata／範圍／untracked | 全範圍還原已追蹤世界設定、地圖、記分板；玩家／時鐘／天氣保留。局部不動 metadata，方塊／BE 逐格裁切；biome sample 起點裁切、ticks／structures 保守以完整 chunk 套用。目標缺少的 chunk 預設保留並標 untracked，explicit commit 才重新追蹤。（2026-10-01） | [05](05-switch-restore.md) §7 |
+| 30 | 平台批次／取消／保護 | 共用保守單批 coordinator；預設 8 section／5 ms／24 chunk，由實際 owner／region tick 共享預算。取消等待在途清理與光照／IO barrier 後 PARTIAL；三種傷害保護涵蓋全操作及結束後 10 秒，通知走玩家 owner。（2026-10-01） | [08](08-architecture.md)、[12](12-phase2-progress.md) |
+| 31 | hash 的維度組配對 | WorldRepositories 每次 init／commit 對不變維度也記 refs/worldgit/groups/snapshot；hash 優先精確配對。舊歷史按入口 first-parent snapshot 祖先回溯，無法配對就拒絕，建議同步分支。（2026-10-01） | [02](02-data-model.md)、[05](05-switch-restore.md) §7 |
+| 32 | 同秒提交時間精度 | 新 commit 以可選 WorldGit-Time trailer 保留 Instant 精度，秒數必須與 git committer 相符；舊 commit 退回 git 整秒時間。避免跨維度分組歷史把同秒的子提交排在初始提交之後。（2026-10-01） | [02](02-data-model.md)、[12](12-phase2-progress.md) |
+| 33 | 世界分支與領先／落後 | 同名分支跨維度合併；預設分支取主世界 repo 的 symbolic HEAD（沒有時退回其他維度、main 或第一個分支）。分別揭露「宣告維度都有分支」與「head 同一 snapshot」。ahead／behind 先合併各維度可達 snapshot UUID 集合，再取差集；可指定任意分支作為基準。每維度／tip 最多走 20,000 個 commit，截斷時明示估算，不能當下限。（2026-10-01） | [10](10-web-frontend.md) §7.1、[12](12-phase2-progress.md) Hub |
+| 34 | 任意 commit 的跨維度比較語意 | 分支解析為各維度當下 head；commit id／唯一前綴解析為該 commit 與其他分支可達歷史中**同 snapshot UUID**的 commit。不以時間猜測未變動維度當時的 head。未配對維度明示缺少端點、排除於統計，且不視為相同／整個維度被刪除。（2026-10-01） | [10](10-web-frontend.md) §7.1、`hub/README.md` |
+| 35 | Hub 比較呈現與回應上限 | Phase 2 提供上色疊圖、只看變動及周圍一格、前／後切換（讀取實際 a／b 的方塊、實體、LOD 與資源，保留鏡頭）。JSON 回應最多 4 MiB；全維度 chunk 清單 2000 項、section 清單 6000 項，統計／範圍保持完整；每維度實體樣本 200、metadata 50。世界最多 32 維度／500 分支；3D 視窗仍最多 1024 chunk、wire 回應最多 16 MiB；沿用 DecodeBudget，超過預算／硬上限回 413。並排、分割滑桿、時間軸留後續。（2026-10-01） | [10](10-web-frontend.md) §7.1、[12](12-phase2-progress.md) Hub |
+
 
 ## 路線圖（四端並行）
 

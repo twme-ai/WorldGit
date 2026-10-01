@@ -65,6 +65,7 @@ export async function commitPage(root: HTMLElement, owner: string, world: string
     h('h1', {}, c.message.split('\n')[0] || '(無訊息)', c.auto ? h('span', { class: 'badge' }, '自動') : null),
     h('div', { class: 'row small muted' },
       `${c.author.name} · ${fmtFull(c.time)} · ${c.source} · ${dimName}`, h('code', {}, c.id),
+      detail.parent ? link(`/${owner}/${world}/compare/${detail.parent}...${c.id}?dim=${encodeURIComponent(c.dimension)}`, '比較前後 →') : null,
       detail.parent ? link(`/${owner}/${world}/commit/${dimRepoName}/${short(detail.parent)}`, `← 上一個 ${short(detail.parent)}`) : h('span', {}, '（初始快照）'),
       h('span', {}, `DataVersion ${c.dataVersion}（資源 ${detail.mcVersion}）`)),
     h('div', { class: 'row', style: 'margin:10px 0' }, statSpans(detail),

@@ -88,7 +88,7 @@ class DiffTrailerTest {
   void trailerRoundTripAndCas() throws Exception {
     var author = new CommitMetadata.Identity("Alice", "alice@example.test");
     var coauthor = new CommitMetadata.Identity("王小明", "wang@example.test");
-    var time = Instant.parse("2026-10-01T10:00:00Z");
+    var time = Instant.parse("2026-10-01T10:00:00.123456789Z");
     var m =
         new CommitMetadata(
             author,
@@ -104,6 +104,10 @@ class DiffTrailerTest {
                 new CommitMetadata.Contribution(
                     coauthor, UUID.randomUUID(), Set.of(new ChunkPos(1, -2)), "WorldEdit")));
     assertEquals(m, CommitTrailers.parse(author, author, time, CommitTrailers.message(m)));
+    var legacy=CommitTrailers.message(m).replace("WorldGit-Time: "+time+"\n","");
+    var gitTime=time.truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    assertEquals(gitTime,CommitTrailers.parse(author,author,gitTime,legacy).time());
+    assertThrows(java.io.IOException.class,()->CommitTrailers.parse(author,author,gitTime.plusSeconds(1),CommitTrailers.message(m)));
     try (var store = new JGitStore(temp.resolve("repo"), true)) {
       String tree = store.writeTree(List.of());
       String id = store.commit(tree, null, m);

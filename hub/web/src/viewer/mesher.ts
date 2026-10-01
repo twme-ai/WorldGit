@@ -6,7 +6,7 @@
 //  - 輸出 16 B 頂點（vertex.ts），分 opaque／trans／ghost 三個繪製批次。
 import { BlockState, Direction, Mesh, NbtCompound, NbtList, NbtString, NbtType, SpecialRenderers, type Cull, type Quad } from 'deepslate'
 import { PackResources, Tint, TINT_SENTINEL_B, TINT_SENTINEL_R } from './resources.ts'
-import { FLAG_WATER, RECT_DIRECT, VertexBuilder, clamp8 } from './vertex.ts'
+import { FLAG_CONTEXT, FLAG_WATER, RECT_DIRECT, VertexBuilder, clamp8 } from './vertex.ts'
 
 export const Kind = { Same: 0, Added: 1, Removed: 2, Modified: 3 } as const
 export type Layer = 'opaque' | 'trans' | 'ghost'
@@ -17,6 +17,10 @@ export interface MeshRequest {
   after: Int16Array
   /** 套用 diff 還原的舊世界；null 表示沒有 diff（與 after 相同）。 */
   before: Int16Array | null
+  /** core diff 種類（包含 state 相同而 BE 改變的格子）。 */
+  kinds?: Uint8Array | null
+  /** 只看變動時仍顯示的周圍一格。 */
+  context?: Uint8Array | null
   /** section 內 4×4×4 biome 格的全域 biome 編號（null = 全部 plains）。 */
   biomes: Uint16Array | null
   /** section 內索引 → JSON（橫幅圖樣等）。 */
@@ -238,7 +242,7 @@ export class Mesher {
   private opq(id: number) { return id >= 0 && this.info(id).opaque }
 
   private internKey(sid: number, kind: number, tint: number): number {
-    const k = (sid * 8 + kind) * 16777216 + tint
+    const k = (sid * 64 + kind) * 16777216 + tint
     let id = this.keyIds.get(k)
     if (id === undefined) { id = this.keySid.length; this.keySid.push(sid); this.keyKind.push(kind); this.keyTint.push(tint); this.keyIds.set(k, id) }
     return id + 1
@@ -266,6 +270,9 @@ export class Mesher {
         else kind = Kind.Modified
       } else if (this.isAir(b)) continue
       if (sid < 0) continue
+      const cell = (y << 8) | (z << 4) | x
+      if (req.kinds?.[cell]) kind = req.kinds[cell]
+      if (kind === Kind.Same && req.context?.[cell]) kind |= FLAG_CONTEXT
       stats.blocks++
       const info = this.info(sid)
       const biomeId = req.biomes ? req.biomes[((y >> 2) << 4) | ((z >> 2) << 2) | (x >> 2)] : 0

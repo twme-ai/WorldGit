@@ -202,3 +202,11 @@ entity minecraft:tnt                 # 點燃的 TNT
 - `EntitySemantics` 讓版本 adapter 提供 tag 與 persistence；離線 `EntityTagRegistry` 帶兩版 vanilla tag 資料，依 level.dat 的 `DataPacks.Enabled` 順序載入資料夾/ZIP 的 entity_type tags，支援 replace、tag 參照與 optional entries。參照在覆寫完後才展開，停用的 pack 不載入；缺少 pack 會提示，未知 tag、必要參照遺失、循環、schema/大小錯誤會明確報錯。模組注入的未知內建 pack 仍需線上 adapter。persistence 的明確旗標與常見不會消失的實體類型是保守近似，不能精確替代伺服器的 despawn 判斷。
 - world-meta 的 field selector 使用 `worldgit:level`、`worldgit:map`、`worldgit:scoreboard`、`worldgit:boss_events`、`worldgit:gamerules`、`worldgit:border`、`worldgit:worldgen`；比對 canonical NBT 根 compound 欄位。`field worldgit:map *` 排除所有地圖，`!field` 同樣後面優先。空 compound 不存，活世界資料不刪除；repo 設定不受這些規則影響。
 - 世界 metadata 擷取 1.21.11 的 `game_rules`、spawn、worldgen、邊界，以及 26.2 各維度 `data/minecraft/{game_rules,world_border,world_gen_settings}.dat`，地圖/記分板另存 canonical NBT。完整跨版本 world-meta 的還原/DataFixer 流程仍是 Phase 2。
+
+## Phase 2 歷史與操作資料（2026-10-01）
+
+stash 是全維度 working tree 的獨立 commit 組，parent 為各自原 HEAD，不移動分支；`refs/worldgit/stash/<UUID>` 保持可達，組目錄在 `stash.yml`。pop 只在原基底且工作區乾淨時套用，跨分支合併屬 Phase 3。一般 commit 額外 pin 在 `refs/worldgit/snapshots/<snapshot>/<commit>`，確保 detached 歷史可配對；WorldRepositories 對每次成功提交（含不變維度）記 `refs/worldgit/groups/<snapshot>`，讓 hash 入口取得完整維度組。
+
+`apply-state.yml` 位於世界 repo 組根，記錄 from／to、原 symbolic HEAD、範圍與每維度完成旗標；操作 refs pin 原始／目標 commit。低階 ApplyPlan 另有有界 NBT 序列化 v1，保存壓縮 section blob 與 mask，而非展開全世界方塊。PARTIAL／APPLYING 未恢復時阻擋新 commit；離線全量重套後才清成 COMPLETE。metadata 還原／保留與範圍規則詳見 [05 §7](05-switch-restore.md)。
+
+新 commit 的 `WorldGit-Time` trailer 保存原始 Instant 精度，秒數須與 git committer 時間一致；舊 commit 沒有此欄位時仍用 git 整秒時間。這避免跨維度歷史以時間排序時，同秒的 init／後續提交隨 HashMap 走訪順序顛倒。

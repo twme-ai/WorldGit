@@ -25,7 +25,7 @@ public final class MetadataNormalizer {
     return result;
   }
 
-  private static String type(String name) {
+  public static String type(String name) {
     if (name.equals("level.nbt")) return "worldgit:level";
     if (name.matches("map_\\d+\\.dat\\.nbt")) return "worldgit:map";
     if (name.equals("scoreboard.dat.nbt")) return "worldgit:scoreboard";

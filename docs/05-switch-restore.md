@@ -110,3 +110,45 @@
 - **正規化要再加一條**：伺服器會惰性補上沒有 modifier 的 `movement_speed` attribute，比較時要略過（見 [02](02-data-model.md) §3）。
 - **尚未驗證**：光照逐格比對、真村民與自然生物、switch 進行中關服後的恢復、真玩家活動下的負載，以及重複量測。
 
+## 7. Phase 2 正式 core／離線 CLI（2026-10-01）
+
+### 操作與一致性
+
+`WorldOperations` 先持有世界組／所有維度 repo／OS session 鎖，再全量 capture 目前世界，與目標 tree 分層比較。每個維度的 DataVersion、規則、metadata 路徑等預檢都通過才開始寫回。`apply-state.yml` 記錄 operation UUID、模式、from／to、原分支、範圍、已套用維度與錯誤；from／to 另用 `refs/worldgit/operations/<UUID>` pin。全組寫回後重新掃描，確認 ApplyPlan 為空，再移動 HEAD。
+
+只有 refs 可以回復；多個 region 檔的部分寫入不回滾。失敗或中途終止保留 APPLYING／PARTIAL（兩者都阻擋新 commit、普通 switch、branch、stash），以 `switch <branch> --force` 或 `reset --hard` 全範圍重套恢復。離線 journal 是維度級，不是逐 section 的續傳位元圖；重開自動續傳尚未提供。範圍限定的 restore 不可消除全世界的 PARTIAL。
+
+`switch <branch>` 附著同名的全維度分支；hash、HEAD、HEAD~n 等非分支目標使所有維度 detached。此時 commit 仍可建立新歷史，可用 `branch saved` 保存，再 switch 附著。分支 create/delete 預檢全維度，部分 ref 更新失敗會回復已更新部分，回復失敗標 PARTIAL。刪除目前分支或未合併分支被拒。
+
+`WorldRepositories` 的 init／commit 在所有成功維度建立 `refs/worldgit/groups/<snapshot>`，包含當次沒產生 commit 的 HEAD，hash 入口優先用它配對。不具此 ref 的 Phase 1 歷史，按入口 commit 的 first-parent snapshot 祖先配對其他維度；找不到則拒絕，建議改用同步分支。不同平台直接呼叫 DimensionRepository 的提交者也應建立完整 group refs，否則僅享有舊歷史的回溯規則。
+
+### 寫回與範圍
+
+RegionWriter 就地改動變更 chunk 的 sector／location／timestamp，未變 chunk 的 sector bytes 不動；相同 sector 數可沿用原位置，不同大小以 free run／檔尾配置。寫入 zlib，讀取 gzip／zlib／raw／LZ4；超過 255 sector 的 payload 原子寫入 `.mcc`，回到小 chunk／刪除時清掉外部檔。payload／header 強制落盤，但這仍不是斷電時可回滾的檔案系統 transaction。
+
+變更 terrain chunk 刪除所有 section 的 BlockLight／SkyLight／starlight、chunk Heightmaps／starlight，設 isLightOn=0，刪除該 chunk 的 POI 記錄。實體分成完整 UUID 移除（全維度，含 passengers）與依 Pos 生成兩階段；保留不在操作中的 UUID。這允許範圍外的同 UUID 被移除，否則還原會重複生成。黏性儲存路徑不決定實體的寫回 chunk。
+
+chunk 半徑為正方形且含端點；block box 與 BE 逐格裁切。biome 是 4×4×4 sample，以 sample 起點選取，sample 不可再分割。ticks／structures 是 chunk 級原子資料，只在 chunk 完整涵蓋且沒有 area 規則時套用；box 的完整高度採 -64..319，其他高度的維度用 chunk 範圍較直接。只改光照／POI 等衍生內容不列為追蹤資料差異。
+
+目標沒有的 chunk 預設保留，寫入 repo `untracked.yml`；status／下一次 switch 不把它算成未提交變動，explicit commit 重新納入追蹤，自動 commit 保留標記。`--delete-untracked` 只允許完整涵蓋的 chunk，存在 area 排除時拒絕。verify 回報的是可套用的已追蹤資料差異，保留的 untracked 另列數量，並非 raw region 位元組相同。
+
+目前 `.wgignore` 與目標不同時拒絕，而非自動遷移規則；低階 planner 可依兩邊排除區域產生 mask。相同規則下，範圍外方塊／BE 原始欄位保留，覆蓋的同類 BE／實體保留使用者明確忽略的頂層欄位；內建暫態資料不列入快照。跨 DataVersion 一律清楚拒絕，沒有 DataFixer 實作；舊→新可先用同版還原至複本，再啟動新版伺服器升級與重新 commit，不直接更改 DataVersion 數字。
+
+### world-meta 還原規則
+
+| 資料 | 全範圍 restore／switch／reset／stash | 局部 restore |
+|---|---|---|
+| 出生點、LevelName、難度、hardcore、gamerules、world border、worldgen 設定 | 套用已追蹤的目標欄位；未追蹤／明確忽略欄位保留 | 保留 |
+| 地圖、scoreboard、custom boss events、26.2 各維度設定檔 | 還原已追蹤 NBT；目標移除且規則仍追蹤的檔案刪除 | 保留 |
+| DataVersion | 預檢要求同版，保留原值 | 保留 |
+| DataPacks | 清單必須相同，否則預檢拒絕；沒有快照的 datapack 檔案可供還原 | 保留 |
+| 玩家資料／背包／進度、Time／DayTime、天氣、未追蹤 level.dat 欄位 | 保留 | 保留 |
+| repo 的 track 設定 | 移動 HEAD 的 switch／有 revision 的 reset 同步 sidecar；其他 restore 保留 sidecar | 保留 |
+
+### stash 與 reset
+
+stash 保存全組 working tree，每維度一個以原 HEAD 為 parent 的獨立 commit，pin 在 `refs/worldgit/stash/<UUID>`，世界組 `stash.yml` 按新到舊保存 UUID、time、message、commits／bases。全組 capture／refs 成功後才發布清單；push 發布後再還原 HEAD，清除已保存的新增 chunk，寫回失敗保留 stash 與 PARTIAL。`switch --stash` 只保存工作區後直接切換，省去一次中間還原。pop 限原基底、乾淨工作區（連保留的 untracked 也要先 commit／stash push，避免覆蓋或刪掉它），全部套用／驗證成功才 drop；不做三方合併，跨分支 stash 合併留待 Phase 3。drop 移除目錄項與 pin，既有保守 GC 不立即 prune 物件。
+
+`reset --hard` 保持分支／HEAD 指向並還原 HEAD；帶 revision 時要求 --force，附著 HEAD 則更新目前分支，detached HEAD 則改其 commit。勿用於已 push 的歷史。revert 尚屬 Phase 3。
+
+批次 coordinator、玩家保護／取消契約與實測證據見 [12](12-phase2-progress.md)。

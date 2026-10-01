@@ -61,7 +61,7 @@ void edge(vec3 n, out float e, out float otherG) {
 
 void main() {
   uint kind = vFlags & 7u;
-  if (uMode == 1 && kind == 0u) discard;
+  if (uMode == 1 && kind == 0u && (vFlags & 32u) == 0u) discard;
   vec4 tex;
   if ((vFlags & 16u) != 0u) tex = vec4(1.0);
   else if (vRect == 65535u) tex = texture(uAtlas, vUv / 65535.0);

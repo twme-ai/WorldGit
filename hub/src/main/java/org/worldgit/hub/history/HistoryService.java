@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.revwalk.RevWalk;
 import org.springframework.stereotype.Service;
 import org.worldgit.core.diff.ChangeKind;
 import org.worldgit.core.diff.DiffEngine;
@@ -30,6 +32,7 @@ import org.worldgit.hub.storage.RepoStorage;
 public class HistoryService {
   public static final double TOLERANCE = 2.0;
   private static final int MAX_HISTORY = 20_000;
+  private static final Pattern HEX = Pattern.compile("^[0-9a-fA-F]{4,40}$");
   private static final Pattern MANIFEST = Pattern.compile("^\\s*'([^']+)'\\s*:", Pattern.MULTILINE);
 
   private final RepoStorage storage;
@@ -48,6 +51,14 @@ public class HistoryService {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, CommitDetail> e) {
           return size() > 256;
+        }
+      });
+
+  private final Map<String, Map<String, String>> snapshotCache =
+      Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Map<String, String>> e) {
+          return size() > 32;
         }
       });
 
@@ -80,6 +91,51 @@ public class HistoryService {
       var list = h.store().log(MAX_HISTORY).stream().map(HistoryService::info).toList();
       logCache.put(key, list);
       return list;
+    }
+  }
+
+  /** 指定分支的歷史（新到舊）；branch 為 null 時等同 {@link #log(WorldRow, DimensionId)}（HEAD）。沒有該分支回傳空清單。 */
+  public List<CommitInfo> log(WorldRow w, DimensionId dim, String branch) throws IOException {
+    if (branch == null) return log(w, dim);
+    try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
+      ObjectId tip = Refs.tip(h.repository(), branch);
+      if (tip == null) return List.of();
+      String key = w.id() + "/" + dim + "/" + branch + "/" + tip.name();
+      List<CommitInfo> cached = logCache.get(key);
+      if (cached != null) return cached;
+      var list = Refs.log(h.repository(), tip, MAX_HISTORY).stream().map(HistoryService::info).toList();
+      logCache.put(key, list);
+      return list;
+    }
+  }
+
+  /** 分支 head 的 commit（沒有該分支或維度 repo 不存在時為空）。 */
+  public Optional<CommitInfo> branchHead(WorldRow w, DimensionId dim, String branch) throws IOException {
+    if (!Refs.validBranch(branch) || !storage.exists(w.ownerSlug(), w.slug(), dim)) return Optional.empty();
+    try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
+      ObjectId tip = Refs.tip(h.repository(), branch);
+      if (tip == null) return Optional.empty();
+      try (var walk = new RevWalk(h.repository())) {
+        return Optional.of(info(Refs.commit(walk.parseCommit(tip))));
+      }
+    }
+  }
+
+  /** 某次存檔（snapshot）在該維度的 commit（所有分支中最新的一個）。 */
+  public Optional<CommitInfo> commitForSnapshot(WorldRow w, DimensionId dim, String snapshot) throws IOException {
+    if (!storage.exists(w.ownerSlug(), w.slug(), dim)) return Optional.empty();
+    try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
+      var tips = Refs.branches(h.repository());
+      var sig = new StringBuilder(w.id()).append('/').append(dim);
+      tips.forEach((n, id) -> sig.append('/').append(n).append('=').append(id.name()));
+      String key = sig.toString();
+      Map<String, String> index = snapshotCache.get(key);
+      if (index == null) snapshotCache.put(key, index = Refs.snapshotIndex(h.repository(), MAX_HISTORY));
+      String id = index.get(snapshot.toLowerCase(Locale.ROOT));
+      if (id == null) return Optional.empty();
+      try (var walk = new RevWalk(h.repository())) {
+        return Optional.of(info(Refs.commit(walk.parseCommit(ObjectId.fromString(id)))));
+      }
     }
   }
 
@@ -123,14 +179,38 @@ public class HistoryService {
     return new ArrayList<>(set);
   }
 
+  /** 世界的預設分支以主世界 HEAD 為準，其他維度也讀同名分支。 */
+  String defaultBranch(WorldRow w, Collection<DimensionId> existing) throws IOException {
+    var heads = new TreeMap<DimensionId, String>();
+    var names = new TreeSet<String>();
+    for (DimensionId d : existing) {
+      try (var h = repos.open(w.ownerSlug(), w.slug(), d)) {
+        heads.put(d, Refs.headBranch(h.repository()));
+        names.addAll(Refs.branches(h.repository()).keySet());
+      }
+    }
+    return Refs.defaultBranch(heads, names);
+  }
+
   public SnapshotPage snapshots(WorldRow w, int limit, Long before, boolean includeAuto) throws IOException {
+    return snapshots(w, limit, before, includeAuto, null);
+  }
+
+  /** branch 為 null＝預設（HEAD）；指定分支時只看該分支的歷史，分支在任何維度都不存在則 NoSuchElementException（404）。 */
+  public SnapshotPage snapshots(WorldRow w, int limit, Long before, boolean includeAuto, String branch) throws IOException {
     var existing = storage.dimensions(w.ownerSlug(), w.slug());
     var declared = declared(w, existing);
+    boolean explicitBranch = branch != null;
+    if (branch == null) branch = defaultBranch(w, existing);
     var groups = new LinkedHashMap<String, Map<String, CommitInfo>>();
     var rejected = new HashMap<String, String>();
+    boolean found = branch == null || existing.isEmpty();
     for (DimensionId d : existing) {
-      for (CommitInfo c : log(w, d)) groups.computeIfAbsent(c.snapshot(), k -> new LinkedHashMap<>()).put(d.value(), c);
+      var history = log(w, d, branch);
+      found |= !history.isEmpty();
+      for (CommitInfo c : history) groups.computeIfAbsent(c.snapshot(), k -> new LinkedHashMap<>()).putIfAbsent(d.value(), c);
     }
+    if (!found && explicitBranch) throw new NoSuchElementException("找不到分支 " + branch);
     for (var e : accounts.pushEvents(w.id(), 200)) {
       if ("REJECTED".equals(e.status()) && e.snapshot() != null) rejected.put(e.snapshot(), e.message());
     }
@@ -144,7 +224,7 @@ public class HistoryService {
         if (commits.containsKey(d.value())) continue;
         // 沒有該維度的 commit：repo 尚未推送（不存在或沒有 HEAD）才算缺少；
         // repo 已有歷史而這次存檔沒有 commit，表示該維度那次沒有變動。
-        boolean pushed = existing.contains(d) && !log(w, d).isEmpty();
+        boolean pushed = existing.contains(d) && !log(w, d, branch).isEmpty();
         if (!pushed) missing.add(d.value());
       }
       String reason = rejected.get(g.getKey());
@@ -166,9 +246,28 @@ public class HistoryService {
   /** commit（完整 id 或前綴）→ CommitInfo。 */
   public Optional<CommitInfo> find(WorldRow w, DimensionId dim, String rev) throws IOException {
     if (!storage.exists(w.ownerSlug(), w.slug(), dim)) return Optional.empty();
-    if (rev == null || rev.equals("HEAD")) return log(w, dim).stream().findFirst();
-    for (CommitInfo c : log(w, dim)) if (c.id().startsWith(rev)) return Optional.of(c);
-    return Optional.empty();
+    if (rev == null || rev.equals("HEAD")) {
+      try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
+        String head = h.store().head();
+        return head == null ? Optional.empty() : Optional.of(info(h.store().readCommit(head)));
+      }
+    }
+    return findAnywhere(w, dim, rev);
+  }
+
+  /** 不在預設分支歷史上的 commit（其他分支）：在該 repo 的物件庫以前綴解析。只接受 4–40 位十六進位。 */
+  private Optional<CommitInfo> findAnywhere(WorldRow w, DimensionId dim, String rev) throws IOException {
+    if (!HEX.matcher(rev).matches()) return Optional.empty();
+    try (var h = repos.open(w.ownerSlug(), w.slug(), dim); var reader = h.repository().newObjectReader()) {
+      var ids = reader.resolve(org.eclipse.jgit.lib.AbbreviatedObjectId.fromString(rev.toLowerCase(Locale.ROOT)));
+      if (ids.size() > 1) throw new IllegalArgumentException("commit 前綴不唯一，請使用完整 id");
+      if (ids.isEmpty()) return Optional.empty();
+      try (var walk = new RevWalk(h.repository())) {
+        return Optional.of(info(Refs.commit(walk.parseCommit(ids.iterator().next()))));
+      } catch (org.eclipse.jgit.errors.IncorrectObjectTypeException | org.eclipse.jgit.errors.MissingObjectException e) {
+        return Optional.empty();
+      }
+    }
   }
 
   public CommitDetail detail(WorldRow w, DimensionId dim, String rev, String mcVersion) throws IOException {
@@ -218,35 +317,39 @@ public class HistoryService {
         return new CommitDetail(c, null, true, 0, 0, 0, chunks.size(), sections, 0, 0, 0, List.of(), chunks,
             chunks.isEmpty() ? new int[] {0, 0, 0, 0} : b, List.of(), mcVersion);
       }
-      WorldDiff diff = new DiffEngine(store).compare(dim, parentTree, c.tree(), TOLERANCE, DiffEngine.Detail.SUMMARY);
-      var perChunk = new TreeMap<org.worldgit.core.model.ChunkPos, int[]>();
-      for (var s : diff.sections()) {
-        int[] v = perChunk.computeIfAbsent(s.chunk(), k -> new int[6]);
-        v[2] += (int) s.counts().added(); v[3] += (int) s.counts().removed(); v[4] += (int) s.counts().modified();
-      }
-      for (var bc : diff.biomes()) perChunk.computeIfAbsent(bc.chunk(), k -> new int[6])[5] |= 2;
-      int ea = 0, er = 0, em = 0;
-      var ents = new ArrayList<EntityChangeInfo>();
-      for (var e : diff.entities()) {
-        if (e.kind() == ChangeKind.ADDED) ea++; else if (e.kind() == ChangeKind.REMOVED) er++; else em++;
-        var snap = e.after() != null ? e.after() : e.before();
-        if (e.beforeChunk() != null) perChunk.computeIfAbsent(e.beforeChunk(), k -> new int[6])[5] |= 1;
-        if (e.afterChunk() != null) perChunk.computeIfAbsent(e.afterChunk(), k -> new int[6])[5] |= 1;
-        if (ents.size() < 200) ents.add(new EntityChangeInfo(e.uuid().toString(), e.kind().name().toLowerCase(Locale.ROOT),
-            snap.data().string("id"), e.before() == null ? null : e.before().position(), e.after() == null ? null : e.after().position()));
-      }
-      var chunks = new ArrayList<int[]>();
-      int[] b = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
-      for (var en : perChunk.entrySet()) {
-        int[] v = en.getValue();
-        chunks.add(new int[] {en.getKey().x(), en.getKey().z(), v[2], v[3], v[4], v[5]});
-        b[0] = Math.min(b[0], en.getKey().x()); b[1] = Math.min(b[1], en.getKey().z());
-        b[2] = Math.max(b[2], en.getKey().x()); b[3] = Math.max(b[3], en.getKey().z());
-      }
-      var counts = diff.counts();
-      return new CommitDetail(c, parent, false, counts.added(), counts.removed(), counts.modified(), chunks.size(),
-          diff.sections().size(), ea, er, em, ents, chunks, chunks.isEmpty() ? new int[] {0, 0, 0, 0} : b,
-          diff.metadata().stream().map(m -> m.kind().name().toLowerCase(Locale.ROOT) + " " + m.path()).limit(50).toList(), mcVersion);
+      return diffDetail(store, dim, c, parent, parentTree, mcVersion);
     }
+  }
+
+  private CommitDetail diffDetail(ObjectStore store, DimensionId dim, CommitInfo c, String parent, String parentTree, String mcVersion) throws IOException {
+    WorldDiff diff = new DiffEngine(store).compare(dim, parentTree, c.tree(), TOLERANCE, DiffEngine.Detail.SUMMARY);
+    var perChunk = new TreeMap<org.worldgit.core.model.ChunkPos, int[]>();
+    for (var s : diff.sections()) {
+      int[] v = perChunk.computeIfAbsent(s.chunk(), k -> new int[6]);
+      v[2] += (int) s.counts().added(); v[3] += (int) s.counts().removed(); v[4] += (int) s.counts().modified();
+    }
+    for (var bc : diff.biomes()) perChunk.computeIfAbsent(bc.chunk(), k -> new int[6])[5] |= 2;
+    int ea = 0, er = 0, em = 0;
+    var ents = new ArrayList<EntityChangeInfo>();
+    for (var e : diff.entities()) {
+      if (e.kind() == ChangeKind.ADDED) ea++; else if (e.kind() == ChangeKind.REMOVED) er++; else em++;
+      var snap = e.after() != null ? e.after() : e.before();
+      if (e.beforeChunk() != null) perChunk.computeIfAbsent(e.beforeChunk(), k -> new int[6])[5] |= 1;
+      if (e.afterChunk() != null) perChunk.computeIfAbsent(e.afterChunk(), k -> new int[6])[5] |= 1;
+      if (ents.size() < 200) ents.add(new EntityChangeInfo(e.uuid().toString(), e.kind().name().toLowerCase(Locale.ROOT),
+          snap.data().string("id"), e.before() == null ? null : e.before().position(), e.after() == null ? null : e.after().position()));
+    }
+    var chunks = new ArrayList<int[]>();
+    int[] b = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
+    for (var en : perChunk.entrySet()) {
+      int[] v = en.getValue();
+      chunks.add(new int[] {en.getKey().x(), en.getKey().z(), v[2], v[3], v[4], v[5]});
+      b[0] = Math.min(b[0], en.getKey().x()); b[1] = Math.min(b[1], en.getKey().z());
+      b[2] = Math.max(b[2], en.getKey().x()); b[3] = Math.max(b[3], en.getKey().z());
+    }
+    var counts = diff.counts();
+    return new CommitDetail(c, parent, false, counts.added(), counts.removed(), counts.modified(), chunks.size(),
+        diff.sections().size(), ea, er, em, ents, chunks, chunks.isEmpty() ? new int[] {0, 0, 0, 0} : b,
+        diff.metadata().stream().map(m -> m.kind().name().toLowerCase(Locale.ROOT) + " " + m.path()).limit(50).toList(), mcVersion);
   }
 }

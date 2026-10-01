@@ -1,10 +1,11 @@
 # WorldGit Hub
 
-Phase 1 的 Hub：Spring Boot（Java 25）後端 + TypeScript/Vite 前端，單一 jar／單一容器。提供
+Phase 1／2 的 Hub：Spring Boot（Java 25）後端 + TypeScript/Vite 前端，單一 jar／單一容器。提供
 
 - **Git smart HTTP**（JGit `GitServlet`）：`git clone/push` 一個「世界」的各維度 repo，路徑 `/git/{owner}/{world}/{維度目錄}.git`，例如 `/git/alice/castle/minecraft.overworld.git`。push 需要 token（Basic：任意使用者名 + token 當密碼，或 `Authorization: Bearer`）；公開世界允許以 `anonymous`／空密碼 clone（例如 `git clone https://anonymous:@hub.example.org/git/alice/castle/minecraft.overworld.git`）。未帶認證時所有有效 repo 路徑先回相同的 401 challenge，認證後無權與不存在皆回 404，避免列舉私人世界；這會讓沒有明確匿名帳密的公開 clone 出現帳密提示。
 - **世界 = 一組維度 repo**：同一次存檔（`WorldGit-Snapshot` trailer 相同）在網頁上合併成一列；宣告的維度 repo 尚未推送或 push 被拒時標示「部分推送」。
 - **網頁**：世界首頁（維度分頁、俯視 tile 地圖、變動 chunk 疊圖、clone/push 指令）、commit 列表（auto commit 折疊）、單一 commit 的 3D 檢視與 diff 上色（新增綠、移除紅鬼影、修改黃、衝突紫預留；一般／色盲色票）。
+- **分支／比較**：世界分支頁、分支下拉與分支歷史；兩個任意 commit／分支的 a→b 統計、chunk／section 清單與 3D（上色疊圖、只看變動及周圍一格、前／後切換）。
 - **REST API**（`/api/v1`）：見下表。
 
 ## 快速開始
@@ -72,13 +73,22 @@ commit 物件上限 1 MiB、每個 commit 最多 1024 個 trailer／100000 個 c
 |---|---|
 | `POST /auth/login`、`GET /me`、`/tokens`（GET/POST/DELETE）、`POST /users`、`POST /orgs` | 本機帳號與 token（Phase 4 再加 OAuth 與細部權限；資料模型已有 owners／users／memberships／tokens） |
 | `GET/POST /worlds`、`GET /worlds/{owner}/{world}`、`/snapshots`、`/pushes` | 世界、依 snapshot 合併的歷史、push 紀錄 |
+| `GET …/branches?base=分支` | 跨維度同名分支、預設分支、各維度 head／作者／snapshot、一致性；相對基準的 ahead／behind（以可達 snapshot 集合計算） |
+| `GET …/snapshots?branch=分支` | 指定分支的存檔歷史；未指定讀世界的預設分支 |
+| `GET …/compare?a=起點&b=終點` | 任意分支／HEAD／唯一 commit 前綴的 a→b 統計，依維度回傳 chunk／section 清單、截斷旗標；沒有配對端點的維度排除統計 |
 | `GET …/dims/{維度目錄}/commits/{rev}` | commit 詳情：+/-/~ 統計、變動 chunk、實體變動 |
 | `…/commits/{rev}/chunks?x0&z0&x1&z1` | 方塊資料串流（WGCK 二進位；格式見 `data/ChunkWire.java`） |
 | `…/commits/{rev}/diff?base&x0…` | diff（WGDF 二進位） |
-| `…/commits/{rev}/entities`、`/tiles`、`/tiles/{rx}/{rz}.png`、`.height` | 實體、伺服器預先計算的俯視 tile 與高度圖（內容定址快取） |
+| `…/commits/{rev}/entities?base=commit&plain=true`、`/tiles`、`/tiles/{rx}/{rz}.png`、`.height` | 實體、伺服器預先計算的俯視 tile 與高度圖（內容定址快取） |
 | `GET /diff-palettes`、`/assets/{version}/{file}` | 色票（protocol.DiffPalette）、資源包 |
 
 `rev` 可為 `HEAD` 或 commit 前綴。回應多為內容雜湊，設有長期快取。
+
+比較頁網址為 `/{owner}/{world}/compare/<a>...<b>`，方向為 a→b；鏡頭 `cam`、維度 `dim`、呈現 `view=color|changed|before|after` 可分享與重載。含 `/` 的分支在網址保留斜線，例如 `compare/main...build/castle`。`base` 的 3D diff／entities 查詢使用解析後的 commit id；`plain=true` 只回該版本實體，不附上一版的差異。
+
+分支代表各維度的目前 head；commit 代表該 commit 及其他維度**同 snapshot UUID**的 commit。不依時間猜測沒有變動維度的 head。缺少端點會明示且不計入總計；用分支可比較各維度目前狀態。分支 `consistent` 表示宣告／實際維度都有分支，`aligned` 表示所有 head 同一 snapshot；兩者分開呈現。
+
+比較回應全維度最多 2000 個 chunk／6000 個 section（座標序），統計與 bounds 保持完整；每維度實體樣本 200、metadata 50。`chunksTruncated`／`sectionsTruncated` 表示省略清單；前端各顯示最多 300 列。每世界最多 32 維度／500 分支；ahead／behind 每 tip／維度最多走 20,000 個 commit，`countsTruncated` 時視為估算。JSON 上限 4 MiB、3D wire 上限 16 MiB；視窗仍最多 1024 chunk、DecodeBudget 限制照常生效。超額回 413；branches／compare 回應 `no-store`，權限檢查先於讀取／快取。compare 不建立磁碟快取，避免任意 commit 配對累積空間。
 
 ## 開發與測試
 
@@ -104,9 +114,17 @@ src/main/java/org/worldgit/hub/
 web/src/                      TypeScript/Vite 前端：pages/、map/（2D tile 地圖）、viewer/（worker 網格、LOD、diff shader）
 ```
 
-## 已知限制（Phase 1）
+## 已知限制（Phase 1／2）
 
 - 遠景為「伺服器高度圖階梯 LOD」的簡化版，**尚未嵌入 BlueMap core**；近景用 deepslate 模型層 + 自寫 greedy 網格。
 - 沒有 AO、告示牌文字／頭顱皮膚；實體只畫線框。
 - 初始 commit 的統計只列 chunk 數，不逐格計數。
 - 權限僅 owner／reader／writer 基本檢查，沒有 OAuth、S3。配額與認證限流為單 Hub 實例的本機儲存防護；多實例部署需共用配額／限流狀態。
+
+Phase 2 截圖／CSP／互動驗收（使用 18097，取得 `.work/bench.lock`，結束自動關閉 Hub 與瀏覽器）：
+
+```sh
+hub/scripts/phase2-acceptance.sh
+```
+
+此腳本建立數十 KiB 的三維度固定場景，只向本機暫存 Hub 推送測試 repo；正式專案不 commit／push。可重用 `.work/hub/run2/data/cache/assets/26.2` 資源快取；沒有快取時由既有官方資源管線建立。證據在 `.work/hub-phase2-h/`、精選四張截圖在 `hub/docs/screenshots/phase2/`。並排、分割滑桿、時間軸尚未實作；前／後切換會重建檢視器與載入該版本串流，鏡頭保留。

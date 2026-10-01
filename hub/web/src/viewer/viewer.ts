@@ -21,6 +21,8 @@ export interface ViewerConfig {
   workers?: number
   /** 沒有 diff 時（initial commit 或要看純世界）不載入 diff。 */
   showDiff?: boolean
+  /** diff 的比較基準（commit id）；省略＝commit 的第一個 parent。比較檢視用它顯示任意兩個 commit 的差異。 */
+  base?: string
 }
 
 export interface PickInfo {
@@ -117,8 +119,8 @@ export class Viewer {
     this.renderer.resize(Math.max(2, Math.round(c.clientWidth * dpr)), Math.max(2, Math.round(c.clientHeight * dpr)))
   }
 
-  setPalette(p: Palette) { this.renderer.setPalette(p); this.needsRender = true }
-  setMode(m: RenderMode) { this.renderer.mode = m; this.needsRender = true }
+  setPalette(p: Palette) { this.cfg.palette = p; this.renderer.setPalette(p); this.rebuildLines(); this.needsRender = true }
+  setMode(m: RenderMode) { this.renderer.mode = m; this.rebuildLines(); this.needsRender = true }
   setCameraMode(m: CameraMode) { this.camera.setMode(m) }
   setRadius(r: number) { this.radius = r; this.scheduleStream(true) }
   getViewState(): ViewState {
@@ -157,11 +159,13 @@ export class Viewer {
       }
     })
     const [rects, atlas] = await Promise.all([ready, getBlob(`${this.mcBase}/atlas.png`).then((b) => createImageBitmap(b, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }))])
+    if (this.disposed) { atlas.close(); return }
     this.renderer.setAtlas(atlas, rects)
     atlas.close()
     if (this.cfg.detail.chunkCount > 0) {
       for (const t of await api.tiles(this.cfg.owner, this.cfg.world, this.cfg.dimRepo, this.cfg.detail.commit.id).catch(() => [] as TileRef[])) this.tiles.set(`${t.rx},${t.rz}`, t)
     }
+    if (this.disposed) return
     if (!this.focusDone) this.initialFocus()
     this.loop()
     this.scheduleStream(true)
@@ -255,10 +259,11 @@ export class Viewer {
     const { owner, world, dimRepo, detail } = this.cfg
     const q = `x0=${wx * WINDOW}&z0=${wz * WINDOW}&x1=${wx * WINDOW + WINDOW - 1}&z1=${wz * WINDOW + WINDOW - 1}`
     const base = `/api/v1/worlds/${owner}/${world}/dims/${dimRepo}/commits/${detail.commit.id}`
+    const against = this.cfg.base ? `&base=${encodeURIComponent(this.cfg.base)}` : ''
     const [chunkBuf, diffBuf, ents] = await Promise.all([
       getBuffer(`${base}/chunks?${q}`),
-      this.diffEnabled ? getBuffer(`${base}/diff?${q}`) : Promise.resolve(null),
-      getJson<EntityRaw[]>(`${base}/entities?${q}`).catch(() => [] as EntityRaw[]),
+      this.diffEnabled ? getBuffer(`${base}/diff?${q}${against}`) : Promise.resolve(null),
+      getJson<EntityRaw[]>(`${base}/entities?${q}${against}${this.diffEnabled ? '' : '&plain=true'}`).catch(() => [] as EntityRaw[]),
     ])
     if (this.disposed) return
     const k = `${wx},${wz}`
@@ -273,7 +278,14 @@ export class Viewer {
       for (const sy of c.sections.keys()) touched.add(World.sectionKey(c.cx, sy, c.cz))
       this.markNeighbors(c.cx, c.cz)
     }
-    for (const dk of diffs.keys()) touched.add(dk)
+    for (const dk of diffs.keys()) {
+      touched.add(dk)
+      const [cx, sy, cz] = dk.split(',').map(Number)
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+        const key = World.sectionKey(cx + dx, sy + dy, cz + dz)
+        if (this.world.section(cx + dx, sy + dy, cz + dz) || this.world.diffs.has(key)) touched.add(key)
+      }
+    }
     for (const t of touched) this.markDirty(t)
     this.windows.set(k, 'loaded')
     this.windowEntities.set(k, ents.map((e) => ({ ...e })))
@@ -290,9 +302,8 @@ export class Viewer {
     for (let cx = wx * WINDOW; cx < wx * WINDOW + WINDOW; cx++) {
       for (let cz = wz * WINDOW; cz < wz * WINDOW + WINDOW; cz++) {
         const c = this.world.chunk(cx, cz)
-        if (!c) continue
-        for (const sy of c.sections.keys()) this.dropSection(World.sectionKey(cx, sy, cz))
-        for (const dk of [...this.world.diffs.keys()]) { const [x, , z] = dk.split(',').map(Number); if (x === cx && z === cz) this.dropSection(dk) }
+        for (const sy of c?.sections.keys() ?? []) this.dropSection(World.sectionKey(cx, sy, cz))
+        for (const dk of [...this.world.diffs.keys()]) { const [x, , z] = dk.split(',').map(Number); if (x === cx && z === cz) { this.dropSection(dk); this.world.diffs.delete(dk) } }
         this.world.remove(cx, cz)
       }
     }
@@ -352,7 +363,7 @@ export class Viewer {
     const bes: [number, string][] = []
     if (chunk) for (const [k, v] of chunk.blockEntities) if (Math.floor(k / 4096) === sy) bes.push([k - sy * 4096, v])
     const id = this.nextJob++
-    const req: MeshRequest = { id, cx, sy, cz, after, before, biomes: chunk?.biomes.get(sy) ?? null, blockEntities: bes }
+    const req: MeshRequest = { id, cx, sy, cz, after, before, kinds: this.world.diffs.get(key)?.kind.slice() ?? null, context: this.world.changedContext(cx, sy, cz), biomes: chunk?.biomes.get(sy) ?? null, blockEntities: bes }
     this.syncTables(w)
     this.inflight.set(id, { key, version: this.versions.get(key) ?? 0, worker: w })
     this.busy[w]++
@@ -383,7 +394,7 @@ export class Viewer {
     this.busy[w]--
     this.meshMs.push(r.ms)
     if (this.meshMs.length > 200) this.meshMs.shift()
-    if (job && job.version === (this.versions.get(job.key) ?? 0) && this.world.chunk(r.cx, r.cz)) {
+    if (job && job.version === (this.versions.get(job.key) ?? 0) && (this.world.chunk(r.cx, r.cz) || this.world.diffs.has(job.key))) {
       this.renderer.setSection(job.key, [r.cx * 16, r.sy * 16, r.cz * 16], r.layers)
       this.meshed.add(job.key)
       if (this.stats.firstMeshMs === null) this.stats.firstMeshMs = performance.now() - this.t0
@@ -464,6 +475,7 @@ export class Viewer {
     }
     for (const list of this.windowEntities.values()) {
       for (const e of list) {
+        if (this.renderer.mode === 'changed' && !e.kind) continue
         const [w, h] = ENTITY_SIZE[e.id] ?? [0.6, 1.8]
         addBox(lines, e.x - w / 2, e.y, e.z - w / 2, e.x + w / 2, e.y + h, e.z + w / 2, col(e.kind))
       }
@@ -584,6 +596,7 @@ export class Viewer {
   dispose() {
     this.disposed = true
     cancelAnimationFrame(this.raf)
+    for (const t of [this.lodTimer, this.streamTimer, this.viewTimer, this.statsTimer]) clearTimeout(t)
     this.detach()
     this.ro.disconnect()
     for (const w of this.workers) w.terminate()

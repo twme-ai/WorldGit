@@ -106,6 +106,11 @@ public final class RegionFile implements AutoCloseable {
   public Nbt.Compound read(int index) throws IOException {
     Payload p = payload(index);
     if (p == null) return null;
+    return decode(p);
+  }
+
+  /** 解壓並解析 payload；支援 gzip/zlib/無壓縮/LZ4。 */
+  public static Nbt.Compound decode(Payload p) throws IOException {
     InputStream raw = new ByteArrayInputStream(p.bytes);
     try (InputStream in =
         switch (p.compression) {
@@ -133,75 +138,16 @@ public final class RegionFile implements AutoCloseable {
     }
   }
 
-  /** 整檔原子替換；未改 chunk 保留原壓縮資料；支援超過 255 sectors 的 .mcc。限離線。 */
+  /** 就地更新 region（不整檔重寫）：只動被改的 chunk 的 sector；null 值表示刪除。限離線。 */
   public static void update(Path path, Map<Integer, Nbt.Compound> changes, int timestamp)
       throws IOException {
-    Payload[] entries = new Payload[1024];
-    int[] times = new int[1024];
-    if (Files.exists(path))
-      try (var old = new RegionFile(path)) {
-        for (int i = 0; i < 1024; i++) {
-          entries[i] = old.payload(i);
-          times[i] = old.timestamp(i);
-        }
+    for(int index:changes.keySet()) if(index<0 || index>=1024) throw new IOException("chunk index 無效");
+    try (var writer = new RegionWriter(path)) {
+      for (var e : new TreeMap<>(changes).entrySet()) {
+        if (e.getKey() < 0 || e.getKey() >= 1024) throw new IOException("chunk index 無效");
+        if (e.getValue() == null) writer.delete(e.getKey());
+        else writer.write(e.getKey(), e.getValue(), timestamp);
       }
-    for (var e : changes.entrySet()) {
-      int index = e.getKey();
-      if (index < 0 || index >= 1024) throw new IOException("chunk index 無效");
-      if (e.getValue() == null) {
-        entries[index] = null;
-        times[index] = 0;
-        continue;
-      }
-      var bytes = new ByteArrayOutputStream();
-      try (var out = new DeflaterOutputStream(bytes)) {
-        out.write(Nbt.write(e.getValue()));
-      }
-      entries[index] = new Payload(2, bytes.toByteArray());
-      times[index] = timestamp;
-    }
-    Files.createDirectories(path.toAbsolutePath().getParent());
-    Path tmp = Files.createTempFile(path.toAbsolutePath().getParent(), "worldgit-", ".mca");
-    var name = NAME.matcher(path.getFileName().toString());
-    if (!name.matches()) throw new IOException("region 檔名無效");
-    int rx = Integer.parseInt(name.group(1)), rz = Integer.parseInt(name.group(2));
-    try {
-      try (var out =
-          FileChannel.open(tmp, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
-        ByteBuffer header = ByteBuffer.allocate(8192);
-        long sector = 2;
-        out.position(8192);
-        for (int i = 0; i < 1024; i++) {
-          Payload p = entries[i];
-          if (p == null) continue;
-          int size = (p.bytes.length + 5 + 4095) / 4096;
-          boolean external = size > 255;
-          if (external) {
-            atomicWrite(
-                path.resolveSibling(
-                    "c." + (rx * 32 + (i & 31)) + "." + (rz * 32 + (i >>> 5)) + ".mcc"),
-                p.bytes);
-            size = 1;
-          }
-          if (sector > 0xffffff) throw new IOException("region offset 超過限制");
-          header.putInt(i * 4, ((int) sector << 8) | size);
-          header.putInt(4096 + i * 4, times[i]);
-          ByteBuffer body = ByteBuffer.allocate(size * 4096);
-          body.putInt(external ? 1 : p.bytes.length + 1)
-              .put((byte) (p.compression | (external ? 128 : 0)));
-          if (!external) body.put(p.bytes);
-          body.position(0);
-          while (body.hasRemaining()) out.write(body);
-          sector += size;
-        }
-        header.position(0);
-        out.position(0);
-        while (header.hasRemaining()) out.write(header);
-        out.force(true);
-      }
-      move(tmp, path);
-    } finally {
-      Files.deleteIfExists(tmp);
     }
   }
 
@@ -209,14 +155,18 @@ public final class RegionFile implements AutoCloseable {
     Files.createDirectories(path.toAbsolutePath().getParent());
     Path tmp = Files.createTempFile(path.toAbsolutePath().getParent(), "worldgit-", ".tmp");
     try {
-      Files.write(tmp, bytes);
+      try (var channel = FileChannel.open(tmp, StandardOpenOption.WRITE)) {
+        var buffer = ByteBuffer.wrap(bytes);
+        while (buffer.hasRemaining()) channel.write(buffer);
+        channel.force(true);
+      }
       move(tmp, path);
     } finally {
       Files.deleteIfExists(tmp);
     }
   }
 
-  private static void move(Path from, Path to) throws IOException {
+  static void move(Path from, Path to) throws IOException {
     try {
       Files.move(from, to, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     } catch (AtomicMoveNotSupportedException e) {

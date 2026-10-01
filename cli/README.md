@@ -46,3 +46,33 @@ entity-tolerance: 2
 離線 tag 支援兩版 vanilla 與已啟用資料夾/ZIP datapack，修改 registry 時 index 會重建。可用 `field worldgit:map *` 排除地圖、`field worldgit:scoreboard *` 排除記分板；其他 world-meta selector 與根 NBT 欄位規則見 core README。
 
 發佈可複製 fat jar，執行 `java -jar wgit.jar …`；`wgit` launcher 可用 `WGIT_JAR=/path/wgit.jar`。Gradle 也產生標準 `cli:installDist` 發佈目錄。目前沒有 native-image。
+
+## Phase 2 離線復原
+
+```sh
+./wgit --world /srv/minecraft branch before-edit
+./wgit --world /srv/minecraft restore HEAD~1 --chunks 0,0,3 --dry-run
+./wgit --world /srv/minecraft restore before-edit --box 0,60,0,31,80,31 --dimension minecraft:overworld
+./wgit --world /srv/minecraft switch before-edit --stash
+./wgit --world /srv/minecraft stash list --format=json
+./wgit --world /srv/minecraft stash pop 0
+./wgit --world /srv/minecraft reset --hard
+./wgit --world /srv/minecraft verify HEAD --format=json
+```
+
+| 指令 | 行為 |
+|---|---|
+| `restore <revision> [--chunks x,z,r \| --box x1,y1,z1,x2,y2,z2]` | 只改差異，方塊／BE 邊界逐格裁切，HEAD 不動；無範圍時含 world-meta |
+| `switch <branch\|commit> [--stash\|--force]` | 同步所有已追蹤維度；不乾淨預設拒絕。hash／HEAD~n 進 detached HEAD |
+| `branch [-d] [name] [start]` | 列出／建立／刪除同名分支；拒絕刪除目前或尚未合併的分支 |
+| `reset --hard [revision --force]` | 無 revision 還原 HEAD；有 revision 改寫目前分支指標，必須 --force，勿對已 push 歷史使用 |
+| `stash push [-m message]` | 全維度保存工作區並還原 HEAD，包含工作區新增 chunk |
+| `stash pop [index]` | index 預設 0；只允許原基底與乾淨工作區（包含保留的 untracked），成功才移除 stash |
+| `stash list\|drop [index]` | 列出／丟棄；drop 不支援 dry-run |
+| `verify [revision] [--chunks ...\|--box ...]` | 全量離線掃描，所選範圍的已追蹤內容一致時 exit 0，有差異 exit 1 |
+
+套用指令支援 `--dry-run`（不改世界／HEAD／stash，列出 chunk、section、實體、biome 與 metadata 數；capture 仍會寫入物件與可丟棄 index）。新指令的 JSON result 是 `state`（COMPLETE／DRY_RUN／PARTIAL）、`dimensions` 統計與 `error`，exit 0 表示成功／dry-run。branch／stash list 為 JSON 陣列。
+
+restore／switch 預設保留目標沒有的 chunk 並列出 untracked；加 `--delete-untracked` 才刪除整個被涵蓋 chunk。範圍外的同 UUID 舊實體仍會移除以避免重複。switch／branch／reset／stash 必須對維度組操作，拒絕 `--dimension`；restore／verify 可限定維度。
+
+所有新指令（含 list／dry-run）都拒絕伺服器持有的 session.lock。部分寫回失敗會留下 `apply-state.yml` 的 PARTIAL；先 `reset --hard` 或 `switch <branch> --force` 全範圍重套後才能 commit。DataVersion 不同、`.wgignore` 不同、DataPacks 清單不同會預檢拒絕。玩家資料／時鐘／天氣不還原，完整 metadata 與 stash 規則見 [05](../docs/05-switch-restore.md)，驗收見 [12](../docs/12-phase2-progress.md)。

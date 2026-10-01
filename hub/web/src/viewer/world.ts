@@ -60,6 +60,24 @@ export class World {
     const i = ((y & 15) << 8) | ((z & 15) << 4) | (x & 15)
     return d.kind[i] ? { kind: d.kind[i], before: d.before[i] } : null
   }
+  /** 變動周圍一格（含對角線）；跨 section／chunk 邊界也保留上下文。 */
+  changedContext(cx: number, sy: number, cz: number): Uint8Array | null {
+    let mask: Uint8Array | null = null
+    for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const diff = this.diffs.get(World.sectionKey(cx + dx, sy + dy, cz + dz))
+      if (!diff) continue
+      for (let i = 0; i < 4096; i++) {
+        if (!diff.kind[i]) continue
+        const x = (i & 15) + dx * 16, z = ((i >> 4) & 15) + dz * 16, y = (i >> 8) + dy * 16
+        if (x < -1 || x > 16 || y < -1 || y > 16 || z < -1 || z > 16) continue
+        mask ??= new Uint8Array(4096)
+        for (let ny = Math.max(0, y - 1); ny <= Math.min(15, y + 1); ny++)
+          for (let nz = Math.max(0, z - 1); nz <= Math.min(15, z + 1); nz++)
+            for (let nx = Math.max(0, x - 1); nx <= Math.min(15, x + 1); nx++) mask[(ny << 8) | (nz << 4) | nx] = 1
+      }
+    }
+    return mask
+  }
   /**
    * 填入含 1 格外圍的 18³ 陣列（index = (y*18+z)*18+x）。after 為目前世界；before 為套用 diff 還原的舊世界
    * （方塊種類為移除／修改／新增的格子改回 before state）。未載入的鄰居填 -1。回傳該 section 本體是否有任何非空氣。

@@ -5,7 +5,7 @@
 ## 接手入口
 
 - `anvil.WorldLayout.discover(Path)`：世界／server root → `DimensionId → Dimension`，兩種存檔目錄；讀 DataVersion 與世界 metadata。
-- `anvil.Nbt`／`RegionFile`：有界 NBT 讀取，canonical compound 排序；gzip/zlib/raw/LZ4、外部 `.mcc` 讀寫。region 更新為離線整檔替換。
+- `anvil.Nbt`／`RegionFile`／`RegionWriter`：有界 NBT 讀取，canonical compound 排序；gzip/zlib/raw/LZ4、外部 `.mcc` 讀寫。離線更新只動變更 chunk 的 sector，未改 chunk 的 sector／timestamp 不動；寫入使用 zlib。
 - `model.Section`、`ChunkSnapshot`、`EntitySnapshot`：不可變中性快照；section 的 4096 格採 `x | z<<4 | y<<8`（YZX）。NBT 以 canonical bytes 保存，避免洩漏可修改陣列。
 - `normalize.ChunkNormalizer`／`EntityNormalizer`：原生 NBT → 模型；`SnapshotCodec` → 正式有版本 zstd blob。正式 blob 與 Phase 0 不相容，不應混寫。
 - `capture.SnapshotSource`：共用 capture 來源；`scan()` 提供 dirty candidates／可丟棄 index stamps，`snapshot()` 回傳 `CompletionStage<Optional<ChunkSnapshot>>`。不存在／非 full chunk 回傳 empty。來源在正確 region/server 執行緒複製資料並套用相同 IgnoreRules。
@@ -62,3 +62,15 @@ init 設 `pack.packSizeLimit = 95000000`，關閉 JGit 自動 GC；JGit 7.3 本�
 ## 驗證
 
 `./gradlew :core:test` 用提交的真實 fixture；`integrationTest` 用完整 baseline（不存在時略過）；`packLimitTest` 真正產生 > 95 MB 隨機內容，應持有 `.work/bench.lock`。詳細數字見 [進度](../docs/11-phase1-progress.md)。
+
+## Phase 2 套用與復原
+
+`ApplyPlanner.plan(objects, dimension, currentTree, targetTree, scope, options)` 分層短路，只建立有差異的 section／BE、biome、UUID 實體、tick、structure 與 metadata 操作。`DimensionRepository.workingTree` 全量掃描目前世界，不移動 HEAD。`ApplyPlan` 保存壓縮 section blob、4096-bit mask、來源實體位置，支援 `toBytes/fromBytes`、`only(Scope)` 與 `batches(maxSections)`。entity 分成移除／生成兩階段；平台需等全部移除完成再生成。
+
+`Scope.chunkRadius` 為含端點的正方形（0–256），`Scope.box` 為含端點的方塊盒；BE 隨方塊逐格裁切。biome 仍是原版 4×4×4 sample，依起點裁切；tick／structure 只在完整 chunk 範圍套用，有 area 排除時保留。`OfflineApplier` 或正式 `OfflineWorld.apply` 持有 OS session lock，清除變更 chunk 的光照／Heightmaps／POI，UUID 在全維度（含 passengers）移除後依 Pos 寫回。多維度用 `OfflineApplier.applyAll(plans, lock)` 共用移除／生成 barrier；WorldOperations 已使用此入口。低階 writer 不是整個世界的原子交易；中途中斷必須由操作紀錄恢復。
+
+`WorldOperations` 是離線世界組入口，建構時持有世界組／各 repo／session 鎖，提供 restore、switch、branch、reset、stash、verify。先預檢所有維度、寫 `apply-state.yml`、套用並全量驗證，成功才移動 HEAD；失敗回復 refs 並持久化 PARTIAL，世界內容可用 `switch --force`／`reset --hard` 全量重套。PARTIAL 禁止 commit／普通 switch／branch／stash。restore 保持 HEAD；switch hash 為 detached HEAD。
+
+stash 使用各維度 `refs/worldgit/stash/<UUID>` 與世界組 `stash.yml`。pop 要求乾淨且原基底相同，不做跨分支合併。`WorldRepositories` 對不變維度也保存 `refs/worldgit/groups/<snapshot>`，hash 可配對該次完整維度組；舊 Phase 1 歷史以 first-parent snapshot 回溯，無法配對就拒絕。
+
+目前跨 DataVersion 一律清楚拒絕，不把改版本數字當 DataFixer；`.wgignore` 不一致也拒絕，規則遷移留待後續。world-meta 的還原／保留規則與限制見 [05](../docs/05-switch-restore.md)；平台批次與驗收見 [Phase 2 進度](../docs/12-phase2-progress.md)。重跑：持有 `bench.lock` 跑 `:core:integrationTest`，建置 `:cli:acceptanceToolsJar` 後執行 `python3 scripts/verify-phase2.py`。

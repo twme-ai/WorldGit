@@ -3,6 +3,7 @@ import { MapView } from '../map/mapview.ts'
 import { activePalette } from '../palette.ts'
 import { navigate } from '../router.ts'
 import { copyText, fmtTime, h, link } from '../ui.ts'
+import { branchSelect } from './commits.ts'
 import { snapshotRow, statSpans } from './shared.ts'
 
 export async function worldPage(root: HTMLElement, owner: string, world: string): Promise<() => void> {
@@ -54,6 +55,9 @@ export async function worldPage(root: HTMLElement, owner: string, world: string)
     }),
     h('p', { class: 'small muted' }, '每個維度是獨立的 repo（決定 #18）；push 需要 token 當密碼。'))
 
+  const branchPicker = h('span', { class: 'row' })
+  void api.branches(owner, world).then(p => branchPicker.append(branchSelect(p, null, b => navigate(`/${owner}/${world}/commits?branch=${encodeURIComponent(b)}`)))).catch(() => {})
+
   const recent = h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', {}, '最近的存檔'), h('span', { class: 'spacer' }), link(`/${owner}/${world}/commits`, '全部 commit →')),
     ...(page.snapshots.length ? page.snapshots.slice(0, 8).map((s) => snapshotRow(owner, world, s, page.declaredDimensions)) : [h('p', { class: 'empty' }, '還沒有 commit。')]))
 
@@ -62,6 +66,7 @@ export async function worldPage(root: HTMLElement, owner: string, world: string)
     h('div', { class: 'row' }, h('h1', {}, info.displayName), h('span', { class: `badge ${info.public ? 'public' : ''}` }, info.public ? '公開' : '私人'),
       info.latest ? h('span', { class: 'muted small' }, `最後更新 ${fmtTime(info.latest.time)}`) : null,
       info.latest?.partial ? h('span', { class: 'badge warn', title: info.latest.partialReason ?? '' }, '最新存檔為部分推送') : null),
+    h('div', { class: 'row branch-base' }, branchPicker, link(`/${owner}/${world}/branches`, '瀏覽分支 →'), link(`/${owner}/${world}/compare/HEAD...HEAD`, '比較版本 →')),
     h('div', { class: 'cols' }, h('div', {}, tabs, mapBox, mapInfo, h('div', { style: 'height:14px' }), clone), recent))
   renderTabs()
   if (selected) void showDim(selected)

@@ -57,3 +57,11 @@ tasks.register<JavaExec>("applyEdits") {
     args(providers.gradleProperty("world").orElse("").get(), providers.gradleProperty("edits").orElse("").get())
     dependsOn(tasks.testClasses)
 }
+
+// Phase 2 分支／compare 截圖的可重跑固定場景（數十 KiB）。
+tasks.register<JavaExec>("branchFixture") {
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("org.worldgit.hub.tools.BranchFixture")
+    args(providers.gradleProperty("target").getOrElse(".work/branch-fixture"))
+    dependsOn(tasks.testClasses)
+}

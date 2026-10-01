@@ -25,6 +25,32 @@ export interface WorldInfo {
   owner: string; name: string; displayName: string; description: string; public: boolean; createdAt: number
   dimensions?: DimensionState[]; latest?: SnapshotRow | null; role?: string
 }
+export interface BranchHead { id: string; time: number; snapshot: string; auto: boolean; message: string; author: Person }
+export interface BranchRow {
+  name: string; isDefault: boolean; heads: Record<string, BranchHead>
+  /** 每個宣告／實際存在的維度 repo 都有這個分支 */
+  consistent: boolean
+  /** 各維度 head 屬於同一次存檔（沒有變動的維度會停在較舊的存檔，所以 false 不一定有問題） */
+  aligned: boolean
+  missingDimensions: string[]; time: number; message: string; author: Person | null; snapshot: string | null
+  /** 以存檔為單位，相對 comparedTo；比較基準本身為 null */
+  ahead: number | null; behind: number | null; countsTruncated: boolean
+}
+export interface BranchPage { defaultBranch: string; comparedTo: string; branches: BranchRow[]; declaredDimensions: string[] }
+export interface RevInfo { spec: string; kind: 'branch' | 'commit'; snapshot: string; time: number; message: string; author: Person; commits: Record<string, string> }
+export type CompareStatus = 'changed' | 'same' | 'only-a' | 'only-b'
+export interface CompareDimension {
+  dimension: string; repo: string; status: CompareStatus; a: CommitInfo | null; b: CommitInfo | null
+  added: number; removed: number; modified: number; chunkCount: number; sectionCount: number
+  entitiesAdded: number; entitiesRemoved: number; entitiesModified: number
+  entityChanges: EntityChangeInfo[]; changedChunks: ChangedChunk[]; chunksTruncated: boolean
+  changedSections: [number, number, number, number, number, number][]; sectionsTruncated: boolean
+  bounds: number[]; metadataChanges: string[]; mcVersion: string | null; beforeMcVersion: string | null
+}
+export interface CompareResult {
+  a: RevInfo; b: RevInfo; dimensions: CompareDimension[]
+  added: number; removed: number; modified: number; chunkCount: number; identical: boolean
+}
 export interface TileRef { rx: number; rz: number; chunks: number; id: string }
 export interface Palette { added: string; removed: string; modified: string; conflict: string }
 export interface Palettes {
@@ -70,8 +96,11 @@ export const api = {
   login: (username: string, password: string) => sendJson<{ token: string; user: Me }>('/api/v1/auth/login', 'POST', { username, password }),
   worlds: () => getJson<WorldInfo[]>('/api/v1/worlds'),
   world: (o: string, w: string) => getJson<WorldInfo>(`/api/v1/worlds/${o}/${w}`),
-  snapshots: (o: string, w: string, limit = 50, before?: number | null, auto = true) =>
-    getJson<SnapshotPage>(`/api/v1/worlds/${o}/${w}/snapshots?limit=${limit}${before ? `&before=${before}` : ''}&auto=${auto}`),
+  snapshots: (o: string, w: string, limit = 50, before?: number | null, auto = true, branch?: string | null) =>
+    getJson<SnapshotPage>(`/api/v1/worlds/${o}/${w}/snapshots?limit=${limit}${before ? `&before=${before}` : ''}&auto=${auto}${branch ? `&branch=${encodeURIComponent(branch)}` : ''}`),
+  branches: (o: string, w: string, base?: string | null) => getJson<BranchPage>(`/api/v1/worlds/${o}/${w}/branches${base ? `?base=${encodeURIComponent(base)}` : ''}`),
+  compare: (o: string, w: string, a: string, b: string) =>
+    getJson<CompareResult>(`/api/v1/worlds/${o}/${w}/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`),
   commit: (o: string, w: string, dimRepo: string, rev: string) => getJson<CommitDetail>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}`),
   tiles: (o: string, w: string, dimRepo: string, rev: string) => getJson<TileRef[]>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}/tiles`),
   palettes: () => getJson<Palettes>('/api/v1/diff-palettes'),

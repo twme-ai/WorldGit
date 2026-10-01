@@ -95,6 +95,18 @@ diff 中實體以 UUID 對應：新增（綠）、移除（紅）、移動（箭
 | 分割滑桿 | 同一畫面，拖曳分割線左右分別顯示兩個版本 |
 | 時間軸 | 沿 commit 列表拖曳，逐個 commit 播放變化 |
 | 只看變動 | 隱藏沒變的方塊，只顯示變動及其周圍 1 格 |
+| 前／後切換 | 同一鏡頭切換 a 與 b 的完整內容（不帶 diff 上色） |
+
+
+### 7.1 Phase 2 Hub 實作（2026-10-01）
+
+- 世界首頁與 commit 列表提供分支下拉；`/{owner}/{world}/branches` 依名稱合併各維度 head，顯示每個 head 的作者、最新 commit 訊息、缺少分支的維度、head 是否同一 snapshot。預設分支以主世界 HEAD 為準；領先／落後以世界層級可達 snapshot 集合相減，支援切換比較基準。不同 snapshot 可能只是該維度沒有變動，不等於推送失敗。
+- `/{owner}/{world}/compare/<a>...<b>` 比較 a→b；兩端可填分支、HEAD 或唯一的 4–40 位 commit 前綴。分支可含 `/`，網址保留斜線，交給 SPA wildcard 路由；不使用容器可能拒絕的 `%2F`。分支優先於同名十六進位前綴。
+- 分支代表各維度當下 head；commit 只帶入各維度同 snapshot 的 commit。沒有完整跨維度狀態清單時不依時間補猜 head：缺少配對的維度顯示提醒、排除統計，仍可看可用的一端。
+- 統計由 core `DiffEngine.Detail.SUMMARY` 計算，包括方塊 +/-/~、chunk、section、實體與 metadata；回傳 chunk／section 各自的 +/-/~。API chunk／section 清單全維度合計最多 2000／6000，包含截斷旗標；畫面最多呈現各 300 列，可點 chunk 移動鏡頭。統計與 bounds 不受清單截斷影響。
+- **已提供**：上色疊圖、只看變動與周圍一格（含跨 chunk／section 邊界）、前／後切換、一般／色盲色票、環繞／飛行鏡頭。前／後讀取實際 commit 的完整內容，包括 block entity、biome、實體及 LOD；切換時保留鏡頭。修改種類直接使用 core diff 的 kind，包含方塊 state 未變而 block entity 改變的格子；全 chunk 被移除時仍能畫鬼影。
+- 延續相機附近的 8×8 chunk 串流視窗、最多三個視窗同時載入、兩個 Worker、細節半徑選項 3–10 chunk、鏡頭附近 3×3 region 的階梯 LOD。JSON 上限 4 MiB、WGCK／WGDF 上限 16 MiB，在寫出更多資料前檢查。新端點共用授權與 DecodeBudget；私人世界無權限 404，超過聚合預算 413。compare 不新增磁碟快取；既有 push 配額保持適用。
+- **待後續**：並排、分割滑桿與時間軸；BlueMap、真 GPU／大世界效能的既有限制仍見 [11](11-phase1-progress.md) 與 [12](12-phase2-progress.md) Hub。
 
 ## 8. 操作
 
