@@ -27,6 +27,9 @@ import org.worldgit.i18n.MessageCatalog;
 import org.worldgit.platform.DirtyChunkTracker;
 import org.worldgit.protocol.DiffPalette;
 import org.worldgit.protocol.Protocol;
+import org.worldgit.protocol.MergeProtocol;
+import org.worldgit.core.merge.MergeState;
+import org.worldgit.core.merge.MergeReport;
 
 /**
  * 一個 MinecraftServer（專用伺服器，或單人世界的整合伺服器）上的 WorldGit 執行期。
@@ -343,9 +346,16 @@ public final class ServerRuntime {
                 var layout=WorldLayout.discover(worldRoot());
                 T result;
                 try(var ops=WorldOperations.live(layout,new FabricOperations(this,layout))) { result=action.run(ops); }
-                boolean partial=result instanceof WorldOperations.Result r && !r.success();
+                boolean partial=result instanceof WorldOperations.Result r && !r.success()
+                    || result instanceof WorldOperations.MergeResult m && !m.success();
                 if(result instanceof WorldOperations.Result r && r.state()!=WorldOperations.State.DRY_RUN) onServer(()->{
                     for(var player:server.getPlayerList().getPlayers()) clearPreview(player); return null;
+                });
+                if(result instanceof WorldOperations.MergeResult m && !m.state().equals("DRY_RUN")) onServer(()->{
+                    for(var player:server.getPlayerList().getPlayers()) {
+                        clearPreview(player); sendConflicts(player,m.merging());
+                    }
+                    return null;
                 });
                 var prior=lastProgress;
                 progress(new ApplyProgress(id,partial ? ApplyProgress.Phase.PARTIAL : ApplyProgress.Phase.COMPLETE,
@@ -366,6 +376,39 @@ public final class ServerRuntime {
         });
         operationFuture=future;
         return future;
+    }
+
+    public CompletableFuture<MergeState> merging() {
+        return runRepo(() -> MergeState.read(repositoryRoot().resolve("merge-state.bin")));
+    }
+
+    public CompletableFuture<List<byte[]>> conflictPreview(int id, MergeReport.Choice choice) {
+        long preview = previewIds.getAndIncrement();
+        return runRepo(() -> {
+            var layout = WorldLayout.discover(worldRoot());
+            try (var ops = WorldOperations.live(layout, new FabricOperations(this, layout))) {
+                var state = ops.merging();
+                if (state == null) throw new IOException("世界不在 MERGING");
+                var region = state.regions().stream().filter(r -> r.id() == id).findFirst()
+                    .orElseThrow(() -> new IOException("未知衝突區域：" + id));
+                var cells = ops.regionPreview(id, choice).stream().map(b ->
+                    new MergeProtocol.PreviewCell(b.position(), b.state().canonical(), b.blockEntity())).toList();
+                return MergeProtocol.preview(preview, region.dimension(), id, choice, cells);
+            }
+        });
+    }
+
+    /** 呼叫於 server owner；只有宣告能力的玩家收到新的 channel。 */
+    public void sendConflicts(ServerPlayer player, MergeState state) {
+        if (!handshake.supports(player.getUUID(), MergeProtocol.CAPABILITY)) return;
+        try {
+            if (state == null) {
+                sendPreview(player, MergeProtocol.regions(previewIds.getAndIncrement(), dimensionId((ServerLevel)player.level()), List.of()));
+            } else for (var entry : state.dimensions().entrySet()) {
+                var report = entry.getValue().report();
+                sendPreview(player, MergeProtocol.regions(previewIds.getAndIncrement(), entry.getKey(), report.regions(), report.updateShapes()));
+            }
+        } catch (IOException ex) { LOG.warn("WORLDGIT 衝突清單編碼失敗", ex); }
     }
 
     // ---- 世界操作 ---------------------------------------------------------------------
@@ -418,6 +461,8 @@ public final class ServerRuntime {
             String message, CommitMetadata.Identity requester, boolean auto, boolean flush) {
         return runRepo(
                 () -> {
+                    if (auto && MergeState.read(repositoryRoot().resolve("merge-state.bin")) != null)
+                        return new WorldRepositories.Batch<DimensionRepository.CommitResult>(UUID.randomUUID(), new TreeMap<>());
                     if (flush) flushBlocking();
                     var ops = ops();
                     var attr = attribution.capture();
@@ -487,7 +532,7 @@ public final class ServerRuntime {
         }
     }
 
-    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview"};
+    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview", MergeProtocol.CAPABILITY};
 
     void tick() {
         drainServerTasks();

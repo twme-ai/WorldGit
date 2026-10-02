@@ -19,3 +19,5 @@ Paper 使用固定插件副本（來源時間戳 `2026-10-01T10:52:18.091997Z`�
 軟體渲染只驗證功能；此次沒有硬體 GPU 或 100,000 格的效能量測。
 
 Phase 2 的單人世界 revision preview／switch／restore 畫面另放在 [phase2/](phase2/README.md)，兩版各三張；原始 PNG 與取消恢復畫面保留於 Phase 2 驗收證據目錄。
+
+Phase 3 的衝突清單與疊圖畫面放在 [phase3/](phase3/README.md)。

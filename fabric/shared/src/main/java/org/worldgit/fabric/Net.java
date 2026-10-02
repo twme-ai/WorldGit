@@ -5,6 +5,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import org.worldgit.protocol.Protocol;
+import org.worldgit.protocol.MergeProtocol;
 
 /**
  * worldgit:* plugin channel 的 payload。內容是 protocol 模組編碼好的 bytes（每包 ≤ 28,000 bytes）；
@@ -48,9 +49,17 @@ public final class Net {
     public static final Channel STATUS = channel(Protocol.STATUS);
     public static final Channel CLEAR = channel(Protocol.CLEAR);
 
+    public static final Channel CONFLICTS = channel(MergeProtocol.REGIONS);
+    public static final Channel CONFLICT_PREVIEW = channel(MergeProtocol.PREVIEW);
+
     /** 依 protocol 封包第二個 byte（message kind）選 channel：0 hello、1 clear、2 diff、3 status。 */
     public static Channel forPacket(byte[] bytes) {
         if (bytes.length < 2) throw new IllegalArgumentException("packet too short");
+        if (bytes[0] == MergeProtocol.VERSION) return switch (bytes[1]) {
+            case 0 -> CONFLICTS;
+            case 1 -> CONFLICT_PREVIEW;
+            default -> throw new IllegalArgumentException("unknown merge message kind");
+        };
         return switch (bytes[1]) {
             case 0 -> HELLO;
             case 1 -> CLEAR;
@@ -71,5 +80,7 @@ public final class Net {
         Platform.s2c().register(DIFF.type(), DIFF.codec());
         Platform.s2c().register(STATUS.type(), STATUS.codec());
         Platform.s2c().register(CLEAR.type(), CLEAR.codec());
+        Platform.s2c().register(CONFLICTS.type(), CONFLICTS.codec());
+        Platform.s2c().register(CONFLICT_PREVIEW.type(), CONFLICT_PREVIEW.codec());
     }
 }

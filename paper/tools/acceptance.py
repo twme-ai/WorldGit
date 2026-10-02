@@ -363,6 +363,9 @@ def scenario_sigterm(platform, version, baseline):
 
 
 def main():
+    if 'phase3' in wanted:
+        from phase3 import run
+        return run(platform, version)
     if 'phase2-cancel' in wanted:
         from phase2_shutdown import run
         return run(platform, version, shutdown=False)

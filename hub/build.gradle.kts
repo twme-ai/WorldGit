@@ -65,3 +65,11 @@ tasks.register<JavaExec>("branchFixture") {
     args(providers.gradleProperty("target").getOrElse(".work/branch-fixture"))
     dependsOn(tasks.testClasses)
 }
+
+// Phase 3 唯讀合併的三維度固定場景。
+tasks.register<JavaExec>("mergeFixture") {
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("org.worldgit.hub.tools.MergeFixture")
+    args(providers.gradleProperty("target").getOrElse(".work/merge-fixture"))
+    dependsOn(tasks.testClasses)
+}

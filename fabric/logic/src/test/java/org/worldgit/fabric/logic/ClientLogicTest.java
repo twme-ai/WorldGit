@@ -117,7 +117,8 @@ class ClientLogicTest {
     var reply = ClientHandshake.reply(server, ClientConfig.defaults()).orElseThrow();
     assertEquals(99L, reply.nonce());
     assertEquals(DiffPalette.COLORBLIND, reply.palette());
-    assertEquals(Protocol.CAPABILITIES, reply.capabilities());
+    assertEquals(ClientHandshake.capabilities(), reply.capabilities());
+    assertTrue(reply.capabilities().containsAll(Protocol.CAPABILITIES));
     assertTrue(ClientHandshake.reply(new Protocol.Hello(1, 1, List.of(), DiffPalette.DEFAULT), ClientConfig.defaults()).isEmpty());
     assertEquals(DiffPalette.DEFAULT, ClientHandshake.reply(server, ClientConfig.defaults().withPalette("default")).orElseThrow().palette());
   }

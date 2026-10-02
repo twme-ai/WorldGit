@@ -59,6 +59,9 @@ public final class WorldOperations implements AutoCloseable {
 
     void applyAll(Collection<ApplyPlan> plans) throws IOException;
 
+    /** 線上取消／停用檢查：驗證完成後、發布 HEAD 或完成 journal 之前呼叫。 */
+    default void beforeComplete() throws IOException {}
+
     default EntityTagRegistry.PackResolver packs() {
       return null;
     }
@@ -444,6 +447,7 @@ public final class WorldOperations implements AutoCloseable {
       for (var entry : checked.plans.entrySet())
         if (!entry.getValue().empty())
           throw new IOException("套用驗證失敗：" + entry.getKey() + " " + entry.getValue().stats());
+      if (live != null) live.beforeComplete();
       if (moveHead)
         for (var entry : prepared.commits.entrySet()) {
           var repo = repos.get(entry.getKey());
@@ -1319,6 +1323,7 @@ public final class WorldOperations implements AutoCloseable {
     }
     var completed = new ArrayList<DimensionId>();
     try {
+      if (live != null) live.beforeComplete();
       for (var e : targets.entrySet()) {
         var refs = repos.get(e.getKey()).refs();
         var h = state.dimensions().get(e.getKey()).original();

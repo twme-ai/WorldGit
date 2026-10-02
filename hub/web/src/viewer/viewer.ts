@@ -23,6 +23,8 @@ export interface ViewerConfig {
   showDiff?: boolean
   /** diff 的比較基準（commit id）；省略＝commit 的第一個 parent。比較檢視用它顯示任意兩個 commit 的差異。 */
   base?: string
+  /** 合併候選的唯讀資料端點，query 已帶來源／指紋／選擇。 */
+  preview?: { base: string; query: string }
 }
 
 export interface PickInfo {
@@ -95,6 +97,7 @@ export class Viewer {
   private radius: number
   private focusDone = false
   private viewTimer = 0
+  private conflictBoxes: { bounds: [number, number, number, number, number, number]; selected: boolean }[] = []
 
   constructor(readonly cfg: ViewerConfig) {
     this.renderer = new Renderer(cfg.canvas)
@@ -141,6 +144,14 @@ export class Viewer {
     this.scheduleStream(true)
   }
 
+  setConflictBoxes(boxes: { bounds: [number, number, number, number, number, number]; selected: boolean }[]) { this.conflictBoxes = boxes; this.rebuildLines() }
+  focusBox(b: [number, number, number, number, number, number]) {
+    this.focusDone = true
+    this.camera.setMode('orbit')
+    this.camera.lookAt([(b[0] + b[3] + 1) / 2, (b[1] + b[4] + 1) / 2, (b[2] + b[5] + 1) / 2], Math.max(14, Math.max(b[3]-b[0], b[4]-b[1], b[5]-b[2]) * 2.5))
+    this.scheduleStream(true)
+  }
+
   // ---- 啟動 ----
 
   async start() {
@@ -162,7 +173,7 @@ export class Viewer {
     if (this.disposed) { atlas.close(); return }
     this.renderer.setAtlas(atlas, rects)
     atlas.close()
-    if (this.cfg.detail.chunkCount > 0) {
+    if (!this.cfg.preview && this.cfg.detail.chunkCount > 0) {
       for (const t of await api.tiles(this.cfg.owner, this.cfg.world, this.cfg.dimRepo, this.cfg.detail.commit.id).catch(() => [] as TileRef[])) this.tiles.set(`${t.rx},${t.rz}`, t)
     }
     if (this.disposed) return
@@ -260,10 +271,11 @@ export class Viewer {
     const q = `x0=${wx * WINDOW}&z0=${wz * WINDOW}&x1=${wx * WINDOW + WINDOW - 1}&z1=${wz * WINDOW + WINDOW - 1}`
     const base = `/api/v1/worlds/${owner}/${world}/dims/${dimRepo}/commits/${detail.commit.id}`
     const against = this.cfg.base ? `&base=${encodeURIComponent(this.cfg.base)}` : ''
+    const url = (kind: string) => this.cfg.preview ? `${this.cfg.preview.base}/${kind}?${this.cfg.preview.query}&${q}` : `${base}/${kind}?${q}${against}${kind === 'entities' && !this.diffEnabled ? '&plain=true' : ''}`
     const [chunkBuf, diffBuf, ents] = await Promise.all([
-      getBuffer(`${base}/chunks?${q}`),
-      this.diffEnabled ? getBuffer(`${base}/diff?${q}${against}`) : Promise.resolve(null),
-      getJson<EntityRaw[]>(`${base}/entities?${q}${against}${this.diffEnabled ? '' : '&plain=true'}`).catch(() => [] as EntityRaw[]),
+      getBuffer(url('chunks')),
+      this.diffEnabled ? getBuffer(url('diff')) : Promise.resolve(null),
+      getJson<EntityRaw[]>(url('entities')),
     ])
     if (this.disposed) return
     const k = `${wx},${wz}`
@@ -470,7 +482,7 @@ export class Viewer {
     const lines: number[] = []
     const col = (k?: string): [number, number, number, number] => {
       const p = this.cfg.palette
-      const hex = k === 'added' ? p.added : k === 'removed' ? p.removed : k === 'modified' ? p.modified : '#8fb0d8'
+      const hex = k === 'added' ? p.added : k === 'removed' ? p.removed : k === 'modified' ? p.modified : k === 'conflict' ? p.conflict : '#8fb0d8'
       return [parseInt(hex.slice(1, 3), 16) / 255, parseInt(hex.slice(3, 5), 16) / 255, parseInt(hex.slice(5, 7), 16) / 255, 0.95]
     }
     for (const list of this.windowEntities.values()) {
@@ -489,6 +501,11 @@ export class Viewer {
       const kind = c[4] > 0 ? 'modified' : c[3] > 0 ? 'removed' : c[2] > 0 ? 'added' : 'modified'
       void palette
       addBox(lines, c[0] * 16, y, c[1] * 16, c[0] * 16 + 16, y + 20, c[1] * 16 + 16, col(kind))
+    }
+    for (const box of this.conflictBoxes) {
+      const b = box.bounds
+      addBox(lines, b[0] - 0.03, b[1] - 0.03, b[2] - 0.03, b[3] + 1.03, b[4] + 1.03, b[5] + 1.03, col('conflict'))
+      if (box.selected) addBox(lines, b[0] - 0.08, b[1] - 0.08, b[2] - 0.08, b[3] + 1.08, b[4] + 1.08, b[5] + 1.08, col('conflict'))
     }
     if (this.selected) {
       const s = this.selected

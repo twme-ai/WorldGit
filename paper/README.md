@@ -1,4 +1,4 @@
-# WorldGit Paper / Folia 插件（Phase 2）
+# WorldGit Paper / Folia 插件（Phase 3：含線上合併）
 
 同一個發佈 jar 支援 Paper / Folia 的 Minecraft **1.21.11 與 26.2**。1.21.11 使用 Java 21，26.2 使用 Java 25。`common` 只引用公開 Paper API；`v1_21_11`、`v26_2` 以 paperweight-userdev 2.0.0-beta.21 各自編譯薄 NMS 轉接層，啟動時只載入符合版本的類別。
 
@@ -25,6 +25,11 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 | `/wg stash push [message]\|pop [index]\|list\|drop [index]` | 保存／套回未提交內容；pop 要求原基底與乾淨工作區 | `worldgit.command.stash`（op） |
 | `/wg reset --hard` | 全範圍還原 HEAD，保留 HEAD 指標 | `worldgit.command.reset`（op） |
 | `/wg cancel` | 停止派發，等待在途清理，留下 PARTIAL 供完整重套 | `worldgit.command.cancel`（op） |
+| `/wg merge <branch\|rev>` / `--continue` / `--abort` | 線上三方合併（noCommit）：無衝突直接寫入並提交；有衝突進入 MERGING（預設 ours）。`--abort` 逐格還原合併前世界 | `worldgit.command.merge`（op） |
+| `/wg resolve <#\|all> ours\|theirs\|base\|manual` | 切換並標記區域已解決；manual 以世界目前內容為準 | `worldgit.command.resolve`（op） |
+| `/wg conflicts [頁]` | 衝突清單 GUI（玩家）或文字清單（主控台）；點擊傳送。`conflicts preview <#> ours\|theirs\|base` 對 Fabric 客戶端送預覽 | `worldgit.command.conflicts`（op） |
+| `/wg tool` | 取得合併工具（命名的指南針）：站進衝突區域，右鍵 ours→theirs→base 循環，Shift+右鍵標記已解決 | `worldgit.command.tool`、使用時另需 `worldgit.command.resolve`（op） |
+| `/wg revert <rev>` / `/wg cherry-pick <rev>` | 反向／正向 patch；乾淨直接 commit，有衝突進同一 MERGING 流程 | `worldgit.command.revert`／`worldgit.command.cherry-pick`（op） |
 
 `worldgit.admin` 包含上述指令與 `worldgit.notify` 通知。開發量測入口 `/wg debug` 只開放主控台，其他 sender 必須有 `worldgit.debug`（預設 false）。
 
@@ -59,6 +64,17 @@ extent:
 FAWE bulk 路徑用 `IBatchProcessor` 記錄 chunk 與 actor，純 WorldEdit 用 Extent 的逐格回呼。Folia 使用純 WorldEdit；本機 1.21.11 為 WE 7.4.2，26.2 為 WE 7.4.5（Java 25）。是否支援其他操作模式需另驗證。
 
 `--show` 對完成 protocol v2 hello、nonce 與能力驗證的玩家傳送 status 描邊／diff 鬼影。每包最多 28,000 bytes、每 tick 最多兩包；方塊超過設定上限改送區域摘要。沒有模組時提供聊天提示與可點擊座標，另外退回 **display entity fallback**：`/wg diff --show` 對請求者以 `BlockDisplay` 發光描邊（ADDED／MODIFIED 描 after、REMOVED 描 before，顏色用目前色票）；超過 `show.display-max-entities`（預設 512）或 `/wg status --show` 時改畫每個 section 的 12 條邊包圍盒。實體 `visibleByDefault=false` 後只對請求者 `showEntity`，旁邊的玩家看不到；不持久化、不進 WorldGit 的實體快照；`show.display-seconds`（預設 60）後自動移除，`/wg clear`、登出、插件停用也會移除。
+
+## 合併（Phase 3）
+
+`/wg merge` 在線上世界使用 core 的 `WorldOperations.live(...)`（noCommit）：無衝突部分直接寫入，衝突區域預設 ours，世界狀態 MERGING（持久化於 `merge-state.bin`，伺服器重啟後 bossbar、外框、工具與 GUI 自動恢復）。一次切換／解決只改該區域的精確 atoms，**一律維持快照儲存的方塊 state，不觸發 updateShape／鄰居更新（#46）**，所以柵欄連接、紅石 state 與快照逐格相同；`updateShapes` 只是交界提示（GUI 顯示「交界提示數」）。
+
+- **提示**：MERGING 期間有權限的玩家看到紫色 bossbar「合併中：剩 N 個衝突」；在該維度會用 `BlockDisplay` 發光外框標出衝突區域（已解決變灰）；走進區域時動作列顯示編號、目前版本與狀態。
+- **工具與 GUI**：合併工具右鍵／Shift+右鍵（250 ms 防連點，操作中或世界被鎖時忽略）；GUI 是 54 格箱子介面（每頁 45 區域），每區顯示座標、格數、雙方作者、目前版本／狀態、紅石警示與交界提示數，點擊用 `teleportAsync` 傳到區域上方（Folia 安全）。
+- **玩家保護**：切換前註冊 operation 保護（窒息／摔落／溺水，結束後再延 10 秒），並沿用 Phase 2 的「實體 UUID 移除→生成」barrier，避免殘影與重複實體。
+- **MERGING 期間**：一般 commit／switch／reset／stash／自動 commit 都被擋下並提示 `merge --continue`／`--abort`；`/wg status` 顯示 MERGING。
+- **Fabric**：握手宣告 `merge-regions-v1`，對支援的客戶端送 `worldgit:conflicts`（狀態變更時更新）與 `worldgit:conflict_preview`（`/wg conflicts preview` 或客戶端請求）。
+- **驗收**：`python3 paper/tools/acceptance.py <paper|folia> <1.21.11|26.2> phase3`（port 25701–25704，自帶 bench.lock），證據放 `.work/paper-phase3/`。結果見 [docs/13](../docs/13-phase3-progress.md)「Paper／Folia」。
 
 ## 重現驗收與量測
 

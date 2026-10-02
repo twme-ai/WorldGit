@@ -17,6 +17,12 @@ public final class WorldGitClient implements ClientModInitializer {
     ClientPlayNetworking.registerGlobalReceiver(Net.HELLO.type(), (payload, context) -> ClientRuntime.get().onHello(payload.bytes()));
     for (var channel : new Net.Channel[] {Net.DIFF, Net.STATUS, Net.CLEAR})
       ClientPlayNetworking.registerGlobalReceiver(channel.type(), (payload, context) -> ClientRuntime.get().onPreview(payload.bytes()));
+    ClientPlayNetworking.registerGlobalReceiver(Net.CONFLICTS.type(), (payload, context) -> ClientRuntime.get().onMerge(org.worldgit.protocol.MergeProtocol.REGIONS,payload.bytes()));
+    ClientPlayNetworking.registerGlobalReceiver(Net.CONFLICT_PREVIEW.type(), (payload, context) -> ClientRuntime.get().onMerge(org.worldgit.protocol.MergeProtocol.PREVIEW,payload.bytes()));
+    var conflictsKey=ClientPlatform.registerKey("key.worldgit.conflicts", org.lwjgl.glfw.GLFW.GLFW_KEY_G);
+    net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+      while(conflictsKey.consumeClick()) ClientRuntime.get().openConflicts();
+    });
     ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClientRuntime.get().onDisconnect());
     ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ClientRuntime.get().close());
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> ClientCommands.register(dispatcher));

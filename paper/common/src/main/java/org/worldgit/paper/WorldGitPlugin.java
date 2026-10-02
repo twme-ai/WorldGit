@@ -34,6 +34,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   private EditGuard edits;
   private FabricLink fabric;
   private DisplayFallback displays;
+  private MergeUi merges;
   private AutoCommit autoCommit;
   private OfflineShutdownCommit offlineShutdown;
   private final Attribution attribution = new Attribution();
@@ -72,6 +73,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     fabric = new FabricLink(this);
     fabric.register();
     displays = new DisplayFallback(this);
+    merges = new MergeUi(this);
+    merges.refresh();
     PluginCommand command = Objects.requireNonNull(getCommand("wg"), "plugin.yml 缺少 wg 指令");
     var commands = new Commands(this);
     command.setExecutor(commands);
@@ -112,12 +115,13 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     boolean wasApplying=repo.applying();
     repo.shutdownApply();
     edits.shutdown();
+    if(merges!=null) merges.shutdown();
     if (displays != null) displays.clearAll();
     platform.shuttingDown();
     if (autoCommit != null) autoCommit.shutdown();
     if(!wasApplying) repo.awaitIdle(); // 等待進行中的背景操作；之後才能在目前執行緒內聯 commit（repo lock 同一時間只有一個持有者）
-    if (!wasApplying && settings.autoOnShutdown()) shutdownCommit();
-    if (offlineShutdown != null) offlineShutdown.prepare(!wasApplying && settings.autoOnShutdown());
+    if (!wasApplying && settings.autoOnShutdown() && merges.state()==null) shutdownCommit();
+    if (offlineShutdown != null) offlineShutdown.prepare(!wasApplying && settings.autoOnShutdown() && merges.state()==null);
     repo.close();
   }
 
@@ -169,6 +173,11 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
 
   FabricLink fabric() {
     return fabric;
+  }
+
+  MergeUi merges() { return merges; }
+  World world(DimensionId dimension) {
+    return worlds.stream().filter(w->dimension.equals(dimensionByWorld.get(w.getUID()))).findFirst().orElse(null);
   }
 
   DisplayFallback displays() {

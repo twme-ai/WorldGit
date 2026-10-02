@@ -39,11 +39,36 @@ final class Debug {
       case "freeze" -> freeze(sender,args);
       case "protection" -> protection(sender,args);
       case "fill" -> fill(sender, args);
+      case "merge-tool" -> mergeTool(sender,args);
+      case "merge-gui" -> mergeGui(sender,args);
       case "release" -> release(sender);
       case "probe" -> probe(sender, args);
       case "measurements" -> plugin.repo().measurements().forEach(m -> sender.sendMessage(Component.text(m.toString())));
       default -> throw new IllegalArgumentException("未知的 debug 子指令");
     }
+  }
+
+  /** 驗收模擬真正 Bukkit 右鍵事件，仍走物品 PDC／權限／owner／core barrier。 */
+  private void mergeTool(CommandSender sender,String[] args) {
+    if(args.length!=3 || !Set.of("cycle","resolve").contains(args[2])) throw new IllegalArgumentException("debug merge-tool <player> cycle|resolve");
+    var p=Objects.requireNonNull(Bukkit.getPlayerExact(args[1]));
+    plugin.platform().entity(p,()->{
+      var item=Arrays.stream(p.getInventory().getContents()).filter(Objects::nonNull).filter(i->i.getType()==Material.COMPASS).findFirst().orElseThrow();
+      boolean sneaking=p.isSneaking(); p.setSneaking(args[2].equals("resolve"));
+      try { Bukkit.getPluginManager().callEvent(new org.bukkit.event.player.PlayerInteractEvent(p,org.bukkit.event.block.Action.RIGHT_CLICK_AIR,item,null,org.bukkit.block.BlockFace.SELF,org.bukkit.inventory.EquipmentSlot.HAND)); }
+      finally { p.setSneaking(sneaking); }
+      sender.sendMessage(Component.text("WGMERGETOOL event delivered"));
+    },()->{});
+  }
+  private void mergeGui(CommandSender sender,String[] args) {
+    if(args.length!=3) throw new IllegalArgumentException("debug merge-gui <player> <slot>");
+    var p=Objects.requireNonNull(Bukkit.getPlayerExact(args[1])); int slot=Integer.parseInt(args[2]);
+    plugin.platform().entity(p,()->{
+      var view=p.getOpenInventory();
+      if(slot<0 || slot>=view.getTopInventory().getSize()) throw new IllegalArgumentException("slot 超出 GUI");
+      Bukkit.getPluginManager().callEvent(new org.bukkit.event.inventory.InventoryClickEvent(view,org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER,slot,org.bukkit.event.inventory.ClickType.LEFT,org.bukkit.event.inventory.InventoryAction.PICKUP_ALL));
+      sender.sendMessage(Component.text("WGMERGEGUI event delivered"));
+    },()->{});
   }
 
   private AutoCloseable fixtureFreeze;
@@ -153,6 +178,8 @@ final class Debug {
     var inflight = new AtomicInteger();
     long t0 = System.nanoTime();
     int y = world.getMinHeight() + 8;
+    int offset=args.length>4 ? Integer.parseInt(args[4]) : 8;
+    if(offset<0 || offset>15) throw new IllegalArgumentException("local X 必須為 0..15");
     Runnable[] pump = new Runnable[1];
     pump[0] =
         () -> {
@@ -171,7 +198,7 @@ final class Debug {
               plugin.platform().region(world, cx, cz, () -> {
                 world.addPluginChunkTicket(cx, cz, plugin);
                 tickets.add(new long[] {cx, cz});
-                world.getBlockAt(cx * 16 + 8, y, cz * 16 + 8).setType(material, false);
+                world.getBlockAt(cx * 16 + offset, y, cz * 16 + 8).setType(material, false);
                 inflight.decrementAndGet();
                 if (done.incrementAndGet() == total) sender.sendMessage(Component.text("debug fill 完成：" + total + " chunk，耗時 " + (System.nanoTime() - t0) / 1_000_000 + " ms"));
                 pump[0].run();

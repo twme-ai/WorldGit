@@ -76,6 +76,7 @@ commit 物件上限 1 MiB、每個 commit 最多 1024 個 trailer／100000 個 c
 | `GET …/branches?base=分支` | 跨維度同名分支、預設分支、各維度 head／作者／snapshot、一致性；相對基準的 ahead／behind（以可達 snapshot 集合計算） |
 | `GET …/snapshots?branch=分支` | 指定分支的存檔歷史；未指定讀世界的預設分支 |
 | `GET …/compare?a=起點&b=終點` | 任意分支／HEAD／唯一 commit 前綴的 a→b 統計，依維度回傳 chunk／section 清單、截斷旗標；沒有配對端點的維度排除統計 |
+| `GET …/merge-preview?ours=&theirs=`、`…/merge-preview/view/{chunks,diff,summary}` | 唯讀合併預覽（Phase 3）：core MergeEngine 在記憶體計算，回傳可否零介入合併、衝突區域、規則差異與前提衝突原因；`view` 依 `choices` 回傳 ours／theirs／base／選擇結果。不寫 repo，有 DecodeBudget、記憶體快取上限（8 筆／32 MiB）。網頁：`/{owner}/{world}/merge-preview/ours...theirs`（Phase 4 才產生 merge commit） |
 | `GET …/dims/{維度目錄}/commits/{rev}` | commit 詳情：+/-/~ 統計、變動 chunk、實體變動 |
 | `…/commits/{rev}/chunks?x0&z0&x1&z1` | 方塊資料串流（WGCK 二進位；格式見 `data/ChunkWire.java`） |
 | `…/commits/{rev}/diff?base&x0…` | diff（WGDF 二進位） |

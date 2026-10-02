@@ -1,6 +1,9 @@
 package org.worldgit.fabric.logic;
 
 import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
+import org.worldgit.protocol.MergeProtocol;
 import org.worldgit.protocol.DiffPalette;
 import org.worldgit.protocol.Protocol;
 
@@ -12,7 +15,13 @@ public final class ClientHandshake {
     if (server.version() != Protocol.VERSION) return Optional.empty();
     return Optional.of(
         new Protocol.Hello(
-            Protocol.VERSION, server.nonce(), Protocol.CAPABILITIES, config.resolve(server.palette())));
+            Protocol.VERSION, server.nonce(), capabilities(), config.resolve(server.palette())));
+  }
+
+  public static List<String> capabilities() {
+    var result = new ArrayList<>(Protocol.CAPABILITIES);
+    result.add(MergeProtocol.CAPABILITY);
+    return List.copyOf(result);
   }
 
   public static DiffPalette palette(ClientConfig config, DiffPalette serverPalette) {

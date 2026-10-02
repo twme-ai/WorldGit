@@ -60,13 +60,14 @@ afterEvaluate {
     }
     val tmp = rootProject.projectDir.resolve(".work/fabric-tmp").apply { mkdirs() }
     loom.runs.named("clientGameTest") {
-        val suffix = if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else if (providers.gradleProperty("wgtestPhase2").isPresent) "-phase2" else ""
+        val suffix = if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else if (providers.gradleProperty("wgtestPhase2").isPresent) "-phase2" else if (providers.gradleProperty("wgtestPhase3").isPresent) "-phase3" else ""
         val workspace = projectDir.canonicalFile.parentFile.parentFile
         runDir(workspace.resolve(".work/worlds/fabric-gametest/$mcVersion$suffix").absolutePath)
         providers.gradleProperty("wgtestPaperPort").orNull?.let { port ->
             vmArgs("-Dwgtest.paperPort=$port", "-Dwgtest.paperReady=${providers.gradleProperty("wgtestPaperReady").get()}")
         }
         if (providers.gradleProperty("wgtestPhase2").isPresent) vmArgs("-Dwgtest.phase2=true")
+        if (providers.gradleProperty("wgtestPhase3").isPresent) vmArgs("-Dwgtest.phase3=true")
         vmArgs(listOf(
             // 1.21.11 的 gametest API（4.3.5）在整合伺服器載入世界時卡住，關閉 NetworkSynchronizer 才能進世界（26.2 不需要）。
             "-Dfabric.client.gametest.disableNetworkSynchronizer=true", "-Xmx2G", "-XX:ActiveProcessorCount=3", "-XX:-UsePerfData",

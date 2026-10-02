@@ -161,4 +161,9 @@ public final class MessageKeys {
   static { for(var phase:org.worldgit.platform.ApplyProgress.Phase.values()) PHASES.put(phase,def("fabric.apply.phase."+phase.name().toLowerCase(Locale.ROOT))); }
   public static String phase(org.worldgit.platform.ApplyProgress.Phase phase) { return PHASES.get(phase); }
   public static final String APPLY_DRY_RUN=def("fabric.apply.dry-run");
+  public static final String HELP_PHASE3 = def("fabric.help.phase3");
+  public static final String MERGE_STATUS = def("fabric.merge.status","remaining","total");
+  public static final String MERGE_RESULT = def("fabric.merge.result","state","remaining");
+  public static final String CONFLICT_EMPTY = def("fabric.merge.empty");
+  public static final String CONFLICT_ROW = def("fabric.merge.row","id","dimension","bounds","count","ours","theirs","choice","resolved","redstone");
 }

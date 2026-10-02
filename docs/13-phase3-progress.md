@@ -57,6 +57,18 @@ Hub 必須先處理 snapshot 配對、DataVersion／DataPacks、`IgnoreRuleMerge
 
 `regions(previewId, dimension, regions)` 編碼區域 id、bounds、格數、choice、resolved、redstone；`preview(previewId, dimension, regionId, choice, cells)` 編碼方塊 state 與整份 BE。使用 encode／decode／Assembler 組合 Part 分片，完成後回傳 Completed：每包 ≤28,000 bytes，批次 ≤8 MiB／8192 parts／100,000 entries，30 秒逾時，完整批次才發布，clear floor 防止晚到資料回來。正式 wire 格式與限制見 [protocol README](../protocol/README.md)。Fabric 只負責 overlay／UI，實際世界切換由平台調用 coordinator。
 
+## Hub
+
+日期：2026-10-02。範圍：唯讀合併預覽與衝突區域檢視，不寫 repo、不建 merge commit（Phase 4）。決定 #50、#51。
+
+- **API**：`GET /api/v1/worlds/{owner}/{world}/merge-preview?ours=&theirs=`（亦接受 `/merge-preview/ours...theirs`）回傳 MergeReport：`fingerprint`、`canMerge`、`zeroIntervention`、`automaticallyMergedSections`、`regions`（id、維度、bounds、blockCount、雙方作者、redstone、boundaryHints、kinds）、`dimensions`（各維度 base／ours／theirs、狀態、bounds）、`ruleDifferences`、`problems`、`warnings`。`/view/{chunks|diff|summary}` 以 `fingerprint`、`dim`、`view=auto|ours|theirs|base|selected`、`choices=<id>:<ours|theirs|base>,…` 與視窗參數回傳依選擇的結果（沿用 chunk／diff wire；summary 含計數與 updateShapes）。fingerprint 與目前 tip 不符回 400。
+- **實作**：`MergePreviewService` 重用 core `MergeBases`、`IgnoreRuleMerge`、`TreeFilter`、`MergeEngine.merge/select`；`MemoryObjects` 疊在唯讀 repo 上，候選與選擇結果只在記憶體。選擇保留 core 的精確 atoms 切換，區域包圍盒內未衝突的自動合併不被覆蓋。
+- **前端**：`/{owner}/{world}/merge-preview/ours...theirs`（`pages/merge.ts`、`merge.ts`）：區域清單（維度篩選、依編號／格數／紅石排序）、點選區域鏡頭移動、五種預覽、每區域選擇、摘要、規則差異；分支頁與比較頁有「預覽合併」入口。
+- **#46**：預覽與選擇結果逐格等於快照中的 state（驗收以 fence 的完整 `[east=…]` state 比對 ours／theirs，base 為 air）；`updateShapes` 只顯示座標。
+- **驗收**：`MergePreviewTest`（6，零衝突／缺維度保留 ours、區域與 core 報告一致、逐格 state、多維度、DataVersion／規則／DataPacks 原因、授權 404 與非法選擇 400、快取上限與 tip 變動失效）＋`MergePreviewBudgetTest`（413、不留快取）；前端 vitest 26 通過。`hub/scripts/phase3-acceptance.sh`（port 18096，flock）以正式 CSP 的 Playwright 驗證：6 區域、區域鏡頭移動、ours／theirs／base 逐格 state、選擇後結果預覽（區域外 obsidian 保留）、URL 重載保留選擇、過期 tips 作廢、維度篩選、DataVersion 前提頁、分支頁入口、離頁釋放 viewer、匿名 404；0 CSP 違規、0 console error、0 失敗回應。截圖 `hub/docs/screenshots/phase3/`（4 張，約 645 KB）。
+- **測試修正**：Hub 的 auth throttle（30 次／60 秒）會讓夾具連續 push 回 429，測試把 `worldgit.hub.auth.attempts` 調高；Hub 拒絕非快進 push，快取失效測試改用快進移動分支。
+- **限制**：選擇不落地、不產生 commit；歷史未追蹤內容無法重新取回；作者為來源提交摘要；criss-cross 多 base 依 #43 拒絕。大型世界（上千區域）只有預算上限驗證，未做規模量測。
+
 ## 驗收與量測
 
 以下測試不修改 baseline／原始 Paper 目錄；伺服器在 finally 停止，世界複本用完刪除。Gradle 與量測／伺服器腳本依規定使用 `.work/bench.lock`，單 worker、JDK 21；Paper 26.2 用 JDK 25。
@@ -116,3 +128,101 @@ Hub 必須先處理 snapshot 配對、DataVersion／DataPacks、`IgnoreRuleMerge
 - 狀態超過 32 MiB 會明確拒絕保存；大型實體預覽超過 8 MiB 要縮小批次。保留候選 refs／完成報告，尚未實作回收命令或任意 Mod 語意 registry。
 
 完整語意見 [06](06-diff-merge.md)；儲存模型見 [02](02-data-model.md)；Phase 2 與合併的互斥見 [05](05-switch-restore.md)；平台接合見 [08](08-architecture.md) 與 [core README](../core/README.md)。
+
+## Fabric（任務 F3，2026-10-02）
+
+單人世界的合併、衝突清單 UI 與疊圖預覽。決定見 [09 #55～#61](09-roadmap-open-questions.md)；使用方式見 [fabric README](../fabric/README.md)。
+
+### 完成項目
+
+- **指令（單人整合伺服器）**：`/wg merge <分支> [--no-commit] [--strategy-option ours|theirs] [--distance k]`、`merge --abort|--continue`、`resolve <id|all> [--ours|--theirs|--base|--manual]`、`revert`、`cherry-pick`、`conflicts [--show|--teleport id]`；`status` 在 MERGING 顯示剩餘區域；`commit -m` 在 MERGING 等同 continue。全部走 `WorldOperations.live` 與 Phase 2 的 freeze／批次套用／verify barrier，**呼叫端不再套一次 plan**；乾淨合併（0 區域）在同一指令內自動 `continueMerge` 成兩 parent 的 merge commit。套用沿用 Phase 2 的 section 直接替換，不呼叫 `updateShape`／鄰居更新（#46）。
+- **衝突清單畫面**：`G` 鍵或 `/wg conflicts`。分頁列出區域（`!` 未解決／`✓` 已解決／`>` 選取）、維度與座標、格數、ours／theirs 作者、狀態與目前選擇、紅石警示、交界提示數（滑過按鈕列出前 20 格，僅供檢查）、傳送（單人直接 `teleportTo`；連 Paper 送 `execute in <dim> run tp`）。按鈕分三組：Ghost（疊圖）、Set blocks（原地切換，不標解決）、Resolve（切換＋標解決；manual 取目前世界）。畫面不暫停整合伺服器。
+- **疊圖**：客戶端以既有 `PreviewScene` 鬼影管線畫選取區域的 ours／theirs／base（紫色外框＋半透明模型，不改世界）；區域外框依 06 §1.1 常駐（未解決紫、已解決暗灰、全部解決後清除）。
+- **連 Paper**：握手宣告 `merge-regions-v1`；`ClientConflicts` 以每維度 `Assembler` 收 `worldgit:conflicts`／`worldgit:conflict_preview`（分包完整才發布、clear floor、選擇改變後丟棄晚到的另一候選）；Fabric 伺服器端 `sendConflicts` 與 Paper 使用同一份 `MergeProtocol` 編碼。`MergeProtocol` 只做向後相容擴充（F3-5）。
+- i18n：`fabric/shared/.../assets/worldgit/lang/{en_us,zh_tw}.json`（畫面、按鍵與按鍵分類）與 `i18n` 模組 `fabric.merge.*`／`fabric.help.phase3`（聊天訊息）。按鍵為原版 `KeyMapping`，可在「按鍵設定」改。
+
+### 驗收（真正的 Minecraft 客戶端、Xvfb＋llvmpipe、單人世界）
+
+腳本：`WG_PHASE3=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh <1.21.11|26.2> --record`（自行取得 bench.lock）；測試 `fabric/gametest/.../Phase3ClientGameTest.java`，離線驗證 `fabric/tools/record-phase3.py`。證據在 `.work/fabric-acceptance/phase3-<版本>-*/`（result.json、client.log、CLI 輸出、各階段世界／repo 複本、截圖）。
+
+| 項目 | 1.21.11 | 26.2 |
+|---|---|---|
+| 不同位置（同 section 不同格、不同 chunk）merge：零衝突、自動完成、兩 parent、`verify` 0 | PASS | PASS |
+| 同位置衝突：門（上下半）、柵欄、紅石線／中繼器 → 3 個區域（2／1／1 格），清單與 `wgit conflicts`（取 MERGING 中途世界複本）id／格數／包圍盒／紅石旗標一致 | PASS | PASS |
+| 紅石警示只在紅石區域；區域含 ours／theirs 作者 | PASS | PASS |
+| 疊圖 ours／theirs／base：客戶端收到的格子位置與 state 與對應分支快照逐格相同（3 區域 x 3 版本），每次預覽前後整個測試範圍（46x4x17 格）逐格不變 | PASS | PASS |
+| 以 UI 路徑（客戶端命令）逐區切換 theirs→base→ours：區域原子 = 快照，區域外保持不變 | PASS | PASS |
+| **柵欄連接 state 不被改動**：切到 theirs 後 (14,-60,10) 為 nether_brick_fence、(15,-60,10) 仍是 `oak_fence[west=true]`（vanilla 會改成 false） | PASS | PASS |
+| UI 解決（門 theirs、柵欄 theirs、紅石 manual）後世界與預期逐格相同；`merge --continue` 兩 parent、`verify` 0、`wgit conflicts` 為空 | PASS | PASS |
+| 解決一部分後 `merge --abort`：世界逐格回到合併前（含自動合併進來的格）、HEAD 不變、MERGING 清除、客戶端清單與外框清空 | PASS | PASS |
+
+兩版各 1 次完整執行，耗時 11–17 分鐘（llvmpipe、與其他任務共用 3 核）。其中 manual 區域的測試動作 `setblock` 會讓原版更新相鄰紅石線，這是玩家自己的編輯，不是 WorldGit 造成；驗收已把該格以編輯後的實際值為準。
+
+### 協定與相容性測試
+
+`MergeClientTest`（fabric logic，無 Minecraft 相依）以模擬 Paper 伺服器的封包驗證：作者與交界提示欄位、>28,000 bytes 的 BE 預覽反序分包完整才發布、選擇改變後晚到的另一候選被丟棄、clear 之後各維度晚到封包不復活、舊 v1 body（無作者／提示欄位）可讀、舊伺服器不宣告能力時不送合併封包、預設 `Protocol.CAPABILITIES` 不含 `merge-regions-v1`、指令參數驗證（互斥旗標、`--distance` 範圍）。`ClientLogicTest` 改為檢查握手為預設能力加 `merge-regions-v1`。
+
+### 限制與未完成
+
+- 與真 Paper 伺服器的實機對接：Paper 端任務同時進行，此任務只做到模擬封包與指令格式對齊（`wg resolve <id> <choice>`、`wg conflict-preview <id> <choice>` 與 Paper 的指令一致）；沒有跑 Paper 實機客戶端驗收，也沒有 Paper 連線的 UI 截圖。
+- 合併寫入只支援單人世界；專用 Fabric 伺服器無合併指令。Paper 沒有 `conflict-select`，因此連 Paper 時只有「Resolve」按鈕可寫入。
+- 作者欄位是 commit 身分（單人世界自動／手動提交都是 `WorldGit Server`），不是逐格 blame。
+- 疊圖沿用 Phase 2 的鬼影管線：固定光照、無透明面排序、不畫 block entity renderer；超大區域依既有 LOD 退成外框。未做 Sodium／Iris／硬體 GPU 驗收，也沒有大量區域（數百區）的 UI 與效能測試，清單分頁為每頁依視窗高度。
+- 交界提示（updateShapes）以區域包圍盒外擴 1 格歸屬；只在選擇會改變 theirs 內容時才非空，預設 ours 時為 0。僅供檢查，不自動處理（#46）。
+- 清單畫面為原版元件的簡單分頁表，沒有拖曳、搜尋或 3D 內縮圖；傳送一律落在區域最小 x／z、最高 y+2。
+
+## Paper／Folia
+
+日期：2026-10-02。範圍：Paper／Folia 插件的遊戲內合併流程（paper/）。決定 #52～#54。Codex 在實作中途遇到用量限制，由 Sonnet 5.5 接手完成驗收腳本修正、四平台驗收與文件。
+
+### 完成項目
+
+- `/wg merge <branch|rev>`、`--continue`、`--abort`、`/wg resolve <#|all> ours|theirs|base|manual`、`/wg conflicts`（GUI／主控台清單、`preview <#> <choice>`）、`/wg tool`、`/wg revert`、`/wg cherry-pick`；`/wg commit` 在 MERGING 時等同 `commitMerge`；`/wg status` 顯示 MERGING。權限節點 `worldgit.command.{merge,resolve,conflicts,conflict-preview,tool,revert,cherry-pick}`（含於 `worldgit.admin`）。
+- `PaperOperations(merge=true)` 包裝 core `WorldOperations.live`：capture 走 `PaperLiveWorld.flush`，驗證用 Phase 2 的 `validateOnline`，套用沿用 owner 排程、player protection（10 秒餘韻）與實體 UUID 移除→生成 barrier。core 僅新增向後相容的 `LiveAccess.beforeComplete()` 預設方法（取消／插件關閉時在發布 HEAD 或完成 journal 前中止）。
+- `MergeUi`：讀取持久化 `merge-state.bin` 後驅動 bossbar（紫色，「合併中：剩 N 個衝突」，進度＝已解決比例）、區域外框（`DisplayFallback.showRegions`，12 條邊的發光 BlockDisplay，已解決變灰，對該維度有 `worldgit.command.conflicts` 的玩家）、動作列提示、合併工具（PDC 標記的指南針）與 54 格 GUI（每頁 45 區域、翻頁、傳送用 `teleportAsync`）。插件啟動時 `refresh()` 重讀狀態，所以重啟後一切恢復；插件停用時清除所有外框／bossbar。
+- `FabricLink`：握手宣告 `merge-regions-v1`（及 `revision-preview`），推送 `worldgit:conflicts`（狀態變更才重送）與 `worldgit:conflict_preview`；protocol 的 `RegionInfo` 新增可選 `oursAuthors`／`theirsAuthors`、`Completed` 新增 `updateShapes`（舊 v1 body 缺欄位讀為空；Fabric 任務同樣使用）。
+- MERGING 期間：`doCommit`／`switchTo`／`resetHard`／stash 等一律拒絕（`requireNotMerging`），定時／登出自動 commit 與關閉時 commit 略過，Folia 離線關閉 commit 也略過。
+- 驗收用除錯入口：`/wg debug merge-tool <玩家> cycle|resolve`（以真正的 `PlayerInteractEvent` 走完整物品／權限／core 流程）、`merge-gui`、`fill … <localX>`；`wgbot.js` 新增 `window`／`click`（真的 inventory click packet）與 `WG_BOT_DUMP`（記錄 conflicts／preview 原始 payload 供解碼）。
+
+### 驗收（`acceptance.py <paper|folia> <1.21.11|26.2> phase3`，port 25701–25704）
+
+四平台全部通過，各 47 個檢查，0 failure、server log 無 ERROR／Exception，最後離線 `wgit verify HEAD` 皆 COMPLETE（0 差異）、實體無重複。證據：`.work/paper-phase3/<平台>-<版本>-*/results.json`、`wire.log`、`cli.log`（console log 在 `.work/paper-delivery/logs`）。
+
+| 項目 | paper 1.21.11 | paper 26.2 | folia 1.21.11 | folia 26.2 |
+|---|---|---|---|---|
+| 兩 bot（含 BE、牛、跨 chunk）不同位置建築 → `/wg merge` 零介入、兩 parent、bot 與伺服器逐格 hash 相同、離線 verify=0 | PASS | PASS | PASS | PASS |
+| 同位置門＋柵欄＋紅石（repeater）衝突 → 1 區、4 格、bbox (15,64,2)..(17,65,2)，與 CLI `wgit conflicts` 的 id／bbox／格數／紅石／atoms 一致 | PASS | PASS | PASS | PASS |
+| `/wg status` 顯示 MERGING；MERGING 中 `switch --force`、未解決的 commit 被擋 | PASS | PASS | PASS | PASS |
+| 重啟伺服器後 MERGING 恢復（兩位授權玩家各看到 12 個外框 display） | PASS | PASS | PASS | PASS |
+| 合併工具（Bukkit 右鍵事件）ours→theirs→base→ours 循環，每次切換後 bot 與伺服器的 section hash 都等於對應快照（柵欄連接 state 不變，#46） | PASS | PASS | PASS | PASS |
+| 區域內生存模式玩家切換：無傷害、FALL／SUFFOCATION／DROWNING 事件被取消 | PASS | PASS | PASS | PASS |
+| GUI 開啟（真 bot）、點擊 slot 傳送（teleportAsync）到區域 | PASS | PASS | PASS | PASS |
+| Fabric 協作：bot 宣告 merge-regions-v1，真實收到 conflicts／preview payload，解碼得 4 格預覽 | PASS | PASS | PASS | PASS |
+| `merge --abort`（含丟棄 MERGING 中手動放的方塊）→ HEAD 回復、世界逐格等於合併前、離線 verify=0 | PASS | PASS | PASS | PASS |
+| 全部 resolve → commit（兩 parent）；resolve all manual（以世界現況為準）→ `--continue` | PASS | PASS | PASS | PASS |
+| revert／cherry-pick 各乾淨一例（單 parent commit）、各衝突一例（進 MERGING，abort 還原） | PASS | PASS | PASS | PASS |
+
+### 量測（單次，3 核心與另外兩個任務共用，bot 在線，`-Xmx2G`）
+
+| 項目 | paper 1.21.11 | paper 26.2 | folia 1.21.11 | folia 26.2 |
+|---|---:|---:|---:|---:|
+| 兩分支各改 1,000 chunk 的線上 merge（零衝突，含 commit） | 119.5 s | 117.8 s | 91.7 s | 92.0 s |
+| merge 期間 TPS 估計／p99 tick 間隔／最大間隔 | 19.98／56.0／457 ms | 19.98／52.3／406 ms | 19.97／57.5／351 ms | 19.95／56.7／412 ms |
+| 一次區域切換（右鍵事件→套用完成→狀態持久化；3 次） | 26.3／23.6／23.6 s | 24.7／21.0／20.6 s | 26.8／22.6／22.6 s | 25.1／19.8／20.7 s |
+
+切換只涉及 2 個 section，但延遲偏高：事件後約 14 s 才開始套用、套用後還要約 10 s 驗證與持久化。推測是 core 協調流程每次對整個世界組做 capture／preflight／驗證與 flush barrier（與 Phase 2 單區域 `switch` 同量級），再加上與其他任務共用 CPU；未做 profile，屬已知限制，見下。
+
+### 設計說明與修正
+
+- 驗收的場景修正：fixture 地表為 y=63，起初把門／柵欄放在懸空處；紅石線在 `setblock` 時會被鄰居更新重算 power（與 base 相同而不構成衝突），所以改用 repeater 的 delay 當紅石 state；`setblock` 換門前先清成空氣，避免上下半互相更新。這些只影響測試夾具，與 #46 無關（插件／core 套用路徑本身不觸發鄰居更新）。
+- 玩家保護在 `applyAll` 結束後再延 10 秒；驗收在套用日誌出現後立即檢查事件被取消，而不是在後續較慢的驗證完成之後（那時已超過餘韻）。
+- 合併工具用「指南針＋PDC」，不是 Folia 專屬物品；驗收以真正的 `PlayerInteractEvent` 模擬右鍵（任務允許的方式），事件仍走物品 PDC、權限、鎖與 core barrier。
+- 未對 Folia 以外的 Bukkit 事件版本差異再做額外相容層；GUI／工具都在玩家的 entity scheduler 執行。
+
+### 未完成事項與限制
+
+- 一次區域切換約 20–27 s（見上）；需要 core 提供「只 capture 受影響 chunk」的 LiveAccess 才能顯著縮短，未在本任務內改 core。
+- 工具對「手動」(manual) 區域沒有循環選項（右鍵只在 ours／theirs／base），manual 只能用 `/wg resolve <#> manual`；Shift+右鍵標記的是目前所見版本。
+- 無逐格 blame；作者是來源 commit 身分摘要。外框最多受 `show.display-max-entities` 限制（超過的區域省略並不顯示）。
+- Fabric 客戶端的真實畫面（非 bot）由 Fabric 任務驗收；此處只驗證 payload 與解碼。沒有截圖。
+- 完整 `./gradlew build` 未重跑（fabric／hub 由並行任務修改中）；本任務跑了 `:core:test :protocol:test :i18n:test :paper:common:test :paper:plugin:build` 綠燈。

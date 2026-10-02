@@ -40,6 +40,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
       return;
     }
     if(Boolean.getBoolean("wgtest.phase2")) { Phase2ClientGameTest.run(ctx); return; }
+    if(Boolean.getBoolean("wgtest.phase3")) { Phase3ClientGameTest.run(ctx); return; }
     english(ctx);
     chinese(ctx);
     LOG.info("WGTEST DONE");

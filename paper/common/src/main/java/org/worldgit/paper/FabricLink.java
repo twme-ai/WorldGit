@@ -17,6 +17,8 @@ import org.worldgit.core.diff.WorldDiff;
 import org.worldgit.core.model.DimensionId;
 import org.worldgit.protocol.DiffPalette;
 import org.worldgit.protocol.Protocol;
+import org.worldgit.protocol.MergeProtocol;
+import org.worldgit.core.merge.MergeReport;
 
 /**
  * 與玩家端 Fabric 模組的連線（docs/08 §6）：握手、傳送 status 描邊與 diff 鬼影。
@@ -37,6 +39,8 @@ final class FabricLink implements PluginMessageListener, Listener {
   private final AtomicLong previews = new AtomicLong(System.currentTimeMillis());
   private final ConcurrentMap<UUID, Session> sessions = new ConcurrentHashMap<>();
   private final ConcurrentMap<UUID, Long> active = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String,Long> mergeActive=new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID,String> mergeLists=new ConcurrentHashMap<>();
   private volatile DiffPalette palette = DiffPalette.DEFAULT;
 
   FabricLink(WorldGitPlugin plugin) {
@@ -45,7 +49,7 @@ final class FabricLink implements PluginMessageListener, Listener {
 
   void register() {
     var messenger = plugin.getServer().getMessenger();
-    for (String channel : List.of(Protocol.HELLO, Protocol.DIFF, Protocol.STATUS, Protocol.CLEAR))
+    for (String channel : List.of(Protocol.HELLO, Protocol.DIFF, Protocol.STATUS, Protocol.CLEAR, MergeProtocol.REGIONS, MergeProtocol.PREVIEW))
       messenger.registerOutgoingPluginChannel(plugin, channel);
     messenger.registerIncomingPluginChannel(plugin, Protocol.HELLO, this);
     plugin.getServer().getPluginManager().registerEvents(this, plugin);
@@ -66,6 +70,8 @@ final class FabricLink implements PluginMessageListener, Listener {
   public void onQuit(PlayerQuitEvent e) {
     sessions.remove(e.getPlayer().getUniqueId());
     active.remove(e.getPlayer().getUniqueId());
+    mergeLists.remove(e.getPlayer().getUniqueId());
+    mergeActive.keySet().removeIf(k->k.startsWith(e.getPlayer().getUniqueId().toString()));
   }
 
   private void begin(Player player) {
@@ -77,7 +83,7 @@ final class FabricLink implements PluginMessageListener, Listener {
         var s = sessions.get(id);
         if (s == null || s.ready || !player.isOnline()) return;
         try {
-          player.sendPluginMessage(plugin, Protocol.HELLO, Protocol.encode(new Protocol.Hello(Protocol.VERSION, s.nonce, List.of(), palette)));
+          player.sendPluginMessage(plugin, Protocol.HELLO, Protocol.encode(new Protocol.Hello(Protocol.VERSION, s.nonce, java.util.stream.Stream.concat(Protocol.CAPABILITIES.stream(),java.util.stream.Stream.of("revision-preview",MergeProtocol.CAPABILITY)).distinct().toList(), palette)));
         } catch (IOException ex) {
           plugin.getLogger().log(Level.WARNING, "無法編碼 hello", ex);
         }
@@ -134,14 +140,41 @@ final class FabricLink implements PluginMessageListener, Listener {
   }
 
   void clear(Player player) {
-    Long id = active.remove(player.getUniqueId());
-    if (id == null || !ready(player)) return;
+    active.remove(player.getUniqueId());
+    mergeLists.remove(player.getUniqueId());
+    mergeActive.keySet().removeIf(k->k.startsWith(player.getUniqueId().toString()));
+    long id=previews.incrementAndGet();
+    if (!ready(player)) return;
     try {
       byte[] bytes = Protocol.encode(new Protocol.Clear(id));
       plugin.platform().entity(player, () -> player.sendPluginMessage(plugin, Protocol.CLEAR, bytes), () -> {});
     } catch (IOException e) {
       plugin.getLogger().log(Level.WARNING, "無法編碼 clear", e);
     }
+  }
+
+  void sendRegions(Player player,DimensionId dimension,List<MergeReport.Region> regions,String token) {
+    if(!supports(player,MergeProtocol.CAPABILITY)) return;
+    if(token.equals(mergeLists.put(player.getUniqueId(),token))) return;
+    try { long id=previews.incrementAndGet(); sendMerge(player,MergeProtocol.REGIONS,MergeProtocol.regions(id,dimension,regions),id,dimension); }
+    catch(IOException|RuntimeException e) { mergeLists.remove(player.getUniqueId()); plugin.getLogger().warning("傳送衝突區域失敗："+e.getMessage()); }
+  }
+  void sendConflictPreview(Player player,DimensionId dimension,int region,MergeReport.Choice choice,List<MergeReport.PreviewBlock> cells) throws IOException {
+    if(!supports(player,MergeProtocol.CAPABILITY)) return;
+    long id=previews.incrementAndGet();
+    sendMerge(player,MergeProtocol.PREVIEW,MergeProtocol.preview(id,dimension,region,choice,cells.stream().map(c->new MergeProtocol.PreviewCell(c.position(),c.state().canonical(),c.blockEntity())).toList()),id,dimension);
+  }
+  private void sendMerge(Player player,String channel,List<byte[]> packets,long id,DimensionId dimension) {
+    String key=player.getUniqueId()+":"+channel; mergeActive.put(key,id); sendMergeFrom(player,channel,packets,0,id,key,dimension);
+  }
+  private void sendMergeFrom(Player player,String channel,List<byte[]> packets,int start,long id,String key,DimensionId dimension) {
+    plugin.platform().entity(player,()->{
+      if(!player.isOnline() || !Objects.equals(mergeActive.get(key),id) || !supports(player,MergeProtocol.CAPABILITY)
+          || !player.hasPermission("worldgit.command.conflicts") || !plugin.dimensionOf(player.getWorld()).filter(dimension::equals).isPresent()) return;
+      int end=Math.min(packets.size(),start+PACKETS_PER_TICK);
+      for(int i=start;i<end;i++) player.sendPluginMessage(plugin,channel,packets.get(i));
+      if(end<packets.size()) plugin.platform().entityDelayed(player,1,()->sendMergeFrom(player,channel,packets,end,id,key,dimension),()->{});
+    },()->{});
   }
 
   /** 每個 tick 送 {@value #PACKETS_PER_TICK} 包，避免單 tick 湧出大量 plugin message。 */

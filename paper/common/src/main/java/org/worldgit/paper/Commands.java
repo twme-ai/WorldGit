@@ -11,6 +11,8 @@ import org.bukkit.entity.Player;
 import org.worldgit.core.config.WorldGitConfig;
 import org.worldgit.core.diff.WorldDiff;
 import org.worldgit.core.model.*;
+import org.worldgit.core.merge.*;
+import org.worldgit.core.service.WorldOperations;
 import org.worldgit.core.service.DimensionRepository;
 import org.worldgit.core.service.WorldRepositories;
 import org.worldgit.protocol.DiffPalette;
@@ -21,7 +23,7 @@ import org.worldgit.protocol.Protocol;
  * 結果以聊天訊息送回（Player 走自己的 entity scheduler，Folia 安全）。權限節點見 plugin.yml。
  */
 final class Commands implements CommandExecutor, TabCompleter {
-  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "help");
+  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "tool", "conflicts", "conflict-preview", "revert", "cherry-pick", "help");
   private final WorldGitPlugin plugin;
   private final Debug debug;
 
@@ -84,6 +86,9 @@ final class Commands implements CommandExecutor, TabCompleter {
     var rest = Arrays.copyOfRange(args, 1, args.length);
     try {
       switch (sub) {
+        case "merge", "resolve", "revert", "cherry-pick" -> merge(sender,sub,rest);
+        case "tool" -> { if(rest.length!=0) throw bad("paper.merge.usage"); if(!(sender instanceof Player p)) throw bad("paper.error.player-only"); plugin.merges().tool(p); }
+        case "conflicts", "conflict-preview" -> conflicts(sender,sub,rest);
         case "init" -> init(sender, rest);
         case "status" -> status(sender, rest);
         case "commit" -> commit(sender, rest);
@@ -111,7 +116,7 @@ final class Commands implements CommandExecutor, TabCompleter {
         sender,
         Messages.line("paper.help.title"), Messages.line("paper.help.init"), Messages.line("paper.help.status"),
         Messages.line("paper.help.commit"), Messages.line("paper.help.log"), Messages.line("paper.help.diff"),
-        Messages.line("paper.help.clear"), Messages.line("paper.help.reload"), Messages.line("paper.apply.help"));
+        Messages.line("paper.help.clear"), Messages.line("paper.help.reload"), Messages.line("paper.apply.help"),Messages.line("paper.merge.usage"));
   }
 
   private CommitMetadata.Identity identity(CommandSender sender) {
@@ -177,6 +182,8 @@ final class Commands implements CommandExecutor, TabCompleter {
       }
       var palette = palette();
       var lines = new ArrayList<Component>();
+      var merging=plugin.merges().state();
+      if(merging!=null) lines.add(Messages.line("paper.merge.status","count",merging.remaining()));
       lines.add(Messages.line("paper.status.title", "suffix", fFull ? Messages.fullSuffix() : ""));
       batch.dimensions().forEach((id, o) -> {
         if (!o.success()) lines.add(Messages.line("paper.commit.dimension-failed", "dimension", id.value(), "message", o.error()));
@@ -232,6 +239,10 @@ final class Commands implements CommandExecutor, TabCompleter {
     if (m < 0 || m + 1 >= args.length) throw bad("paper.error.commit-usage");
     String message = String.join(" ", Arrays.copyOfRange(args, m + 1, args.length)).trim();
     if (message.isBlank()) throw bad("paper.error.commit-empty");
+    if(plugin.merges().state()!=null) {
+      plugin.repo().mergeOperation("merge commit",ops->ops.core().commitMerge(identity(sender),CommitMetadata.Source.PLUGIN,message,false))
+          .whenComplete((result,error)->plugin.merges().feedback(sender,result,error)); return;
+    }
     Messages.inLocale(sender, () -> reply(sender, Messages.line("paper.commit.start")));
     plugin
         .repo()
@@ -441,6 +452,57 @@ final class Commands implements CommandExecutor, TabCompleter {
     }));
   }
 
+  private void merge(CommandSender sender,String sub,String[] args) {
+    if(sub.equals("resolve")) {
+      if(args.length!=2) throw bad("paper.merge.usage");
+      int id=args[0].equals("all") ? 0 : Integer.parseInt(args[0].replaceFirst("^#",""));
+      if(id<0 || (id==0 && !args[0].equals("all"))) throw bad("paper.merge.usage");
+      var choice=MergeReport.Choice.valueOf(args[1].toUpperCase(Locale.ROOT));
+      plugin.repo().mergeOperation("resolve",ops->choice==MergeReport.Choice.MANUAL ? ops.core().markResolved(id,true,false) : ops.core().selectRegion(id,choice,true,false))
+          .whenComplete((result,error)->plugin.merges().feedback(sender,result,error)); return;
+    }
+    if(args.length!=1) throw bad("paper.merge.usage");
+    String revision=args[0]; if(revision.startsWith("--") && (!sub.equals("merge") || !Set.of("--abort","--continue").contains(revision))) throw bad("paper.merge.usage");
+    var author=identity(sender);
+    reply(sender,Messages.line("paper.merge.start","mode",sub,"target",revision));
+    plugin.repo().mergeOperation(sub,ops->{
+      var core=ops.core();
+      if(revision.equals("--abort")) return core.abortMerge(false);
+      if(revision.equals("--continue")) return core.continueMerge(author,CommitMetadata.Source.PLUGIN,false);
+      var options=new WorldOperations.MergeOptions(true,null,1,false,author,CommitMetadata.Source.PLUGIN);
+      var result=switch(sub) { case "revert"->core.revert(revision,options); case "cherry-pick"->core.cherryPick(revision,options); default->core.merge(revision,options); };
+      // 線上先 noCommit 套用／驗證；乾淨合併在同一編輯鎖內 capture 成 merge commit。
+      if(result.success() && result.merging()!=null && result.merging().remaining()==0) return core.continueMerge(author,CommitMetadata.Source.PLUGIN,false);
+      return result;
+    }).whenComplete((result,error)->plugin.merges().feedback(sender,result,error));
+  }
+
+  private void conflicts(CommandSender sender,String sub,String[] args) {
+    if(sub.equals("conflict-preview") || (args.length>0 && args[0].equals("preview"))) {
+      if(!(sender instanceof Player p)) throw bad("paper.error.player-only");
+      int offset=sub.equals("conflict-preview") ? 0 : 1;
+      if(args.length!=offset+2) throw bad("paper.merge.usage");
+      int id=Integer.parseInt(args[offset].replaceFirst("^#",""));
+      var choice=MergeReport.Choice.valueOf(args[offset+1].toUpperCase(Locale.ROOT));
+      if(id<1 || choice==MergeReport.Choice.MANUAL) throw bad("paper.merge.usage");
+      if(!plugin.fabric().supports(p,org.worldgit.protocol.MergeProtocol.CAPABILITY)) throw bad("paper.diff.no-mod");
+      // 查詢不需要 freeze；仍以 repo executor 序列化並拿 core 的持久化候選。
+      plugin.repo().submit(()->{
+        var mapping=WorldMapper.map();
+        try(var ops=new PaperOperations(plugin,mapping,new ApplyQueue(plugin),true)) {
+          var region=ops.core().merging().regions().stream().filter(r->r.id()==id).findFirst().orElseThrow(()->new IOException("找不到衝突區域 #"+id));
+          var cells=ops.core().regionPreview(id,choice);
+          plugin.fabric().sendConflictPreview(p,region.dimension(),id,choice,cells); return null;
+        }
+      }).whenComplete((ignored,error)->{ if(error!=null) fail(sender,error); }); return;
+    }
+    if(args.length>1) throw bad("paper.merge.usage");
+    if(sender instanceof Player p) { plugin.merges().open(p,args.length==1 ? Integer.parseInt(args[0])-1 : 0); return; }
+    var state=plugin.merges().state(); if(state==null) { reply(sender,Messages.line("paper.merge.none")); return; }
+    reply(sender,Messages.line("paper.merge.status","count",state.remaining()));
+    for(var r:state.regions()) reply(sender,Messages.line("paper.merge.region","id",r.id(),"count",r.blockCount()),Messages.line("paper.merge.coords","dimension",r.dimension(),"bounds",r.bounds()),Messages.line("paper.merge.region-status","choice",r.choice(),"status",r.resolved()));
+  }
+
   // ---------------------------------------------------------------- tab
 
   @Override
@@ -459,6 +521,10 @@ final class Commands implements CommandExecutor, TabCompleter {
           case "branch" -> List.of("-d");
           case "stash" -> List.of("push","pop","list","drop");
           case "reset" -> List.of("--hard");
+          case "merge" -> List.of("main","HEAD","--abort","--continue");
+          case "resolve", "conflict-preview" -> List.of("all","ours","theirs","base","manual");
+          case "conflicts" -> List.of("preview");
+          case "revert", "cherry-pick" -> List.of("HEAD");
           default -> List.of();
         };
     return options.stream().filter(o -> o.startsWith(last)).toList();

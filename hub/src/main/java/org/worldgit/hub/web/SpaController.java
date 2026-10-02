@@ -9,6 +9,7 @@ public class SpaController {
   @GetMapping({"/", "/new", "/login", "/settings", "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}", "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/commits",
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/branches",
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/compare/{*spec}",
+      "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/merge-preview/{*spec}",
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/commit/{dim}/{rev}", "/{owner:[a-z0-9_-]+}"})
   public String index() {
     return "forward:/index.html";

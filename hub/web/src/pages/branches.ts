@@ -1,5 +1,6 @@
 import { api, dimLabel, dimRepo } from '../api.ts'
 import { aheadBehindText, branchWarnings, comparePath } from '../compare.ts'
+import { mergePath } from '../merge.ts'
 import { navigate } from '../router.ts'
 import { fmtFull, h, link, short } from '../ui.ts'
 import { branchSelect } from './commits.ts'
@@ -25,7 +26,8 @@ export async function branchesPage(root: HTMLElement, owner: string, world: stri
         h('div', { class: 'row' }, link(`/${owner}/${world}/commits?branch=${encodeURIComponent(b.name)}`, b.name, 'branch-name'),
           b.isDefault ? h('span', { class: 'badge' }, '預設') : null,
           h('span', { class: 'spacer' }), h('span', { class: 'small muted' }, aheadBehindText(b)),
-          b.name !== page.comparedTo ? link(comparePath(owner, world, page.comparedTo, b.name), '比較 →', 'btn small') : null),
+          b.name !== page.comparedTo ? link(comparePath(owner, world, page.comparedTo, b.name), '比較 →', 'btn small') : null,
+          b.name !== page.comparedTo ? link(mergePath(owner, world, page.comparedTo, b.name), '預覽合併', 'btn small') : null),
         h('p', { class: 'branch-message' }, b.message.split('\n')[0] || '(無訊息)'),
         h('div', { class: 'small muted' }, `${b.author?.name ?? ''} · ${fmtFull(b.time)}`), chips,
         ...branchWarnings(b).map(m => h('p', { class: 'small muted branch-warning' }, m))))

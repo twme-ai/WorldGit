@@ -17,6 +17,9 @@ import org.worldgit.fabric.logic.*;
 import org.worldgit.i18n.MessageCatalog;
 import org.worldgit.protocol.DiffPalette;
 import org.worldgit.protocol.Protocol;
+import org.worldgit.protocol.MergeProtocol;
+import org.worldgit.core.merge.MergeReport.Choice;
+import org.worldgit.core.diff.ChangeKind;
 
 /**
  * 客戶端狀態：設定、握手、各維度的預覽場景。網路 receiver 與 render 事件都在 client thread，所以不需要額外同步。
@@ -41,6 +44,82 @@ public final class ClientRuntime {
   private ClientConfig config;
   private DiffPalette serverPalette;
   private boolean handshaken;
+  private boolean mergeCapable;
+  private final ClientConflicts conflicts = new ClientConflicts();
+  private final Map<DimensionId,List<PreviewScene>> conflictBounds = new HashMap<>();
+  private PreviewScene conflictGhost;
+  public ClientConflicts conflicts() { return conflicts; }
+  public boolean mergeCapable() { return mergeCapable; }
+  public boolean singleplayer() { return Minecraft.getInstance().getSingleplayerServer()!=null; }
+  public void command(String command) {
+    var connection = Minecraft.getInstance().getConnection();
+    if(connection != null) connection.send(new net.minecraft.network.protocol.game.ServerboundChatCommandPacket(command));
+  }
+  public void openConflicts() {
+    if(Minecraft.getInstance().level == null) return;
+    ClientPlatform.setScreen(new ConflictScreen());
+    if(mergeCapable && singleplayer()) command("wg conflicts --show");
+  }
+  public void selectConflict(ClientConflicts.Key key) {
+    conflicts.select(key); clearConflictGhost();
+  }
+  public void previewConflict(Choice choice) {
+    var key=conflicts.selected(); if(key==null || !mergeCapable) return;
+    conflicts.request(choice); clearConflictGhost();
+    command("wg conflict-preview "+key.region()+" "+choice.name().toLowerCase(Locale.ROOT));
+  }
+  public void applyConflict(Choice choice, boolean resolve) {
+    var key=conflicts.selected(); if(key==null || !mergeCapable) return;
+    command(resolve ? "wg resolve "+key.region()+ (singleplayer() ? " --" : " ")+choice.name().toLowerCase(Locale.ROOT)
+        : "wg conflict-select "+key.region()+" "+choice.name().toLowerCase(Locale.ROOT));
+  }
+  public void gotoConflict() {
+    var key=conflicts.selected();
+    if(key!=null) {
+      var region=conflicts.region(key);
+      if(singleplayer()) command("wg conflicts --teleport "+key.region());
+      else if(region!=null && region.info().bounds()!=null) {
+        var b=region.info().bounds();
+        command("execute in "+key.dimension().value()+" run tp @s "+(b.minX()+0.5)+" "+(b.maxY()+2)+" "+(b.minZ()+0.5));
+      }
+    }
+    ClientPlatform.setScreen(null);
+  }
+  public void hideConflictPreview() { conflicts.request(null); clearConflictGhost(); }
+  private void clearConflictGhost() { if(conflictGhost!=null) conflictGhost.close(); conflictGhost=null; }
+  public List<MergeProtocol.PreviewCell> conflictPreviewCells() { return conflicts.preview()==null ? List.of() : conflicts.preview().cells(); }
+  public void onMerge(String channel, byte[] bytes) {
+    try {
+      if(!handshaken || !mergeCapable) throw new IOException("尚未握手／沒有 merge capability");
+      var done=conflicts.accept(channel,bytes,System.currentTimeMillis());
+      if(done.isEmpty()) return;
+      var c=done.get();
+      if(c.type()==MergeProtocol.Type.PREVIEW) {
+        clearConflictGhost();
+        var cells=c.cells().stream().map(b -> new Protocol.Cell(b.position().x(),b.position().y(),b.position().z(),
+            ChangeKind.CONFLICT,b.state(),b.state())).toList();
+        conflictGhost=new PreviewScene(new ClientPreviews.Published(c.dimension(),c.preview(),cells,List.of()),config,palette(),ClientPlatform::model);
+      } else {
+        var old=conflictBounds.remove(c.dimension()); if(old!=null) old.forEach(PreviewScene::close);
+        var next=new ArrayList<PreviewScene>();
+        boolean unresolved=conflicts.regions().stream().anyMatch(r -> !r.info().resolved());
+        if(unresolved) for(boolean resolved : List.of(false,true)) {
+          var outlines=c.regions().stream().filter(r -> r.bounds()!=null && r.resolved()==resolved).map(r -> {
+            var b=r.bounds(); return new Protocol.Outline(b.minX(),b.minY(),b.minZ(),b.maxX(),b.maxY(),b.maxZ(),
+                resolved ? ChangeKind.ADDED : ChangeKind.CONFLICT,0,0,0,r.blockCount());
+          }).toList();
+          var colors=new EnumMap<ChangeKind,Integer>(ChangeKind.class); colors.putAll(palette().colors());
+          if(resolved) colors.put(ChangeKind.ADDED,0x555555);
+          next.add(new PreviewScene(new ClientPreviews.Published(c.dimension(),c.preview(),List.of(),outlines),config,new DiffPalette(colors),ClientPlatform::model));
+        }
+        conflictBounds.put(c.dimension(),next);
+        if(!unresolved) { conflictBounds.values().forEach(v -> v.forEach(PreviewScene::close)); conflictBounds.clear(); clearConflictGhost(); }
+        if(conflicts.selected()==null) clearConflictGhost();
+      }
+      LOG.info("WORLDGIT MERGE_PUBLISHED type={} dimension={} id={} entries={}",c.type(),c.dimension(),c.preview(),c.type()==MergeProtocol.Type.REGIONS ? c.regions().size() : c.cells().size());
+    } catch(IOException | RuntimeException ex) { LOG.warn("WORLDGIT 合併封包被拒絕：{}",ex.toString()); }
+  }
+
 
   private ClientRuntime(Path configDir) {
     this.configDir = configDir;
@@ -87,6 +166,11 @@ public final class ClientRuntime {
   private void restyle() {
     var palette = palette();
     scenes.values().forEach(s -> s.configure(config, palette));
+    conflictBounds.values().forEach(v -> v.forEach(s -> {
+      var colors=new EnumMap<ChangeKind,Integer>(ChangeKind.class); colors.putAll(palette.colors()); colors.put(ChangeKind.ADDED,0x555555);
+      s.configure(config,new DiffPalette(colors));
+    }));
+    if(conflictGhost!=null) conflictGhost.configure(config,palette);
   }
 
   // ---- 網路 ----------------------------------------------------------------
@@ -102,7 +186,8 @@ public final class ClientRuntime {
       }
       ClientPlayNetworking.send(Net.HELLO.of(Protocol.encode(reply.get())));
       handshaken = true;
-      LOG.info("WORLDGIT CLIENT_HANDSHAKE_OK nonce={} capabilities={} palette={}", hello.nonce(), Protocol.CAPABILITIES, config.palette());
+      mergeCapable = hello.capabilities().contains(MergeProtocol.CAPABILITY);
+      LOG.info("WORLDGIT CLIENT_HANDSHAKE_OK nonce={} capabilities={} palette={}", hello.nonce(), ClientHandshake.capabilities(), config.palette());
       restyle();
     } catch (IOException | RuntimeException e) {
       LOG.warn("WORLDGIT hello 被拒絕：{}", e.toString());
@@ -114,6 +199,9 @@ public final class ClientRuntime {
       if (!handshaken) throw new IOException("尚未握手就收到預覽");
       var result = previews.accept(Protocol.decode(bytes), System.currentTimeMillis());
       if (result.clearedUpTo() >= 0) {
+        conflicts.clear(result.clearedUpTo());
+        clearConflictGhost();
+        conflictBounds.values().forEach(v -> v.forEach(PreviewScene::close)); conflictBounds.clear();
         scenes.values().removeIf(s -> {
           boolean gone = s.published().previewId() <= result.clearedUpTo();
           if (gone) s.close();
@@ -136,11 +224,14 @@ public final class ClientRuntime {
     scenes.values().forEach(PreviewScene::close);
     scenes.clear();
     previews.clear();
+    conflicts.clear(); clearConflictGhost();
+    conflictBounds.values().forEach(v -> v.forEach(PreviewScene::close)); conflictBounds.clear();
   }
 
   void onDisconnect() {
     clear();
     previews.reset();
+    conflicts.reset(); mergeCapable=false;
     handshaken = false;
     serverPalette = null;
   }
@@ -184,7 +275,12 @@ public final class ClientRuntime {
   /** END_MAIN：view 是只含視角旋轉的 modelview，(cx,cy,cz) 是相機世界座標。 */
   void render(Matrix4f view, double cx, double cy, double cz) {
     var scene = currentScene();
-    if (scene == null) return;
+    var active=new ArrayList<PreviewScene>();
+    if(scene!=null) active.add(scene);
+    String dim=currentDimension();
+    if(dim!=null) active.addAll(conflictBounds.getOrDefault(new DimensionId(dim),List.of()));
+    if(conflictGhost!=null && conflictGhost.published().dimension().value().equals(dim)) active.add(conflictGhost);
+    if(active.isEmpty()) return;
     var mc = Minecraft.getInstance();
     var rotation = new Matrix4f(view);
     rotation.m30(0).m31(0).m32(0);
@@ -195,7 +291,7 @@ public final class ClientRuntime {
     // 視錐只拿來略過整個區塊：FOV 放寬一些，寧可多畫不可少畫。
     var frustum = Frustum.perspective(m, Math.min(170, mc.options.fov().get() + 20), aspect * 1.15, 0.05, config.maxDistance() + 64.0);
     float pulse = (float) (.25 + .75 * (.5 + .5 * Math.sin(System.nanoTime() / 1e9 * Math.PI))); // 週期 2 秒
-    for (var mesh : scene.frame(cx, cy, cz, frustum)) {
+    for (var display : active) for (var mesh : display.frame(cx, cy, cz, frustum)) {
       var transform = new Matrix4f(view).translate((float) (mesh.ox() - cx), (float) (mesh.oy() - cy), (float) (mesh.oz() - cz));
       ClientPlatform.draw(mesh.buffer(), mesh.vertices(), mesh.textured(), config.seeThrough(), transform, mesh.pulse() ? pulse : 1f);
     }

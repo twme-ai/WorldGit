@@ -3,6 +3,7 @@ import { setToken } from './api.ts'
 import { refreshUser, session } from './session.ts'
 import { commitPage } from './pages/commit.ts'
 import { branchesPage } from './pages/branches.ts'
+import { mergePage } from './pages/merge.ts'
 import { comparePage } from './pages/compare.ts'
 import { commitsPage } from './pages/commits.ts'
 import { homePage, loginPage, settingsPage } from './pages/home.ts'
@@ -33,6 +34,7 @@ addRoute(/^\/login$/, (_p, root) => loginPage(root))
 addRoute(/^\/settings$/, (_p, root) => settingsPage(root))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/branches$/, ([o, w], root) => branchesPage(root, o, w))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/compare\/(.+)$/, ([o, w, spec], root) => comparePage(root, o, w, spec))
+addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/merge-preview\/(.+)$/, ([o, w, spec], root) => mergePage(root, o, w, spec))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/commits$/, ([o, w], root) => commitsPage(root, o, w))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/commit\/([^/]+)\/([0-9a-fA-F]{4,40}|HEAD)$/, ([o, w, d, r], root) => commitPage(root, o, w, d, r))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)$/, ([o, w], root) => worldPage(root, o, w))

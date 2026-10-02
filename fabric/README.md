@@ -67,6 +67,36 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 所有套用、heightmap／光照／POI 與 chunk 更新在 server owner 執行；未載入 chunk 加 ticket 等 entity IO，不寫線上 `.mca`。使用共用 ApplyBudget（單人有玩家：4 section／5 ms／16 chunk），不可搶占的單次工作採軟時間上限；全維度 UUID 先移除再生成。完成後 flush、全組驗證才更新 HEAD，並清除舊 status／diff／preview。`cancel` 等在途清理，已寫入的世界保留 PARTIAL、HEAD 不動；用全範圍 `switch <rev> --force`／`reset --hard` 恢復，PARTIAL 阻擋新 commit／普通 switch／stash。
 
+## Phase 3：合併與衝突解決（單人世界）
+
+```text
+/wg merge <分支|commit> [--no-commit] [--strategy-option ours|theirs] [--distance 0-16]
+/wg merge --abort | --continue
+/wg resolve <id|all> [--ours|--theirs|--base|--manual]
+/wg revert <commit> | /wg cherry-pick <commit>
+/wg conflicts [--show] [--teleport <id>]
+```
+
+僅單人世界的整合伺服器可執行寫入（與 Phase 2 相同）。要求工作區乾淨；不同位置的修改零介入合併，成功時直接建立兩個 parent 的 merge commit。有衝突時進入 MERGING：無衝突部分與每個衝突區域的 ours 一起寫入，`/wg status` 顯示剩餘區域，自動 commit 暫停。切換或解決區域時**維持快照儲存的方塊 state**，不觸發 `updateShape`／鄰居更新（決定 #46）；交界提示只列出供檢查。全部解決後執行 `/wg merge --continue`（或 `/wg commit -m …`）；`/wg merge --abort` 逐格回到合併前。
+
+**衝突清單畫面**：按 `G`（原版「按鍵設定 → WorldGit」可改）或 `/wg conflicts`。選取區域後：
+
+- Ghost ours／theirs／base：只在客戶端畫半透明疊圖（紫色外框＋目標模型），不改世界，關閉畫面後仍保留，可切換；`hideConflictPreview` 或解決後清除。
+- Set blocks ours／theirs／base：把世界中該區域真的換成該版本（不標解決）。
+- Resolve ours／theirs／base／manual：切換並標為已解決；manual 以目前世界為準（先自己動手改）。
+- Teleport：單人世界直接傳送到區域上方；連 Paper 送 `execute in <維度> run tp`。
+
+未解決區域的紫色外框常駐顯示，已解決改暗灰，全部解決後消失。紅石區域標示「請測試電路」，交界提示（滑過按鈕）列出可能受影響的鄰格。
+
+連 Paper 時，客戶端握手宣告 `merge-regions-v1`，由 Paper 推送 `worldgit:conflicts` 並以 `worldgit:conflict_preview` 回應疊圖請求；寫入按鈕只用 Paper 支援的 `wg resolve <id> <choice>`。舊伺服器（沒有此能力）時畫面顯示不支援。協定見 [protocol README](../protocol/README.md)，驗收見 [進度 13](../docs/13-phase3-progress.md) 的 Fabric 章節。
+
+驗收（兩版各約 11–17 分鐘）：
+
+```bash
+WG_PHASE3=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 1.21.11 --record
+WG_PHASE3=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 26.2 --record
+```
+
 ## 設定與多語言
 
 首次啟動寫入附註解的 YAML：

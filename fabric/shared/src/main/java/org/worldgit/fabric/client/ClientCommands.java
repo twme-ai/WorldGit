@@ -38,6 +38,7 @@ final class ClientCommands {
 
   private static int forward(FabricClientCommandSource source,String options) {
     String args=options.trim();
+    if(args.equals("conflicts")) { ClientRuntime.get().openConflicts(); return 1; }
     if(args.equals("clear") || args.equals("preview off")) clear(source);
     // sendCommand 會再進 Fabric 的 client dispatcher；直接送無簽章文字參數的指令封包。
     source.getClient().getConnection().send(new ServerboundChatCommandPacket("wg"+(args.isEmpty() ? "" : " "+args)));

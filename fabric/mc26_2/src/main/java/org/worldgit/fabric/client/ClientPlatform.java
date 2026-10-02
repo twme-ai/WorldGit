@@ -127,4 +127,11 @@ final class ClientPlatform {
       pass.drawIndexed(indices, 1, 0, 0, 0);
     }
   }
+
+  static void setScreen(net.minecraft.client.gui.screens.Screen screen) { Minecraft.getInstance().gui.setScreen(screen); }
+
+  static net.minecraft.client.KeyMapping registerKey(String name, int key) {
+    return net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.registerKeyMapping(new net.minecraft.client.KeyMapping(
+        name, key, net.minecraft.client.KeyMapping.Category.register(net.minecraft.resources.Identifier.parse("worldgit:controls"))));
+  }
 }

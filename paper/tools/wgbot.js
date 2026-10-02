@@ -12,7 +12,7 @@ const crypto = require('crypto')
 const [port, version, name, mode] = process.argv.slice(2)
 const bot = mineflayer.createBot({ host: '127.0.0.1', port: +port, username: name, version, auth: 'offline', viewDistance: 'tiny' })
 const out = (o) => console.log('BOT ' + JSON.stringify(o))
-const received = { hello: 0, status: 0, diff: 0, clear: 0, statusEntries: 0, diffEntries: 0, bytes: 0, previews: {} }
+const received = { hello: 0, status: 0, diff: 0, clear: 0, conflicts: 0, conflictPreview: 0, statusEntries: 0, diffEntries: 0, bytes: 0, previews: {} }
 let ready = false
 
 function varint(buf, pos) { let n = 0, i = 0, b; do { b = buf[pos++]; n |= (b & 127) << (7 * i++); } while (b & 128); return [n, pos] }
@@ -27,14 +27,16 @@ function encodeHello(version, nonce, caps) {
 
 // WG_BOT_DUMP=<檔案>：把收到的 worldgit:* payload 以「channel hex」逐行附加，供離線以 protocol 解碼（四端一致性驗收）。
 const fs = require('fs')
+const dump = process.env.WG_BOT_DUMP
 function onPayload(channel, data) {
+  if (dump && (channel === 'worldgit:conflicts' || channel === 'worldgit:conflict_preview')) require('fs').appendFileSync(dump, channel + ' ' + Buffer.from(data).toString('hex') + '\n')
   received.bytes += data.length
   if (process.env.WG_BOT_DUMP && channel.startsWith('worldgit:') && channel !== 'worldgit:hello') fs.appendFileSync(process.env.WG_BOT_DUMP, channel + ' ' + Buffer.from(data).toString('hex') + '\n')
   if (channel === 'worldgit:hello' && mode === 'mod') {
     // [version][kind=0][version][nonce 8][caps...]
     const v = data[2]; const nonce = data.readBigInt64BE(3)
     received.hello++
-    bot._client.write('custom_payload', { channel: 'worldgit:hello', data: encodeHello(v, nonce, ['ghost-render', 'outline', 'status-outline', 'section-palette-v2']) })
+    bot._client.write('custom_payload', { channel: 'worldgit:hello', data: encodeHello(v, nonce, ['ghost-render', 'outline', 'status-outline', 'section-palette-v2', 'merge-regions-v1']) })
     out({ ev: 'hello_replied', serverVersion: v })
     ready = true
   } else if (channel === 'worldgit:status' || channel === 'worldgit:diff') {
@@ -45,12 +47,14 @@ function onPayload(channel, data) {
     const pv = received.previews[key] || (received.previews[key] = { kind, parts, total, seen: new Set() })
     pv.seen.add(seq)
     if (kind === 3) received.status++; else received.diff++
-  } else if (channel === 'worldgit:clear') { received.clear++; const id=String(data.readBigInt64BE(2)); delete received.previews[id] }
+  } else if (channel === 'worldgit:conflicts') { received.conflicts++; out({ev:'merge_payload',channel,bytes:data.length}) }
+  else if (channel === 'worldgit:conflict_preview') { received.conflictPreview++; out({ev:'merge_payload',channel,bytes:data.length}) }
+  else if (channel === 'worldgit:clear') { received.clear++; const id=String(data.readBigInt64BE(2)); delete received.previews[id] }
 }
 
 bot.once('login', () => {
   // channel 要先註冊，Paper 才會把 plugin message 送給客戶端（experiments/05 的結論）。
-  if (mode === 'mod') bot._client.write('custom_payload', { channel: 'minecraft:register', data: Buffer.from(['worldgit:hello', 'worldgit:diff', 'worldgit:status', 'worldgit:clear'].join('\0')) })
+  if (mode === 'mod') bot._client.write('custom_payload', { channel: 'minecraft:register', data: Buffer.from(['worldgit:hello', 'worldgit:diff', 'worldgit:status', 'worldgit:clear', 'worldgit:conflicts', 'worldgit:conflict_preview'].join('\0')) })
 })
 bot._client.on('custom_payload', (packet) => { try { onPayload(packet.channel, packet.data) } catch (e) { out({ ev: 'payload_error', channel: packet.channel, e: String(e) }) } })
 bot.once('spawn', () => out({ ev: 'spawn', pos: bot.entity.position, version: bot.version }))
@@ -93,6 +97,8 @@ rl.on('line', async (line) => {
     else if (cmd === 'pos') out({ ev: 'pos', pos: bot.entity.position, gm: bot.game.gameMode })
     else if (cmd === 'stats') out({ ev: 'stats', ready, received: { ...received, previews: Object.fromEntries(Object.entries(received.previews).map(([k, v]) => [k, { kind: v.kind, parts: v.parts, total: v.total, seen: v.seen.size }])) } })
     else if (cmd === 'entities') out({ ev: 'entities', displays: Object.values(bot.entities).filter((e) => /display/.test(e.name || e.displayName || '')).length, names: [...new Set(Object.values(bot.entities).map((e) => e.name))] })
+    else if (cmd === 'window') { const w = bot.currentWindow; out({ ev: 'window', opened: !!w, title: w && String(w.title), slots: w ? w.slots.filter((x) => x).length : 0, size: w ? w.slots.length : 0 }) }
+    else if (cmd === 'click') { const w = bot.currentWindow; if (!w) throw new Error('no window'); await bot.clickWindow(+a[1], 0, 0); out({ ev: 'clicked', slot: +a[1] }) }
     else if (cmd === 'quit') { bot.quit(); setTimeout(() => process.exit(0), 300) }
     else out({ ev: 'unknown', cmd })
   } catch (e) { out({ ev: 'cmd_error', cmd, e: String(e) }) }

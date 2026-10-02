@@ -242,3 +242,36 @@ fabric.apply.phase.complete: "Complete"
 fabric.apply.phase.cancelled: "Cancelled"
 fabric.apply.phase.partial: "PARTIAL"
 fabric.apply.phase.failed: "Failed"
+
+# Paper／Folia Phase 3 合併
+paper.merge.usage: '/wg merge <branch|rev>|--continue|--abort; resolve <#|all> ours|theirs|base|manual; conflicts [page|preview # ours|theirs|base]; tool; revert|cherry-pick <rev>'
+paper.merge.progress: 'Merging: <count> conflicts remaining'
+paper.merge.status: 'MERGING: <count> conflicts remaining. /wg conflicts; resolve then merge --continue, or merge --abort.'
+paper.merge.hint: 'Conflict #<id>: <choice> (<status>); tool: right-click to cycle, sneak-right-click to resolve'
+paper.merge.start: 'Starting <mode> <target>…'
+paper.merge.result: 'Merge operation complete: <state>; <count> conflicts remaining; commits <commits>'
+paper.merge.partial: 'Merge is PARTIAL: <message>; use /wg merge --abort to recover.'
+paper.merge.none: 'No merge is in progress.'
+paper.merge.outside: 'Enter a conflict region, or use /wg resolve.'
+paper.merge.inventory-full: 'Inventory full. Free a slot for the tool.'
+paper.merge.tool-name: 'Merge tool'
+paper.merge.tool-lore: 'Right-click: ours → theirs → base; sneak-right-click: resolve current choice'
+paper.merge.tool-given: 'Merge tool received.'
+paper.merge.gui-title: 'Conflict regions (page <page>)'
+paper.merge.region: 'Conflict #<id> — <count> blocks'
+paper.merge.coords: '<dimension>: <bounds>'
+paper.merge.authors: 'ours authors: <ours>; theirs authors: <theirs>'
+paper.merge.region-status: 'Current <choice>; status <status>'
+paper.merge.warnings: 'Redstone: <redstone> (test circuit); boundary hints in region: <count>'
+paper.merge.teleport: 'Click to teleport above this region'
+paper.merge.metadata: 'Metadata conflict has no teleport location; use resolve.'
+paper.merge.previous: 'Previous page'
+paper.merge.next: 'Next page'
+paper.merge.teleport-failed: 'Teleport failed. Please retry.'
+
+# Fabric Phase 3
+fabric.help.phase3: "/wg merge rev [--no-commit] | merge --abort|--continue | resolve id|all [--ours|--theirs|--base|--manual] | revert rev | cherry-pick rev | conflicts"
+fabric.merge.status: "MERGING: <remaining>/<total> unresolved regions."
+fabric.merge.result: "<state>: <remaining> unresolved regions."
+fabric.merge.empty: "No conflict regions."
+fabric.merge.row: "! #<id> <dimension> <bounds> (<count> blocks) ours: <ours>; theirs: <theirs>; choice: <choice>; resolved: <resolved>; redstone: <redstone>"

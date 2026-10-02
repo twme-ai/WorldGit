@@ -158,7 +158,10 @@ final class PreviewScene implements AutoCloseable {
             var quads = model(c.after());
             Geometry.ghost(ghost, quads, x, y, z, rgb, GHOST_MODIFIED_ALPHA);
           }
-          case CONFLICT -> Geometry.blockOutline(pulse, x, y, z, rgb, false);
+          case CONFLICT -> {
+            Geometry.blockOutline(pulse, x, y, z, rgb, false);
+            Geometry.ghost(ghost, model(c.after()), x, y, z, rgb, GHOST_REMOVED_ALPHA);
+          }
           case REMOVED -> {
             var quads = model(c.before());
             if (quads.isEmpty()) Geometry.blockOutline(lines, x, y, z, rgb, false); // 沒有模型可畫時退回紅色外框

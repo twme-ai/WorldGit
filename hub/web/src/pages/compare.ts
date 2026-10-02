@@ -1,6 +1,7 @@
 import { api, dimLabel, type CompareDimension } from '../api.ts'
 import { comparePath, dimensionDetail, parseCompareSpec, pickDimension, viewRenderMode, type CompareView } from '../compare.ts'
 import { activePalette, loadPalettes, paletteChoice, setPaletteChoice } from '../palette.ts'
+import { mergePath } from '../merge.ts'
 import { navigate } from '../router.ts'
 import { fmtFull, fmtNum, h, link, short } from '../ui.ts'
 import { Viewer, type ViewState } from '../viewer/viewer.ts'
@@ -36,7 +37,7 @@ export async function comparePage(root: HTMLElement, owner: string, world: strin
       h('label', {}, '起點 a', from), h('span', {}, '→'), h('label', {}, '終點 b', to), h('button', { type: 'submit' }, '比較'), choices,
       h('button', { type: 'button', onClick: () => navigate(comparePath(owner, world, pair.b, pair.a, selected?.dimension)) }, '交換前後'))
     root.replaceChildren(h('div', {}, h('div', { class: 'crumbs' }, link('/', '世界'), ' / ', link(`/${owner}/${world}`, `${owner}/${world}`), ' / ', link(`/${owner}/${world}/branches`, '分支'), ' / 比較'),
-      h('h1', {}, `${pair.a} → ${pair.b}`), form,
+      h('h1', {}, `${pair.a} → ${pair.b}`), form, link(mergePath(owner, world, pair.a, pair.b), '預覽合併', 'btn'),
       h('div', { class: 'row small muted' }, `${result.a.author.name} · ${fmtFull(result.a.time)} → ${result.b.author.name} · ${fmtFull(result.b.time)}`),
       h('div', { class: 'row compare-summary' }, compareStats(result), result.identical ? h('span', { class: 'badge' }, '內容相同') : null),
       result.dimensions.some(d => !d.a || !d.b) ? h('p', { class: 'notice' }, '部分維度缺少配對 commit，未計入總計；選擇該維度可查看可用版本。') : null,

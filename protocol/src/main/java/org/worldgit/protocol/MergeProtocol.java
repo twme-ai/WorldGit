@@ -27,10 +27,16 @@ public final class MergeProtocol {
   }
 
   public record RegionInfo(
-      int id, BlockBox bounds, int blockCount, Choice choice, boolean resolved, boolean redstone) {
+      int id, BlockBox bounds, int blockCount, Choice choice, boolean resolved, boolean redstone,
+      List<String> oursAuthors, List<String> theirsAuthors) {
+    public RegionInfo(int id, BlockBox bounds, int blockCount, Choice choice, boolean resolved, boolean redstone) {
+      this(id, bounds, blockCount, choice, resolved, redstone, List.of(), List.of());
+    }
     public RegionInfo {
       if (id < 1 || blockCount < 0) throw new IllegalArgumentException("region id/count");
       Objects.requireNonNull(choice);
+      oursAuthors = List.copyOf(oursAuthors);
+      theirsAuthors = List.copyOf(theirsAuthors);
       if (bounds != null) {
         coordinate(bounds.minX(), bounds.minY(), bounds.minZ());
         coordinate(bounds.maxX(), bounds.maxY(), bounds.maxZ());
@@ -94,15 +100,29 @@ public final class MergeProtocol {
       List<RegionInfo> regions,
       int region,
       Choice choice,
-      List<PreviewCell> cells) {
+      List<PreviewCell> cells,
+      List<Cell> updateShapes) {
+    public Completed(Type type, long preview, DimensionId dimension, List<RegionInfo> regions,
+        int region, Choice choice, List<PreviewCell> cells) {
+      this(type, preview, dimension, regions, region, choice, cells, List.of());
+    }
     public Completed {
       regions = List.copyOf(regions);
       cells = List.copyOf(cells);
+      updateShapes = List.copyOf(updateShapes);
     }
   }
 
   public static List<byte[]> regions(
       long preview, DimensionId dimension, List<MergeReport.Region> regions) throws IOException {
+    return regions(preview, dimension, regions, List.of());
+  }
+
+  /** 可選作者與交界提示；舊 v1 body 的缺少欄位讀為空清單。 */
+  public static List<byte[]> regions(long preview, DimensionId dimension,
+      List<MergeReport.Region> regions, List<Cell> updateShapes) throws IOException {
+    if (updateShapes.size() > Protocol.MAX_ENTRIES) throw new IOException("交界提示超過 100000");
+    for (var c : updateShapes) coordinate(c.x(), c.y(), c.z());
     if (regions.size() > Protocol.MAX_ENTRIES) throw new IOException("衝突區域超過 100000");
     var list = new ArrayList<Object>();
     var ids = new HashSet<Integer>();
@@ -115,7 +135,9 @@ public final class MergeProtocol {
               .with("count", r.blockCount())
               .with("choice", r.choice().name())
               .with("resolved", (byte) (r.resolved() ? 1 : 0))
-              .with("redstone", (byte) (r.redstone() ? 1 : 0));
+              .with("redstone", (byte) (r.redstone() ? 1 : 0))
+              .with("ours-authors", new Nbt.ListTag(8, new ArrayList<Object>(r.oursAuthors())))
+              .with("theirs-authors", new Nbt.ListTag(8, new ArrayList<Object>(r.theirsAuthors())));
       if (r.bounds() != null) {
         var b = r.bounds();
         row.put("bounds", new int[] {b.minX(), b.minY(), b.minZ(), b.maxX(), b.maxY(), b.maxZ()});
@@ -126,7 +148,9 @@ public final class MergeProtocol {
         Type.REGIONS,
         preview,
         dimension,
-        Nbt.write(new Nbt.Compound().with("regions", new Nbt.ListTag(10, list))));
+        Nbt.write(new Nbt.Compound().with("regions", new Nbt.ListTag(10, list))
+            .with("updateShapes", new Nbt.ListTag(11, updateShapes.stream()
+                .map(c -> (Object) new int[] {c.x(), c.y(), c.z()}).toList()))));
   }
 
   public static List<byte[]> preview(
@@ -256,9 +280,19 @@ public final class MergeProtocol {
                   r.integer("count", 0),
                   Choice.valueOf(r.string("choice")),
                   flag(r, "resolved"),
-                  flag(r, "redstone")));
+                  flag(r, "redstone"),
+                  r.list("ours-authors").values().stream().map(String.class::cast).toList(),
+                  r.list("theirs-authors").values().stream().map(String.class::cast).toList()));
         }
-        return new Completed(p.type, p.preview, p.dimension, rs, 0, null, List.of());
+        var shapes = new ArrayList<Cell>();
+        if (root.list("updateShapes").values().size() > Protocol.MAX_ENTRIES) throw new IOException("shape count");
+        for (Object v : root.list("updateShapes").values()) {
+          int[] a = (int[]) v;
+          if (a.length != 3) throw new IOException("shape position length");
+          coordinate(a[0], a[1], a[2]);
+          shapes.add(new Cell(a[0], a[1], a[2]));
+        }
+        return new Completed(p.type, p.preview, p.dimension, rs, 0, null, List.of(), shapes);
       }
       var cells = new ArrayList<PreviewCell>();
       var positions = new HashSet<Cell>();

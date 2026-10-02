@@ -241,3 +241,36 @@ fabric.apply.phase.complete: "完成"
 fabric.apply.phase.cancelled: "已取消"
 fabric.apply.phase.partial: "PARTIAL（部分套用）"
 fabric.apply.phase.failed: "失敗"
+
+# Paper／Folia Phase 3 合併
+paper.merge.usage: '/wg merge <branch|rev>|--continue|--abort；resolve <#|all> ours|theirs|base|manual；conflicts [頁|preview # ours|theirs|base]；tool；revert|cherry-pick <rev>'
+paper.merge.progress: '合併中：剩 <count> 個衝突'
+paper.merge.status: 'MERGING：剩 <count> 個衝突；/wg conflicts 查看，resolve 後 merge --continue，或 merge --abort。'
+paper.merge.hint: '衝突 #<id>：<choice>（<status>）；合併工具右鍵切換，Shift+右鍵解決'
+paper.merge.start: '開始 <mode> <target>…'
+paper.merge.result: '合併操作完成：<state>；剩 <count> 個衝突；提交 <commits>'
+paper.merge.partial: '合併為 PARTIAL：<message>；請 /wg merge --abort 恢復。'
+paper.merge.none: '目前沒有 MERGING。'
+paper.merge.outside: '請站進衝突區域，或用 /wg resolve 指定區域。'
+paper.merge.inventory-full: '物品欄已滿，請空出一格再取得工具。'
+paper.merge.tool-name: '合併工具'
+paper.merge.tool-lore: '右鍵：ours → theirs → base；Shift+右鍵：標記目前版本為已解決'
+paper.merge.tool-given: '已取得合併工具。'
+paper.merge.gui-title: '衝突區域（第 <page> 頁）'
+paper.merge.region: '衝突 #<id> — <count> 格'
+paper.merge.coords: '<dimension>：<bounds>'
+paper.merge.authors: 'ours 作者：<ours>；theirs 作者：<theirs>'
+paper.merge.region-status: '目前 <choice>；狀態 <status>'
+paper.merge.warnings: '含紅石：<redstone>（建議測試）；區域內交界提示：<count>'
+paper.merge.teleport: '點擊傳送至區域上方'
+paper.merge.metadata: '此為非空間資料衝突，無傳送座標；請用 resolve。'
+paper.merge.previous: '上一頁'
+paper.merge.next: '下一頁'
+paper.merge.teleport-failed: '傳送失敗，請重試。'
+
+# Fabric Phase 3
+fabric.help.phase3: "/wg merge 分支 [--no-commit] | merge --abort|--continue | resolve 區域|all [--ours|--theirs|--base|--manual] | revert 提交 | cherry-pick 提交 | conflicts"
+fabric.merge.status: "MERGING：<remaining>/<total> 個區域尚未解決。"
+fabric.merge.result: "<state>：<remaining> 個區域尚未解決。"
+fabric.merge.empty: "沒有衝突區域。"
+fabric.merge.row: "! #<id> <dimension> <bounds>（<count> 格）ours：<ours>；theirs：<theirs>；選擇：<choice>；已解決：<resolved>；紅石：<redstone>"

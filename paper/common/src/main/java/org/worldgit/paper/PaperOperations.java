@@ -31,6 +31,7 @@ final class PaperOperations implements AutoCloseable {
   private final WorldRepositories worlds;
   private final SortedMap<DimensionId,DimensionRepository> repos=new TreeMap<>();
   private final RepoLock groupLock;
+  private WorldOperations core;
   private final WorldGitPlugin plugin;
   private final WorldMapper.Mapping mapping;
   private final ApplyQueue queue;
@@ -42,19 +43,52 @@ final class PaperOperations implements AutoCloseable {
   private final double tolerance;
 
   PaperOperations(WorldGitPlugin plugin, WorldMapper.Mapping mapping, ApplyQueue queue) throws IOException {
+    this(plugin,mapping,queue,false);
+  }
+  PaperOperations(WorldGitPlugin plugin, WorldMapper.Mapping mapping, ApplyQueue queue, boolean merge) throws IOException {
     this.plugin=plugin; this.mapping=mapping; this.queue=queue; this.layout=mapping.layout();
     worlds=new WorldRepositories(layout); applier=new OfflineApplier(layout);
     tolerance=WorldGitConfig.readLocal(worlds.root().resolve("worldgit.yml")).entityTolerance();
-    groupLock=RepoLock.acquire(worlds.root());
+    groupLock=merge ? null : RepoLock.acquire(worlds.root());
     try {
       for(var entry:worlds.tracked().entrySet()) {
         if(!mapping.worlds().containsKey(entry.getKey())) throw new IOException("維度未在線："+entry.getKey());
-        repos.put(entry.getKey(),new DimensionRepository(entry.getValue(),entry.getKey(),false));
+        if(!merge) repos.put(entry.getKey(),new DimensionRepository(entry.getValue(),entry.getKey(),false));
         live.put(entry.getKey(),new PaperLiveWorld(plugin,plugin.state(entry.getKey(),mapping.worlds().get(entry.getKey())),mapping.worlds().get(entry.getKey()),layout,false));
       }
-      if(repos.isEmpty()) throw new IOException("世界尚未 init");
+      if(live.isEmpty()) throw new IOException("世界尚未 init");
+      if(merge) core=WorldOperations.live(layout,new WorldOperations.LiveAccess() {
+        public SnapshotSource source(WorldLayout.Dimension dimension) throws IOException {
+          var world=mapping.worlds().get(dimension.id());
+          if(world==null) throw new IOException("維度未在線："+dimension.id());
+          var source=new PaperLiveWorld(plugin,plugin.state(dimension.id(),world),world,layout,false);
+          try { await(source.flush()); return source; } catch(IOException e) { source.close(); throw e; }
+        }
+        public void beforeComplete() throws IOException {
+          if(queue.stopping || queue.cancelled.get() || Thread.currentThread().isInterrupted()) throw new IOException("操作已取消或插件關閉中");
+        }
+        public void validate(ApplyPlan plan) throws IOException { beforeComplete(); validateOnline(plan); }
+        public void applyAll(Collection<ApplyPlan> plans) throws IOException {
+          var all=new TreeMap<DimensionId,ApplyPlan>(); plans.forEach(p->all.put(p.dimension(),p));
+          var operation=UUID.randomUUID();
+          var protectedChunks=new TreeMap<DimensionId,Set<ChunkPos>>();
+          for(var p:plans) {
+            var chunks=new TreeSet<ChunkPos>(p.chunks().keySet());
+            for(var e:p.entities()) { if(e.hint()!=null) chunks.add(e.hint()); if(e.target()!=null) chunks.add(e.targetChunk()); }
+            protectedChunks.put(p.dimension(),chunks);
+          }
+          plugin.repo().planned(plans.stream().mapToInt(p->p.stats().sections()).sum());
+          try {
+            for(var e:protectedChunks.entrySet()) await(live.get(e.getKey()).protectPlayers(PlayerProtection.operation(e.getValue(),operation,true)));
+            PaperOperations.this.applyAll(all);
+          } finally {
+            if(!queue.stopping) for(var e:protectedChunks.entrySet()) await(live.get(e.getKey()).protectPlayers(PlayerProtection.operation(e.getValue(),operation,false)));
+          }
+        }
+      });
     } catch(Exception ex) { close(); throw ex; }
   }
+  WorldOperations core() { return Objects.requireNonNull(core); }
   private <T> T await(CompletionStage<T> stage) throws IOException {
     try { return stage.toCompletableFuture().get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS); }
     catch(InterruptedException ex) { Thread.currentThread().interrupt(); throw new IOException("操作中斷",ex); }
@@ -64,7 +98,11 @@ final class PaperOperations implements AutoCloseable {
   String head() throws IOException { return repos.get(repos.containsKey(DimensionId.OVERWORLD) ? DimensionId.OVERWORLD : repos.firstKey()).refs().head(); }
 
   public Map<String,Object> journal() throws IOException { return OperationState.read(worlds.root().resolve("apply-state.yml")); }
+  private void requireNotMerging() throws IOException {
+    if(org.worldgit.core.merge.MergeState.read(worlds.root().resolve("merge-state.bin"))!=null) throw new IOException("世界為 MERGING；請 resolve 後 merge --continue，或 merge --abort。若為 PARTIAL 必須 merge --abort。");
+  }
   private void requireComplete() throws IOException {
+    requireNotMerging();
     if(OperationState.partial(worlds.root())) throw new IOException("世界為 PARTIAL；請用 switch --force 或 reset --hard 全範圍重新套用以恢復。");
   }
   private SortedMap<DimensionId,DimensionRepository> selected(DimensionId dimension) throws IOException {
@@ -175,6 +213,7 @@ final class PaperOperations implements AutoCloseable {
     return execute("restore",prepare(resolve(revision),dimension,scope,scope.kind()==Scope.Kind.ALL,delete),null,false,dryRun);
   }
   public Result switchTo(String revision,boolean stash,boolean force,boolean dryRun,boolean delete) throws IOException {
+    requireNotMerging();
     if(stash && force) throw new IOException("--stash 與 --force 不可同時使用");
     if(!force) requireComplete();
     var prepared=prepare(resolve(revision),null,Scope.all(),true,delete);
@@ -184,6 +223,7 @@ final class PaperOperations implements AutoCloseable {
     return execute("switch",prepared,branch ? revision : null,true,dryRun);
   }
   public Result resetHard(String revision,boolean force,boolean dryRun) throws IOException {
+    requireNotMerging();
     if(revision!=null && !force) throw new IOException("reset --hard <commit> 會改寫歷史，必須加 --force；不可用於已 push 的歷史。");
     return execute("reset",prepare(resolve(revision==null ? "HEAD" : revision),null,Scope.all(),true,false),null,revision!=null,dryRun);
   }
@@ -489,7 +529,8 @@ final class PaperOperations implements AutoCloseable {
     IOException error=null;
     for(var repo:repos.values()) try { repo.close(); } catch(IOException ex) { error=ex; }
     for(var source:live.values()) try { source.close(); } catch(IOException ex) { error=ex; }
-    try { groupLock.close(); } catch(IOException ex) { error=ex; }
+    if(core!=null) try { core.close(); } catch(IOException ex) { error=ex; }
+    if(groupLock!=null) try { groupLock.close(); } catch(IOException ex) { error=ex; }
     if(error!=null) throw error;
   }
 }

@@ -70,6 +70,7 @@ final class AutoCommit {
   }
 
   private void run(String message, java.util.function.Predicate<DimensionRepository.Status> gate, boolean timer) {
+    if(plugin.merges().state()!=null) return;
     if (!running.compareAndSet(false, true)) return;
     if (timer) lastAttempt = System.currentTimeMillis();
     plugin

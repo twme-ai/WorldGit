@@ -69,10 +69,17 @@ abstract class AbstractBranchTest {
   }
 
   void pushRef(DimensionId dim, String branch) throws Exception {
-    try (var git = Git.open(paths.get(dim).toFile())) {
-      git.push().setRemote(url("/git/admin/" + WORLD + "/" + dim.directoryName() + ".git"))
-          .setRefSpecs(new RefSpec("refs/heads/" + branch + ":refs/heads/" + branch))
-          .setCredentialsProvider(new UsernamePasswordCredentialsProvider("admin", TOKEN)).call();
+    for (int attempt = 0; ; attempt++) {
+      try (var git = Git.open(paths.get(dim).toFile())) {
+        git.push().setRemote(url("/git/admin/" + WORLD + "/" + dim.directoryName() + ".git"))
+            .setRefSpecs(new RefSpec("refs/heads/" + branch + ":refs/heads/" + branch))
+            .setCredentialsProvider(new UsernamePasswordCredentialsProvider("admin", TOKEN)).call();
+        return;
+      } catch (org.eclipse.jgit.api.errors.TransportException e) {
+        // owner 推送鎖尚在釋放時 Hub 回 429，短暫重試。
+        if (attempt >= 20 || !String.valueOf(e.getMessage()).contains("429")) throw e;
+        Thread.sleep(250);
+      }
     }
   }
 

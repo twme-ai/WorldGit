@@ -120,6 +120,32 @@ final class DisplayFallback {
     return new Shown(shown, true, omitted);
   }
 
+  /** 合併標記不逾時；由 MergeUi 在區域／世界／權限改變時重建。 */
+  Shown showRegions(Player player, List<org.worldgit.core.merge.MergeReport.Region> regions, DiffPalette palette) {
+    clear(player);
+    var session=new Session(); sessions.put(player.getUniqueId(),session);
+    World world=player.getWorld();
+    var byChunk=new LinkedHashMap<Long,List<Runnable>>(); int shown=0,omitted=0;
+    for(var r:regions) {
+      var b=r.bounds(); if(b==null) continue;
+      if(shown+12>plugin.settings().displayMaxEntities()) { omitted++; continue; }
+      shown+=12;
+      float[] lengths={b.maxX()-b.minX()+1f,b.maxY()-b.minY()+1f,b.maxZ()-b.minZ()+1f};
+      var data=Bukkit.createBlockData(r.resolved() ? Material.GRAY_CONCRETE : Material.PURPLE_CONCRETE);
+      var glow=r.resolved() ? Color.fromRGB(0x444444) : color(palette,ChangeKind.CONFLICT);
+      byChunk.computeIfAbsent(chunkKey(b.minX(),b.minZ()),k->new ArrayList<>()).add(()->{
+        float t=.08f;
+        for(int axis=0;axis<3;axis++) for(int i=0;i<4;i++) {
+          float[] offset={0,0,0},scale={t,t,t}; scale[axis]=lengths[axis];
+          int bit=0; for(int j=0;j<3;j++) if(j!=axis) offset[j]=((i>>(bit++))&1)*(lengths[j]-t);
+          spawnScaled(player,session,new Location(world,b.minX(),b.minY(),b.minZ()),data,glow,
+              new Vector3f(offset[0],offset[1],offset[2]),new Vector3f(scale[0],scale[1],scale[2]));
+        }
+      });
+    }
+    run(player,session,player.getWorld(),byChunk); return new Shown(shown,true,omitted);
+  }
+
   private Session begin(Player player) {
     clear(player);
     var session = new Session();
@@ -140,6 +166,7 @@ final class DisplayFallback {
     byChunk.forEach((key, tasks) -> {
       int cx = (int) (key >> 32), cz = (int) (long) key;
       plugin.platform().region(world, cx, cz, () -> {
+        if(sessions.get(player.getUniqueId())!=session) return;
         for (Runnable r : tasks)
           try {
             r.run();
@@ -171,7 +198,10 @@ final class DisplayFallback {
           e.setShadowRadius(0f);
           e.setInvulnerable(true);
         });
-    session.entities.add(display);
+    synchronized(session.entities) {
+      if(sessions.get(player.getUniqueId())!=session) { display.remove(); return; }
+      session.entities.add(display);
+    }
     // showEntity 屬於玩家：在玩家所屬的執行緒呼叫（Paper 為主執行緒；Folia 為玩家的 region）。
     plugin.platform().entity(player, () -> {
       if (player.isOnline() && sessions.get(player.getUniqueId()) == session) player.showEntity(plugin, display);

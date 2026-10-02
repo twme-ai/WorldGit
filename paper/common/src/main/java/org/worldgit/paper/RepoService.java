@@ -66,13 +66,17 @@ public final class RepoService implements AutoCloseable {
   ApplyQueue activeQueue() { return active; }
   interface Operation<T> { T run(PaperOperations operations) throws IOException; }
   <T> CompletableFuture<T> operation(String target,Operation<T> work) {
+    return operation(target,work,false);
+  }
+  <T> CompletableFuture<T> mergeOperation(String target,Operation<T> work) { return operation(target,work,true); }
+  private <T> CompletableFuture<T> operation(String target,Operation<T> work,boolean merge) {
     if(active!=null) return CompletableFuture.failedFuture(new IOException("已有進行中的操作；可用 /wg cancel 取消"));
     return submit(()->{
       var q=new ApplyQueue(plugin); active=q;
       var locks=new ArrayList<AutoCloseable>();
       try {
         var mapping=WorldMapper.map(); applyUi.start(q,target);
-        try(var ops=new PaperOperations(plugin,mapping,q)) {
+        try(var ops=new PaperOperations(plugin,mapping,q,merge)) {
           // capture、stash 保存、計畫、驗證、HEAD 均在同一編輯鎖內。
           for(var entry:mapping.worlds().entrySet()) {
             var live=new PaperLiveWorld(plugin,plugin.state(entry.getKey(),entry.getValue()),entry.getValue(),mapping.layout(),false);
@@ -83,7 +87,7 @@ public final class RepoService implements AutoCloseable {
         }
       } finally {
         for(int i=locks.size()-1;i>=0;i--) try { locks.get(i).close(); } catch(Exception e) { plugin.getLogger().warning("解除編輯鎖失敗："+e); }
-        active=null; if(!stopping) applyUi.stop();
+        active=null; if(!stopping) { applyUi.stop(); plugin.merges().refresh(); }
       }
     });
   }
@@ -277,6 +281,7 @@ public final class RepoService implements AutoCloseable {
 
   private Batch<DimensionRepository.CommitResult> doCommit(CommitRequest request, boolean inline) throws IOException {
     Context c = context();
+    if(org.worldgit.core.merge.MergeState.read(c.layout().repositoryRoot().resolve("merge-state.bin"))!=null) throw new IOException("世界為 MERGING；請 resolve 後 merge --continue，或 merge --abort");
     if(org.worldgit.core.service.OperationState.partial(c.layout().repositoryRoot())) throw new IOException("世界為 PARTIAL；請用 /wg switch <目標> --force 或 /wg reset --hard 恢復");
     var tracked = trackedLive(c);
     if (tracked.isEmpty()) throw new IOException("世界尚未 init（/wg init）");

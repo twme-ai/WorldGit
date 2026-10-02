@@ -99,3 +99,18 @@ form.stack { max-width: 380px; } form.stack input { width: 100%; }
 .chunk-row { display: flex; align-items: center; gap: 10px; padding: 3px 6px; margin: 2px 0; width: 100%; text-align: left; font-family: var(--mono); font-size: .82rem; }
 .viewer .legend[hidden] { display: none; }
 @media (max-width: 600px) { .compare-form label { width: 100%; } .compare-form input { flex: 1; width: 100%; } }
+
+/* Phase 3：衝突清單與 3D 預覽，窄螢幕改為上下排列。 */
+.merge-layout { display:grid; grid-template-columns:320px minmax(0,1fr); gap:16px; align-items:start }
+.merge-layout aside label { display:flex; align-items:center; gap:8px; margin-bottom:12px }
+.conflict-list { max-height:700px; overflow:auto }
+.conflict-row { border-top:1px solid var(--border); padding:14px 4px; white-space:pre-line }
+.conflict-row.active { border-left:3px solid #a371f7; padding-left:9px }
+.conflict-focus { color:#a371f7; text-align:left }
+.merge-view { min-width:0 }
+.merge-view .viewer { height:510px }
+.merge-view .toolbar { flex-wrap:wrap }
+.merge-rules { margin-top:16px }
+.merge-rules pre { max-height:220px; overflow:auto; white-space:pre-wrap }
+.preview-summary details pre { max-height:120px; overflow:auto }
+@media(max-width:900px) { .merge-layout { grid-template-columns:1fr } .conflict-list { max-height:300px } }
