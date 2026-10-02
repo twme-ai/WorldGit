@@ -4,16 +4,16 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: |
             21
             25
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - run: ./gradlew --configure-on-demand --no-daemon --max-workers=1 build
         env:
           GRADLE_USER_HOME: ${{ github.workspace }}/.work/gradle-home
@@ -30,28 +30,28 @@ jobs:
           python3 paper/tools/check_binary_compat.py \
             paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar \
             .work/ci-servers/paper-26.2.jar org.worldgit.paper.v26_2.Bridge_26_2
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: worldgit-paper
           path: paper/plugin/build/libs/worldgit-paper-*-SNAPSHOT.jar
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wgit
           path: cli/build/libs/wgit.jar
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: worldgit-fabric
           path: |
             fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-*-SNAPSHOT.jar
             fabric/mc26_2/build/libs/worldgit-fabric-26.2-*-SNAPSHOT.jar
   hub-web:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: hub/web
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -60,14 +60,14 @@ jobs:
       - run: npm run build
       - run: npm test
   hub-image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       # 冒煙測試用 wgit 替 core 的測試 fixture 世界建立 repo，再 push 進容器內的 Hub
       - run: ./gradlew --configure-on-demand --no-daemon --max-workers=1 :cli:fatJar
         env:
@@ -79,7 +79,7 @@ jobs:
       - name: Container smoke (PostgreSQL)
         run: ENGINE=docker PORT=18094 DB=postgres SKIP_BUILD=1 hub/scripts/container-smoke.sh
   hub-postgres-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine
@@ -91,14 +91,14 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres -d hub" --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: |
             21
             25
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - name: Hub tests on PostgreSQL
         run: ./gradlew --configure-on-demand --no-daemon --max-workers=1 :hub:test
         env:
