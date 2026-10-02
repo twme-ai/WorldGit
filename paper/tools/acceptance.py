@@ -363,6 +363,18 @@ def scenario_sigterm(platform, version, baseline):
 
 
 def main():
+    if 'phase2-cancel' in wanted:
+        from phase2_shutdown import run
+        return run(platform, version, shutdown=False)
+    if 'phase2-entities' in wanted:
+        from phase2_entities import run
+        return run(platform, version)
+    if 'phase2-shutdown' in wanted:
+        from phase2_shutdown import run
+        return run(platform, version)
+    if 'phase2' in wanted:
+        from phase2 import run
+        return run(platform,version)
     with BenchLock():
         baseline = os.path.join(WORK, 'paper-delivery', 'fixtures', 'acceptance-flat-' + version)
         if not os.path.isdir(baseline):

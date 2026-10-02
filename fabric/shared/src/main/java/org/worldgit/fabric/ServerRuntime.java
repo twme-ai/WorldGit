@@ -18,6 +18,10 @@ import org.worldgit.core.config.WorldGitConfig;
 import org.worldgit.core.model.*;
 import org.worldgit.core.service.DimensionRepository;
 import org.worldgit.core.service.WorldRepositories;
+import org.worldgit.core.service.WorldOperations;
+import org.worldgit.core.apply.*;
+import org.worldgit.platform.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.worldgit.fabric.logic.*;
 import org.worldgit.i18n.MessageCatalog;
 import org.worldgit.platform.DirtyChunkTracker;
@@ -238,6 +242,132 @@ public final class ServerRuntime {
         return future;
     }
 
+    private record Delayed(int tick, Runnable task) {}
+    private final Queue<Delayed> tickTasks=new ConcurrentLinkedQueue<>();
+    void nextTick(Runnable task) { tickTasks.add(new Delayed(server.getTickCount()+1,task)); }
+    private void drainTickTasks(boolean all) {
+        int count=tickTasks.size();
+        for(int i=0;i<count;i++) {
+            var task=tickTasks.poll(); if(task==null) break;
+            if(all || task.tick()<=server.getTickCount()) task.task().run(); else tickTasks.add(task);
+        }
+    }
+    private volatile int editLocks;
+    private boolean mutation, wasFrozen;
+    public boolean editsLocked() { return editLocks>0; }
+    public boolean internalMutation() { return server.isSameThread() && mutation; }
+    @FunctionalInterface interface Mutation { void run() throws Exception; }
+    void mutate(Mutation action) throws Exception {
+        boolean before=mutation; mutation=true;
+        try { action.run(); } finally { mutation=before; }
+    }
+    AutoCloseable lockWorld() {
+        onServer(()->{
+            if(editLocks++==0) {
+                wasFrozen=server.tickRateManager().isFrozen(); server.tickRateManager().setFrozen(true);
+                for(var player:server.getPlayerList().getPlayers()) player.closeContainer();
+            }
+            return null;
+        });
+        return ()->onServer(()->{ if(--editLocks==0) server.tickRateManager().setFrozen(wasFrozen); return null; });
+    }
+    private volatile UUID operation;
+    private final AtomicBoolean cancel=new AtomicBoolean();
+    private volatile CompletableFuture<?> operationFuture;
+    public boolean operationActive() { return operation!=null; }
+    public CompletableFuture<?> lastOperation() { return operationFuture; }
+    UUID operationId() { return operation; }
+    boolean cancelRequested() { return cancel.get(); }
+    public boolean cancelApply() { if(operation==null) return false; cancel.set(true); return true; }
+    private record Policy(DimensionId dimension, PlayerProtection protection, long expires, Set<UUID> seen) {}
+    private final Map<UUID,Map<DimensionId,Policy>> protection=new HashMap<>();
+    CompletionStage<Void> protect(DimensionId dimension, PlayerProtection policy) {
+        var future=new CompletableFuture<Void>();
+        postToServer(()->{
+            var id=policy.operation()==null ? UUID.randomUUID() : policy.operation();
+            var group=protection.computeIfAbsent(id,k->new HashMap<>());
+            var previous=group.get(dimension);
+            var seen=previous==null ? new HashSet<UUID>() : previous.seen();
+            var guard=new Policy(dimension,policy,policy.active() ? Long.MAX_VALUE : System.nanoTime()+policy.duration().toNanos(),seen);
+            group.put(dimension,guard); remember(guard); future.complete(null);
+        });
+        return future;
+    }
+    private void remember(Policy guard) {
+        for(var player:server.getPlayerList().getPlayers()) if(dimensionId((ServerLevel)player.level()).equals(guard.dimension())
+            && guard.protection().chunks().contains(corePos(player.chunkPosition()))) guard.seen().add(player.getUUID());
+    }
+    public boolean protects(ServerPlayer player,net.minecraft.world.damagesource.DamageSource source) {
+        PlayerProtection.Damage cause=source.is(net.minecraft.world.damagesource.DamageTypes.FALL) ? PlayerProtection.Damage.FALL
+            : source.is(net.minecraft.world.damagesource.DamageTypes.IN_WALL) ? PlayerProtection.Damage.SUFFOCATION
+            : source.is(net.minecraft.world.damagesource.DamageTypes.DROWN) ? PlayerProtection.Damage.DROWNING : null;
+        if(cause==null) return false;
+        var dimension=dimensionId((ServerLevel)player.level());
+        for(var group:protection.values()) {
+            var guard=group.get(dimension);
+            if(guard==null || guard.expires()<System.nanoTime() || !guard.protection().causes().contains(cause)) continue;
+            if(guard.protection().chunks().contains(corePos(player.chunkPosition()))) guard.seen().add(player.getUUID());
+            if(guard.seen().contains(player.getUUID())) return true;
+        }
+        return false;
+    }
+    private final Map<UUID,net.minecraft.server.level.ServerBossEvent> bars=new HashMap<>();
+    private volatile ApplyProgress lastProgress;
+    public ApplyProgress lastProgress() { return lastProgress; }
+    void progress(ApplyProgress progress) {
+        lastProgress=progress;
+        postToServer(()->{
+            for(var player:server.getPlayerList().getPlayers()) {
+                var bar=bars.computeIfAbsent(player.getUUID(),k->{
+                    var b=Platform.bossbar();
+                    b.addPlayer(player); return b;
+                });
+                String phase=Mini.plain(catalog,Texts.locale(this,player),Msg.of(MessageKeys.phase(progress.phase())));
+                bar.setName(Texts.component(this,Texts.locale(this,player),Msg.of(MessageKeys.APPLY_PROGRESS,"phase",phase,"done",progress.completedSections(),"total",progress.totalSections())));
+                bar.setProgress(progress.totalBatches()==0 ? 1 : (float)progress.completedBatches()/progress.totalBatches());
+            }
+        });
+    }
+    @FunctionalInterface public interface LiveAction<T> { T run(WorldOperations operations) throws IOException; }
+    public <T> CompletableFuture<T> live(LiveAction<T> action) {
+        if(!server.isSingleplayer()) return CompletableFuture.failedFuture(new IOException("世界切換指令目前只支援單人世界"));
+        synchronized(this) {
+            if(operation!=null) return CompletableFuture.failedFuture(new IOException("已有套用作業；可用 /wg cancel 取消"));
+            operation=UUID.randomUUID(); cancel.set(false); lastProgress=null;
+        }
+        var future=runRepo(()->{
+            UUID id=operation;
+            try(var editLock=lockWorld()) {
+                flushBlocking();
+                if(cancel.get()) throw new IOException("作業已取消，尚未寫入世界");
+                var layout=WorldLayout.discover(worldRoot());
+                T result;
+                try(var ops=WorldOperations.live(layout,new FabricOperations(this,layout))) { result=action.run(ops); }
+                boolean partial=result instanceof WorldOperations.Result r && !r.success();
+                if(result instanceof WorldOperations.Result r && r.state()!=WorldOperations.State.DRY_RUN) onServer(()->{
+                    for(var player:server.getPlayerList().getPlayers()) clearPreview(player); return null;
+                });
+                var prior=lastProgress;
+                progress(new ApplyProgress(id,partial ? ApplyProgress.Phase.PARTIAL : ApplyProgress.Phase.COMPLETE,
+                    prior==null ? 0 : prior.completedBatches(),prior==null ? 0 : prior.totalBatches(),prior==null ? 0 : prior.completedSections(),prior==null ? 0 : prior.totalSections(),cancel.get()));
+                return result;
+            } finally {
+                onServer(()->{
+                    var group=protection.get(id);
+                    if(group!=null) for(var entry:new ArrayList<>(group.entrySet())) {
+                        var old=entry.getValue(); remember(old);
+                        var policy=old.protection();
+                        group.put(entry.getKey(),new Policy(old.dimension(),new PlayerProtection(policy.chunks(),policy.duration(),policy.causes(),id,false),System.nanoTime()+policy.duration().toNanos(),old.seen()));
+                    }
+                    for(var bar:bars.values()) bar.removeAllPlayers(); bars.clear(); return null;
+                });
+                operation=null;
+            }
+        });
+        operationFuture=future;
+        return future;
+    }
+
     // ---- 世界操作 ---------------------------------------------------------------------
 
     public CompletableFuture<WorldRepositories.Batch<DimensionRepository.CommitResult>> init(
@@ -276,6 +406,11 @@ public final class ServerRuntime {
         long id = previewIds.getAndIncrement();
         return runRepo(
                 () -> PreviewPlanner.plan(id, ops(), dimension, revisions, outlineOnly, ghostCapable, config.preview(), minY, maxY));
+    }
+
+    public CompletableFuture<PreviewPlanner.Plan> preview(DimensionId dimension,String revision,Set<ChunkPos> window,boolean ghosts,int minY,int maxY) {
+        long id=previewIds.getAndIncrement();
+        return runRepo(()->PreviewPlanner.revision(id,ops(),dimension,revision,window,ghosts,config.preview(),minY,maxY));
     }
 
     /** 手動或自動 commit。成功（所有維度沒有失敗）後才有條件地清除 dirty／歸屬。 */
@@ -352,10 +487,14 @@ public final class ServerRuntime {
         }
     }
 
-    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline"};
+    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview"};
 
     void tick() {
         drainServerTasks();
+        drainTickTasks(false);
+        for(var group:protection.values()) for(var guard:group.values()) remember(guard);
+        protection.values().forEach(group->group.values().removeIf(guard->guard.expires()<System.nanoTime()));
+        protection.values().removeIf(Map::isEmpty);
         for (var send : handshake.tick(server.getTickCount())) {
             ServerPlayer player = server.getPlayerList().getPlayer(send.player());
             if (player == null || !ServerPlayNetworking.canSend(player, Net.HELLO.type())) continue;
@@ -382,7 +521,7 @@ public final class ServerRuntime {
 
     private void autoCommitTick() {
         long now = System.currentTimeMillis();
-        if (autoRunning || !policy.intervalElapsed(now)) return;
+        if (operationActive() || autoRunning || !policy.intervalElapsed(now)) return;
         int changed = estimateChanged();
         boolean due = policy.intervalDue(now, changed);
         policy.ran(now);
@@ -405,7 +544,7 @@ public final class ServerRuntime {
 
     /** 自動 commit；沒有 init 過的世界、已有操作進行中時安靜略過。 */
     public CompletableFuture<Void> autoCommit(Msg reasonMessage) {
-        if (autoRunning) return CompletableFuture.completedFuture(null);
+        if (operationActive() || autoRunning) return CompletableFuture.completedFuture(null);
         autoRunning = true;
         String reason = commitText(reasonMessage);
         return commit(reason, Identities.server(config), true, false)
@@ -440,6 +579,11 @@ public final class ServerRuntime {
 
     /** 伺服器關閉（或離開單人世界）時的最後一次自動 commit：阻塞伺服器執行緒，但持續處理排入的伺服器工作。 */
     void stopping() {
+        if(operationActive()) {
+            cancelApply();
+            var pending=operationFuture;
+            if(pending!=null) server.managedBlock(()->{drainServerTasks();drainTickTasks(true);return pending.isDone();});
+        }
         if (policy.onStop() && !autoRunning && worldIsInitialized()) {
             var done = autoCommitStop();
             // 關閉流程中仍由伺服器執行緒處理 repo 執行緒排入的工作（chunk 存檔／複製）。

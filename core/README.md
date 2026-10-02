@@ -73,4 +73,6 @@ init 設 `pack.packSizeLimit = 95000000`，關閉 JGit 自動 GC；JGit 7.3 本�
 
 stash 使用各維度 `refs/worldgit/stash/<UUID>` 與世界組 `stash.yml`。pop 要求乾淨且原基底相同，不做跨分支合併。`WorldRepositories` 對不變維度也保存 `refs/worldgit/groups/<snapshot>`，hash 可配對該次完整維度組；舊 Phase 1 歷史以 first-parent snapshot 回溯，無法配對就拒絕。
 
+線上平台可用向後相容的 `WorldOperations.live(layout, LiveAccess)` 共用相同預檢、journal、驗證與 HEAD／stash 流程。遊戲持有 session.lock；呼叫端須先鎖定編輯與 flush，直到 close 後才解鎖，且只在 repo executor 呼叫。`LiveAccess.source` 提供 owner 上的快照、`validate` 全組寫入前預檢、`applyAll` 負責全維度 UUID 移除→生成 barrier 與完整存檔。`packs()` 可提供模組 pack resolver。關閉此入口只釋放 repo 鎖，不釋放遊戲 session；既有離線入口仍取得並檢查 OS session.lock。
+
 目前跨 DataVersion 一律清楚拒絕，不把改版本數字當 DataFixer；`.wgignore` 不一致也拒絕，規則遷移留待後續。world-meta 的還原／保留規則與限制見 [05](../docs/05-switch-restore.md)；平台批次與驗收見 [Phase 2 進度](../docs/12-phase2-progress.md)。重跑：持有 `bench.lock` 跑 `:core:integrationTest`，建置 `:cli:acceptanceToolsJar` 後執行 `python3 scripts/verify-phase2.py`。

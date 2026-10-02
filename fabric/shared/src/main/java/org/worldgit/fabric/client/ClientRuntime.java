@@ -135,11 +135,12 @@ public final class ClientRuntime {
   void clear() {
     scenes.values().forEach(PreviewScene::close);
     scenes.clear();
-    previews.reset();
+    previews.clear();
   }
 
   void onDisconnect() {
     clear();
+    previews.reset();
     handshaken = false;
     serverPalette = null;
   }
@@ -169,6 +170,12 @@ public final class ClientRuntime {
   public Summary summary() {
     var scene = currentScene();
     return scene == null ? null : new Summary(scene.published().previewId(), scene.sectionCount(), scene.cellCount(), scene.detailCount(), scene.published().ghost());
+  }
+
+  /** 已完整接收且正在顯示的格子；提供唯讀診斷，需在 client thread 呼叫。 */
+  public List<Protocol.Cell> previewCells() {
+    var scene = currentScene();
+    return scene == null ? List.of() : scene.published().cells();
   }
 
   /** previewId、區塊數、格數（或 outline 數）、目前以明細繪製的區塊數、是否為 diff（鬼影）模式。 */

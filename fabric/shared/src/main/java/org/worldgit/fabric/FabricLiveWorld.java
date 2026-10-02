@@ -21,6 +21,8 @@ import org.worldgit.core.model.*;
 import org.worldgit.core.normalize.ChunkNormalizer;
 import org.worldgit.platform.ChunkPatch;
 import org.worldgit.platform.LiveWorld;
+import org.worldgit.platform.*;
+import org.worldgit.core.apply.ApplyPlan;
 
 /**
  * Fabric 端的 LiveWorld（一個維度）。
@@ -43,8 +45,14 @@ final class FabricLiveWorld implements LiveWorld {
     private final OfflineSnapshotSource disk;
     private volatile Set<ChunkPos> dirty = Set.of(), entityChunks = Set.of();
     private EntityTagRegistry registry;
+    private final FabricApply apply;
 
     FabricLiveWorld(ServerRuntime runtime, WorldLayout layout, WorldLayout.Dimension dimension) {
+        this(runtime,layout,dimension,new HashMap<>());
+    }
+
+    FabricLiveWorld(ServerRuntime runtime, WorldLayout layout, WorldLayout.Dimension dimension,
+            Map<UUID,org.worldgit.core.anvil.Nbt.Compound> oldEntities) {
         this.runtime = runtime;
         this.layout = layout;
         this.dimension = dimension;
@@ -52,6 +60,7 @@ final class FabricLiveWorld implements LiveWorld {
                 runtime.server()
                         .getLevel(ResourceKey.create(Registries.DIMENSION, Identifier.parse(dimension.id().value())));
         this.disk = new OfflineSnapshotSource(layout, dimension, ModPacks.INSTANCE);
+        this.apply = level == null ? null : new FabricApply(runtime, level, oldEntities);
     }
 
     @Override
@@ -192,8 +201,18 @@ final class FabricLiveWorld implements LiveWorld {
 
     @Override
     public AutoCloseable lockEdits(Collection<ChunkPos> chunks, String reason) {
-        return () -> {};
+        return runtime.lockWorld();
     }
+
+    @Override public CompletionStage<Void> apply(ApplyPlan batch, ApplyBudget budget) {
+        return apply == null ? CompletableFuture.failedFuture(new IOException("維度尚未載入")) : apply.apply(batch,budget);
+    }
+    @Override public CompletionStage<Void> nextApplyTick(ApplyPlan batch) {
+        var future=new CompletableFuture<Void>(); runtime.nextTick(()->future.complete(null)); return future;
+    }
+    @Override public CompletionStage<Void> finishApply(Collection<ChunkPos> chunks) { return apply.finish(chunks); }
+    @Override public CompletionStage<Void> protectPlayers(PlayerProtection policy) { return runtime.protect(dimension.id(),policy); }
+    @Override public void applyProgress(ApplyProgress progress) { runtime.progress(progress); }
 
     /** 把所有維度與世界資料寫回磁碟並等待 IO 完成；在伺服器執行緒執行。 */
     @Override

@@ -1,4 +1,4 @@
-# WorldGit Paper / Folia 插件（Phase 1）
+# WorldGit Paper / Folia 插件（Phase 2）
 
 同一個發佈 jar 支援 Paper / Folia 的 Minecraft **1.21.11 與 26.2**。1.21.11 使用 Java 21，26.2 使用 Java 25。`common` 只引用公開 Paper API；`v1_21_11`、`v26_2` 以 paperweight-userdev 2.0.0-beta.21 各自編譯薄 NMS 轉接層，啟動時只載入符合版本的類別。
 
@@ -19,6 +19,12 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 | `/wg diff [--show] [--radius 6]` | 玩家附近的方塊明細，hover 前後狀態、點擊填入傳送指令 | `worldgit.command.diff`（op） |
 | `/wg clear` | 清除自己的客戶端預覽 | `worldgit.command.clear`（所有人） |
 | `/wg reload` | 重新載入語言覆寫 | `worldgit.command.reload`（op） |
+| `/wg restore <rev> [--selection\|--chunks r\|--box x1 y1 z1 x2 y2 z2] [--dry-run]` | 原地還原；局部裁切方塊／BE，不移動 HEAD | `worldgit.command.restore`（op） |
+| `/wg switch <branch\|rev> [--stash\|--force]` | 全維度原地切換；驗證成功後才移動 HEAD | `worldgit.command.switch`（op） |
+| `/wg branch [-d] [name]` | 全維度分支清單、建立、刪除 | `worldgit.command.branch`（op） |
+| `/wg stash push [message]\|pop [index]\|list\|drop [index]` | 保存／套回未提交內容；pop 要求原基底與乾淨工作區 | `worldgit.command.stash`（op） |
+| `/wg reset --hard` | 全範圍還原 HEAD，保留 HEAD 指標 | `worldgit.command.reset`（op） |
+| `/wg cancel` | 停止派發，等待在途清理，留下 PARTIAL 供完整重套 | `worldgit.command.cancel`（op） |
 
 `worldgit.admin` 包含上述指令與 `worldgit.notify` 通知。開發量測入口 `/wg debug` 只開放主控台，其他 sender 必須有 `worldgit.debug`（預設 false）。
 
@@ -56,7 +62,7 @@ FAWE bulk 路徑用 `IBatchProcessor` 記錄 chunk 與 actor，純 WorldEdit 用
 
 ## 重現驗收與量測
 
-所有腳本使用伺服器／baseline 的副本、127.0.0.1、offline mode、port 25651–25654。**acceptance、smoke、benchmark 自己取得 bench.lock，不要再包外層 flock。** SIGTERM 與例外會走清理流程；最後會停止 server 與 bot。
+所有腳本使用伺服器／baseline 的副本、127.0.0.1、offline mode、port 25671–25674。**acceptance、smoke、benchmark 自己取得 bench.lock，不要再包外層 flock。** SIGTERM 與例外會走清理流程；最後會停止 server 與 bot。
 
 ```bash
 timeout 1800 python3 paper/tools/acceptance.py paper 1.21.11 basic mod display shutdown
@@ -67,6 +73,12 @@ timeout 1800 python3 paper/tools/acceptance.py folia 1.21.11 sigterm   # Folia�
 timeout 1800 python3 paper/tools/acceptance.py folia 26.2
 timeout 3600 python3 paper/tools/benchmark.py paper 1.21.11 1000
 timeout 3600 python3 paper/tools/benchmark.py paper 1.21.11 10000
+# Phase 2：各平台／版本都可執行；phase2 含三個 bot 與 1000 chunk switch 量測
+timeout 2400 python3 paper/tools/acceptance.py paper 1.21.11 phase2
+timeout 1800 python3 paper/tools/acceptance.py folia 26.2 phase2-shutdown
+timeout 1800 python3 paper/tools/acceptance.py folia 26.2 phase2-entities
+# 只補驗收寫入後取消／ticket 清理／完整恢復／保護到期，不重跑切換與量測
+timeout 1800 python3 paper/tools/acceptance.py paper 26.2 phase2-cancel
 ```
 
 `ScaleFixture.java` 產生合成平坦 chunk，保留原 baseline 的世界設定，清除主世界實體／BE／流體與地形；原 baseline 不變。驗收以它隔離自然演化。早期 baseline 的海洋生物、kelp、水與燃燒熔爐會自行變動，因此「沒有人編輯」不等於「世界完全不變」；插件應保留這些真正變化，不能以正規化抹掉。
@@ -75,4 +87,20 @@ timeout 3600 python3 paper/tools/benchmark.py paper 1.21.11 10000
 
 CI 對選定 adapter 與其內部類別檢查 NMS 方法／欄位描述子、存取權限與反射 unsaved 欄位。Paperclip 先 patch 出真正 server jar；同目錄不同版本不共用錯誤 cache。CI 的 Fill v3 下載已在 GitHub Actions 實跑驗證（2026-10-01）；本機開發環境呼叫時曾回 429／503／504，`fetch_paper.py` 會重試。
 
-具體結果與限制見 [Phase 1 進度](../docs/11-phase1-progress.md)。Phase 2 的 switch／restore／保護／merge 尚未提供。
+## 線上套用、安全與復原
+
+repo executor 在全組編輯鎖內完成 flush、capture、預檢、journal、套用與驗證。chunk 由伺服器 async IO 載入，加 plugin ticket 後交由真正 owner 替換 section／BE／biome／scheduled ticks／structures，明確更新 POI、heightmap、光照及 unsaved。Starlight 完成回呼後重送 chunk，最後完成 terrain／entity／POI IO barrier；不直接寫使用中的 `.mca`。Folia 依當下 region ID／tick 共用預算、多 lane 並行；Paper 全維度共用同一個 tick 預算。有玩家時 4 section／5 ms／16 ticket，無玩家時 8／5 ms／24 ticket；section 不可搶占，時間是軟上限。
+
+實體先依 UUID 掃描全維度的已存／已載入資料，只 ticket 載入含操作 UUID 的磁碟 chunk；全部移除（含舊 passengers）後才生成。正規化省略的乘客位置在 LOAD 前補母實體位置，避免加入原點或錯誤的 Folia region。剛生成實體不以 Folia `isValid()` 作成功判準；以全組 capture／存檔後 verify 為準。明確忽略的 BE／實體頂層欄位保留。套用後清除模組 status／diff 分包與 display fallback。
+
+操作期間使用 vanilla 全伺服器 tick freeze，保存並恢復原 freeze／step 狀態；玩家仍可移動。事件攔截玩家編輯、容器、活塞、流體、紅石、爆炸、生物改方塊與 WorldEdit／FAWE。第三方直接寫 NMS 的插件須先查詢 `WorldGitPlugin.isEditLocked(world)` 配合，Bukkit 沒有通用攔截任意插件寫入的機制。WorldEdit `--selection` 目前接受 cuboid。
+
+玩家不被傳送；FALL／SUFFOCATION／DROWNING 保護涵蓋整個操作與結束後 10 秒，也涵蓋中途進入範圍的玩家。bossbar／通知排到各玩家 EntityScheduler。只有全組驗證成功才廣播「已切換到 X @ abc1234」並更新 HEAD。
+
+取消／插件關閉留下 PARTIAL，崩潰留下的 APPLYING 下次啟動轉成 PARTIAL 並提示；commit 被阻擋，使用 `/wg switch <target> --force` 或 `/wg reset --hard` 全範圍恢復。關閉時先停 bossbar 更新；玩家通知若與停用競爭，走退休清理，不再註冊新排程。沒有自動續傳或反向回滾。切換時目標沒有的 chunk 保留並標 untracked，包含 ticket 載入期間新生成的周邊 chunk；explicit commit 才重新追蹤。
+
+目前線上預檢拒絕 chunk 刪除與有差異的 world-meta（地圖／記分板／世界設定等）；使用 CLI 離線還原。新增地形使 stash push／pop 必須刪 chunk 時也會先拒絕，保存 stash 前不改世界。跨 DataVersion、不同 .wgignore／DataPacks 沿用 core 的明確拒絕。merge 留待 Phase 3。
+
+Paper／Folia 的 1.21.11／26.2 四平台 Phase 2 驗收已通過，涵蓋原地切換、局部 restore、stash、取消恢復、關服重開、玩家保護、UUID／巢狀乘客、光照／POI 與 mod status／diff 清除。每平台量測三次，1,000 chunk 切換每次總耗時：Paper 約 47.7–48.0 秒、Folia 約 34.0–37.2 秒；tick probe TPS 估計 19.57–19.96，偶有 0.42–0.64 秒間隔尖峰。完整 build 全綠；測試範圍與 Phase 0 比較限制見進度報告。
+
+具體驗收與量測見 [Phase 2 Paper／Folia 進度](../docs/12-phase2-progress.md#paperfolia)；Phase 1 功能的證據見 [Phase 1 進度](../docs/11-phase1-progress.md)。Phase 2 原始結果、失敗歷史在 `.work/paper-phase2/`，console log 在 `.work/paper-delivery/logs/`；`ApplyEvidence.java` 讀存檔的全維度 UUID、光源／鄰格 nibble 與 POI，驗收結束刪除 server／world 副本。

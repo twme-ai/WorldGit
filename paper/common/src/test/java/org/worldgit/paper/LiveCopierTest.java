@@ -21,6 +21,14 @@ class LiveCopierTest {
 
   private static NmsBridge bridge(boolean fail) {
     return new NmsBridge() {
+      public void applyChunk(World w,org.worldgit.core.apply.ApplyPlan.ChunkOp op,org.worldgit.core.config.IgnoreRules r) { throw new UnsupportedOperationException(); }
+      public void removeEntities(World w,int x,int z,java.util.Set<java.util.UUID> ids) { throw new UnsupportedOperationException(); }
+      public void spawnEntity(World w,org.worldgit.core.model.EntitySnapshot e) { throw new UnsupportedOperationException(); }
+      public java.util.concurrent.CompletionStage<Void> finishChunk(World w,int x,int z) { throw new UnsupportedOperationException(); }
+      public void saveRegion(World w) { throw new UnsupportedOperationException(); }
+      public void flushIo(World w) { throw new UnsupportedOperationException(); }
+      public AutoCloseable freeze(World w) { throw new UnsupportedOperationException(); }
+      public OwnerTick ownerTick(World w) { throw new UnsupportedOperationException(); }
       public String minecraftVersion() { return "test"; }
       public void census(World world, CensusSink sink) {}
       public Nbt.Compound copyGameRules(World world) { return new Nbt.Compound(); }

@@ -2,6 +2,7 @@ package org.worldgit.paper;
 
 import java.io.IOException;
 import java.util.*;
+import org.worldgit.core.apply.*;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -20,7 +21,7 @@ import org.worldgit.protocol.Protocol;
  * 結果以聊天訊息送回（Player 走自己的 entity scheduler，Folia 安全）。權限節點見 plugin.yml。
  */
 final class Commands implements CommandExecutor, TabCompleter {
-  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "help");
+  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "help");
   private final WorldGitPlugin plugin;
   private final Debug debug;
 
@@ -90,6 +91,8 @@ final class Commands implements CommandExecutor, TabCompleter {
         case "diff" -> diff(sender, rest);
         case "clear" -> clear(sender);
         case "reload" -> reload(sender);
+        case "restore", "switch", "branch", "stash", "reset" -> operation(sender,sub,rest);
+        case "cancel" -> { if(rest.length!=0) throw bad("paper.apply.usage"); reply(sender,Messages.line(plugin.repo().cancel() ? "paper.apply.cancel-requested" : "paper.apply.no-operation")); }
         default -> help(sender);
       }
     } catch (UserError e) {
@@ -108,7 +111,7 @@ final class Commands implements CommandExecutor, TabCompleter {
         sender,
         Messages.line("paper.help.title"), Messages.line("paper.help.init"), Messages.line("paper.help.status"),
         Messages.line("paper.help.commit"), Messages.line("paper.help.log"), Messages.line("paper.help.diff"),
-        Messages.line("paper.help.clear"), Messages.line("paper.help.reload"));
+        Messages.line("paper.help.clear"), Messages.line("paper.help.reload"), Messages.line("paper.apply.help"));
   }
 
   private CommitMetadata.Identity identity(CommandSender sender) {
@@ -357,6 +360,87 @@ final class Commands implements CommandExecutor, TabCompleter {
     reply(sender, Messages.line("paper.reload.done"));
   }
 
+  private record Applied(PaperOperations.Result result,String head) {}
+  private void operation(CommandSender sender,String sub,String[] args) {
+    if(sub.equals("branch")) {
+      if(args.length>2 || (args.length==2 && !args[0].equals("-d"))) throw bad("paper.apply.usage");
+      plugin.repo().operation("branch",ops->{
+        if(args.length==0) return ops.branches().stream().map(b->(b.current()?"* ":"  ")+b.name()+" "+b.commits()).toList();
+        if(args[0].equals("-d")) { if(args.length!=2) throw new IOException("/wg branch -d <name>"); ops.deleteBranch(args[1]); }
+        else ops.createBranch(args[0],null);
+        return List.of(args[args.length-1]);
+      }).whenComplete((rows,error)->Messages.inLocale(sender,()->{ if(error!=null) fail(sender,error); else { reply(sender,Messages.line("paper.apply.branch")); rows.forEach(r->reply(sender,Component.text(r))); } }));
+      return;
+    }
+    if(sub.equals("stash") && args.length>=1 && Set.of("list","drop").contains(args[0])) {
+      if(args.length>2 || (args[0].equals("list") && args.length!=1)) throw bad("paper.apply.usage");
+      int index=args.length==2 ? Integer.parseInt(args[1]) : 0;
+      plugin.repo().operation("stash",ops->{
+        if(args[0].equals("drop")) { ops.stashDrop(index); return List.of("stash@{"+index+"}"); }
+        var list=ops.stashes(); var rows=new ArrayList<String>();
+        for(int i=0;i<list.size();i++) rows.add("stash@{"+i+"} "+list.get(i).time()+" "+list.get(i).message());
+        return rows;
+      }).whenComplete((rows,error)->Messages.inLocale(sender,()->{ if(error!=null) fail(sender,error); else { reply(sender,Messages.line("paper.apply.stash")); rows.forEach(r->reply(sender,Component.text(r))); } }));
+      return;
+    }
+    String revision=null; boolean dry=false,force=false,stash=false; Scope scope=Scope.all(); DimensionId dimension=null;
+    if(sub.equals("restore")||sub.equals("switch")) {
+      if(args.length<1 || args[0].startsWith("--")) throw bad("paper.apply.usage");
+      revision=args[0];
+      boolean range=false;
+      for(int i=1;i<args.length;i++) switch(args[i]) {
+        case "--dry-run" -> dry=true;
+        case "--force" -> { if(!sub.equals("switch")) throw bad("paper.apply.usage"); force=true; }
+        case "--stash" -> { if(!sub.equals("switch")) throw bad("paper.apply.usage"); stash=true; }
+        case "--selection" -> {
+          if(!sub.equals("restore") || range || !(sender instanceof Player player)) throw bad("paper.apply.usage");
+          range=true; scope=WorldEditHook.selection(player); dimension=plugin.dimensionOf(player.getWorld()).orElseThrow(()->bad("paper.error.diff-not-tracked"));
+        }
+        case "--chunks" -> {
+          if(!sub.equals("restore")||range||i+1>=args.length) throw bad("paper.apply.usage");
+          int radius=Integer.parseInt(args[++i]); if(radius<0||radius>256) throw bad("paper.apply.usage");
+          var world=sender instanceof Player p ? p.getWorld() : plugin.getServer().getWorlds().getFirst();
+          var loc=sender instanceof Player p ? p.getLocation() : world.getSpawnLocation();
+          scope=Scope.chunkRadius(loc.getBlockX()>>4,loc.getBlockZ()>>4,radius); range=true;
+          dimension=plugin.dimensionOf(world).orElseThrow(()->bad("paper.error.diff-not-tracked"));
+        }
+        case "--box" -> {
+          if(!sub.equals("restore")||range||i+6>=args.length) throw bad("paper.apply.usage");
+          int x1=Integer.parseInt(args[++i]),y1=Integer.parseInt(args[++i]),z1=Integer.parseInt(args[++i]);
+          int x2=Integer.parseInt(args[++i]),y2=Integer.parseInt(args[++i]),z2=Integer.parseInt(args[++i]);
+          scope=Scope.box(x1,y1,z1,x2,y2,z2); range=true;
+          var world=sender instanceof Player p ? p.getWorld() : plugin.getServer().getWorlds().getFirst();
+          dimension=plugin.dimensionOf(world).orElseThrow(()->bad("paper.error.diff-not-tracked"));
+        }
+        default -> throw bad("paper.error.unknown-option","option",args[i]);
+      }
+    } else if(sub.equals("reset")) { if(args.length!=1||!args[0].equals("--hard")) throw bad("paper.apply.usage"); }
+    else if(sub.equals("stash")) { if(args.length<1||args.length>2||!Set.of("push","pop").contains(args[0])) throw bad("paper.apply.usage"); }
+    else throw bad("paper.apply.usage");
+    final String rev=revision; final boolean d=dry,f=force,st=stash; final Scope selected=scope; final DimensionId dim=dimension;
+    reply(sender,Messages.line("paper.apply.start","target",rev==null ? sub : rev));
+    plugin.repo().operation(rev==null ? sub : rev,ops->{
+      var result=switch(sub) {
+        case "restore"->ops.restore(rev,dim,selected,d,false);
+        case "switch"->ops.switchTo(rev,st,f,d,false);
+        case "reset"->ops.resetHard(null,false,false);
+        case "stash"->args[0].equals("push") ? ops.stashPush(args.length==2 ? args[1] : null,false) : ops.stashPop(args.length==2 ? Integer.parseInt(args[1]) : 0,false);
+        default->throw new IOException("unknown operation");
+      };
+      return new Applied(result,ops.head());
+    }).whenComplete((applied,error)->Messages.inLocale(sender,()->{
+      if(plugin.repo().stopping()) return;
+      if(error!=null) { fail(sender,error); return; }
+      var r=applied.result();
+      if(r.state()==PaperOperations.State.PARTIAL) reply(sender,Messages.line("paper.apply.partial","message",r.error()));
+      else if(r.state()==PaperOperations.State.DRY_RUN) reply(sender,Messages.line("paper.apply.dry-run","stats",r.dimensions()));
+      else if(sub.equals("switch")) {
+        plugin.getServer().getConsoleSender().sendMessage(Messages.line("paper.apply.switched","target",rev,"commit",Messages.shortId(applied.head())));
+        for(var p:plugin.getServer().getOnlinePlayers()) plugin.platform().entity(p,()->Messages.inLocale(p,()->p.sendMessage(Messages.line("paper.apply.switched","target",rev,"commit",Messages.shortId(applied.head())))),()->{});
+      } else reply(sender,Messages.line("paper.apply.complete","mode",sub));
+    }));
+  }
+
   // ---------------------------------------------------------------- tab
 
   @Override
@@ -370,6 +454,11 @@ final class Commands implements CommandExecutor, TabCompleter {
           case "status" -> List.of("--show", "--full");
           case "diff" -> List.of("--show", "--radius");
           case "commit" -> List.of("-m");
+          case "restore" -> List.of("HEAD","--selection","--chunks","--box","--dry-run");
+          case "switch" -> List.of("main","HEAD","--stash","--force");
+          case "branch" -> List.of("-d");
+          case "stash" -> List.of("push","pop","list","drop");
+          case "reset" -> List.of("--hard");
           default -> List.of();
         };
     return options.stream().filter(o -> o.startsWith(last)).toList();

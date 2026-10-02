@@ -5,6 +5,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.IllegalPluginAccessException;
 
 /**
  * 只使用 Paper/Folia 都有的排程器（Region／Global／Entity／Async）；Paper 是「只有一個 region」的特例。
@@ -61,7 +62,17 @@ public final class Platform implements ChunkScheduler {
 
   /** 在實體（玩家）所屬的執行緒執行；實體已移除時 retired 會被呼叫。 */
   public void entity(Entity entity, Runnable task, Runnable retired) {
-    entity.getScheduler().run(plugin, t -> task.run(), retired);
+    if (shuttingDown || !plugin.isEnabled()) {
+      if (retired != null) retired.run();
+      return;
+    }
+    try {
+      entity.getScheduler().run(plugin, t -> task.run(), retired);
+    } catch (IllegalPluginAccessException e) {
+      // isEnabled 的檢查與 scheduler 註冊之間仍可能開始 disable。
+      if (!shuttingDown && plugin.isEnabled()) throw e;
+      if (retired != null) retired.run();
+    }
   }
 
   public void entityDelayed(Entity entity, long ticks, Runnable task, Runnable retired) {

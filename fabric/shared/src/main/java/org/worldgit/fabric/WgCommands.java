@@ -19,6 +19,8 @@ import org.worldgit.core.config.WorldGitConfig;
 import org.worldgit.core.diff.DiffEngine;
 import org.worldgit.core.model.CommitMetadata;
 import org.worldgit.core.model.DimensionId;
+import org.worldgit.core.apply.Scope;
+import org.worldgit.core.service.WorldOperations;
 import org.worldgit.fabric.logic.*;
 
 /**
@@ -90,6 +92,14 @@ public final class WgCommands {
         root.then(Commands.literal("clear").executes(WgCommands::clear));
         root.then(Commands.literal("info").executes(WgCommands::info));
         root.then(Commands.literal("reload").requires(write).executes(WgCommands::reload));
+        root.then(Commands.literal("preview")
+                .then(Commands.argument("options",StringArgumentType.greedyString()).executes(ctx->preview(ctx,StringArgumentType.getString(ctx,"options")))));
+        for(String command:List.of("restore","switch","branch","stash","reset")) root.then(Commands.literal(command).requires(write)
+                .executes(ctx->operation(ctx,command,""))
+                .then(Commands.argument("options",StringArgumentType.greedyString()).suggests(FLAG_SUGGESTIONS).executes(ctx->operation(ctx,command,StringArgumentType.getString(ctx,"options")))));
+        root.then(Commands.literal("cancel").requires(write).executes(ctx->{
+            var rt=runtime(ctx); Texts.send(ctx.getSource(),rt,List.of(Msg.prefixed(rt.cancelApply() ? MessageKeys.APPLY_CANCEL : MessageKeys.APPLY_IDLE))); return 1;
+        }));
         dispatcher.register(root);
     }
 
@@ -118,6 +128,8 @@ public final class WgCommands {
         Throwable t = root(error);
         if (t instanceof WorldOps.NotInitializedException) return Messages.error(MessageKeys.ERROR_NOT_INITIALIZED);
         String text = t.getMessage() == null || t.getMessage().isBlank() ? t.getClass().getSimpleName() : t.getMessage();
+        if(text.contains("工作區有未提交")) return Msg.of(MessageKeys.ERROR_DIRTY);
+        if(text.contains("世界為 PARTIAL")) return Msg.of(MessageKeys.ERROR_PARTIAL);
         return Msg.of(MessageKeys.COMMON_ERROR, "message", text);
     }
 
@@ -162,7 +174,8 @@ public final class WgCommands {
                         Msg.of(MessageKeys.HELP_DIFF),
                         Msg.of(MessageKeys.HELP_CLEAR),
                         Msg.of(MessageKeys.HELP_INFO),
-                        Msg.of(MessageKeys.HELP_RELOAD)));
+                        Msg.of(MessageKeys.HELP_RELOAD),
+                        Msg.of(MessageKeys.HELP_PHASE2)));
         return 1;
     }
 
@@ -319,6 +332,87 @@ public final class WgCommands {
             case GHOST -> List.of(Msg.prefixed(MessageKeys.PREVIEW_GHOST, "cells", plan.cells()));
             case OUTLINE -> List.of(Msg.prefixed(MessageKeys.PREVIEW_OUTLINE, "count", plan.outlines()));
         };
+    }
+
+    private static int preview(CommandContext<CommandSourceStack> ctx,String text) {
+        var rt=runtime(ctx);
+        if(text.trim().equals("off")) return clear(ctx);
+        var player=requirePreviewPlayer(ctx.getSource(),rt); if(player==null) return 0;
+        try {
+            var args=OperationArgs.parse(text,Set.of(),Map.of("--radius",1));
+            if(args.positional().size()!=1) throw new IllegalArgumentException();
+            Set<org.worldgit.core.model.ChunkPos> window=args.values().containsKey("--radius")
+                ? Scope.chunkRadius((player.chunkPosition().getMinBlockX()>>4),(player.chunkPosition().getMinBlockZ()>>4),args.number("--radius")).chunks() : null;
+            var level=(ServerLevel)player.level();
+            deliver(ctx,rt,rt.preview(ServerRuntime.dimensionId(level),args.positional().getFirst(),window,rt.handshake().supports(player.getUUID(),"ghost-render"),level.getMinY(),level.getMaxY()),plan->previewLines(rt,player,plan));
+            return 1;
+        } catch(IllegalArgumentException ex) { Texts.failure(ctx.getSource(),rt,Msg.of(MessageKeys.ERROR_PHASE2_ARGS,"usage","/wg preview <rev> [--radius 0..256] | off")); return 0; }
+    }
+    private static List<Msg> resultLines(ServerRuntime rt,String locale,WorldOperations.Result result) {
+        String state=Mini.plain(rt.catalog(),locale,Msg.of(result.state()==WorldOperations.State.DRY_RUN ? MessageKeys.APPLY_DRY_RUN
+            : MessageKeys.phase(result.success() ? org.worldgit.platform.ApplyProgress.Phase.COMPLETE : org.worldgit.platform.ApplyProgress.Phase.PARTIAL)));
+        int sections=result.dimensions().values().stream().mapToInt(v->v.sections()).sum();
+        int entities=result.dimensions().values().stream().mapToInt(v->v.entityPuts()+v.entityRemoves()).sum();
+        var lines=new ArrayList<Msg>(); lines.add(Msg.prefixed(MessageKeys.APPLY_RESULT,"state",state,"sections",sections,"entities",entities));
+        if(result.error()!=null) lines.add(Msg.of(MessageKeys.COMMON_ERROR,"message",result.error()));
+        return lines;
+    }
+    private static int operation(CommandContext<CommandSourceStack> ctx,String command,String text) {
+        var rt=runtime(ctx);
+        if(!rt.server().isSingleplayer()) { Texts.failure(ctx.getSource(),rt,Msg.of(MessageKeys.ERROR_SINGLEPLAYER)); return 0; }
+        try {
+            var flags=switch(command) { case "restore"->Set.of("--dry-run"); case "switch"->Set.of("--stash","--force","--dry-run"); case "reset"->Set.of("--hard","--force","--dry-run"); default->Set.<String>of(); };
+            var values=command.equals("restore") ? Map.of("--chunks",1,"--box",6) : Map.<String,Integer>of();
+            var args=OperationArgs.parse(text,flags,values); var positions=args.positional();
+            String locale=Texts.locale(rt,ctx.getSource().getPlayer());
+            CompletableFuture<List<Msg>> future;
+            switch(command) {
+                case "restore" -> {
+                    if(positions.size()!=1) throw new IllegalArgumentException();
+                    var player=ctx.getSource().getPlayer();
+                    if(!values.isEmpty() && !args.values().isEmpty() && player==null) throw new IllegalArgumentException();
+                    var scope=args.scope(player==null ? 0 : (player.chunkPosition().getMinBlockX()>>4),player==null ? 0 : (player.chunkPosition().getMinBlockZ()>>4));
+                    var dimension=scope.kind()==Scope.Kind.ALL ? null : ServerRuntime.dimensionId((ServerLevel)player.level());
+                    future=rt.live(ops->ops.restore(positions.getFirst(),dimension,scope,args.flag("--dry-run"),false)).thenApply(result->resultLines(rt,locale,result));
+                }
+                case "switch" -> {
+                    if(positions.size()!=1) throw new IllegalArgumentException();
+                    future=rt.live(ops->ops.switchTo(positions.getFirst(),args.flag("--stash"),args.flag("--force"),args.flag("--dry-run"),false)).thenApply(result->resultLines(rt,locale,result));
+                }
+                case "reset" -> {
+                    if(!args.flag("--hard") || positions.size()>1) throw new IllegalArgumentException();
+                    future=rt.live(ops->ops.resetHard(positions.isEmpty() ? null : positions.getFirst(),args.flag("--force"),args.flag("--dry-run"))).thenApply(result->resultLines(rt,locale,result));
+                }
+                case "branch" -> {
+                    if(positions.isEmpty() || positions.equals(List.of("list"))) future=rt.live(ops->ops.branches().stream().map(b->Msg.of(MessageKeys.BRANCH_ROW,"current",b.current() ? "*" : " ","name",b.name(),"commits",b.commits())).toList());
+                    else {
+                        boolean delete=positions.getFirst().equals("delete"); boolean create=positions.getFirst().equals("create"); int offset=delete || create ? 1 : 0;
+                        if(positions.size()<offset+1 || positions.size()>offset+2 || delete && positions.size()!=2) throw new IllegalArgumentException();
+                        String name=positions.get(offset),start=positions.size()>offset+1 ? positions.get(offset+1) : null;
+                        future=rt.live(ops->{if(delete) ops.deleteBranch(name); else ops.createBranch(name,start); return List.of(Msg.prefixed(MessageKeys.BRANCH_DONE,"name",name));});
+                    }
+                }
+                case "stash" -> {
+                    if(positions.isEmpty()) throw new IllegalArgumentException();
+                    String action=positions.getFirst();
+                    if(!action.equals("push") && positions.size()>2 || action.equals("list") && positions.size()!=1) throw new IllegalArgumentException();
+                    int index=positions.size()>1 && !action.equals("push") ? Integer.parseInt(positions.get(1)) : 0;
+                    future=rt.live(ops->switch(action) {
+                        case "push" -> ops.stashPush(positions.size()>1 ? String.join(" ",positions.subList(1,positions.size())) : null,false);
+                        case "pop" -> ops.stashPop(index,false);
+                        case "drop" -> {ops.stashDrop(index);yield List.of(Msg.prefixed(MessageKeys.STASH_DROPPED,"index",index));}
+                        case "list" -> {
+                            var list=ops.stashes(); var lines=new ArrayList<Msg>();
+                            for(int i=0;i<list.size();i++) {var stash=list.get(i);lines.add(Msg.of(MessageKeys.STASH_ROW,"index",i,"id",stash.id(),"message",stash.message(),"time",stash.time()));}
+                            yield lines.isEmpty() ? List.of(Msg.of(MessageKeys.STASH_EMPTY)) : lines;
+                        }
+                        default -> throw new IllegalArgumentException();
+                    }).thenApply(value->value instanceof WorldOperations.Result result ? resultLines(rt,locale,result) : (List<Msg>)value);
+                }
+                default -> throw new IllegalArgumentException();
+            }
+            deliver(ctx,rt,future,v->v); return 1;
+        } catch(IllegalArgumentException ex) { Texts.failure(ctx.getSource(),rt,Msg.of(MessageKeys.ERROR_PHASE2_ARGS,"usage","/wg "+command+" ( /wg )")); return 0; }
     }
 
     private static int clear(CommandContext<CommandSourceStack> ctx) {

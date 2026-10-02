@@ -54,6 +54,9 @@ class ClientLogicTest {
     var cleared = previews.accept(new Protocol.Clear(3), 1);
     assertEquals(3, cleared.clearedUpTo());
     assertTrue(previews.currentPreview(DimensionId.OVERWORLD).isEmpty());
+    // clear 到達時尚未看過的維度，也不能發布舊分包。
+    for (var p : Protocol.diff(2, diff(new DimensionId("minecraft:the_nether"), 1, 10)))
+      assertNull(previews.accept(Protocol.decode(p), 2).published());
     for (var p : Protocol.diff(2, diff(DimensionId.OVERWORLD, 1, 10)))
       assertNull(previews.accept(Protocol.decode(p), 2).published());
     var r = previews.accept(Protocol.decode(Protocol.diff(4, diff(DimensionId.OVERWORLD, 1, 10)).getFirst()), 3);
@@ -69,6 +72,19 @@ class ClientLogicTest {
     assertNotNull(p);
     assertFalse(p.ghost());
     assertEquals(4, p.outlines().size());
+  }
+
+  @Test void localClearCancelsPendingPartsUntilDisconnect() throws Exception {
+    var previews=new ClientPreviews();
+    var packets=Protocol.diff(9,diff(DimensionId.OVERWORLD,3,3000));
+    assertTrue(packets.size()>1);
+    previews.accept(Protocol.decode(packets.getFirst()),0);
+    previews.clear();
+    for(var packet:packets) assertNull(previews.accept(Protocol.decode(packet),1).published());
+    previews.reset();
+    ClientPreviews.Published published=null;
+    for(var packet:packets) published=previews.accept(Protocol.decode(packet),2).published();
+    assertNotNull(published);
   }
 
   @Test

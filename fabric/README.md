@@ -1,4 +1,4 @@
-# WorldGit Fabric（Phase 1）
+# WorldGit Fabric（Phase 2）
 
 同一套模組提供單人世界／Fabric 專用伺服器的存檔點，以及 Paper 玩家客戶端的 diff 描邊和鬼影。世界與 bare repo 格式直接共用 core，離線 `wgit` 可讀相同歷史；不需要轉換。
 
@@ -35,18 +35,37 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 /wg commit -m 建造城門
 /wg log [1–50]
 /wg diff [from [to]] [--blocks] [--show]
+/wg preview <rev> [--radius r]
+/wg preview off
+/wg restore <rev> [--chunks r | --box x1 y1 z1 x2 y2 z2] [--dry-run]
+/wg switch <branch|rev> [--stash|--force] [--dry-run]
+/wg branch [create] <name> [rev]
+/wg branch [list] | branch delete <name>
+/wg stash push [message] | stash pop [index] | stash list | stash drop [index]
+/wg reset --hard [rev --force] [--dry-run]
+/wg cancel
 /wg clear
 /wg info
 /wg reload
 ```
 
-`status --show` 畫 section／chunk 外框，`diff --show` 畫逐格外框與舊方塊鬼影。顯示與 clear 需玩家執行；console 可用 init/status/commit/log。指令詳細選項及權限見 `WgCommands`；預設讀取權限等級 0、寫入等級 2，單人世界擁有者可操作。
+`status --show` 畫 section／chunk 外框，`diff --show`／`preview` 畫逐格外框與半透明方塊模型。顯示與 clear 需玩家執行；console 可用 init/status/commit/log。指令詳細選項及權限見 `WgCommands`；預設讀取權限等級 0、寫入等級 2，單人世界擁有者可操作。
 
 每個維度一個 repo，路徑為世界資料夾旁的 `.worldgit/<世界名稱>/<維度目錄>/`，例如 `.worldgit/My World/minecraft.overworld/`。主世界保存 world-meta 與維度清單。init 只建立磁碟上存在且尚未初始化的維度；第一次進入新維度後可再 init。
 
 預設 creative 範本全部追蹤；survival 範本排除暫態、非 persistent 生物等。`track: modified-only` 與 core 一致，目前只記錄設定，尚未篩掉自然地形。沒有內容變動不產生 commit。
 
 自動 commit 包含定時、專用伺服器玩家登出、關機／離開單人世界。玩家放置／破壞事件記錄 chunk 粒度歸屬，多人參與寫入 Contribution trailers；只有一位參與者時自動提交以該玩家為 author，committer 為伺服器。多人登出目前提交共同工作世界，尚無 per-player staging。
+
+### 預覽、切換與復原
+
+`preview` 只顯示「目前世界 → 目標 commit」的差異；新增／修改顯示目標模型、移除顯示目前模型，沿用綠／紅／黃與實線／鬼影／虛線。`--radius` 是玩家所在 chunk 的正方形半徑（0–256、含端點），未指定時比較該維度全部追蹤 chunk；超過鬼影上限改區域外框。`preview off`／`clear` 清除，連到支援此命令的 Paper／Fabric 伺服器時使用相同 v2 封包；客戶端即使連到舊伺服器也能先清掉本機預覽。
+
+寫入命令目前只供**單人世界的整合伺服器**使用；專用伺服器保留 Phase 1 操作與 revision preview。`restore` 不移動 HEAD，chunk 半徑以玩家為中心，box 包含端點並逐格裁切方塊／BE，biome 以 4×4×4 sample 起點裁切。`switch` 同步全維度同名分支，hash 為 detached HEAD；dirty 工作區需 commit、`--stash` 或 `--force`。stash pop 要求原基底及乾淨工作區，不做跨分支合併。`reset --hard` 無 revision 只丟棄未提交變動；指定 revision 會改寫歷史且要求 `--force`。
+
+套用期間顯示 bossbar，暫停世界 tick、關閉容器、攔截玩家物品／容器／實體互動及一般 LevelChunk 方塊寫入；不移動玩家、不加藥水效果。範圍內玩家（含中途進入者）在操作全程及結束後 10 秒免受摔落、窒息、溺水傷害，其他傷害照常。原本的 frozen 狀態會恢復，第三方模組若直接改 section／BE 或實體需配合 `ServerRuntime.editsLocked()`，不能繞過鎖寫入。
+
+所有套用、heightmap／光照／POI 與 chunk 更新在 server owner 執行；未載入 chunk 加 ticket 等 entity IO，不寫線上 `.mca`。使用共用 ApplyBudget（單人有玩家：4 section／5 ms／16 chunk），不可搶占的單次工作採軟時間上限；全維度 UUID 先移除再生成。完成後 flush、全組驗證才更新 HEAD，並清除舊 status／diff／preview。`cancel` 等在途清理，已寫入的世界保留 PARTIAL、HEAD 不動；用全範圍 `switch <rev> --force`／`reset --hard` 恢復，PARTIAL 阻擋新 commit／普通 switch／stash。
 
 ## 設定與多語言
 
@@ -76,7 +95,7 @@ dirty 候選是載入事件、`LevelChunk.markUnsaved` mixin 保留的 generatio
 
 已載入 chunk 在伺服器執行緒用遊戲序列化器複製，正規化與 repo IO 在背景執行；未載入 chunk 讀磁碟。手動 commit 與關機前會 flush。WorldGit 自有 server task 佇列避免原版在關閉時把 `server.execute` 工作直接放到 repo 執行緒執行。
 
-v2 握手後才接受預覽；分包由 BatchAssembler 收齊再發布。斷線清除場景，每個維度各有預覽。新增為實線、移除為原版模型半透明鬼影、修改為虛線加淡色舊模型、衝突以 alpha 緩慢閃爍。遠處／超出明細預算的 section 只畫包圍盒；視錐及距離裁切，每幀最多建立設定配額的 section 明細，避免一次上傳全部格數。超過伺服器 100,000 格上限時傳 status 包圍盒。
+v2 握手後才接受預覽；分包由 BatchAssembler 收齊再發布。斷線清除場景，每個維度各有預覽。新增為實線加目標模型鬼影、移除為原版模型半透明鬼影、修改為虛線加淡色目標模型、衝突以 alpha 緩慢閃爍。遠處／超出明細預算的 section 只畫包圍盒；視錐及距離裁切，每幀最多建立設定配額的 section 明細，避免一次上傳全部格數。超過伺服器 100,000 格上限時傳 status 包圍盒。
 
 ## 驗收
 
@@ -92,6 +111,15 @@ python3 fabric/tools/record-singleplayer.py 1.21.11 .work/fabric-gametest-1.21.1
 python3 fabric/tools/record-singleplayer.py 26.2 .work/fabric-gametest-26.2.log
 ```
 
+Phase 2 重跑（先建置 `:cli:fatJar`，同樣自行取得 bench.lock）：
+
+```bash
+WG_PHASE2=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 1.21.11 --record
+WG_PHASE2=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 26.2 --record
+```
+
+GameTest 檢查真正客戶端的鬼影格子、方塊同步、玩家保護、光照、實體、裁切、stash 與取消／恢復，並保留四個 flush 後的世界／repo 複本。`record-phase2.py` 使用獨立 CLI jar 對預覽前／後 B、switch A、恢復 A 跑離線 verify，並逐格比較 `wgit diff B A --blocks` 與客戶端預覽；任何不符即非零退出。結果在 `.work/fabric-acceptance/phase2-*/result.json`，精選截圖在 `fabric/docs/screenshots/phase2/`；詳細證據見 [Phase 2 進度](../docs/12-phase2-progress.md)。
+
 先建置 `:cli:fatJar`，或以 `WGIT_JAR`／`--cli-jar` 指定固定的 CLI jar。CLI 比較 init→手動提交的明確 commit id，避免把後來移動相機造成的探索／關機自動 commit 混入三格驗收。驗收世界關閉隨機刻與生物生成，避免草地腐化影響固定格數。
 
 Paper 驗收先複製插件 jar 到 `.work/fabric-acceptance/`，記錄來源 mtime（UTC／ns）、大小和 SHA-256，整輪只使用副本。腳本使用 `.work/servers/paper-<版本>/server.jar` 的複本，port 25663／25664、127.0.0.1、offline-mode；伺服器與世界都在 `.work/`。它先準備存檔再載入插件，讓真客戶端握手、收三格 diff／status、截圖與 clear，finally 關閉程序和確認 port 已關閉。
@@ -105,4 +133,6 @@ python3 fabric/tools/accept-paper.py 26.2
 
 ## 目前限制
 
-Phase 2 apply/restore/switch/merge 尚未提供，`lockEdits` 的空實作目前不構成編輯鎖。尚無準星「舊→新」UI、實體／biome 模型、流體或特殊 block entity renderer、Mod Menu 畫面、資源包重載後模型快取重建、Sodium／Iris 或硬體 GPU 驗收。鬼影使用固定光照與 quad 順序，沒有透明面排序／內部面消除；大量格數的此次驗收是 3,072 格、6 sections，不能據此宣稱 100,000 格的效能。
+線上不刪除 chunk：stash 若需刪除 HEAD 沒有的新增 chunk，預檢會拒絕，須關閉世界後使用 CLI stash；一般 switch 預設保留這些 chunk 並標 untracked。線上 metadata 目前只接出生點、1.21.11 的 gamerules／難度／邊界等 level.dat 設定，地圖／scoreboard／26.2 各維度 saved-data、世界生成等變動會在任何寫入前拒絕，須離線還原。跨 DataVersion、規則不同仍明確拒絕；沒有 DataFixer 或 merge。legacy `ChunkPatch` 套用入口仍拒絕，正式 Phase 2 使用 ApplyPlan。
+
+尚無準星「舊→新」UI、實體／biome 模型、流體或特殊 block entity renderer、Mod Menu 畫面、資源包重載後模型快取重建、Sodium／Iris 或硬體 GPU 驗收。鬼影使用固定光照與 quad 順序，沒有透明面排序／內部面消除；既有大量格數驗收是 3,072 格、6 sections，不能據此宣稱 100,000 格效能。Phase 2 使用受控平坦世界及凍結 tick，不是大型自然生物世界的 TPS 量測。

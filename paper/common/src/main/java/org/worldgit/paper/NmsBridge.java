@@ -50,4 +50,20 @@ public interface NmsBridge {
    * 只做複製（palette container、方塊實體 NBT、實體 NBT）；其餘編碼放在 {@link RawChunk} 的方法裡。
    */
   RawChunk copy(World world, int x, int z);
+
+  /** 以下全部由真正 owner 呼叫，IO barrier 除外。 */
+  void applyChunk(World world, org.worldgit.core.apply.ApplyPlan.ChunkOp op,
+      org.worldgit.core.config.IgnoreRules rules) throws java.io.IOException;
+  void removeEntities(World world, int x, int z, java.util.Set<java.util.UUID> ids);
+  void spawnEntity(World world, org.worldgit.core.model.EntitySnapshot entity) throws java.io.IOException;
+  java.util.concurrent.CompletionStage<Void> finishChunk(World world, int x, int z);
+  void saveRegion(World world);
+  /** repo 背景執行緒等待 terrain/entity/POI IO 強制落盤。 */
+  void flushIo(World world);
+  /** 全域 scheduler，保存／恢復 vanilla freeze 與 step 狀態。 */
+  AutoCloseable freeze(World world);
+  /** 真正 region ID/current tick；Paper 使用 server tick。 */
+  record OwnerTick(long owner, long tick) {}
+  OwnerTick ownerTick(World world);
+
 }

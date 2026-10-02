@@ -27,6 +27,20 @@ public final class PreviewPlanner {
 
   private PreviewPlanner() {}
 
+  public static Plan revision(long id, WorldOps ops, DimensionId dimension, String revision, Set<ChunkPos> window,
+      boolean ghosts, ServerConfig.Preview limits, int minY, int maxY) throws IOException {
+    var summary=ops.revisionDiff(dimension,revision,DiffEngine.Detail.SUMMARY,window);
+    var counts=summary.counts();
+    long cells=counts.added()+counts.removed()+counts.modified()+counts.conflict();
+    if(summary.chunks().isEmpty()) return new Plan(id,Mode.EMPTY,0,0,Protocol.status(id,summary,minY,maxY));
+    if(ghosts && cells>0 && cells<=limits.maxGhostCells()) {
+      var blocks=ops.revisionDiff(dimension,revision,DiffEngine.Detail.BLOCKS,window==null ? summary.chunks() : window);
+      return new Plan(id,Mode.GHOST,cells,0,Protocol.diff(id,blocks));
+    }
+    var represented=new HashSet<ChunkPos>(); summary.sections().forEach(s->represented.add(s.chunk()));
+    return new Plan(id,Mode.OUTLINE,cells,summary.sections().size()+(int)summary.chunks().stream().filter(c->!represented.contains(c)).count(),Protocol.status(id,summary,minY,maxY));
+  }
+
   public static Plan plan(
       long previewId,
       WorldOps ops,

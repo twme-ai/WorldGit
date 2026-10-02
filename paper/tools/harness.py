@@ -1,6 +1,6 @@
 """WorldGit Paper/Folia 插件驗收用的伺服器／機器人驅動（Phase 1）。
 
-- 重負載一律持有 .work/bench.lock（fcntl.flock）；伺服器綁 127.0.0.1、online-mode=false；port 25651–25654。
+- 重負載一律持有 .work/bench.lock（fcntl.flock）；伺服器綁 127.0.0.1、online-mode=false；port 25671–25674。
 - 伺服器與世界只複製使用：.work/servers/<平台>-<版本>、.work/worlds/<版本>/baseline → .work/paper-delivery/run/<名稱>。
 - 插件 jar 在啟動時複製一份，驗收期間重新建置不會影響執行中的伺服器。
 - 用完一定要 stop()（含 bot）；呼叫端用 try/finally。
@@ -12,7 +12,7 @@ WORK = os.path.join(ROOT, '.work')
 RUN = os.path.join(WORK, 'paper-delivery', 'run')
 JARS = os.path.join(WORK, 'jars')
 PLUGIN_JAR_GLOB = os.path.join(ROOT, 'paper/plugin/build/libs')
-PORTS = {'paper-1.21.11': 25651, 'paper-26.2': 25652, 'folia-1.21.11': 25653, 'folia-26.2': 25654}
+PORTS = {'paper-1.21.11': 25671, 'paper-26.2': 25672, 'folia-1.21.11': 25673, 'folia-26.2': 25674}
 JAVA = {'1.21.11': '/usr/lib/jvm/java-21-openjdk-amd64/bin/java', '26.2': '/usr/lib/jvm/java-25-openjdk-amd64/bin/java'}
 EXTRA = {
     'fawe-1.21.11': 'FAWE-1.21.11-2.15.0.jar',
@@ -131,10 +131,11 @@ class Server:
         os.makedirs(logdir, exist_ok=True)
         self.evidence_log = os.path.join(logdir, self.name + '-' + time.strftime('%Y%m%d-%H%M%S') + '-console.log')
         self.logf = open(self.evidence_log, 'a')
+        start_mark = self.mark()
         self.proc = subprocess.Popen(cmd, cwd=self.dir, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, preexec_fn=os.setsid)
         self.reader = threading.Thread(target=self._reader, daemon=True)
         self.reader.start()
-        self.wait(r'Done \(', timeout)
+        self.wait(r'Done \(', timeout, start_mark)
 
     def _reader(self):
         for line in self.proc.stdout:
@@ -187,8 +188,7 @@ class Server:
 
     def stop(self):
         try:
-            for b in self.bots:
-                b.stop()
+            # 先讓 server 主動關閉連線，避免逐 bot quit 時的離開廣播打到剛關閉的 channel。
             if self.proc and self.proc.poll() is None:
                 try:
                     self.send('stop')
@@ -199,6 +199,8 @@ class Server:
             if self.proc and self.proc.poll() is None:
                 os.killpg(os.getpgid(self.proc.pid), signal.SIGKILL)
                 self.proc.wait(10)
+            for b in self.bots:
+                b.stop()
             if hasattr(self, 'reader'):
                 self.reader.join(5)
                 self.logf.close()

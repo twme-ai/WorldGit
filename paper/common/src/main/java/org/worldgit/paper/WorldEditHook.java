@@ -28,6 +28,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 final class WorldEditHook {
   private WorldEditHook() {}
+  static org.worldgit.core.apply.Scope selection(org.bukkit.entity.Player player) {
+    try {
+      var session=WorldEdit.getInstance().getSessionManager().findByName(player.getName());
+      if(session==null || session.getSelectionWorld()==null || !session.getSelectionWorld().getName().equals(player.getWorld().getName())) throw new IllegalArgumentException("請先在目前世界建立 WorldEdit cuboid 選取");
+      var region=session.getSelection(session.getSelectionWorld());
+      if(!(region instanceof com.sk89q.worldedit.regions.CuboidRegion)) throw new IllegalArgumentException("restore --selection 目前只接受 cuboid 選取");
+      var a=region.getMinimumPoint(); var b=region.getMaximumPoint();
+      return org.worldgit.core.apply.Scope.box(a.x(),a.y(),a.z(),b.x(),b.y(),b.z());
+    } catch(com.sk89q.worldedit.IncompleteRegionException ex) { throw new IllegalArgumentException("WorldEdit 選取尚未完成",ex); }
+      catch(NoClassDefFoundError ex) { throw new IllegalArgumentException("restore --selection 需要 WorldEdit／FAWE",ex); }
+  }
 
   static void install(WorldGitPlugin plugin, boolean fawe) {
     WorldEdit.getInstance().getEventBus().register(new Listener(plugin, fawe));
@@ -49,6 +60,7 @@ final class WorldEditHook {
     }
 
     void blockChunk(int chunkX, int chunkZ) {
+      if(plugin.edits().locked(world)) throw new IllegalStateException("WorldGit 正在套用；WorldEdit 寫入被鎖定");
       if (!seen.add(((long) chunkX << 32) ^ (chunkZ & 0xffffffffL))) return;
       plugin.touchByName(world, chunkX, chunkZ, player, name, "worldedit");
       // 標記發生在實際寫入之前；稍後補標一次，避免 commit 剛好夾在中間而錯過寫入（旗標普查是第二道保險）。
@@ -80,8 +92,8 @@ final class WorldEditHook {
     public void onEdit(EditSessionEvent event) {
       if (event.getStage() != EditSession.Stage.BEFORE_CHANGE) return;
       var actor = event.getActor();
-      if (actor == null || !actor.isPlayer() || event.getWorld() == null) return;
-      var sess = new Sess(plugin, event.getWorld().getName(), actor.getUniqueId(), actor.getName());
+      if (event.getWorld() == null) return;
+      var sess = new Sess(plugin, event.getWorld().getName(), actor==null ? null : actor.getUniqueId(), actor==null ? null : actor.getName());
       Extent extent = event.getExtent();
       if (fawe) {
         try {

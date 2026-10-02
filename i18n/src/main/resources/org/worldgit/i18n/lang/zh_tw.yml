@@ -96,6 +96,20 @@ paper:
     done: "<green>已重新載入語言覆寫檔。</green>"
 
 # ---- Fabric 模組（fabric.*）----
+  apply:
+    help: "/wg restore <rev> [--selection|--chunks r|--box x1 y1 z1 x2 y2 z2] [--dry-run]；switch rev [--stash|--force]；branch [-d] [name]；stash push|pop|list|drop；reset --hard；cancel"
+    usage: "<red>參數不正確，請用 /wg help 查看 Phase 2 指令。</red>"
+    start: "開始套用 <target>…"
+    progress: "套用 <target>：<done> / <total> section"
+    cancel-requested: "已要求取消，等待在途工作清理；若已寫入會保留 PARTIAL。"
+    no-operation: "目前沒有進行中的操作。"
+    branch: "分支："
+    stash: "stash："
+    partial: "<red>世界為 PARTIAL：<message>。請用 /wg switch <目標> --force 或 /wg reset --hard 恢復。</red>"
+    dry-run: "預估（未寫入）：<stats>"
+    switched: "<green>已切換到 <target> @ <commit></green>"
+    complete: "<green><mode> 完成。</green>"
+
 fabric:
   help:
     title: "<aqua>WorldGit</aqua> - Minecraft 世界的版本控制"
@@ -202,3 +216,28 @@ fabric:
       preview: "<gray>  <dimension> 的預覽：<sections> 個區域、<cells> 格，其中 <detail> 個區塊顯示明細</gray>"
       no-preview: "<gray>  目前沒有顯示任何預覽。</gray>"
       settings: "<gray>  色票：<palette>，穿透：<seethrough></gray>"
+
+# Fabric Phase 2
+fabric.help.phase2: "<gray>/wg preview rev [--radius chunk半徑] | restore rev [--chunks r | --box x1 y1 z1 x2 y2 z2] [--dry-run] | switch rev [--stash|--force] | branch [名稱 [rev]] | stash push|pop|list|drop | reset --hard | cancel</gray>"
+fabric.apply.progress: "<aqua><phase> <done>/<total> 個 section</aqua>"
+fabric.apply.result: "<aqua><state>：<sections> 個 section、<entities> 個實體操作。</aqua>"
+fabric.apply.cancel: "<yellow>已請求取消，正在清理；已寫入的世界會保留 PARTIAL。</yellow>"
+fabric.apply.idle: "<gray>目前沒有套用作業。</gray>"
+fabric.branch.row: "<gray><current> <name> <commits></gray>"
+fabric.branch.done: "<green>已更新分支：<name></green>"
+fabric.stash.row: "<gray>stash@{<index>} <id> <time> <message></gray>"
+fabric.stash.empty: "<gray>沒有 stash。</gray>"
+fabric.stash.dropped: "<green>已刪除 stash@{<index>}。</green>"
+fabric.error.phase2-args: "<red>用法：<usage></red>"
+fabric.error.singleplayer: "<red>世界切換指令目前只支援單人世界。</red>"
+fabric.error.dirty: "<red>有未提交變動，請 commit、stash push、switch --stash 或 --force。</red>"
+fabric.error.partial: "<red>世界為 PARTIAL，請全範圍 switch --force 或 reset --hard 恢復。</red>"
+fabric.apply.dry-run: "試算（未套用）"
+fabric.apply.phase.locking: "鎖定編輯"
+fabric.apply.phase.applying: "套用中"
+fabric.apply.phase.lighting: "光照與更新"
+fabric.apply.phase.saving: "存檔中"
+fabric.apply.phase.complete: "完成"
+fabric.apply.phase.cancelled: "已取消"
+fabric.apply.phase.partial: "PARTIAL（部分套用）"
+fabric.apply.phase.failed: "失敗"

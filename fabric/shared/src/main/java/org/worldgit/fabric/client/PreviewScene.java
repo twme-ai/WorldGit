@@ -149,10 +149,13 @@ final class PreviewScene implements AutoCloseable {
         float x = c.x() - ox, y = c.y() - oy, z = c.z() - oz;
         int rgb = palette.rgb(c.kind());
         switch (c.kind()) {
-          case ADDED -> Geometry.blockOutline(lines, x, y, z, rgb, false);
+          case ADDED -> {
+            Geometry.blockOutline(lines, x, y, z, rgb, false);
+            Geometry.ghost(ghost, model(c.after()), x, y, z, rgb, GHOST_REMOVED_ALPHA);
+          }
           case MODIFIED -> {
             Geometry.blockOutline(lines, x, y, z, rgb, true);
-            var quads = model(c.before());
+            var quads = model(c.after());
             Geometry.ghost(ghost, quads, x, y, z, rgb, GHOST_MODIFIED_ALPHA);
           }
           case CONFLICT -> Geometry.blockOutline(pulse, x, y, z, rgb, false);

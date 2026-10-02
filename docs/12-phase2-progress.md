@@ -53,6 +53,63 @@ Playwright 驗證：分支頁／分支篩選歷史、明確 base 對另一個分
 - compare 每次依 core SUMMARY 計算，沒有額外磁碟快取；超過 DecodeBudget 會回 413，需縮小視窗或由管理者調整預算。前／後切換重建 Viewer，需要重新串流。
 - **core API 建議（非本任務依賴）**：並行的 core 任務已新增 `RefStore.branches()`／`headState()`；日後可再提供指定 tip 歷史／可達 snapshot 的 bounded read API，讓 Hub 對齊有界走訪與預算規則，減少 JGit 讀取包裝。本任務使用既有 core DiffEngine 與 DecodeBudget，沒有修改 core／platform-api／cli；未提交或推送主工作樹。
 
+## Paper／Folia
+
+Phase 2 任務 P（2026-10-01～02）：接續兩次用量中斷的工作樹，保留已完成指令、adapter 與 coordinator；依背景驗收結果補完失敗／中斷場景。第三輪未改動 Fabric／Hub、core 的 live API、protocol 或其他進度章節，未 commit／push。
+
+### 實作
+
+- `/wg restore`（WorldEdit cuboid、chunk 半徑、box、dry-run）、原地 switch、branch、stash、reset hard、cancel；新增權限及 en_us／zh_tw MiniMessage 鍵、各玩家 owner 的 bossbar／完成廣播。
+- 全維度 repo 鎖、編輯鎖、flush／capture、全組預檢、持久化 journal、套用、重新 capture 驗證，再更新 HEAD。局部 restore 不移動 HEAD。相同操作內的 preflight capture 共用，套用後重新擷取。
+- 兩版 NMS 在 chunk owner 替換 section／BE／biome／ticks／structures、heightmap、明確 remove/add POI、unsaved。Starlight queue 完成回呼後刷新 chunk；最後按真正 region 存檔及 terrain／entity／POI IO barrier。線上未載入 chunk 用 bounded plugin ticket，不直接改 `.mca`。
+- Folia lane 依當下 region ID／tick 共用 section／時間預算；Paper 全維度共用單一 tick 預算。有玩家 4 section／5 ms／16 ticket，無玩家 8／5 ms／24 ticket。section 不可搶占，時間是軟上限。
+- 全維度 UUID（含 passengers）移除 barrier 後才 spawn；磁碟先篩含操作 UUID 的 entity chunk，再載入 owner，避免載入無關維度導致地形生成／自然演化。Folia `isValid=false` 不當成生成失敗。明確忽略的 BE／實體頂層欄位保留；verify／HEAD 以可套用追蹤內容為準。
+- 編輯鎖攔截放置／破壞／容器／活塞／流體／紅石／爆炸／實體互動／生成／WorldEdit／FAWE，搭配 vanilla 全伺服器 tick freeze 並恢復原 freeze／step。玩家不傳送；三種傷害保護涵蓋整個操作＋10 秒及中途進入者。同 operation 在不同維度的保護以維度分開保存。
+- 取消等待在途清理及存檔，保留 PARTIAL、阻擋 commit；force switch／reset 可全範圍重套。插件關閉先寫 PARTIAL 並停止派發；崩潰留下的 APPLYING 在下次啟動轉 PARTIAL 並提示。套用後清除舊 mod 分包／status／diff 及 display fallback；驗證後補記載入時新生成的 untracked 周邊 chunk。
+
+### 驗收與量測
+
+<!-- PAPER_PHASE2_RESULTS -->
+| 平台 | 主場景：切換／restore／stash／取消／安全／光照 | 關服→重開→force 恢復；status／diff 清除 | 跨維度／巢狀乘客 |
+|---|---|---|---|
+| Paper 1.21.11 | 通過（39 項） | 8 項通過 | 7 項通過 |
+| Paper 26.2 | 通過（主場景沿用＋取消補測 7 項） | 8 項通過 | 7 項通過 |
+| Folia 1.21.11 | 通過（39 項） | 8 項通過 | 7 項通過 |
+| Folia 26.2 | 通過（39 項） | 8 項通過 | 7 項通過 |
+
+Paper 26.2 原主場景有 37 項通過，最後恢復段因外層 timeout 中斷；沒有把該次列為完整通過。第三輪以 `phase2-cancel` 補齊已寫入後取消、ticket 清理、HEAD 不動、commit 阻擋、全量恢復、保護到期及離線 verify。其餘三平台沿用完整通過結果；四平台關服與實體補測均重新完成。所有最終場景 log 無 ERROR／Exception、全維度 UUID 無重複／遺失、離線 verify 差異 0；主場景光源／鄰格／天光為 15／14／15，POI 回到 `[3,65,3]`。
+
+| 平台 | 三次 1,000 chunk switch（A／large／A，秒） | tick probe TPS 估計 | 最長 tick probe 間隔（ms） |
+|---|---|---|---|
+| Paper 1.21.11 | 47.68／47.68／47.78 | 19.81–19.94 | 575.5 |
+| Paper 26.2 | 47.88／47.98／47.88 | 19.83–19.96 | 534.4 |
+| Folia 1.21.11 | 37.17／36.57／36.15 | 19.57–19.86 | 643.4 |
+| Folia 26.2 | 34.67／34.07／33.97 | 19.61–19.86 | 505.7 |
+
+12 次量測各寫入恰好 1,000 section，ticket 峰值皆 16、結束皆 0；此表沿用已通過量測，第三輪未重做。最差 tick probe 間隔 0.42–0.64 秒仍有尖峰，不能用平均 TPS 代替延遲評估。
+
+最終 `GRADLE_USER_HOME=.work/gradle-home ./gradlew --no-daemon --configure-on-demand --max-workers=1 build` **全綠**（19 秒）；Paper common 19、core 50、platform-api 8、Fabric logic 32、i18n 3 項，0 failure／error。兩版 adapter 對四平台的 NMS 方法／欄位與 runtime library 相容檢查均為 0 問題；CI 僅檢查對應 MC 版本的 adapter，26.2 的 entity LOAD 參數型別已變，不再宣稱 1.21.11 adapter 能跨版使用。
+
+證據索引：`.work/paper-phase2/final-summary.json` 指向沿用的主場景、第三輪補測及原始 benchmark；JSON／console log 保留所有失敗與中斷歷史。最終建置 log 為 `.work/paper-p2-round3-release-build.log`，相容檢查 log 為 `.work/paper-p2-compat-final.log`。伺服器／世界副本已刪除，bot 與 25671–25674 已關閉。
+<!-- /PAPER_PHASE2_RESULTS -->
+
+`acceptance.py <platform> <version> phase2` 使用三個 bot、合成平坦 baseline 副本、127.0.0.1、offline、25671–25674，自取 bench.lock，finally 停服並刪除 server／world 副本。場景涵蓋高處腳下變空氣／頭部變實心、A→B→A、完整 block state 雜湊（每 bot 兩個 section）、BE、scope／HEAD、stash、1000 section 三次切換、真正寫入後取消、commit 阻擋、完整恢復及 10 秒保護到期。自然回血停用。
+
+`ApplyEvidence.java` 在停服後掃描全維度 UUID／passengers、sample chunk 光照 nibble 與講台 POI；另以 CLI `verify A` 比對三維度全部可套用內容。`phase2-shutdown` 先由兩個 mod bot 分別建立 status／diff 預覽並驗證套用後清除，再於已寫入的 switch 中關服，重開檢查 PARTIAL 提示／commit 阻擋，force 重套後離線 verify；`phase2-cancel` 可只補跑取消與恢復。`phase2-entities` 另驗收遠離原點的 cow→pig→chicken 巢狀乘客、相同 UUID 在主世界／Nether 間移動，以及只保留載具時移除舊乘客。
+
+量測從 `/wg switch` 到完成廣播，包含計畫、完整 capture／驗證、光照／IO 與 HEAD；tick probe 是出生點 owner 的排程間隔，Folia 不代表所有 region。合成負載為每 chunk 一個 section／1000 chunk、三個 bot、4／5 ms／16 ticket，chunk 位於連續 32×32 方格，不能保證維持三個獨立 Folia region。[docs/05 §6](05-switch-restore.md#6-大量-switch-的-phase-0-壓力測試2026-10-01experiments08-folia-switch) 的 4032 section／三個分離 region 在限額 4 時為 Folia 18／17.7 秒、Paper 26.2 51 秒，且排除完整 capture／驗證，不能直接與此次總耗時比較。真正生存世界／長時間重複量測仍需另做。
+
+### 接手發現、差異與限制
+
+- 上一輪部分 shell 命令 exit 1 是編譯／後續命令失敗；檔案完整。common test 的 NmsBridge stub 已包含最後新增的 ownerTick。啟動失敗源自抽象 PlayerBucketEvent 沒有 handler list，改為 Fill／Empty 具體事件，並補事件型別／多維度保護回歸。
+- Paper 的 vanilla `waitForPendingTasks` 實際是 UnsupportedOperationException stub，改為 Starlight 完成回呼。早期掃描載入所有 entity records 會生成其他維度的周邊地形，已改 UUID 篩選與 post-verify untracked；壓測腳本也修正工作分支，避免提交 B 時移動 A 而量到空計畫。失敗歷史保留。
+- 正規化省略 passenger Pos，但 NMS LOAD 缺省為原點；兩版生成前遞迴補母實體位置。移除載具時遞迴清除舊乘客，避免切到不含乘客的目標後殘留脫離載具的實體。實體補測原先只接受主世界 commit 完成訊息，Nether-only 變更會誤等 900 秒；已接受世界組存檔點訊息，兩個 bot 保持 fixture 載入，並在切換前斷言三個 UUID／跨維度載具存在。Folia 沒有 `/tick freeze` 指令，首次補測因此讓天然 Nether 繼續演化而出現 PARTIAL；改用有回應斷言的 `/wg debug freeze on`，透過正式 adapter／引用計數保持 fixture 靜止，沒有排除任何追蹤欄位。
+- Folia 26.2 關服回歸曾出現 bossbar async 更新在插件停用後註冊 EntityScheduler 的例外。現在 shutdown 先清掉 UI queue；`Platform.entity` 檢查停用，並處理檢查與註冊之間的競爭，透過 retired callback 清理。仍啟用時的排程錯誤照常拋出；新增兩個單元回歸。
+- Paper 26.2 原主場景被外層 timeout 中斷；保留已通過切換／restore／stash／量測證據，改用 `phase2-cancel` 只補取消後恢復及保護到期。補測首次 ticket 斷言誤讀 `wait()` 返回的最後一行，修正為讀整段操作 log；失敗與通過紀錄均保留。
+- 線上預檢拒絕 chunk 刪除及有差異的 world-meta（地圖、記分板、世界設定），需 CLI 離線還原；因此新增地形需刪 chunk 的 stash push／pop 也會先拒絕。跨 DataVersion／.wgignore／DataPacks 遷移沿用 core 的拒絕；沒有不可靠的快取／磁碟覆寫。
+- 任意插件直接寫 NMS 無通用攔截機制，必須配合 `isEditLocked(world)`；WE／FAWE 已掛接其寫入 callback。沒有自動續傳、反向回滾、真村民 Brain／自然生物長時間測試、全世界逐格 client 光照或真的 Fabric 客戶端渲染截圖；模組鬼影清理驗收到既有 wgbot 協定封包與 preview 狀態。
+- 主要改動：`paper/common` 的 Commands／RepoService／PaperOperations／PaperLiveWorld／ApplyQueue／EditGuard／ApplyUi／Platform／EntitySpawnData／WorldEditHook／WorldGitPlugin、兩版 Bridge、權限／Paper i18n、common 回歸測試、`paper/tools/{phase2,phase2_shutdown,phase2_entities,acceptance,harness,wgbot,ApplyEvidence}`、Paper README、docs/09 #39–#42 及本章。共用 core／platform-api 工作樹成果保留並跑對應測試。
+
 ## core、platform-api、CLI
 
 Phase 2 任務 1（2026-10-01）：完成離線復原、維度組分支／stash／reset，以及供 Paper／Fabric 接手的中性 apply 與參考批次排程器。沿用中斷前可用的成果，重新檢查並驗證；未修改 Hub、Paper、Fabric 或 experiments 原始碼，未 commit／push。Hub 章節及其他任務的工作樹改動保留。
@@ -132,3 +189,54 @@ python3 scripts/verify-phase2.py --results-dir .work/phase2-core-next
 - snapshot／operation refs 保守 pin 物件，目前沒有到期清理策略；stash drop 清掉 stash／snapshot pin，既有 GC 仍不立即 prune。revert、worktree、preview 仍在原定後續階段。
 
 兩次驗收證據及凍結的 jar 共約 75.7 MiB；core／platform-api／CLI build 約 62.3 MiB，合計約 138 MiB（不含共用既有 Gradle 快取）。暫存世界與伺服器副本已刪除，25661／25662 已關閉，低於 3 GB 中間產物上限。core／platform-api／CLI 原始碼、測試、README、scripts/verify-phase2.py 與 docs/02／05／08／09／本章構成本任務產出。
+
+## Fabric
+
+Phase 2 任務 F（2026-10-01）：接續約 17:00 UTC 因用量限制中斷的工作樹。上一輪最後的 GameTest heredoc 已完整寫入；保留既有 live API／apply／指令成果，補上編譯修正、批次上限與實機驗收。未 commit／push；Paper／Hub 的並行改動保留。
+
+### 完成項目
+
+- **revision preview**：`/wg preview <rev> [--radius r]` 比較目前世界 → 目標，沿用 v2 DiffHeader／DiffPart、既有上限與區域摘要；新增／修改鬼影使用目標模型，移除使用目前模型。off／clear 本機立即清除，清除序號阻擋延遲封包重新顯示。客戶端轉送完整 `/wg` 指令，兼容支援命令的 Paper；`revision-preview` 為可選 hello capability，沒有修改 wire version。
+- **整合伺服器 apply**：repo executor 協調、server owner 有界替換 section／BE／biome、ticks／structures，重建 heightmap／POI／光照、markUnsaved、送 chunk 更新。未載入 chunk 用 ticket 載入並等待 entity IO；共用 WITH_PLAYERS 預算 4 section／5 ms／16 chunk，實體批次另按來源與目標 chunk 數拆分。全維度 UUID（含 passengers）先移除再生成，跨維度保留被規則忽略的舊欄位。
+- **保護與操作語意**：tick freeze／容器關閉／玩家寫入封包／LevelChunk 寫入鎖；保留原 freeze 狀態。範圍內玩家在全操作及完成後 10 秒免受 FALL／IN_WALL／DROWN，無傳送或 Resistance。取消等待在途清理、保存 PARTIAL、HEAD 不動；強制全量 switch／hard reset 可恢復。
+- **命令／介面**：restore 半徑／box／dry-run、switch／force／stash、branch、stash push／pop／list／drop、reset --hard、cancel；MiniMessage en_us／zh_tw 與 bossbar。完成並全組 verify 後才改 HEAD，清除舊 status／diff／preview。
+- **共用小修正**：`WorldOperations.live(layout, LiveAccess)` 共用 core 的預檢／journal／refs／驗證，不另取代遊戲持有的 session.lock；既有 offline 入口不變。新增 host lock 與先預檢後寫入回歸測試。protocol 僅補文件，platform-api 無修改。
+
+### 驗收與重跑
+
+最後根目錄 `build :cli:fatJar` **全綠**（29 秒、77 tasks，2026-10-01 21:20 UTC；`.work/fabric-p2-final-build-r2.log`）。core 50、platform-api 8、protocol 3、Fabric logic 32 個單元測試全綠，兩版主程式／GameTest 編譯通過。先前 20:39 UTC 的完整 build 也通過；最後第一次重跑遇到並行 Paper 新測試的 ListTag 型別錯誤，Paper 任務自行修正後再跑全綠，本任務未修改 Paper 檔案。
+
+| 實機驗收 | 1.21.11 | 26.2 |
+|---|---|---|
+| Xvfb＋llvmpipe client GameTest | **通過**（14 分 16 秒） | **通過**（14 分 49 秒） |
+| B 預覽前／後、switch A、PARTIAL 恢復 A 的離線 CLI verify | **四次全組差異 0**（主世界＋地獄） | **四次全組差異 0**（主世界＋地獄） |
+| 實際 client preview ↔ CLI `diff B A --blocks` | **8 格完全一致** | **8 格完全一致** |
+| 玩家不傳送／三種傷害保護、光照、POI、跨維度 UUID 無重複 | **通過**，光源亮度 15 | **通過**，光源亮度 15 |
+| 半徑／box／dry-run／HEAD、stash、cancel PARTIAL／force 恢復 | **通過** | **通過** |
+
+兩版各在 switch A 後比對 client／server 3,366 格；半徑 restore 比對 1,536 格；取消恢復後比對 13,056 格。固定 CLI、四個完整檢查點與原始截圖／log 分別保存於 `.work/fabric-acceptance/phase2-1.21.11-20261001-210207/`、`.work/fabric-acceptance/phase2-26.2-20261001-211713/`（兩份 `result.json` success=true）。正式實機 log 為 `.work/fabric-acceptance/logs/singleplayer-1.21.11-20261001-204750.log`、`singleplayer-26.2-20261001-210223.log`；不以早期失敗輪次判定通過。
+
+```sh
+WG_PHASE2=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 1.21.11 --record
+WG_PHASE2=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 26.2 --record
+```
+
+腳本自行取得 `.work/bench.lock`，Xvfb＋llvmpipe 啟動真正 Minecraft client；中斷與完成清理獨立 process group。GameTest 建立 A／B（方塊、BE、biome、lectern POI、跨 chunk／跨維度 UUID），驗證預覽前後不變、客戶端逐格同步、保護／光照／無重複實體、restore HEAD／範圍、stash、取消 PARTIAL 與恢復。四個 flush 後的世界／repo 複本由獨立固定 CLI jar 跑 offline verify；preview cells 逐格對照 `wgit diff B A --blocks`。任何斷言或 CLI 不符都以非零退出；結果與原始 log 在 `.work/fabric-acceptance/phase2-*/`。
+
+### 精選截圖
+
+六張真正 framebuffer、854×480、JPEG，共 **389,148 bytes（約 380 KiB）**，低於 1.5 MB。兩版各三張 preview／switch A／半徑 restore，見 [Fabric Phase 2 截圖索引](../fabric/docs/screenshots/phase2/README.md)。原始 PNG、取消恢復後畫面另存原始驗收目錄；範圍外 chunk 不在近景內，以 GameTest 斷言確認其 gold_block 保持 B。
+
+### 中斷、失敗與限制
+
+接手後修正 GameTest 的 `DiffPart.cells()`／兩版 GUI toggle API、Fabric client dispatcher 攔截伺服器命令，以及測試 UUID 整數 fixture。第一輪實機已確認 8 格 preview 與 CLI diff 一致、B 預覽前後 verify 0；後續 switch 因相機探索新視距而正確拒絕 dirty，測試改為 A 前先生成所有視距。地獄測試改等 forceload 實際完成，避免對未載入座標的 setblock 失敗。早期失敗紀錄不當成完整驗收成功。
+
+實機 log 保留 FabricMC 測試登入的 Realms 授權訊息、原版 anisotropic option=0／X11 標準游標警告，以及大量測試 fill／capture 時的「Can't keep up」；GameTest／CLI 的所有斷言通過，不宣稱 log 完全無 ERROR 或沒有 tick 停頓。取消的錯誤訊息是預期 PARTIAL，並非遺漏清理。
+
+- 線上 chunk deletion 尚未實作；stash 若需清除 HEAD 沒有的新增 chunk，任何寫入前拒絕，需離線 CLI。一般 switch 保留新增 chunk 並標 untracked。
+- 線上 metadata 僅支援出生點、1.21.11 level.dat gamerules／難度／邊界等；地圖／scoreboard／26.2 per-dimension saved-data／worldgen 差異先預檢拒絕，需離線。跨 DataVersion／規則不同仍拒絕，無 DataFixer／merge；legacy ChunkPatch 入口拒絕，使用 ApplyPlan。
+- 第三方直接修改 section／BE／實體必須配合 `editsLocked()`；原版 tick 與玩家封包已攔截。光照／IO 與不可搶占工作為軟時間預算；受控平坦、凍結世界的驗收不能代表大型自然世界 TPS。既有特殊模型、實體／biome 鬼影、Sodium／Iris／硬體 GPU 限制延續 Phase 1。
+
+Phase 2 的兩版世界與固定驗收證據合計約 161 MiB，復用既有 Gradle 快取，低於 5 GB 中間產物上限；未刪除其他輪次證據。兩版客戶端／整合伺服器、Xvfb、Gradle 與 CLI 子程序均已結束，負載鎖已釋放。
+
+主要產出為 `fabric/shared` 的 FabricApply／FabricOperations／LiveMetadata／ServerRuntime／命令與 mixin、client 預覽、`fabric/logic`／測試、兩版 adapter／build、Phase2ClientGameTest、run／record 腳本、i18n、Fabric／core／protocol README、docs/09 #36–#38 及本節。

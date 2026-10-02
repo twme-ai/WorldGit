@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '../../.work/bot/node_modules')
 const mineflayer = require(path.join(root, 'mineflayer'))
 const { Vec3 } = require(path.join(root, 'vec3'))
 const readline = require('readline')
+const crypto = require('crypto')
 
 const [port, version, name, mode] = process.argv.slice(2)
 const bot = mineflayer.createBot({ host: '127.0.0.1', port: +port, username: name, version, auth: 'offline', viewDistance: 'tiny' })
@@ -44,7 +45,7 @@ function onPayload(channel, data) {
     const pv = received.previews[key] || (received.previews[key] = { kind, parts, total, seen: new Set() })
     pv.seen.add(seq)
     if (kind === 3) received.status++; else received.diff++
-  } else if (channel === 'worldgit:clear') received.clear++
+  } else if (channel === 'worldgit:clear') { received.clear++; const id=String(data.readBigInt64BE(2)); delete received.previews[id] }
 }
 
 bot.once('login', () => {
@@ -56,6 +57,7 @@ bot.once('spawn', () => out({ ev: 'spawn', pos: bot.entity.position, version: bo
 bot.on('kicked', (r) => out({ ev: 'kicked', r: JSON.stringify(r) }))
 bot.on('error', (e) => out({ ev: 'error', e: String(e) }))
 bot.on('end', (r) => { out({ ev: 'end', r }); process.exit(0) })
+bot.on('health', () => out({ ev: 'health', health: bot.health, food: bot.food }))
 bot.on('message', (m) => { const t = m.toString(); if (t.trim()) out({ ev: 'chat', t }) })
 
 const rl = readline.createInterface({ input: process.stdin })
@@ -76,6 +78,18 @@ rl.on('line', async (line) => {
     } else if (cmd === 'block') {
       const b = bot.blockAt(new Vec3(+a[1], +a[2], +a[3])); out({ ev: 'block', pos: a.slice(1, 4).join(','), name: b ? b.name : null })
     } else if (cmd === 'chat') { bot.chat(line.slice(5)); out({ ev: 'chat_sent' }) }
+    else if (cmd === 'sample') {
+      const cx=+a[1], cz=+a[2], sy=+a[3], hash=crypto.createHash('sha256'), counts={}; let missing=0
+      for(let i=0;i<4096;i++) {
+        const b=bot.blockAt(new Vec3(cx*16+(i&15),sy*16+(i>>8),cz*16+((i>>4)&15)))
+        if(!b) { missing++; continue }
+        counts[b.name]=(counts[b.name]||0)+1
+        const props=b.getProperties(), keys=Object.keys(props).sort()
+        const state='minecraft:'+b.name+(keys.length ? '['+keys.map(k=>k+'='+props[k]).join(',')+']' : '')
+        hash.update(state+'\n')
+      }
+      out({ev:'sample',cx,cz,sy,hash:hash.digest('hex'),missing,counts})
+    } else if (cmd === 'health') out({ev:'health_now', health:bot.health, food:bot.food})
     else if (cmd === 'pos') out({ ev: 'pos', pos: bot.entity.position, gm: bot.game.gameMode })
     else if (cmd === 'stats') out({ ev: 'stats', ready, received: { ...received, previews: Object.fromEntries(Object.entries(received.previews).map(([k, v]) => [k, { kind: v.kind, parts: v.parts, total: v.total, seen: v.seen.size }])) } })
     else if (cmd === 'entities') out({ ev: 'entities', displays: Object.values(bot.entities).filter((e) => /display/.test(e.name || e.displayName || '')).length, names: [...new Set(Object.values(bot.entities).map((e) => e.name))] })

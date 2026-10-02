@@ -142,4 +142,23 @@ public final class MessageKeys {
   public static final String CLIENT_PALETTE_AUTO = def("fabric.client.value.palette-auto");
   public static final String CLIENT_PALETTE_DEFAULT = def("fabric.client.value.palette-default");
   public static final String CLIENT_PALETTE_COLORBLIND = def("fabric.client.value.palette-colorblind");
+
+  public static final String HELP_PHASE2=def("fabric.help.phase2");
+  public static final String APPLY_PROGRESS=def("fabric.apply.progress","phase","done","total");
+  public static final String APPLY_RESULT=def("fabric.apply.result","state","sections","entities");
+  public static final String APPLY_CANCEL=def("fabric.apply.cancel");
+  public static final String APPLY_IDLE=def("fabric.apply.idle");
+  public static final String BRANCH_ROW=def("fabric.branch.row","current","name","commits");
+  public static final String BRANCH_DONE=def("fabric.branch.done","name");
+  public static final String STASH_ROW=def("fabric.stash.row","index","id","message","time");
+  public static final String STASH_EMPTY=def("fabric.stash.empty");
+  public static final String STASH_DROPPED=def("fabric.stash.dropped","index");
+  public static final String ERROR_PHASE2_ARGS=def("fabric.error.phase2-args","usage");
+  public static final String ERROR_SINGLEPLAYER=def("fabric.error.singleplayer");
+  public static final String ERROR_DIRTY=def("fabric.error.dirty");
+  public static final String ERROR_PARTIAL=def("fabric.error.partial");
+  private static final Map<org.worldgit.platform.ApplyProgress.Phase,String> PHASES=new EnumMap<>(org.worldgit.platform.ApplyProgress.Phase.class);
+  static { for(var phase:org.worldgit.platform.ApplyProgress.Phase.values()) PHASES.put(phase,def("fabric.apply.phase."+phase.name().toLowerCase(Locale.ROOT))); }
+  public static String phase(org.worldgit.platform.ApplyProgress.Phase phase) { return PHASES.get(phase); }
+  public static final String APPLY_DRY_RUN=def("fabric.apply.dry-run");
 }

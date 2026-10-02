@@ -154,6 +154,7 @@ public final class WorldOps {
         } catch (Exception ex) {
           result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
         }
+    pinGroup(snapshot, result);
     return new WorldRepositories.Batch<>(snapshot, result);
   }
 
@@ -182,6 +183,7 @@ public final class WorldOps {
       } catch (Exception ex) {
         result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
       }
+    pinGroup(snapshot, result);
     return new WorldRepositories.Batch<>(snapshot, result);
   }
 
@@ -229,6 +231,25 @@ public final class WorldOps {
       String before = revisions.isEmpty() ? repo.refs().head() : repo.refs().resolve(revisions.getFirst());
       String beforeTree = before == null ? null : repo.refs().readCommit(before).tree();
       return engine.compare(dimension, beforeTree, tree, tolerance, detail, window);
+    }
+  }
+
+  /** 唯讀 preview 的方向：工作世界 → 目標 commit；可在解碼前裁切 chunk。 */
+  public WorldDiff revisionDiff(DimensionId dimension, String revision, DiffEngine.Detail detail, Set<ChunkPos> window) throws IOException {
+    Path path=tracked().get(dimension);
+    if(path==null) throw new NotInitializedException();
+    try(var repo=new DimensionRepository(path,dimension,false);
+        var source=sources.apply(layout.dimensions().get(dimension))) {
+      String working=repo.workingTree(source,repositories.manifest(),tolerance());
+      String target=repo.refs().readCommit(repo.refs().resolve(revision)).tree();
+      return new DiffEngine(repo.objects()).compare(dimension,working,target,tolerance(),detail,window);
+    }
+  }
+  private void pinGroup(UUID snapshot, SortedMap<DimensionId,WorldRepositories.Outcome<DimensionRepository.CommitResult>> result) throws IOException {
+    if(result.values().stream().anyMatch(e->!e.success())) return;
+    for(var entry:tracked().entrySet()) try(var repo=new DimensionRepository(entry.getValue(),entry.getKey(),false)) {
+      String head=repo.refs().head();
+      if(head!=null) repo.refs().updateRef("refs/worldgit/groups/"+snapshot,null,head);
     }
   }
 

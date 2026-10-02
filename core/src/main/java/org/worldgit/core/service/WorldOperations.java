@@ -23,6 +23,17 @@ public final class WorldOperations implements AutoCloseable {
   public record Branch(String name, boolean current, SortedMap<DimensionId,String> commits, boolean consistent) {}
   public record Stash(String id,String time,String message,SortedMap<DimensionId,String> commits,SortedMap<DimensionId,String> bases) {}
   @FunctionalInterface public interface Writer { void apply(ApplyPlan plan,WorldSessionLock lock) throws IOException; }
+  /** 線上平台持有遊戲的 session；全組套用必須有跨維度 UUID removal barrier。
+   * 呼叫端在建構之前鎖定編輯並 flush，直到 close 之後才解鎖。禁止在遊戲 owner 執行緒呼叫。 */
+  public interface LiveAccess {
+    SnapshotSource source(WorldLayout.Dimension dimension) throws IOException;
+    void validate(ApplyPlan plan) throws IOException;
+    void applyAll(Collection<ApplyPlan> plans) throws IOException;
+    default EntityTagRegistry.PackResolver packs() { return null; }
+  }
+  public static WorldOperations live(WorldLayout layout, LiveAccess access) throws IOException {
+    return new WorldOperations(layout, null, Objects.requireNonNull(access));
+  }
   private record Prepared(SortedMap<DimensionId,RefStore.Commit> commits,SortedMap<DimensionId,ApplyPlan> plans) {}
   private final WorldLayout layout;
   private final WorldRepositories worlds;
@@ -32,19 +43,24 @@ public final class WorldOperations implements AutoCloseable {
   private final OfflineApplier applier;
   private final Writer writer;
   private final boolean groupedWriter;
+  private final LiveAccess live;
   private final double tolerance;
 
   public WorldOperations(WorldLayout layout) throws IOException { this(layout,null); }
   /** writer 注入用於平台以外的離線 adapter／故障驗證；預設正式 Anvil writer。 */
   public WorldOperations(WorldLayout layout,Writer writer) throws IOException {
+    this(layout,writer,null);
+  }
+  private WorldOperations(WorldLayout layout,Writer writer,LiveAccess live) throws IOException {
     this.layout=layout; worlds=new WorldRepositories(layout); applier=new OfflineApplier(layout);
+    this.live=live;
     this.writer=writer==null ? applier::apply : writer;
     groupedWriter=writer==null;
     tolerance=WorldGitConfig.readLocal(worlds.root().resolve("worldgit.yml")).entityTolerance();
     groupLock=RepoLock.acquire(worlds.root());
     WorldSessionLock acquired=null;
     try {
-      acquired=WorldSessionLock.acquire(layout);
+      if(live==null) acquired=WorldSessionLock.acquire(layout);
       for(var entry:worlds.tracked().entrySet()) repos.put(entry.getKey(),new DimensionRepository(entry.getValue(),entry.getKey(),false));
       if(repos.isEmpty()) throw new IOException("世界尚未 init");
       session=acquired;
@@ -127,10 +143,10 @@ public final class WorldOperations implements AutoCloseable {
     if(!targetRules.equals(currentRules)) throw new IOException("目標與工作區的 .wgignore 不同；請先調整成一致，避免把未追蹤內容當空氣覆蓋。");
     var rules=IgnoreRules.parse(currentRules);
     if(delete && rules.hasAreas()) throw new IOException("有 area 排除規則時不可刪除 untracked chunk");
-    return new ApplyPlanner.Options(rules,rules,EntityTagRegistry.load(layout.world(),layout.dataVersion(),null),tolerance,delete,meta,target.metadata().mcDataVersion());
+    return new ApplyPlanner.Options(rules,rules,EntityTagRegistry.load(layout.world(),layout.dataVersion(),live==null ? null : live.packs()),tolerance,delete,meta,target.metadata().mcDataVersion());
   }
   private String capture(DimensionRepository repo) throws IOException {
-    try(var source=new OfflineSnapshotSource(layout,layout.dimensions().get(repo.dimension()))) {
+    try(var source=live==null ? new OfflineSnapshotSource(layout,layout.dimensions().get(repo.dimension())) : live.source(layout.dimensions().get(repo.dimension()))) {
       return repo.workingTree(source,worlds.manifest(),tolerance);
     }
   }
@@ -142,6 +158,7 @@ public final class WorldOperations implements AutoCloseable {
       var options=options(entry.getValue(),target,meta && entry.getKey().equals(DimensionId.OVERWORLD),delete);
       var plan=ApplyPlanner.plan(entry.getValue().objects(),entry.getKey(),capture(entry.getValue()),target.tree(),scope,options);
       applier.validateMetadata(plan);
+      if(live!=null) live.validate(plan);
       plans.put(entry.getKey(),plan); commits.put(entry.getKey(),target);
     }
     return new Prepared(commits,plans);
@@ -210,9 +227,10 @@ public final class WorldOperations implements AutoCloseable {
     }
     journal.put("dimensions",rows); writeJournal(journal);
     try {
-      if(groupedWriter) applier.applyAll(prepared.plans.values(),session);
+      if(live!=null) live.applyAll(prepared.plans.values());
+      else if(groupedWriter) applier.applyAll(prepared.plans.values(),session);
       for(var entry:prepared.plans.entrySet()) {
-        if(!groupedWriter) writer.apply(entry.getValue(),session);
+        if(live==null && !groupedWriter) writer.apply(entry.getValue(),session);
         repos.get(entry.getKey()).invalidateIndex();
         @SuppressWarnings("unchecked") var row=(Map<String,Object>)rows.get(entry.getKey().value());
         row.put("applied",true); writeJournal(journal);
@@ -372,7 +390,7 @@ public final class WorldOperations implements AutoCloseable {
   @Override public void close() throws IOException {
     IOException error=null;
     for(var repo:repos.values()) try { repo.close(); } catch(IOException ex) { error=ex; }
-    try { session.close(); } catch(IOException ex) { error=ex; }
+    try { if(session!=null) session.close(); } catch(IOException ex) { error=ex; }
     try { groupLock.close(); } catch(IOException ex) { error=ex; }
     if(error!=null) throw error;
   }

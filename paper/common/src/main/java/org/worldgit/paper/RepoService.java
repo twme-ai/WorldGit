@@ -36,10 +36,64 @@ public final class RepoService implements AutoCloseable {
             return t;
           });
   private final List<Measurement> measurements = new CopyOnWriteArrayList<>();
+  private volatile ApplyQueue active;
+  private volatile boolean stopping;
+  private final ApplyUi applyUi;
+  boolean stopping() { return stopping; }
+  boolean cancel() { var q=active; if(q==null) return false; q.cancelled.set(true); return true; }
+  void clearPreviews() {
+    for(var p:plugin.getServer().getOnlinePlayers()) { plugin.fabric().clear(p); plugin.displays().clear(p); }
+  }
+  void shutdownApply() {
+    stopping=true;
+    applyUi.shutdown();
+    var q=active;
+    if(q==null) return;
+    synchronized(this) {
+      q.cancelled.set(true); q.stopping=true;
+      try {
+        var root=WorldMapper.map().layout().repositoryRoot();
+        var journal=org.worldgit.core.service.OperationState.read(root.resolve("apply-state.yml"));
+        if(!journal.isEmpty() && !"COMPLETE".equals(journal.get("state"))) {
+          journal.put("state","PARTIAL"); journal.put("error","插件關閉中");
+          org.worldgit.core.service.OperationState.write(root.resolve("apply-state.yml"),journal);
+        }
+      } catch(IOException e) { plugin.getLogger().warning("保存 PARTIAL journal 失敗："+e); }
+    }
+    executor.shutdownNow();
+  }
+  boolean applying() { return active!=null; }
+  ApplyQueue activeQueue() { return active; }
+  interface Operation<T> { T run(PaperOperations operations) throws IOException; }
+  <T> CompletableFuture<T> operation(String target,Operation<T> work) {
+    if(active!=null) return CompletableFuture.failedFuture(new IOException("已有進行中的操作；可用 /wg cancel 取消"));
+    return submit(()->{
+      var q=new ApplyQueue(plugin); active=q;
+      var locks=new ArrayList<AutoCloseable>();
+      try {
+        var mapping=WorldMapper.map(); applyUi.start(q,target);
+        try(var ops=new PaperOperations(plugin,mapping,q)) {
+          // capture、stash 保存、計畫、驗證、HEAD 均在同一編輯鎖內。
+          for(var entry:mapping.worlds().entrySet()) {
+            var live=new PaperLiveWorld(plugin,plugin.state(entry.getKey(),entry.getValue()),entry.getValue(),mapping.layout(),false);
+            locks.add(live.lockEdits(Set.of(),"WorldGit "+target));
+            live.close();
+          }
+          return work.run(ops);
+        }
+      } finally {
+        for(int i=locks.size()-1;i>=0;i--) try { locks.get(i).close(); } catch(Exception e) { plugin.getLogger().warning("解除編輯鎖失敗："+e); }
+        active=null; if(!stopping) applyUi.stop();
+      }
+    });
+  }
+  void planned(int total) { applyUi.total=total; }
   private volatile long lastCommitMillis = System.currentTimeMillis();
 
   RepoService(WorldGitPlugin plugin) {
     this.plugin = plugin;
+    applyUi=new ApplyUi(plugin);
+    plugin.platform().asyncRepeating(1,1000,applyUi::tick);
   }
 
   public long lastCommitMillis() {
@@ -163,6 +217,7 @@ public final class RepoService implements AutoCloseable {
         result.put(e.getKey(), new Outcome<>(null, error(ex)));
       }
     }
+    pinGroup(c,snapshot,result);
     lastCommitMillis = System.currentTimeMillis();
     return new Batch<>(snapshot, result);
   }
@@ -181,6 +236,7 @@ public final class RepoService implements AutoCloseable {
   private Batch<DimensionRepository.Status> doStatus(
       boolean full, DiffEngine.Detail detail, Map<DimensionId, Set<ChunkPos>> windows) throws IOException {
     Context c = context();
+    if(org.worldgit.core.service.OperationState.partial(c.layout().repositoryRoot())) throw new IOException("世界為 PARTIAL；請用 /wg switch <目標> --force 或 /wg reset --hard 恢復");
     var tracked = trackedLive(c);
     if (tracked.isEmpty()) throw new IOException("世界尚未 init（/wg init）");
     var manifest = c.repos().manifest();
@@ -221,6 +277,7 @@ public final class RepoService implements AutoCloseable {
 
   private Batch<DimensionRepository.CommitResult> doCommit(CommitRequest request, boolean inline) throws IOException {
     Context c = context();
+    if(org.worldgit.core.service.OperationState.partial(c.layout().repositoryRoot())) throw new IOException("世界為 PARTIAL；請用 /wg switch <目標> --force 或 /wg reset --hard 恢復");
     var tracked = trackedLive(c);
     if (tracked.isEmpty()) throw new IOException("世界尚未 init（/wg init）");
     var manifest = c.repos().manifest();
@@ -269,7 +326,15 @@ public final class RepoService implements AutoCloseable {
     if (!restore.isEmpty()) plugin.attribution().restore(new Attribution.Drained(restore));
     if (result.values().stream().anyMatch(o -> o.success() && o.value().changed()))
       lastCommitMillis = System.currentTimeMillis();
+    pinGroup(c,snapshot,result);
     return new Batch<>(snapshot, result);
+  }
+
+  private void pinGroup(Context c,UUID snapshot,Map<DimensionId,Outcome<DimensionRepository.CommitResult>> result) throws IOException {
+    if(result.values().stream().anyMatch(o->!o.success())) return;
+    for(var entry:trackedLive(c).entrySet()) try(var repo=new DimensionRepository(entry.getValue(),entry.getKey(),false)) {
+      String head=repo.refs().head(); if(head!=null) repo.refs().updateRef("refs/worldgit/groups/"+snapshot,null,head);
+    }
   }
 
   private CommitMetadata metadata(

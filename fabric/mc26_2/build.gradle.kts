@@ -61,12 +61,13 @@ afterEvaluate {
     }
     val tmp = rootProject.projectDir.resolve(".work/fabric-tmp").apply { mkdirs() }
     loom.runs.named("clientGameTest") {
-        val suffix = if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else ""
+        val suffix = if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else if (providers.gradleProperty("wgtestPhase2").isPresent) "-phase2" else ""
         val workspace = projectDir.canonicalFile.parentFile.parentFile
         runDir(workspace.resolve(".work/worlds/fabric-gametest/$mcVersion$suffix").absolutePath)
         providers.gradleProperty("wgtestPaperPort").orNull?.let { port ->
             vmArgs("-Dwgtest.paperPort=$port", "-Dwgtest.paperReady=${providers.gradleProperty("wgtestPaperReady").get()}")
         }
+        if (providers.gradleProperty("wgtestPhase2").isPresent) vmArgs("-Dwgtest.phase2=true")
         vmArgs(listOf(
             "-Xmx2G", "-XX:ActiveProcessorCount=3", "-XX:-UsePerfData",
             "-Djava.io.tmpdir=${tmp}", "-Djna.tmpdir=${tmp}", "-Dio.netty.native.workdir=${tmp}",

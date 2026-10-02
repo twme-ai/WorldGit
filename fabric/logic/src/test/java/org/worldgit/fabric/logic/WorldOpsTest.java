@@ -117,6 +117,23 @@ class WorldOpsTest {
     assertEquals(1, plan.cells());
     var decoded = (Protocol.DiffPart) Protocol.decode(plan.packets().getFirst());
     assertEquals(1, decoded.cells().size());
+    // revision preview 的方向為目前工作世界 → 指定目標，和 status 相反。
+    var revision = PreviewPlanner.revision(11, ops, DimensionId.OVERWORLD, "HEAD", Set.of(pos), true,
+        ServerConfig.defaults().preview(), -64, 319);
+    var reverse = (Protocol.DiffPart) Protocol.decode(revision.packets().getFirst());
+    var forwardCell = decoded.cells().getFirst();
+    var reverseCell = reverse.cells().getFirst();
+    assertEquals(forwardCell.before(), reverseCell.after());
+    assertEquals(forwardCell.after(), reverseCell.before());
+    assertEquals(forwardCell.x(), reverseCell.x());
+    assertEquals(forwardCell.y(), reverseCell.y());
+    assertEquals(forwardCell.z(), reverseCell.z());
+    assertEquals(1, ops.status(null, true).dimensions().get(DimensionId.OVERWORLD).value().diff().sections().size(),
+        "preview 不得改動世界或 HEAD");
+    var clipped = PreviewPlanner.revision(12, ops, DimensionId.OVERWORLD, "HEAD", Set.of(), true,
+        ServerConfig.defaults().preview(), -64, 319);
+    assertEquals(PreviewPlanner.Mode.EMPTY, clipped.mode());
+    assertInstanceOf(Protocol.Clear.class, Protocol.decode(clipped.packets().getFirst()));
     // 沒有 ghost 能力時改送包圍盒
     var outline = PreviewPlanner.plan(2, ops, DimensionId.OVERWORLD, List.of(), false, false, ServerConfig.defaults().preview(), -64, 319);
     assertEquals(PreviewPlanner.Mode.OUTLINE, outline.mode());

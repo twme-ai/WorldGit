@@ -16,8 +16,28 @@ exec 9>"$ROOT/.work/bench.lock"
 flock 9
 mkdir -p "$ROOT/.work/fabric-acceptance/logs"
 LOG="$ROOT/.work/fabric-acceptance/logs/singleplayer-$VER-$(date -u +%Y%m%d-%H%M%S).log"
-timeout "${GAMETEST_TIMEOUT:-900}" /usr/bin/xvfb-run -a -s "-screen 0 1280x720x24 -ac" \
-  ./gradlew --max-workers=1 --configure-on-demand ":fabric:$PROJ:runClientGameTest" 2>&1 | tee "$LOG"
+test_pid=
+cleanup() {
+  if [[ -n $test_pid ]]; then
+    kill -TERM -- "-$test_pid" 2>/dev/null || true
+    sleep 1
+    kill -KILL -- "-$test_pid" 2>/dev/null || true
+    wait "$test_pid" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+# 子程序獨立 process group；bench.lock 只由外層腳本持有，避免中斷後 daemon 繼承鎖。
+setsid timeout --kill-after=10 "${GAMETEST_TIMEOUT:-1800}" /usr/bin/xvfb-run -a -s "-screen 0 1280x720x24 -ac" \
+  ./gradlew --no-daemon --max-workers=1 --configure-on-demand ${WG_PHASE2:+-PwgtestPhase2=true} ":fabric:$PROJ:runClientGameTest" \
+  9>&- > >(tee "$LOG" 9>&-) 2>&1 &
+test_pid=$!
+wait "$test_pid"
 if [[ ${2:-} == --record ]]; then
-  WG_LOCK_HELD=1 python3 "$ROOT/fabric/tools/record-singleplayer.py" "$VER" "$LOG"
+  if [[ -n ${WG_PHASE2:-} ]]; then
+    WG_LOCK_HELD=1 python3 "$ROOT/fabric/tools/record-phase2.py" "$VER" "$LOG"
+  else
+    WG_LOCK_HELD=1 python3 "$ROOT/fabric/tools/record-singleplayer.py" "$VER" "$LOG"
+  fi
 fi

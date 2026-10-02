@@ -34,9 +34,12 @@ public final class ClientPreviews {
 
   private final Map<DimensionId, BatchAssembler> assemblers = new HashMap<>();
   private final Map<DimensionId, Long> current = new HashMap<>();
+  private long clearedUpTo = -1;
+  private long seenUpTo = -1;
 
   public synchronized Result accept(Protocol.Message message, long nowMillis) throws IOException {
     if (message instanceof Protocol.Clear c) {
+      clearedUpTo = Math.max(clearedUpTo, c.preview());
       assemblers.values().forEach(a -> a.clear(c.preview()));
       // 新的 preview 在 clear 之前就已發布的，一律視為被清除。
       current.values().removeIf(id -> id <= c.preview());
@@ -48,6 +51,9 @@ public final class ClientPreviews {
           case Protocol.StatusPart s -> s.header();
           default -> throw new IOException("預覽只接受 diff／status／clear");
         };
+    if (header.preview() <= clearedUpTo) return Result.NOTHING;
+    if (header.preview() <= current.getOrDefault(header.dimension(), -1L)) return Result.NOTHING;
+    seenUpTo = Math.max(seenUpTo, header.preview());
     var assembler = assemblers.computeIfAbsent(header.dimension(), k -> new BatchAssembler());
     try {
       var done = assembler.accept(message, nowMillis);
@@ -65,6 +71,15 @@ public final class ClientPreviews {
   public synchronized void reset() {
     assemblers.values().forEach(BatchAssembler::reset);
     assemblers.clear();
+    current.clear();
+    clearedUpTo = -1;
+    seenUpTo = -1;
+  }
+
+  /** 本機 clear 也取消已看到但尚未收齊的批次，保留 floor 到斷線為止。 */
+  public synchronized void clear() {
+    clearedUpTo = Math.max(clearedUpTo, seenUpTo);
+    assemblers.values().forEach(a -> a.clear(clearedUpTo));
     current.clear();
   }
 

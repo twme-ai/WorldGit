@@ -97,6 +97,20 @@ paper:
     done: "<green>Language overrides reloaded.</green>"
 
 # ---- Fabric mod (fabric.*) ----
+  apply:
+    help: "/wg restore <rev> [--selection|--chunks r|--box x1 y1 z1 x2 y2 z2] [--dry-run]; switch rev [--stash|--force]; branch [-d] [name]; stash push|pop|list|drop; reset --hard; cancel"
+    usage: "<red>Invalid arguments. See /wg help for Phase 2 commands.</red>"
+    start: "Applying <target>…"
+    progress: "Applying <target>: <done> / <total> sections"
+    cancel-requested: "Cancellation requested. Waiting for cleanup; writes leave PARTIAL."
+    no-operation: "No operation is running."
+    branch: "Branches:"
+    stash: "Stashes:"
+    partial: "<red>World is PARTIAL: <message>. Recover with /wg switch <target> --force or /wg reset --hard.</red>"
+    dry-run: "Plan (no writes): <stats>"
+    switched: "<green>Switched to <target> @ <commit></green>"
+    complete: "<green><mode> complete.</green>"
+
 fabric:
   help:
     title: "<aqua>WorldGit</aqua> - version control for Minecraft worlds"
@@ -203,3 +217,28 @@ fabric:
       preview: "<gray>  Preview in <dimension>: <sections> region(s), <cells> block(s), <detail> in detail</gray>"
       no-preview: "<gray>  No preview is being shown.</gray>"
       settings: "<gray>  Palette: <palette>, see-through: <seethrough></gray>"
+
+# Fabric Phase 2
+fabric.help.phase2: "<gray>/wg preview rev [--radius chunks] | restore rev [--chunks r | --box x1 y1 z1 x2 y2 z2] [--dry-run] | switch rev [--stash|--force] | branch [name [rev]] | stash push|pop|list|drop | reset --hard | cancel</gray>"
+fabric.apply.progress: "<aqua><phase> <done>/<total> sections</aqua>"
+fabric.apply.result: "<aqua><state>: <sections> sections, <entities> entity operations.</aqua>"
+fabric.apply.cancel: "<yellow>Cancellation requested. Wait for cleanup; a written world remains PARTIAL.</yellow>"
+fabric.apply.idle: "<gray>No active operation.</gray>"
+fabric.branch.row: "<gray><current> <name> <commits></gray>"
+fabric.branch.done: "<green>Branch updated: <name></green>"
+fabric.stash.row: "<gray>stash@{<index>} <id> <time> <message></gray>"
+fabric.stash.empty: "<gray>No stashes.</gray>"
+fabric.stash.dropped: "<green>Dropped stash@{<index>}.</green>"
+fabric.error.phase2-args: "<red>Usage: <usage></red>"
+fabric.error.singleplayer: "<red>World switching commands currently require a singleplayer world.</red>"
+fabric.error.dirty: "<red>Uncommitted changes. Use commit, stash push, switch --stash or --force.</red>"
+fabric.error.partial: "<red>World is PARTIAL. Recover with a full switch --force or reset --hard.</red>"
+fabric.apply.dry-run: "dry run"
+fabric.apply.phase.locking: "Locking"
+fabric.apply.phase.applying: "Applying"
+fabric.apply.phase.lighting: "Lighting"
+fabric.apply.phase.saving: "Saving"
+fabric.apply.phase.complete: "Complete"
+fabric.apply.phase.cancelled: "Cancelled"
+fabric.apply.phase.partial: "PARTIAL"
+fabric.apply.phase.failed: "Failed"

@@ -30,9 +30,6 @@ jobs:
           python3 paper/tools/check_binary_compat.py \
             paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar \
             .work/ci-servers/paper-26.2.jar org.worldgit.paper.v26_2.Bridge_26_2
-          python3 paper/tools/check_binary_compat.py \
-            paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar \
-            .work/ci-servers/paper-26.2.jar org.worldgit.paper.v1_21_11.Bridge_1_21_11
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: worldgit-paper

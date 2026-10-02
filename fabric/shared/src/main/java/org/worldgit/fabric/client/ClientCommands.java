@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import java.io.IOException;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 import org.worldgit.fabric.logic.MessageKeys;
 import org.worldgit.fabric.logic.Msg;
 
@@ -13,6 +14,12 @@ final class ClientCommands {
   private ClientCommands() {}
 
   static void register(CommandDispatcher<FabricClientCommandSource> d) {
+    // Local clearing works even with an older remote server. Revision requests use the
+    // existing command channel; server replies with v2 diff/status, no new payload type.
+    d.register(ClientPlatform.literal("wg")
+        .executes(c->forward(c.getSource(),""))
+        .then(ClientPlatform.argument("options",StringArgumentType.greedyString())
+            .executes(c->forward(c.getSource(),StringArgumentType.getString(c,"options")))));
     d.register(
         ClientPlatform.literal("wgc")
             .then(
@@ -27,6 +34,14 @@ final class ClientCommands {
             .then(ClientPlatform.literal("reload").executes(c -> reload(c.getSource())))
             .then(ClientPlatform.literal("clear").executes(c -> clear(c.getSource())))
             .then(ClientPlatform.literal("status").executes(c -> status(c.getSource()))));
+  }
+
+  private static int forward(FabricClientCommandSource source,String options) {
+    String args=options.trim();
+    if(args.equals("clear") || args.equals("preview off")) clear(source);
+    // sendCommand 會再進 Fabric 的 client dispatcher；直接送無簽章文字參數的指令封包。
+    source.getClient().getConnection().send(new ServerboundChatCommandPacket("wg"+(args.isEmpty() ? "" : " "+args)));
+    return 1;
   }
 
   private static void say(FabricClientCommandSource s, Msg msg) {

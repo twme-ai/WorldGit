@@ -14,4 +14,14 @@ abstract class LevelChunkMixin {
     private void worldgit$markDirty(CallbackInfo ci) {
         WorldGitMod.chunkChanged((LevelChunk) (Object) this);
     }
+    @Inject(method="setBlockState(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Lnet/minecraft/world/level/block/state/BlockState;",at=@At("HEAD"),cancellable=true)
+    private void worldgit$lock(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state, int flags,
+            org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<net.minecraft.world.level.block.state.BlockState> ci) {
+        var chunk=(LevelChunk)(Object)this;
+        if(chunk.getLevel() instanceof net.minecraft.server.level.ServerLevel level) {
+            var runtime=WorldGitMod.runtime(level.getServer());
+            if(runtime!=null && runtime.editsLocked() && !runtime.internalMutation()) ci.setReturnValue(null);
+        }
+    }
+
 }

@@ -31,6 +31,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   private Platform platform;
   private NmsBridge bridge;
   private RepoService repo;
+  private EditGuard edits;
   private FabricLink fabric;
   private DisplayFallback displays;
   private AutoCommit autoCommit;
@@ -62,6 +63,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
       getServer().getPluginManager().disablePlugin(this);
       return;
     }
+    edits = new EditGuard(this);
+    getServer().getPluginManager().registerEvents(edits,this);
     repo = new RepoService(this);
     refreshWorlds();
     getServer().getPluginManager().registerEvents(new ChangeListener(this), this);
@@ -74,12 +77,20 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     command.setExecutor(commands);
     command.setTabCompleter(commands);
     hookWorldEdit();
-    platform.async(() -> {
+    repo.submit(() -> {
       try {
+        var root=WorldMapper.map().layout().repositoryRoot();
+        var journal=org.worldgit.core.service.OperationState.read(root.resolve("apply-state.yml"));
+        if("APPLYING".equals(journal.get("state"))) {
+          journal.put("state","PARTIAL"); journal.put("error","上次套用未完成，可能因插件停用或伺服器中斷");
+          org.worldgit.core.service.OperationState.write(root.resolve("apply-state.yml"),journal);
+        }
+        if(org.worldgit.core.service.OperationState.partial(root)) getLogger().warning("世界為 PARTIAL；請用 /wg switch <目標> --force 或 /wg reset --hard 恢復，commit 已阻擋");
         fabric.palette(Messages.palette(repo.readLocal().palette()));
       } catch (IOException | RuntimeException e) {
         getLogger().warning("讀取 worldgit.yml 失敗，使用預設色票：" + e.getMessage());
       }
+      return null;
     });
     if (platform.folia() && settings.autoOnShutdown()) {
       offlineShutdown = new OfflineShutdownCommit(this);
@@ -98,12 +109,15 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   public void onDisable() {
     if (!enabledOk) return;
     enabledOk = false;
+    boolean wasApplying=repo.applying();
+    repo.shutdownApply();
+    edits.shutdown();
     if (displays != null) displays.clearAll();
     platform.shuttingDown();
     if (autoCommit != null) autoCommit.shutdown();
-    repo.awaitIdle(); // 等待進行中的背景操作；之後才能在目前執行緒內聯 commit（repo lock 同一時間只有一個持有者）
-    if (settings.autoOnShutdown()) shutdownCommit();
-    if (offlineShutdown != null) offlineShutdown.prepare(settings.autoOnShutdown());
+    if(!wasApplying) repo.awaitIdle(); // 等待進行中的背景操作；之後才能在目前執行緒內聯 commit（repo lock 同一時間只有一個持有者）
+    if (!wasApplying && settings.autoOnShutdown()) shutdownCommit();
+    if (offlineShutdown != null) offlineShutdown.prepare(!wasApplying && settings.autoOnShutdown());
     repo.close();
   }
 
@@ -139,6 +153,11 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   NmsBridge bridge() {
     return bridge;
   }
+
+  EditGuard edits() { return edits; }
+
+  /** 第三方插件在寫入前可查詢（WE/FAWE 也使用同一政策）。 */
+  public boolean isEditLocked(World world) { return edits!=null && edits.locked(world); }
 
   RepoService repo() {
     return repo;

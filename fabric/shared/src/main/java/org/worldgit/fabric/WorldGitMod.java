@@ -51,6 +51,13 @@ public final class WorldGitMod implements ModInitializer {
             ServerRuntime.LOG.error("WorldGit 設定檔無效，改用預設值：{}", e.getMessage());
             config = ServerConfig.defaults();
         }
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity,damage,amount)->{
+            if(entity instanceof ServerPlayer player) {
+                var rt=runtime(player.level().getServer());
+                if(rt!=null && rt.protects(player,damage)) return false;
+            }
+            return true;
+        });
         Net.register();
         ServerPlayNetworking.registerGlobalReceiver(
                 Net.HELLO.type(),

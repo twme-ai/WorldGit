@@ -9,3 +9,11 @@ hello 帶 peerVersion、nonce、capabilities 與四種 RGB 色票。diff 每 sec
 `BatchAssembler` 收齊才發布，支援亂序及內容相同的重傳；拒絕不同 header、混用訊息、重複座標、數量不符。30 秒超時丟棄暫存，每批最多 8 MiB。clear 與新 preview 取消舊批次；重連必須 reset。adapter 需以連線/維度管理 preview id 並在自己的客戶端執行緒呼叫。
 
 `DiffPalette.DEFAULT/COLORBLIND` 是 CLI、遊戲及 Hub 的共同來源；顏色外仍使用 symbol/style。渲染與 server handshake 重試屬於後續 Paper/Fabric 任務。
+
+## Phase 2 revision preview（2026-10-01）
+
+二進位 envelope 仍是 v2，沒有新增 channel 或 message kind。支援 `/wg preview <rev> [--radius r]` 的伺服器可在 hello 額外宣告 `revision-preview`（可選，舊客戶端忽略未知能力）；請求沿用原版命令封包，回應沿用 `diff`／`status`／`clear`。Paper 接手時使用相同流程即可，不要求舊伺服器支援新命令。
+
+revision preview 的 diff 方向為**目前工作世界 → 目標 commit**。ADDED 鬼影用 after、REMOVED 用 before、MODIFIED 用 after，色彩表示「套用目標時會出現／消失／改變」。方塊與 BE 同格仍合併為一筆；實體／biome 只有既有 status 區域摘要。半徑為玩家 chunk 中心的含端點正方形，沿用伺服器 100,000 格上限與客戶端 LOD／上傳預算，超出時回 section／chunk 外框。
+
+`preview off`／`clear`／完成套用以遞增 id 清除；客戶端必須保留跨維度 clear floor，連未曾收到資料的維度也拒絕較舊分包。本機 clear 同時取消未收齊的批次，只有斷線才 reset floor，避免排隊中的分包重新顯示已清除鬼影。

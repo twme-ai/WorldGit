@@ -40,6 +40,13 @@
 | 33 | 世界分支與領先／落後 | 同名分支跨維度合併；預設分支取主世界 repo 的 symbolic HEAD（沒有時退回其他維度、main 或第一個分支）。分別揭露「宣告維度都有分支」與「head 同一 snapshot」。ahead／behind 先合併各維度可達 snapshot UUID 集合，再取差集；可指定任意分支作為基準。每維度／tip 最多走 20,000 個 commit，截斷時明示估算，不能當下限。（2026-10-01） | [10](10-web-frontend.md) §7.1、[12](12-phase2-progress.md) Hub |
 | 34 | 任意 commit 的跨維度比較語意 | 分支解析為各維度當下 head；commit id／唯一前綴解析為該 commit 與其他分支可達歷史中**同 snapshot UUID**的 commit。不以時間猜測未變動維度當時的 head。未配對維度明示缺少端點、排除於統計，且不視為相同／整個維度被刪除。（2026-10-01） | [10](10-web-frontend.md) §7.1、`hub/README.md` |
 | 35 | Hub 比較呈現與回應上限 | Phase 2 提供上色疊圖、只看變動及周圍一格、前／後切換（讀取實際 a／b 的方塊、實體、LOD 與資源，保留鏡頭）。JSON 回應最多 4 MiB；全維度 chunk 清單 2000 項、section 清單 6000 項，統計／範圍保持完整；每維度實體樣本 200、metadata 50。世界最多 32 維度／500 分支；3D 視窗仍最多 1024 chunk、wire 回應最多 16 MiB；沿用 DecodeBudget，超過預算／硬上限回 413。並排、分割滑桿、時間軸留後續。（2026-10-01） | [10](10-web-frontend.md) §7.1、[12](12-phase2-progress.md) Hub |
+| 36 | Fabric revision preview | 沿用 protocol v2、原版 command 請求與 diff/status/clear 回應，hello 可選新增 `revision-preview`。方向為目前世界→目標 commit；清除保留跨維度／未完成批次的 id floor。（2026-10-01） | `protocol/README.md`、Fabric README、[12](12-phase2-progress.md) Fabric |
+| 37 | Fabric 單人線上切換 | 以 `WorldOperations.live` 共用 core journal／HEAD；整合伺服器全程 freeze tick、攔截玩家編輯與 LevelChunk 方塊寫入，在 server owner 逐批套用並等待 entity IO／光照／送包／flush。全維度 UUID removal barrier 先於任何 spawn。（2026-10-01） | core README、Fabric README、[12](12-phase2-progress.md) Fabric |
+| 38 | Fabric 線上預檢限制 | 目前線上不刪除 chunk；stash 若需刪除新增 chunk、或 metadata 需改寫未接上的 saved-data／設定，於全組寫入前拒絕，保留世界與 HEAD，改走離線 CLI。跨 DataVersion／規則不同仍沿用 core 拒絕。（2026-10-01） | Fabric README、[12](12-phase2-progress.md) Fabric |
+| 39 | 線上編輯鎖與 tick | Paper／Folia 的世界組操作以事件／WE／FAWE 編輯鎖搭配 vanilla 全伺服器 tick freeze；以引用計數保存與恢復原 freeze／step 狀態，不移動玩家。任意第三方 NMS 寫入須配合 `isEditLocked(world)`。 | `paper/README.md`、[12](12-phase2-progress.md) Paper／Folia |
+| 40 | Paper 光照完成 | Paper 兩版的 vanilla `waitForPendingTasks` 是不支援 stub；使用 Starlight 同 chunk queue 的完成回呼，在 ticket 釋放前等光照、刷新 chunk，再完成全組 terrain／entity／POI IO barrier。取消／失敗也清理已寫入部分。 | [12](12-phase2-progress.md) Paper／Folia |
+| 41 | UUID 移除掃描與新增 chunk | 先在 flush 後的全維度磁碟實體資料篩出操作 UUID（含 passengers），再 ticket 載入其 owner 移除；與已載入來源共用全維度 remove→spawn barrier。套用期間產生且目標沒有的周邊 chunk，於驗證後補記 untracked。 | `paper/README.md`、[12](12-phase2-progress.md) Paper／Folia |
+| 42 | 線上不能安全套用的內容 | 目前 Paper 在寫入前拒絕 chunk 刪除及有差異的 world-meta，改用 CLI 離線還原，避免 holder／saved-data 快取覆蓋；新增地形需刪 chunk 的 stash push／pop 同樣預檢拒絕。跨 DataVersion／規則遷移沿用 #28。 | `paper/README.md`、[12](12-phase2-progress.md) Paper／Folia |
 
 
 ## 路線圖（四端並行）

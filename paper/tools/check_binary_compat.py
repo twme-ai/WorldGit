@@ -42,7 +42,40 @@ def unbundle(server, temporary):
     return patched
 
 
-def check(plugin, server, adapter):
+def runtime_libraries(server, temporary):
+    """Paperclip embeds Paper libraries; patched jars reuse their nearby runtime cache."""
+    server = Path(server).resolve()
+    with zipfile.ZipFile(server) as jar:
+        if 'META-INF/libraries.list' in jar.namelist():
+            libraries = []
+            for line in jar.read('META-INF/libraries.list').decode().splitlines():
+                digest, _, name = line.split('\t')
+                relative = Path(name)
+                if relative.is_absolute() or '..' in relative.parts:
+                    raise RuntimeError('invalid library path: ' + name)
+                cached = server.parent / 'libraries' / relative
+                if cached.is_file() and hashlib.sha256(cached.read_bytes()).hexdigest() == digest:
+                    libraries.append(cached)
+                    continue
+                embedded = 'META-INF/libraries/' + name
+                if embedded not in jar.namelist():
+                    continue  # Vanilla libraries are not direct adapter references.
+                data = jar.read(embedded)
+                if hashlib.sha256(data).hexdigest() != digest:
+                    raise RuntimeError('embedded library SHA-256 mismatch: ' + name)
+                target = Path(temporary) / 'libraries' / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+                libraries.append(target)
+            return libraries
+    for parent in server.parents:
+        folder = parent / 'libraries'
+        if folder.is_dir():
+            return sorted(folder.rglob('*.jar'))
+    return []
+
+
+def check(plugin, server, adapter, libraries=()):
     prefix = adapter.replace('.', '/')
     with zipfile.ZipFile(plugin) as jar:
         classes = sorted(name[:-6] for name in jar.namelist() if name.endswith('.class') and (name == prefix + '.class' or name.startswith(prefix + '$')))
@@ -57,10 +90,11 @@ def check(plugin, server, adapter):
             if owner.startswith(('net/minecraft/', 'ca/spottedleaf/', 'org/bukkit/craftbukkit/')):
                 refs.add((kind, owner, name.strip('"'), desc))
     cache = {}
+    server_classpath = os.pathsep.join(str(p) for p in (server, *libraries))
 
     def definition(owner):
         if owner not in cache:
-            output = javap(server, owner)
+            output = javap(server_classpath, owner)
             members, parents = {}, []
             if output:
                 lines = output.splitlines()
@@ -126,7 +160,8 @@ def main():
         raise SystemExit(__doc__.strip())
     plugin, server, adapter = sys.argv[1:]
     with tempfile.TemporaryDirectory(prefix='wg-compat-') as temporary:
-        return check(plugin, unbundle(server, temporary), adapter)
+        libraries = runtime_libraries(server, temporary)
+        return check(plugin, unbundle(server, temporary), adapter, libraries)
 
 
 if __name__ == '__main__':
