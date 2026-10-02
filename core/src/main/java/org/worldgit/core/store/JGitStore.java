@@ -186,47 +186,73 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
 
   @Override
   public String createCommit(String tree, String parent, CommitMetadata m) throws IOException {
+    return createCommit(tree, parent == null ? List.of() : List.of(parent), m, Map.of());
+  }
+
+  @Override
+  public String createCommit(
+      String tree, List<String> parents, CommitMetadata m, Map<String, String> trailers)
+      throws IOException {
     requireWritable();
     var builder = new CommitBuilder();
     builder.setTreeId(ObjectId.fromString(tree));
-    if (parent != null) builder.setParentId(ObjectId.fromString(parent));
-    builder.setAuthor(new PersonIdent(m.author().name(), m.author().email(), m.time(), ZoneOffset.UTC));
-    builder.setCommitter(new PersonIdent(m.committer().name(), m.committer().email(), m.time(), ZoneOffset.UTC));
-    builder.setMessage(CommitTrailers.message(m));
+    builder.setParentIds(parents.stream().map(ObjectId::fromString).toList());
+    builder.setAuthor(
+        new PersonIdent(m.author().name(), m.author().email(), m.time(), ZoneOffset.UTC));
+    builder.setCommitter(
+        new PersonIdent(m.committer().name(), m.committer().email(), m.time(), ZoneOffset.UTC));
+    var message = new StringBuilder(CommitTrailers.message(m));
+    for (var trailer : new TreeMap<>(trailers).entrySet()) {
+      if (!trailer.getKey().matches("WorldGit-(Merge|Revert|CherryPick)-[A-Za-z]+")
+          || trailer.getValue().matches("(?s).*[\\r\\n].*")) throw new IOException("合併 trailer 無效");
+      message.append(trailer.getKey()).append(": ").append(trailer.getValue()).append('\n');
+    }
+    builder.setMessage(message.toString());
     String id = inserter.insert(builder).name();
     flush();
     // 讓 detached commit 與不變維度也可由 snapshot 找回；不依賴 reflog 到期。
-    updateRef("refs/worldgit/snapshots/" + m.snapshot() + "/" + id, null, id);
+    String snapshotRef = "refs/worldgit/snapshots/" + m.snapshot() + "/" + id;
+    var existing = repo.exactRef(snapshotRef);
+    if (existing == null) updateRef(snapshotRef, null, id);
+    else if (!existing.getObjectId().name().equals(id)) throw new IOException("snapshot pin 不一致");
     return id;
   }
 
   @Override
   public Head headState() throws IOException {
     var ref = repo.exactRef("HEAD");
-    String branch = ref != null && ref.isSymbolic() && ref.getTarget().getName().startsWith("refs/heads/")
-        ? ref.getTarget().getName().substring(11) : null;
+    String branch =
+        ref != null && ref.isSymbolic() && ref.getTarget().getName().startsWith("refs/heads/")
+            ? ref.getTarget().getName().substring(11)
+            : null;
     return new Head(head(), branch);
   }
 
   public static void validateBranch(String name) throws IOException {
-    if (name == null || name.equals("HEAD") || name.startsWith("-")
-        || !Repository.isValidRefName("refs/heads/" + name)) throw new IOException("分支名稱無效：" + name);
+    if (name == null
+        || name.equals("HEAD")
+        || name.startsWith("-")
+        || !Repository.isValidRefName("refs/heads/" + name))
+      throw new IOException("分支名稱無效：" + name);
   }
 
   @Override
-  public SortedMap<String,String> branches() throws IOException {
-    var result = new TreeMap<String,String>();
+  public SortedMap<String, String> branches() throws IOException {
+    var result = new TreeMap<String, String>();
     for (var ref : repo.getRefDatabase().getRefsByPrefix("refs/heads/"))
-      if (ref.getObjectId() != null) result.put(ref.getName().substring(11), ref.getObjectId().name());
+      if (ref.getObjectId() != null)
+        result.put(ref.getName().substring(11), ref.getObjectId().name());
     return result;
   }
 
   @Override
   public void updateRef(String name, String expected, String target) throws IOException {
     requireWritable();
-    if (!Repository.isValidRefName(name) || name.equals("HEAD")) throw new IOException("ref 名稱無效：" + name);
+    if (!Repository.isValidRefName(name) || name.equals("HEAD"))
+      throw new IOException("ref 名稱無效：" + name);
     var update = repo.updateRef(name);
-    update.setExpectedOldObjectId(expected == null ? ObjectId.zeroId() : ObjectId.fromString(expected));
+    update.setExpectedOldObjectId(
+        expected == null ? ObjectId.zeroId() : ObjectId.fromString(expected));
     update.setForceUpdate(true);
     if (target != null) update.setNewObjectId(ObjectId.fromString(target));
     update.setRefLogMessage("worldgit: refs", false);
@@ -239,11 +265,13 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
     if (!headState().equals(expected)) throw new IOException("HEAD 在切換期間改變");
     if (target.branch() != null) {
       validateBranch(target.branch());
-      if (!Objects.equals(branches().get(target.branch()), target.commit())) throw new IOException("目標分支指標已改變");
+      if (!Objects.equals(branches().get(target.branch()), target.commit()))
+        throw new IOException("目標分支指標已改變");
       checkResult(repo.updateRef("HEAD").link("refs/heads/" + target.branch()));
     } else {
       var update = repo.updateRef("HEAD", true);
-      update.setExpectedOldObjectId(expected.commit() == null ? ObjectId.zeroId() : ObjectId.fromString(expected.commit()));
+      update.setExpectedOldObjectId(
+          expected.commit() == null ? ObjectId.zeroId() : ObjectId.fromString(expected.commit()));
       update.setNewObjectId(ObjectId.fromString(target.commit()));
       update.setForceUpdate(true);
       checkResult(update.update());
@@ -251,8 +279,12 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   }
 
   private static void checkResult(RefUpdate.Result result) throws IOException {
-    if (!Set.of(RefUpdate.Result.NEW, RefUpdate.Result.FAST_FORWARD, RefUpdate.Result.FORCED,
-        RefUpdate.Result.NO_CHANGE).contains(result)) throw new IOException("ref 更新失敗：" + result);
+    if (!Set.of(
+            RefUpdate.Result.NEW,
+            RefUpdate.Result.FAST_FORWARD,
+            RefUpdate.Result.FORCED,
+            RefUpdate.Result.NO_CHANGE)
+        .contains(result)) throw new IOException("ref 更新失敗：" + result);
   }
 
   @Override
@@ -274,7 +306,9 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   @Override
   public boolean isAncestor(String ancestor, String descendant) throws IOException {
     try (var walk = new RevWalk(repo)) {
-      return walk.isMergedInto(walk.parseCommit(ObjectId.fromString(ancestor)), walk.parseCommit(ObjectId.fromString(descendant)));
+      return walk.isMergedInto(
+          walk.parseCommit(ObjectId.fromString(ancestor)),
+          walk.parseCommit(ObjectId.fromString(descendant)));
     }
   }
 

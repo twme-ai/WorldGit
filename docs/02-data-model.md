@@ -210,3 +210,14 @@ stash 是全維度 working tree 的獨立 commit 組，parent 為各自原 HEAD�
 `apply-state.yml` 位於世界 repo 組根，記錄 from／to、原 symbolic HEAD、範圍與每維度完成旗標；操作 refs pin 原始／目標 commit。低階 ApplyPlan 另有有界 NBT 序列化 v1，保存壓縮 section blob 與 mask，而非展開全世界方塊。PARTIAL／APPLYING 未恢復時阻擋新 commit；離線全量重套後才清成 COMPLETE。metadata 還原／保留與範圍規則詳見 [05 §7](05-switch-restore.md)。
 
 新 commit 的 `WorldGit-Time` trailer 保存原始 Instant 精度，秒數須與 git committer 時間一致；舊 commit 沒有此欄位時仍用 git 整秒時間。這避免跨維度歷史以時間排序時，同秒的 init／後續提交隨 HashMap 走訪順序顛倒。
+
+
+## Phase 3 合併資料（2026-10-02）
+
+新增中性 `merge.MergeReport`／`MergeState`：每維度報告保存自動合併 section 數、精確 conflict atoms、區域包圍盒／作者／紅石、規則差異及 updateShape 座標。atom 可為方塊＋BE、biome sample、UUID entity、ticks／structures、world-meta 的 NBT key path 或一般檔案。metadata 衝突沒有空間包圍盒。
+
+世界組在 repo root 保存 `merge-state.bin`（有版本 NBT/zstd，解碼上限 32 MiB），各 repo 保存 MERGE_HEAD。原 HEAD／分支、合併前內容、base／ours／theirs 候選與結果 commit 由 `refs/worldgit/merges/<operation>`／operation refs pin；這些物件不依賴 reflog 存活。resolved 與 choice 分開，manual 的最終內容從活世界 capture。完成後移除 MERGING，報告保存在 last-merge-report.bin，可供之後線上補 updateShape。
+
+真正整合 commit 在所有維度使用共同新 WorldGit-Snapshot UUID／時間，group refs 包含全組。merge 不做 fast-forward：不同 tip 兩 parent；tip 相同或來源維度無歷史則去重為單 parent。revert／cherry-pick 為單 parent，來源 trailer 記錄來源 id。普通 DimensionRepository.commit 在 MERGING 時拒絕，改用 WorldOperations.commitMerge／continueMerge。
+
+Phase 3 規則合併詳見 [06](06-diff-merge.md)；重新納入內容不代表其他歷史中原先被排除的資料可以恢復。所有暫存 pin 尚無到期清理政策。

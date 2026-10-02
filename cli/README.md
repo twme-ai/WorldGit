@@ -76,3 +76,24 @@ entity-tolerance: 2
 restore／switch 預設保留目標沒有的 chunk 並列出 untracked；加 `--delete-untracked` 才刪除整個被涵蓋 chunk。範圍外的同 UUID 舊實體仍會移除以避免重複。switch／branch／reset／stash 必須對維度組操作，拒絕 `--dimension`；restore／verify 可限定維度。
 
 所有新指令（含 list／dry-run）都拒絕伺服器持有的 session.lock。部分寫回失敗會留下 `apply-state.yml` 的 PARTIAL；先 `reset --hard` 或 `switch <branch> --force` 全範圍重套後才能 commit。DataVersion 不同、`.wgignore` 不同、DataPacks 清單不同會預檢拒絕。玩家資料／時鐘／天氣不還原，完整 metadata 與 stash 規則見 [05](../docs/05-switch-restore.md)，驗收見 [12](../docs/12-phase2-progress.md)。
+
+## Phase 3 合併（2026-10-02）
+
+```sh
+wgit merge castle-v2
+wgit merge castle-v2 --no-commit --format=json
+wgit merge castle-v2 --strategy-option=theirs --dry-run
+wgit conflicts --format=json
+wgit resolve 1 --theirs
+wgit resolve all --manual
+wgit merge --continue
+wgit merge --abort
+wgit revert HEAD~2
+wgit cherry-pick feature
+```
+
+合併操作要求全維度一致，不接受 --dimension；開始前工作區（含 untracked）乾淨，先 commit／stash push。`--distance=0..16` 設定區域分群距離，預設 1；衝突維持紫色 `!`。resolve 同時原地寫回精確區域並標解決；manual 保留目前世界。status 顯示 MERGING／來源／剩餘區域；全部解決後 `merge --continue` 或 `commit -m` 生成整合提交。revert／cherry-pick 的衝突也使用 merge --continue／--abort。
+
+merge／resolve／continue／abort／revert／cherry-pick 支援 --dry-run，JSON 無 ANSI。merge JSON 包含 state、reports、remaining、commits、plans 統計與 error；區域 choice 為小寫 ours／theirs／base／manual。無衝突預設自動 commit；--no-commit 保留 MERGING，--strategy-option 只選衝突、不丟棄無衝突的另一邊內容。
+
+離線保留柵欄／牆／紅石線等來源連接 state，報告列出需要線上 updateShape 的格子，不能假設開服後自動修正。完整驗收與限制見 [Phase 3 進度](../docs/13-phase3-progress.md)。

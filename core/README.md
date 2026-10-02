@@ -76,3 +76,25 @@ stash 使用各維度 `refs/worldgit/stash/<UUID>` 與世界組 `stash.yml`。po
 線上平台可用向後相容的 `WorldOperations.live(layout, LiveAccess)` 共用相同預檢、journal、驗證與 HEAD／stash 流程。遊戲持有 session.lock；呼叫端須先鎖定編輯與 flush，直到 close 後才解鎖，且只在 repo executor 呼叫。`LiveAccess.source` 提供 owner 上的快照、`validate` 全組寫入前預檢、`applyAll` 負責全維度 UUID 移除→生成 barrier 與完整存檔。`packs()` 可提供模組 pack resolver。關閉此入口只釋放 repo 鎖，不釋放遊戲 session；既有離線入口仍取得並檢查 OS session.lock。
 
 目前跨 DataVersion 一律清楚拒絕，不把改版本數字當 DataFixer；`.wgignore` 不一致也拒絕，規則遷移留待後續。world-meta 的還原／保留規則與限制見 [05](../docs/05-switch-restore.md)；平台批次與驗收見 [Phase 2 進度](../docs/12-phase2-progress.md)。重跑：持有 `bench.lock` 跑 `:core:integrationTest`，建置 `:cli:acceptanceToolsJar` 後執行 `python3 scripts/verify-phase2.py`。
+
+## Phase 3 三方合併
+
+`merge.MergeBases.best/unique` 找每維度最佳共同祖先（沒有則空 tree，criss-cross 多個 base 拒絕）；`MergeEngine.merge(k)` 產生候選 tree＋MergeReport。tree 分層短路、4096 格／BE 原子、biome sample、全域 UUID entity、ticks／structures 原子及 world-meta NBT 逐鍵。`MergeEngine.select` 替換區域精確 atoms，`preview` 回傳方塊與 BE；Hub 可只操作 trees，不需要 working world。
+
+`WorldOperations` 的世界組 API：
+
+- `merge/revert/cherryPick(revision, MergeOptions)`：要求乾淨（含 untracked），開始套用＋MERGING；dryRun 只建立 objects／計畫，不寫 refs／世界／合併狀態。noCommit=true 也保留乾淨合併供平台更新形狀。
+- `merging()`：持久化 MergeState，含原 HEAD／分支、各候選樹、region 選擇與 resolved；`remaining()` 為剩餘區域。
+- `selectRegion(id, Choice, resolved, dryRun)`：ours／theirs／base 原地切換，0 為 all；傳 false 可只切換預覽。
+- `markResolved(id, manual, dryRun)`：保留目前選擇或 manual；manual 權威資料是活世界，不接受假造的解決快照。
+- `regionPreview(id, Choice)`：讀取候選方塊／完整 BE，不寫回。
+- `continueMerge(author, source, dryRun)`／`commitMerge(author, source, message, dryRun)`：全部解決後全組 capture，建立同 snapshot 的 merge commit（不同 tip 兩 parent；revert／cherry-pick 單 parent）。
+- `abortMerge(dryRun)`：恢復原世界、規則，HEAD 不動；支援合併寫回失敗留下的 PARTIAL。`lastMergeReports()` 讀取完成報告。
+
+MergeResult 含 state、merging、各維度 reports／plans、完成 commits、error。MergeReport 含自動 section 數、Region 列表、完整規則差異、updateShapes 清單與紅石提示。範圍只有 bounds 用於顯示，切換精確 atoms；不能把整個包圍盒當 replace 範圍。`MergeState.read` 可唯讀讀取 merge-state.bin／last-merge-report.bin；有版本、解碼上限 32 MiB。各 repo MERGE_HEAD 與 refs pin 保留來源／備份，操作仍使用 Phase 2 journal。
+
+離線與線上都維持來源方塊 state，不重算鄰居形狀（docs/09 #46）；updateShapes 是交界處的提示清單，平台不自動處理。線上沿用 WorldOperations.live：全程本次操作的 lockEdits／flush／owner apply／驗證 barrier，套用時不得觸發鄰居更新。等待衝突選擇期間可解鎖，不需要一直 freeze。
+
+merge 的 `.wgignore` 改用有序三方合併（衝突先拒絕），新規則過濾三邊；重新納入時 ours 可從活世界取回資料，其他歷史不猜測未保存內容。Phase 2 switch／restore 的規則限制不變。DataVersion／DataPacks 仍清楚拒絕不一致。規則不同時保存原來被排除的內容，abort 可以回復；保留原始 MC 暫態／衍生欄位的界線沿用 Phase 2。
+
+驗收／量測與給 Paper／Fabric／Hub 的完整摘要見 [13](../docs/13-phase3-progress.md)，重跑 `scripts/verify-phase3.py`（自行拿 bench.lock），以及 `:core:integrationTest --tests org.worldgit.core.Phase3LocalIntegrationTest`。

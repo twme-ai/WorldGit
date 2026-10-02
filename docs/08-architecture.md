@@ -197,3 +197,14 @@ core 的 `apply.ApplyPlan`／`ApplyPlanner` 不依賴 Minecraft，提供 section
 `PlayerProtection` 帶 operation UUID 與 active：active=true 的 FALL／SUFFOCATION／DROWNING 保護持續到 active=false（成功、取消、失敗皆結束），再延續 duration=10 秒；須涵蓋中途加入範圍的玩家，不移動玩家、不用 Resistance。observer 在開始／每批／結束持久化操作狀態，失敗停止；只有 COMPLETE 加上呼叫端驗證 barrier 後才移動 HEAD。
 
 新增 LiveWorld 方法以清楚失敗的 default 保持 Phase 1 Paper／Fabric 二進位／原始碼相容，未實作的線上端不能宣稱已有 switch。OfflineWorld 提供真正 Anvil 寫回；完整離線流程與平台接手摘要見 [12](12-phase2-progress.md)。
+
+
+## Phase 3 平台接手契約（2026-10-02）
+
+`core.merge` 不依賴 Minecraft／protocol，`WorldOperations` 提供 merge、revert、cherryPick、merging、regionPreview、selectRegion、markResolved、continueMerge／commitMerge、abortMerge、lastMergeReports。開始與切換都回傳中性 MergeResult：state、MERGING、各維度 MergeReport／ApplyPlan、完成 commits 與 error；線上仍用既有 LiveAccess 及全維度 UUID remove→put barrier。
+
+Paper／Fabric 開始操作前 lockEdits＋flush，於 repo executor 呼叫 WorldOperations.live；每區域切換只鎖本次套用，不在等待玩家解決期間持續 freeze。noCommit=true 可保留無衝突的 MERGING；套用時維持快照中的方塊 state，不觸發 updateShape／鄰居更新（#46），報告的 updateShapes 只是提示清單，可從 last-merge-report.bin 讀取；此次不新增平台 Phase 3 功能。
+
+Hub 可以直接使用 ObjectStore＋MergeBases／MergeEngine 計算候選 tree 與衝突區域，再用 MergeEngine.select 在候選 tree 上選擇；不得為無 working world 的 Hub 啟用 OfflineApplier。Hub 的 manual 選擇仍需由可編輯世界提供權威快照，本次未實作 PR／網頁 UI。
+
+protocol v2 不變；可選新 channel `worldgit:conflicts`／`worldgit:conflict_preview` 使用 MergeProtocol v1、能力 merge-regions-v1。平台只有實作對應收送後才宣告能力，未宣告的舊客戶端不發送。區域清單含狀態／選擇；局部預覽含 state／完整 BE NBT，可跨包但完整批次才發布，沿用 28 KB／8 MiB 上限。詳見 protocol README／[13](13-phase3-progress.md)。

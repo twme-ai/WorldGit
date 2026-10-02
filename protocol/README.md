@@ -17,3 +17,15 @@ hello 帶 peerVersion、nonce、capabilities 與四種 RGB 色票。diff 每 sec
 revision preview 的 diff 方向為**目前工作世界 → 目標 commit**。ADDED 鬼影用 after、REMOVED 用 before、MODIFIED 用 after，色彩表示「套用目標時會出現／消失／改變」。方塊與 BE 同格仍合併為一筆；實體／biome 只有既有 status 區域摘要。半徑為玩家 chunk 中心的含端點正方形，沿用伺服器 100,000 格上限與客戶端 LOD／上傳預算，超出時回 section／chunk 外框。
 
 `preview off`／`clear`／完成套用以遞增 id 清除；客戶端必須保留跨維度 clear floor，連未曾收到資料的維度也拒絕較舊分包。本機 clear 同時取消未收齊的批次，只有斷線才 reset floor，避免排隊中的分包重新顯示已清除鬼影。
+
+## Phase 3 可選合併訊息（2026-10-02）
+
+既有 **Protocol v2 不變**。新增 `MergeProtocol`，獨立 channel `worldgit:conflicts`（區域清單）／`worldgit:conflict_preview`（單區域 ours／theirs／base 內容），各自 envelope version **1**。新能力 `merge-regions-v1` 不加入既有 `Protocol.CAPABILITIES`；平台實作接收／渲染後才宣告。伺服器只對宣告能力的 peer 發送；舊客戶端未註冊 channel，忽略新訊息，仍正常使用 v2 diff／status。此次沒有修改 Paper／Fabric 的 handshake 或渲染。
+
+外層 `Part` 採大端：u8 version、u8 type（0 regions／1 preview）、i64 preview id、i32 sequence／parts／totalBytes、u8 dimension UTF-8 長度與字串、i32 fragment 長度與 bytes。每 fragment ≤ 27,800 bytes，每 payload ≤ 28,000 bytes；最多 8 MiB／批、8192 parts、100,000 entries。維度字串 ≤ 128 bytes，座標沿用 ±30,000,000／Y ±32768 邊界。
+
+完整 body 為 canonical NBT compound。regions 保存 id、bounds（含端點的六個 int，metadata 區域沒有 bounds）、格數、choice、resolved、redstone。preview 保存 region id、choice（ours／theirs／base）、cells；每 cell 有三 int 世界座標、canonical block state 與可選的完整 canonical BE NBT bytes。BE 大於單包可跨 fragment，不裁掉 NBT 欄位；超過整批上限拒絕，平台應縮小預覽範圍。
+
+`MergeProtocol.regions/preview` 產生分包；`encode/decode` 驗證版本／長度；`Assembler` 每連線／channel／維度各一個，支援亂序與相同重傳，收齊才回 Completed。拒絕混用 header／type、不同內容重傳、重複 region id／cell 座標、超量與無效 NBT；30 秒丟棄暫存。clear 的 preview floor 需與既有 v2 clear 由平台一起轉送到所有合併 assembler，避免舊批次重現；斷線才 reset。
+
+core 的 `WorldOperations.regionPreview`／`MergeEngine.preview` 提供中性 PreviewBlock；平台轉為 `MergeProtocol.PreviewCell(position,state.canonical(),blockEntity)`。client 預覽不修改世界，原地切換仍由伺服器呼叫 selectRegion；manual 不提供候選預覽，應顯示目前世界。實體／biome 預覽圖形留平台後續，本訊息只傳方塊與 BE。

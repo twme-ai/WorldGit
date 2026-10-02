@@ -74,7 +74,8 @@ for 每個 section 位置（取三邊 tree 的聯集）:
 
 方塊有相鄰依賴，純逐格合併可能得到「每格都合法、整體不對」的結果：
 - 柵欄/牆/玻璃片的連接狀態、紅石線的連接方向、門的上下半、床的頭尾、大型植物
-- 解法：合併完成後，對「合併結果中兩邊來源交界處」的方塊跑一次鄰居形狀更新（相當於讓遊戲重新計算 `updateShape`），且多格結構（門、床）在分群時強制綁在一起。
+- 快照保存的是遊戲當時算好的方塊 state（含連接方向），合併時每一格原樣取自來源，一般情況結果正確。只有兩邊變動直接相鄰、正確的組合兩邊都沒保存過時（例如兩邊各在相鄰位置放了一段柵欄），連接可能不一致。
+- 決定（2026-10-02，#46）：**不重算、不觸發鄰居更新，維持儲存的 state**；這類交界格列入報告的提示清單供使用者檢查。多格結構（門、床）在分群時強制綁在一起。
 - 紅石電路的邏輯正確性無法自動保證 → 在合併報告中標註「此區域含紅石元件，建議測試」。
 
 ## 3. 遊戲內的合併流程
@@ -109,7 +110,7 @@ for 每個 section 位置（取三邊 tree 的聯集）:
 
 ## 5. 合併前提
 
-- 兩邊 DataVersion 不同 → 先把兩邊（與 base）都升級到較新的版本再比較，否則幾乎所有 section 都會因格式/方塊 ID 變化而衝突。
+- ours／theirs／base 任一 DataVersion 與目前世界不同 → 依決定 #28 明確拒絕；core 不提供 DataFixer，也不修改版本數字。需要升級時先在複本用相應伺服器升級並重新提交。
 - 兩邊的 `.wgignore` 不同 → 先把 `.wgignore` 本身當成一般檔案合併（可能衝突），再用合併後的規則過濾兩邊內容；在合併報告中列出規則差異。
 
 ## Phase 1 的中性 diff 模型（2026-10-01）
@@ -119,3 +120,28 @@ for 每個 section 位置（取三邊 tree 的聯集）:
 預設 capture/CLI 使用 SUMMARY：只算 section 的 +/-/~/!，不建立幾千萬筆方塊物件；biome 用 `sampleIndex=-1` 與 count 表示 section 統計。BLOCKS 模式才展開逐格與逐 biome sample。Hub/Fabric 可用 `DiffEngine.compare(..., Detail.BLOCKS, Set<ChunkPos>)` 限定顯示視窗，範圍外方塊/biome 不解碼；實體先全域比對再裁切，跨視窗移動不會變成錯誤的新增/移除。
 
 CLI 的正式機器介面是 `--format=json`，明細另加 `--blocks`；無參數為 HEAD→世界，一參數為該 commit→世界，兩參數為 commit→commit。`NO_COLOR` 存在時一律關色，包含 `--color=always`。色票與 symbol/style 統一由 `protocol.DiffPalette` 提供。
+
+
+## Phase 3 core／CLI 正式規則（2026-10-02）
+
+`MergeEngine` 的 root／region／chunk／section id 相同時短路；只有兩邊都改且不同的 section 解碼為 4096 格比較。BE 跟所在格組成一個原子值，不能把兩邊分別修改的 NBT 欄位拼起來。biome 逐 4×4×4 sample 比較；ticks／structures 維持 chunk blob 原子；world-meta 的 NBT compound 遞迴逐鍵比較，list／陣列／scalar 原子。一般 YAML／dimensions 檔案採整 blob 三方比較。
+
+實體另以維度內全域 UUID 比較（含跨 chunk 移動）。只有一邊改／刪除會自動套用；兩邊都修改同 UUID 即衝突，**相同新 NBT 也保守衝突**，因此 entity 階段不能被 ours==theirs 的 tree 短路省略。一刪一改為衝突；移動兩端與 base 位置共用同一個區域。
+
+`MergeBases.best/unique` 走所有 parent，不只 first-parent。維度之間不共用 commit id：先配對 snapshot group，再各自找 base。來源分支缺少某維度保留 ours；某維度的兩個 tip 無共同歷史，以空 tree 為 base。criss-cross 產生多個最佳 base 時明確拒絕並列出 id，需先建立明確共同整合基底，不任選一個 base。
+
+區域採曼哈頓距離 ≤ k 的連通分量，k 預設 1、可設 0..16。門與大型植物的 `half=upper/lower`、床的 part／facing、伸出活塞與活塞頭的 facing 強制綁定（即使 k=0），且把不衝突的另一半加入切換集合。區域包含 bounds、blockCount、dimension、commit 作者／Contribution 身分、紅石旗標、choice 與 resolved；metadata 區域 bounds=null、blockCount=0。作者是來源 tip 的主要作者與 contributions 摘要，尚非逐格歷史 blame。Mod 的特殊多格結構未提供 registry，平台需補自己的語意綁定。
+
+`Region.atoms` 是精確切換集合；**bounds 內其他格子不會被覆蓋**。BE 隨格、biome 隨 sample、實體隨 UUID、設定隨 NBT key path。實體依距離分群或歸入包含其位置的區域，沒有方塊衝突時獨立成區。
+
+鄰居清單檢查來自 theirs 的變動格與六鄰居，包含來源交界處未修改的 ours 柵欄／牆／玻璃片／鐵欄杆／紅石線，以及門、樓梯、軌道等保守候選。切換區域後重新計算清單。清單屬於各維度的報告，cell 為世界座標。CLI 保留快照 state，不套規則表、不假設伺服器載入會更新；輸出提示與 JSON 清單，完成報告留在 `last-merge-report.bin`。平台套用時同樣維持儲存的 state，不做 updateShape（#46）；清單僅為提示。紅石警示只提示「建議測試」，不能驗證電路。
+
+開始合併要求乾淨工作區（包括保留的 untracked），使用者先 commit 或 stash push；不自動 stash。無衝突部分＋衝突區預設 ours 一起套用，HEAD 保持原位，持久化 MERGING。`selectRegion(id, choice, false, dryRun)` 只切換；`markResolved` 另標記。CLI `resolve` 同時切換與標解決，manual 不寫回、以當下世界為準。`merge --continue`／`commit -m` 要求全部解決，所有維度 capture 完成後才移動 refs；同一個新 snapshot UUID，不同 tip 有兩個 parent，相同 tip 去重。來源 id 記入 WorldGit-Merge-Source／Revert-Source／CherryPick-Source trailer。
+
+`merge --abort` 重新套用合併前內容並恢復規則，HEAD／分支不變。合併要求乾淨，所以沒有需要自動還原的未提交追蹤資料；規則變動時另保存合併前被排除的內容，防止重新納入後的修改無法 abort。合併期間的手動修改會被丟棄。APPLYING／PARTIAL 與 MERGING 分別記錄寫回狀態與衝突流程；失敗不移動 HEAD，MERGING 的 PARTIAL 用 merge --abort 恢復，避免 switch／reset 把合併狀態留成孤兒。
+
+規則使用 JGit 有序文字三方合併，規則衝突在任何世界寫入前拒絕，報告包含 base／ours／theirs／merged 的原文。新規則過濾三邊保存的內容；ours 重新 capture 可取回剛重新納入的活世界資料，其餘歷史無法取回當時未追蹤的資料，視為未保存。area 排除保持活世界內容；有 area 時 ticks／structures 沿用 Phase 2 保守套用限制。biome 的空字串表示未追蹤 sample，不能要求把活世界 biome 變成空值。
+
+revert／cherry-pick 走相同 MERGING、resolve、abort；乾淨時直接建立單 parent 新 commit。以 snapshot UUID 識別不變維度，避免誤撤銷該維度上一次較早的 commit。多 parent 來源缺少 mainline 選項，先拒絕；root commit 的 revert 若需刪除 level.dat／dimensions 等不可安全套用資料，會在預檢拒絕。
+
+API、驗收與未完成項目見 [13](13-phase3-progress.md)。

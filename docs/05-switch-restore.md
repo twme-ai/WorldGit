@@ -152,3 +152,14 @@ stash 保存全組 working tree，每維度一個以原 HEAD 為 parent 的獨�
 `reset --hard` 保持分支／HEAD 指向並還原 HEAD；帶 revision 時要求 --force，附著 HEAD 則更新目前分支，detached HEAD 則改其 commit。勿用於已 push 的歷史。revert 尚屬 Phase 3。
 
 批次 coordinator、玩家保護／取消契約與實測證據見 [12](12-phase2-progress.md)。
+
+
+## 8. Phase 3 MERGING 與反向 patch（2026-10-02）
+
+`WorldOperations.merge/revert/cherryPick` 共用 Phase 2 全組鎖、LiveAccess、apply journal、全量驗證與 refs barrier。合併前要求乾淨（含 untracked），可自行先 stash push。`.wgignore` 的三方合併為合併操作特例；switch／restore／reset 仍要求目標與工作區規則一致。
+
+MERGING 保存於 merge-state.bin，普通 commit／branch／stash／restore／switch／reset 被阻擋；CLI `commit -m` 改走 merge commit，要求全部 resolved。選擇 ours／theirs／base 只覆蓋區域精確 atoms，manual 以目前世界內容為準。merge --continue 產生新整合快照；merge --abort 丟棄合併期間手動變動，恢復原世界／規則／HEAD。規則不同時保存原來被排除的內容以便 abort。
+
+APPLYING／PARTIAL 不等於 MERGING：前者是未完成寫回，後者是等待衝突選擇。合併的 PARTIAL 保留原 HEAD 與 MERGING，允許 merge --abort 全量恢復，禁止強制 switch／reset 略過狀態。這仍非跨 region 檔的斷電原子交易，也不自動續傳。
+
+revert 以來源 commit 為 base、其單 parent 為 theirs；cherry-pick 反過來。snapshot 中未變維度為零 patch；多 parent 來源先拒絕。乾淨自動建立新單 parent commit，衝突時用同一套 resolve／continue／abort。CLI 指令與重跑驗收見 [13](13-phase3-progress.md)。
