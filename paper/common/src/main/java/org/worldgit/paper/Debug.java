@@ -103,8 +103,15 @@ final class Debug {
   private void protection(CommandSender sender,String[] args) {
     var player=Objects.requireNonNull(Bukkit.getPlayerExact(args[1]));
     plugin.platform().entity(player,()->{
-      for(var cause:List.of(org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL,org.bukkit.event.entity.EntityDamageEvent.DamageCause.SUFFOCATION,org.bukkit.event.entity.EntityDamageEvent.DamageCause.DROWNING,org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_ATTACK)) {
-        var event=new org.bukkit.event.entity.EntityDamageEvent(player,cause,4);
+      // 用 DamageSource 版建構子（三參數版已標記 removal）；DamageType 對應各 DamageCause
+      var cases=new java.util.LinkedHashMap<org.bukkit.event.entity.EntityDamageEvent.DamageCause,org.bukkit.damage.DamageType>();
+      cases.put(org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL,org.bukkit.damage.DamageType.FALL);
+      cases.put(org.bukkit.event.entity.EntityDamageEvent.DamageCause.SUFFOCATION,org.bukkit.damage.DamageType.IN_WALL);
+      cases.put(org.bukkit.event.entity.EntityDamageEvent.DamageCause.DROWNING,org.bukkit.damage.DamageType.DROWN);
+      cases.put(org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_ATTACK,org.bukkit.damage.DamageType.GENERIC);
+      for(var entry:cases.entrySet()) {
+        var cause=entry.getKey();
+        var event=new org.bukkit.event.entity.EntityDamageEvent(player,cause,org.bukkit.damage.DamageSource.builder(entry.getValue()).build(),4);
         Bukkit.getPluginManager().callEvent(event);
         sender.sendMessage(Component.text("WGPROTECT cause="+cause+" cancelled="+event.isCancelled()));
       }
