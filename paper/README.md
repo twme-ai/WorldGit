@@ -67,7 +67,7 @@ FAWE bulk 路徑用 `IBatchProcessor` 記錄 chunk 與 actor，純 WorldEdit 用
 
 ## 合併（Phase 3）
 
-`/wg merge` 在線上世界使用 core 的 `WorldOperations.live(...)`（noCommit）：無衝突部分直接寫入，衝突區域預設 ours，世界狀態 MERGING（持久化於 `merge-state.bin`，伺服器重啟後 bossbar、外框、工具與 GUI 自動恢復）。一次切換／解決只改該區域的精確 atoms，**一律維持快照儲存的方塊 state，不觸發 updateShape／鄰居更新（#46）**，所以柵欄連接、紅石 state 與快照逐格相同；`updateShapes` 只是交界提示（GUI 顯示「交界提示數」）。
+`/wg merge` 在線上世界使用 core 的 `WorldOperations.live(...)`（noCommit）：無衝突部分直接寫入，衝突區域預設 ours，世界狀態 MERGING（持久化於 `merge-state.bin`＋`.updates`，伺服器重啟後 bossbar、外框、工具與 GUI 自動恢復）。一次切換／解決只改該區域的精確 atoms，**一律維持快照儲存的方塊 state，不觸發 updateShape／鄰居更新（#46）**，所以柵欄連接、紅石 state 與快照逐格相同；`updateShapes` 只是交界提示（GUI 顯示「交界提示數」）。
 
 - **提示**：MERGING 期間有權限的玩家看到紫色 bossbar「合併中：剩 N 個衝突」；在該維度會用 `BlockDisplay` 發光外框標出衝突區域（已解決變灰）；走進區域時動作列顯示編號、目前版本與狀態。
 - **工具與 GUI**：合併工具右鍵／Shift+右鍵（250 ms 防連點，操作中或世界被鎖時忽略）；GUI 是 54 格箱子介面（每頁 45 區域），每區顯示座標、格數、雙方作者、目前版本／狀態、紅石警示與交界提示數，點擊用 `teleportAsync` 傳到區域上方（Folia 安全）。
@@ -115,8 +115,16 @@ repo executor 在全組編輯鎖內完成 flush、capture、預檢、journal、�
 
 取消／插件關閉留下 PARTIAL，崩潰留下的 APPLYING 下次啟動轉成 PARTIAL 並提示；commit 被阻擋，使用 `/wg switch <target> --force` 或 `/wg reset --hard` 全範圍恢復。關閉時先停 bossbar 更新；玩家通知若與停用競爭，走退休清理，不再註冊新排程。沒有自動續傳或反向回滾。切換時目標沒有的 chunk 保留並標 untracked，包含 ticket 載入期間新生成的周邊 chunk；explicit commit 才重新追蹤。
 
-目前線上預檢拒絕 chunk 刪除與有差異的 world-meta（地圖／記分板／世界設定等）；使用 CLI 離線還原。新增地形使 stash push／pop 必須刪 chunk 時也會先拒絕，保存 stash 前不改世界。跨 DataVersion、不同 .wgignore／DataPacks 沿用 core 的明確拒絕。merge 留待 Phase 3。
+目前線上預檢拒絕 chunk 刪除與有差異的 world-meta（地圖／記分板／世界設定等）；使用 CLI 離線還原。新增地形使 stash push／pop 必須刪 chunk 時也會先拒絕，保存 stash 前不改世界。跨 DataVersion、不同 .wgignore／DataPacks 沿用 core 的明確拒絕。合併流程見上方 Phase 3 章節。
 
 Paper／Folia 的 1.21.11／26.2 四平台 Phase 2 驗收已通過，涵蓋原地切換、局部 restore、stash、取消恢復、關服重開、玩家保護、UUID／巢狀乘客、光照／POI 與 mod status／diff 清除。每平台量測三次，1,000 chunk 切換每次總耗時：Paper 約 47.7–48.0 秒、Folia 約 34.0–37.2 秒；tick probe TPS 估計 19.57–19.96，偶有 0.42–0.64 秒間隔尖峰。完整 build 全綠；測試範圍與 Phase 0 比較限制見進度報告。
 
 具體驗收與量測見 [Phase 2 Paper／Folia 進度](../docs/12-phase2-progress.md#paperfolia)；Phase 1 功能的證據見 [Phase 1 進度](../docs/11-phase1-progress.md)。Phase 2 原始結果、失敗歷史在 `.work/paper-phase2/`，console log 在 `.work/paper-delivery/logs/`；`ApplyEvidence.java` 讀存檔的全維度 UUID、光源／鄰格 nibble 與 POI，驗收結束刪除 server／world 副本。
+
+## 局部區域切換（2026-10-02）
+
+合併工具與 `/wg resolve` 使用共用 core 的局部 source／chunk journal。一般方塊區域只讀取與保存受影響 chunk，owner 使用 Moonrise `NewChunkHolder.save(false)` 同步排入 terrain／entity／POI；保持 Starlight 完成回呼與 IO barrier，再驗證整個受影響 chunk，最後保存 MERGING 增量。精確 atoms mask 不重寫同 section 的其他 BE，也不觸發鄰居更新。merge 開始、continue／commit、abort 仍走完整世界驗證。
+
+短暫 tick freeze 保留以隔離 vanilla tick；一般區域的編輯鎖涵蓋指定 chunk，跨 chunk 互動檢查真正目標，活塞／多格放置／爆炸／肥料檢查全部影響位置；容器／發射器／第三方 world-level 協調仍採保守屏障。UUID storage 定位期間保守鎖全組，並納入 root／巢狀乘客 UUID 的所有牽涉 chunk，包含拆離或改騎另一載具的位置。IO barrier 仍等待平台既有 queue，其他 IO 積壓可能增加耗時。`merge-state.bin.updates` 與基底必須一起保存／讀取；伺服器重啟仍能恢復選擇。合併切換留下 PARTIAL 時使用 `/wg merge --abort`，不套用 Phase 2 的 switch 恢復入口。
+
+Phase 3 驗收新增 6 次工具切換、在大世界的 200 個衝突區域中切換一個區域 6 次，報告中位數／最大值。開啟分段計時：`JAVA_TOOL_OPTIONS=-Dworldgit.profile=true python3 paper/tools/acceptance.py paper 1.21.11 phase3`。較短的 4 格重現：`JAVA_TOOL_OPTIONS=-Dworldgit.profile=true python3 paper/tools/profile-region.py paper 1.21.11 optimized`。兩者自行取得 bench.lock。結果與完整限制見 [docs/13 區域切換延遲](../docs/13-phase3-progress.md#區域切換延遲)。

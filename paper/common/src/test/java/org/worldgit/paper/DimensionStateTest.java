@@ -33,6 +33,7 @@ class DimensionStateTest {
     state.refresh(bridge, null);
     var old = state.dirty().capture();
     entities.clear(); entities.add(new ChunkPos(1, 0));
+    assertEquals(Set.of(new ChunkPos(0, 0)), state.census().entityChunks()); // cached 普查尚未看到移動
     state.refresh(bridge, null);
     state.dirty().acknowledge(old);
     assertEquals(Set.of(new ChunkPos(0, 0), new ChunkPos(1, 0)), state.dirty().chunks());

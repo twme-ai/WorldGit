@@ -17,7 +17,9 @@
 
 ### 線上世界 coordinator
 
-入口為 `org.worldgit.core.service.WorldOperations`。離線建構子使用 OfflineApplier；線上透過既有 `WorldOperations.live(...)` 與 Phase 2 `LiveAccess` 的 capture、validate、apply／flush barrier。呼叫端仍須持有平台編輯鎖、freeze 與 owner 排程契約，不能在 region owner 阻塞等待自己的工作。
+入口為 `org.worldgit.core.service.WorldOperations`。離線建構子使用 OfflineApplier；線上透過 `WorldOperations.live(...)` 與 `LiveAccess` 的 capture、validate、apply／flush barrier。完整作業由呼叫端持有平台編輯鎖／freeze；區域入口由 core 呼叫 `lockChunks`。兩者都遵守 owner 排程契約，不能在 region owner 阻塞等待自己的工作。
+
+追加任務新增向後相容的 `LiveAccess.source(dimension, chunks)`、`entityChunks(dimension, UUIDs)`、`lockChunks(dimensionChunks)` 與 `applyRegions(plans)`；Paper／Fabric 實作直接局部來源與存檔。預設 source 仍退回完整 scan，其他平台若只實作舊介面不會自動獲得同等效能，且須繼續持有外部鎖。詳見本文件「區域切換延遲」。
 
 | 操作 | API／契約 |
 |---|---|
@@ -31,7 +33,7 @@
 
 `MergeResult` 包含 state、merging、每維度 reports、plans、commits、error。state 為 COMPLETE／MERGING／PARTIAL／DRY_RUN；**coordinator 的非 dry-run ApplyPlan 已經執行並驗證，呼叫端不要再次套用**。開始合併要求乾淨（含 untracked），不自動 stash；既有 switch／reset／stash／一般 commit 在 MERGING 被擋下。線上不能安全套用的 metadata／chunk 刪除仍由 LiveAccess.validate 預檢拒絕。
 
-世界組 root 下保存 `merge-state.bin`；各 repo 保存 `MERGE_HEAD`。候選與原世界以 `refs/worldgit/merges/<operation>/...` pin 住。候選有獨立 snapshot UUID，避免污染正式群組與舊歷史配對；成功提交才使用全組共用新 UUID。狀態檔為 bounded canonical NBT／zstd，版本 1，上限 32 MiB。APPLYING／PARTIAL 在既有 apply journal，衝突選擇在 merge state，兩者分開。
+世界組 root 下保存 `merge-state.bin` 與選擇增量 `merge-state.bin.updates`；各 repo 保存 `MERGE_HEAD`。候選與原世界以 operation refs pin 住。候選有獨立 snapshot UUID，避免污染正式群組與舊歷史配對；成功提交才使用全組共用新 UUID。基底為 bounded canonical NBT／zstd、版本 1，基底與增量各上限 32 MiB；讀取必須重播增量。APPLYING／PARTIAL 在既有 apply journal，衝突選擇在 merge state，兩者分開。
 
 ### 中性 tree 引擎與報告（Hub）
 
@@ -44,7 +46,7 @@ Hub 必須先處理 snapshot 配對、DataVersion／DataPacks、`IgnoreRuleMerge
 | automaticallyMergedSections | 相對 base 任一側有變動、且沒有方塊衝突的 section 數（依路徑去重）。 |
 | regions | id、dimension、bounds、blockCount、oursAuthors／theirsAuthors、redstone、choice、resolved、atoms。metadata 無空間位置時 bounds=null；作者為 tip author＋contributions 摘要，非逐格 blame。 |
 | ruleDifferences | 各維度完整 base／ours／theirs／merged 規則文字；CLI 顯示有色行差異。 |
-| updateShapes | 每維度世界座標 Cell 清單（交界提示，不自動處理）；切換區域後重新計算清單。 |
+| updateShapes | 每維度世界座標 Cell 清單（交界提示，不自動處理）；切換僅重算受影響 atoms 與六鄰居，continue 完整重算。 |
 | warnings | 紅石「建議測試」等警示；交界提示由 updateShapes 與 CLI 呈現（不自動處理，#46）。 |
 
 `Region.atoms` 是精確修改集合，包含 BLOCK／BIOME／ENTITY／TICKS／STRUCTURES／METADATA／FILE；不能以 bounds 填滿覆蓋。同格 BE 與方塊一起切換；設定使用不可拆字串的 NBT key path。實體兩邊都改同 UUID 即衝突，連結果相同也保守衝突。
@@ -221,8 +223,101 @@ Hub 必須先處理 snapshot 配對、DataVersion／DataPacks、`IgnoreRuleMerge
 
 ### 未完成事項與限制
 
-- 一次區域切換約 20–27 s（見上）；需要 core 提供「只 capture 受影響 chunk」的 LiveAccess 才能顯著縮短，未在本任務內改 core。
+- 初輪一次區域切換約 20–27 s（見上）；追加任務已新增局部 LiveAccess 並修正，後續量測見「區域切換延遲」。
 - 工具對「手動」(manual) 區域沒有循環選項（右鍵只在 ours／theirs／base），manual 只能用 `/wg resolve <#> manual`；Shift+右鍵標記的是目前所見版本。
 - 無逐格 blame；作者是來源 commit 身分摘要。外框最多受 `show.display-max-entities` 限制（超過的區域省略並不顯示）。
 - Fabric 客戶端的真實畫面（非 bot）由 Fabric 任務驗收；此處只驗證 payload 與解碼。沒有截圖。
-- 完整 `./gradlew build` 未重跑（fabric／hub 由並行任務修改中）；本任務跑了 `:core:test :protocol:test :i18n:test :paper:common:test :paper:plugin:build` 綠燈。
+- Phase 3 初輪因 fabric／hub 由並行任務修改，僅跑 `:core:test :protocol:test :i18n:test :paper:common:test :paper:plugin:build` 綠燈。追加任務已完成完整 build，194 個單元測試全綠，見下方「區域切換延遲」。
+
+## 區域切換延遲
+
+追加任務（2026-10-02，接續 a12d648）：先量測再修正，沒有 commit／push，沒有修改 experiments/。所有重負載持有同一個 bench.lock；驗收腳本自行取鎖，未再套外層 flock。下列世界為副本、受控平坦地形與 frozen tick；不代表大型自然世界 TPS。
+
+### 修改前根因量測
+
+Paper 1.21.11 使用 Phase 3 相同 4 格、跨兩個 chunk 的門／柵欄／repeater fixture，6 次 console resolve 的 ours／theirs／base 切換，中位數 **21.497 s**、最大 **25.594 s**。證據：`.work/region-latency/paper-1.21.11-baseline-1790929812/results.json` 與該 JSON 的 console log 路徑。過去四平台的 3 次數字仍保留在本文件「Paper／Folia」章節，未以推測當成 profile 結果。
+
+| Paper 1.21.11 階段（6 次中位數） | 修改前 | 修改後完整驗收 |
+|---|---:|---:|
+| lock（全組→局部） | 144.3 ms | 41.7 ms |
+| 來源 flush（capture 內含） | 129.1 ms | 101.9 ms |
+| capture（包含驗證內的第二次 capture） | 20,393.7 ms | 247.4 ms |
+| verify（內含 capture；不能再與前項相加） | 9,616.1 ms | 128.6 ms |
+| plan／updateShapes | 32.8 ms | 53.7 ms |
+| apply／光照／存檔 barrier | 291.2 ms | 283.1 ms |
+| owner 套用加總／光照等待加總（前項內含） | 未細分 | 4.0／1.6 ms |
+| IO queue 等待（跨 flush 加總） | 未細分 | 4.4 ms |
+| journal 所有小檔寫入 | 9.0 ms | 8.7 ms |
+| merge-state／MERGE_HEAD→增量 | 7.9 ms | 2.4 ms |
+| preview 清除通知排程 | 未細分 | 0.1 ms |
+
+capture 的數字包含來源 flush；flush 本身只有約 0.13 s。核心原因是 `selectRegion` 在確認某維度有選中區域之前就 capture 所有維度，再由共用 execute 的 prepare 做受選維度的完整驗證。這一輪無其他重負載時仍可重現約 21–26 s，證據足以定位，因此未另取 JFR／async-profiler。狀態檔、計畫、真正套用都不是主要瓶頸。
+
+Fabric 1.21.11 使用真正單人整合伺服器／Xvfb＋llvmpipe、同 Phase 3 的門區域，6 次 UI 指令切換中位數 **20.963 s**、最大 **23.379 s**；`.work/region-latency/fabric-1.21.11-baseline.json`、`.work/region-fabric-baseline.log` 保存逐次耗時及分段。共用 core 的完整 capture 同樣占主要時間。Fabric 26.2 以 a12d648 的隔離來源複本只加入相同計時，6 次切換中位數 **21.169 s**、最大 **21.865 s**；證據 `.work/region-latency/fabric-26.2-baseline.json`、`.work/region-fabric-26.2-baseline.log`。隔離副本已刪除，未修改正式工作樹的舊版程式。
+
+### 修正與正確性
+
+- 一般區域不再 world scan／workingTree，只以局部來源 flush／capture 精確 atoms 所在 chunk；沒有選擇區域的維度不 capture。UUID 區域加入歷史端點及其巢狀乘客 UUID 與目前全組實體 storage 的真正位置，Paper 在鎖內刷新 live census（不用背景舊快照），再跨維度先移除後生成。metadata／非 chunk FILE 保守沿用完整流程。
+- 寫入方塊／BE 僅使用 atoms mask，包圍盒不作 replace 範圍；同 section 的其他 BE 不重建。套用後比對完整受影響 chunk 的追蹤內容，實體容許距離為 0；區域外同 chunk 的方塊／BE／其他實體也須一致。區域外其他 chunk 不在每次選擇重讀。
+- Paper／Folia 在 owner 呼叫 Moonrise `NewChunkHolder.save(false)` 保存指定 terrain／entity／POI；保留 Starlight 回呼與 IO barrier。Fabric 以 vanilla ChunkMap serializer、entity store、POI flush 排入指定 chunk，等待三種 storage 的 IO queue；不直接寫使用中的 Anvil 檔。
+- `merge-state.bin` 為基底，`merge-state.bin.updates` 只 append result commit、choice／resolved 與 hints 差異；長度／CRC32C／operation UUID，force 後 chunk journal 才 COMPLETE。最後一筆截斷可重播上一個完整狀態；APPLYING／PARTIAL 擋後續寫入，完整 abort 恢復。不重寫所有 region atoms 或 MERGE_HEAD；只標 resolved 也有 journal。基底與 WAL 各限 32 MiB；metadata 等完整回退路徑仍可更新基底 checkpoint，WAL 清理中斷時由 APPLYING journal 擋住後續寫入。
+- updateShapes 只重算變更 atoms 與六鄰居，continue 完整重算完成報告。保持 #46 的來源 state，不觸發 updateShape／鄰居更新。
+- 一般方塊區域只鎖本次 chunk 寫入；保留短暫 vanilla tick freeze、容器／指令與第三方保守協調，以維持一致快照。UUID 定位採全組鎖。全組 merge 開始、abort、continue／commit 保留完整 capture／驗證；continue 新增發布 HEAD 前再次全組 capture，比對本次提交樹。
+
+不變 chunk 的驗證由每次選擇移到完整作業邊界；MERGING 期間其他 chunk 的 manual 編輯仍以 continue 的活世界為權威，交界提示可能暫時落後，於 continue 更新。第三方忽略鎖的寫入不受保證。IO barrier 仍等待平台整個既有 queue，其他 IO 積壓會增加耗時；UUID storage 定位需掃描實體資料，這個特殊路徑不宣稱與世界大小無關。舊 reader 只讀 merge-state.bin 會看到舊選擇，CLI／平台須一起升級並保存基底＋WAL。
+
+### 修改後驗收與數字
+
+四個 Paper／Folia 與兩版 Fabric 的完整 Phase 3 驗收皆已通過，以下採最後修正版本。Paper 每組至少 6 次工具切換，另在 200 區域世界中以 resolve 切換一個區域 6 次；延遲為送事件／指令→協調器完成（包含狀態持久化與解除鎖），逐格 client／server／快照比較在計時外。Fabric 記錄 1–2 格的 UI 發出指令→future 完成，包含通知。Paper 通知以排程完成為準，清單／外框與網路接收由 owner 非同步處理；客戶端與伺服器內容皆另做逐格比對。受控 Paper 修改前為 console resolve、修改後完整驗收為工具事件；同口徑的 resolve 世界大小對照另列於下方。
+
+| 平台 | 修改前中位數／最大（s） | 修改後小區域中位數／最大（s） | 200 區域單區中位數／最大（s） |
+|---|---:|---:|---:|
+| Paper 1.21.11 | 21.497／25.594（本輪 6 次） | 0.802／1.910 | 0.701／0.702 |
+| Paper 26.2 | 21.0／24.7（舊輪 3 次） | 0.803／1.608 | 0.703／0.811 |
+| Folia 1.21.11 | 22.6／26.8（舊輪 3 次） | 0.802／1.808 | 0.601／0.701 |
+| Folia 26.2 | 20.7／25.1（舊輪 3 次） | 0.804／1.605 | 0.701／0.704 |
+| Fabric 1.21.11 | 20.963／23.379（本輪 6 次，2 格門） | 0.853／0.907（同一門區域 5 次） | 未要求 |
+| Fabric 26.2 | 21.169／21.865（本輪 6 次，2 格門） | 0.837／0.988（同一門區域 5 次） | 未要求 |
+
+第一次局部重現（尚未作為完整驗收結果）Paper 1.21.11 為 1.002／1.103 s（中位數／最大、6 次）；同期 inclusive capture 約 243.3 ms、verify 123.4 ms、plan／hints 28.2 ms、apply／barrier 296.9 ms、journal 6.1 ms、增量狀態 2.5 ms。原始結果在 `.work/region-latency/paper-1.21.11-optimized-1790931285/results.json`。
+
+世界大小對照使用同一支 `profile-region.py`、同樣 4 格／2 chunk 與 6 次 resolve：主世界 484 chunk 的中位數／最大 **1.001／1.001 s**，1,296 chunk 為 **1.002／1.103 s**；兩者僅局部 capture。較小世界證據 `.work/region-latency/paper-1.21.11-optimized-small-1790933287/results.json`。此腳本以 console cmd helper 計時，含約 0.3 s 輪詢等待，與完整驗收的事件計時口徑不同；只比較同腳本的世界大小對照。核心回歸另禁止局部來源呼叫全世界 scan，避免把兩個樣本當作任意規模的常數時間保證。
+
+完整作業的成本：本輪 1,000 chunk 的線上 merge（含自動提交）為 Paper 149.4／151.9 s、Folia 126.8／116.6 s；舊輪為 119.5／117.8／91.7／92.0 s，舊輪與其他任務共用 CPU，僅供參考。新增提交前的第二次全組 capture 在本輪分別占約 17.0／17.2／13.7／10.7 s，完成報告的全部 updateShapes 也於 continue 重算。這些全組成本保留在完整作業邊界，小區域選擇走局部流程。
+
+### 測試、失敗與產物
+
+四個 Paper／Folia 各通過 74 個檢查、0 failure、server problem_lines=0，最終完整 verify=0、無重複實體；每組小區域與 200 區域世界各有 6 次樣本，200 區域世界總計 2,864 個已存 chunk，這個案例每區 1 格、單次處理 1 chunk；固定 4 格／2 chunk 的世界大小對照另列於上方。兩版 Fabric 真正客戶端 success=true，門／柵欄／紅石三區分別有 5／6／5 次 UI 完成樣本，表格採同一門區域的 5 次，其餘原始樣本也保留。core 範圍回歸禁止呼叫全世界 scan；量測只證明本次世界規模與 200 區域案例，沒有宣稱任意規模的常數時間。
+
+最後版本證據：
+
+- Paper 1.21.11：`.work/paper-phase3/paper-1.21.11-1790948771/results.json`。
+- Paper 26.2：`.work/paper-phase3/paper-26.2-1790950349/results.json`。
+- Folia 1.21.11：`.work/paper-phase3/folia-1.21.11-1790947305/results.json`。
+- Folia 26.2：`.work/paper-phase3/folia-26.2-1790947171/results.json`。
+- Fabric 1.21.11：`.work/fabric-acceptance/phase3-1.21.11-20261002-144521/result.json`。
+- Fabric 26.2：`.work/fabric-acceptance/phase3-26.2-20261002-145247/result.json`。
+
+彙整、完整精度與 jar 雜湊：`.work/region-latency/final-summary.json`。四平台 plugin SHA-256 為 `1960c2d4fc3e30fc2896932c300981a46cfc6538f1d68070e9b72c4f16822edf`。Fabric 的 Realms 驗證 401／llvmpipe Anisotropy 提示仍在 raw log，未當作客戶端遊戲測試通過的替代證據。
+
+最後 UUID 審查發現 Paper locator 使用背景 census，剛移入新 chunk 的實體可能被漏掉；已改鎖內 fresh census。core 加入 base 沒有 UUID、其後手動移動的實體仍完整移除的回歸；巢狀乘客 UUID 也加入 locator／journal／verify 範圍，測試先拆離成為其他 chunk 的 root、再改騎另一載具，兩次選擇都與目標快照完整相同且保留未選中載具。Paper 的 census 測試明確驗證 cached 與 refreshed 的差異。四平台已以最後 jar 重跑通過，舊數字另外保留在證據。Fabric scoped flush 也補上 terrain 卸載後仍在記憶體內的 entity／POI：三種 storage 各自保存，不能以 terrain 已載入為共同前提；兩版實際客戶端已以此修正重驗通過。格式化器曾因預設 JDK 25 與舊 formatter 不相容失敗，已用 JDK 21 重跑成功。
+
+審查時另修正 chunk 邊界的事件鎖：互動與桶子檢查實際目標、多格放置／肥料／爆炸檢查整個 footprint，活塞檢查來源／目的格；容器／發射器保守協調。Paper 新增外側玩家操作鎖內格、活塞跨界／回縮、批量變更與外側編輯允許的回歸，四平台已以最後 jar 重跑通過；之前結果另保留。
+
+core 新增禁止全量來源／scan、只觸及受選維度／chunk、精確 mask、基底 bytes 不變與小型增量、增量保存失敗後 PARTIAL／abort、截斷 WAL＋APPLYING 恢復、UUID 手動移到其他 chunk 後選擇恢復、乘客拆離／改騎另一載具的範圍與完整驗證。既有跨維度 verify 故障注入仍須 PARTIAL。完整 build 已通過；最後 build 為 `BUILD SUCCESSFUL in 2m 12s`，`77 actionable tasks: 25 executed, 52 up-to-date`；log `.work/region-build-passenger-fixed.log`。完整單元 suite 194 tests、0 failure／error／skip（core 80、CLI 3、protocol 7、platform-api 8、Fabric logic 36、Paper common 21、Hub 36、i18n 3）。
+
+第一輪 Paper 1.21.11 完整驗收在 CLI conflicts JSON 比對遇到 `JSONDecodeError: Extra data`：`JAVA_TOOL_OPTIONS` 的 JVM 提示在 stderr，被驗收 helper 接到 JSON 後。已改只解析 stdout，stderr 完整保存在 cli.log；該輪列為失敗，沒有算入通過。證據 `.work/paper-phase3/paper-1.21.11-1790932323/results.json`、`.work/region-latency/paper-json-failure.log`。開發過程的缺少 import、跨版 ChunkPos 方法名稱與 fixture 需要先 scan 的問題皆修正後重跑；不以失敗輪作成功證據。
+
+重跑命令（腳本各自持鎖，不加外層 flock）：
+
+```sh
+JAVA_TOOL_OPTIONS=-Dworldgit.profile=true python3 paper/tools/acceptance.py <paper|folia> <1.21.11|26.2> phase3
+WG_PHASE3=1 JAVA_TOOL_OPTIONS=-Dworldgit.profile=true ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh <1.21.11|26.2> --record
+flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home ./gradlew --no-daemon --configure-on-demand --max-workers=1 build
+```
+
+`WGPROFILE` 為 inclusive 階段，verify 內含 capture，不可將全部欄位相加。Paper apply-owner／lighting 是 owner 作業及回呼等待的加總，與跨 owner 的 wall clock 不同；總延遲採 monotonic clock。
+
+乘客範圍回歸的第一次 build 失敗（`.work/region-build-passenger-final.log`）：fixture 僅改 Health，被正規化忽略，沒有建立衝突，取第一個 region 時得到 `NoSuchElementException`。已改用 NoAI 實體的位置差異；失敗輪不列為通過。
+
+收尾檢查：伺服器、bot、客戶端與 Xvfb 均已關閉，25701–25714 無監聽程序，bench.lock 已釋放。自本輪開始後新建／修改的中間產物上界為 882,103,924 bytes（0.822 GiB），低於 4 GB；計算包含本次覆寫的既有檔案，不包含工作前約 15 GB 的舊 `.work` 證據，詳見 `.work/region-latency/disk-usage.json`。本次要求的驗收與 build 均完成，特殊完整回退路徑與 IO 積壓的限制如上。

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import statistics
 import shutil
 import subprocess
 import time
@@ -87,6 +88,18 @@ def record(args):
             shots = ROOT / ".work/worlds/fabric-gametest" / f"{args.version}-phase3" / "screenshots"
             shutil.copytree(shots, evidence / "screenshots")
             shutil.copytree(artifacts, evidence / "checkpoints")
+            samples=[float(value) for value in re.findall(r"WGTEST3 region-latency .*seconds=([0-9.]+)",log)]
+            assert len(samples)>=5, samples
+            result["region_latency"]={"samples_seconds":samples,"median_seconds":statistics.median(samples),"max_seconds":max(samples)}
+            grouped = {}
+            for region_id, seconds in re.findall(r"WGTEST3 region-latency id=(\d+) .*seconds=([0-9.]+)", log):
+                grouped.setdefault(region_id, []).append(float(seconds))
+            assert all(len(grouped.get(str(row[0]), [])) >= 5 for row in actual), grouped
+            result["region_latency_by_id"] = {
+                region_id: {"samples_seconds": values, "median_seconds": statistics.median(values),
+                            "max_seconds": max(values)} for region_id, values in grouped.items()
+            }
+            result["profiles"]=[json.loads(line[line.index("WGPROFILE ")+10:]) for line in log.splitlines() if "WGPROFILE {" in line]
             result["success"] = True
         except Exception as error:
             result["error"] = repr(error)

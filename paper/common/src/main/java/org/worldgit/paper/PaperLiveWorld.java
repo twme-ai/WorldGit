@@ -1,5 +1,7 @@
 package org.worldgit.paper;
 
+import org.worldgit.core.service.OperationTimings;
+
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -140,6 +142,31 @@ final class PaperLiveWorld implements LiveWorld {
     copier = new LiveCopier(plugin.platform(), plugin.bridge(), world, settings.chunksPerTick(), settings.snapshotWindow(), inline, stats);
     copier.start(live);
     return new Scan(present, candidates, disk.stamps(), disk.payloadsRead(), disk.scannedAt());
+  }
+
+  void captureOnly(Set<ChunkPos> chunks) {
+    claimed.clear();
+    var settings=plugin.settings();
+    copier=new LiveCopier(plugin.platform(),plugin.bridge(),world,settings.chunksPerTick(),settings.snapshotWindow(),inline,stats);
+    var loaded=state.refresh(plugin.bridge(),world).loaded();
+    copier.start(chunks.stream().filter(loaded::contains).toList());
+  }
+
+  CompletionStage<Void> flush(Collection<ChunkPos> chunks) {
+    var timings=OperationTimings.current();
+    var loaded=state.refresh(plugin.bridge(),world).loaded();
+    var tasks=new ArrayList<CompletableFuture<Void>>();
+    for(var pos:chunks) if(loaded.contains(pos)) {
+      var done=new CompletableFuture<Void>(); tasks.add(done);
+      try { plugin.platform().region(world,pos.x(),pos.z(),()->{
+        try { plugin.bridge().saveChunk(world,pos.x(),pos.z()); done.complete(null); }
+        catch(Throwable e) { done.completeExceptionally(e); }
+      }); } catch(Throwable e) { done.completeExceptionally(e); }
+    }
+    return CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new)).thenRunAsync(()->{
+      long started=System.nanoTime(); plugin.bridge().flushIo(world);
+      if(timings!=null) timings.record("io-barrier",System.nanoTime()-started);
+    });
   }
 
   @Override
@@ -288,7 +315,7 @@ final class PaperLiveWorld implements LiveWorld {
     return CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new));
   }
   @Override public AutoCloseable lockEdits(Collection<ChunkPos> chunks,String reason) throws IOException {
-    var lock=plugin.edits().lock(world); var f=new CompletableFuture<AutoCloseable>();
+    var lock=plugin.edits().lock(world,chunks); var f=new CompletableFuture<AutoCloseable>();
     try {
       plugin.platform().global(()->{ try { f.complete(plugin.edits().freeze(world)); } catch(Throwable e) { f.completeExceptionally(e); } });
       var frozen=f.get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);

@@ -156,7 +156,8 @@ class WorldMergeTest {
       int id = ops.merging().regions().getFirst().id();
       assertEquals(
           "minecraft:gold_block", ops.regionPreview(id, Choice.OURS).getFirst().state().name());
-      assertTrue(ops.selectRegion(id, Choice.THEIRS, false, false).success());
+      var selection = ops.selectRegion(id, Choice.THEIRS, false, false);
+      assertTrue(selection.success(), selection.error());
       assertEquals(Choice.THEIRS, ops.merging().regions().getFirst().choice());
       assertTrue(ops.verify("B", null, Scope.all(), true).success());
       assertTrue(ops.selectRegion(id, Choice.BASE, false, false).success());
@@ -473,7 +474,7 @@ class WorldMergeTest {
             })) {
       var result = ops.selectRegion(0, Choice.THEIRS, true, false);
       assertEquals("PARTIAL", result.state());
-      assertTrue(result.error().contains("minecraft:the_nether"));
+      assertTrue(result.error().contains("minecraft:the_nether"), result.error());
     }
     try (var ops = new WorldOperations(layout)) {
       assertTrue(ops.abortMerge(false).success());
@@ -539,6 +540,336 @@ class WorldMergeTest {
               .orElseThrow()
               .commits()
               .size());
+    }
+  }
+
+  @Test
+  void regionCaptureIsBoundedAndPersistenceDoesNotRewriteBase() throws Exception {
+    var layout = init("1.21.11");
+    branches(layout, true);
+    try (var ops = new WorldOperations(layout)) {
+      assertTrue(ops.merge("B", opts(true, null, false)).success());
+    }
+    Path statePath = layout.repositoryRoot().resolve("merge-state.bin");
+    byte[] base = Files.readAllBytes(statePath);
+    var touched = new ArrayList<Set<ChunkPos>>();
+    var dimensions = new ArrayList<DimensionId>();
+    var expected = Set.of(new ChunkPos(0, 0));
+    try (var session = WorldSessionLock.acquire(layout)) {
+      var access =
+          new WorldOperations.LiveAccess() {
+            public org.worldgit.core.capture.SnapshotSource source(
+                WorldLayout.Dimension dimension) {
+              throw new AssertionError("不可建立全維度來源");
+            }
+
+            public org.worldgit.core.capture.SnapshotSource source(
+                WorldLayout.Dimension dimension, Set<ChunkPos> chunks) {
+              assertEquals(expected, chunks);
+              dimensions.add(dimension.id());
+              touched.add(Set.copyOf(chunks));
+              var disk = new OfflineSnapshotSource(layout, dimension);
+              return new org.worldgit.core.capture.SnapshotSource() {
+                public DimensionId dimension() {
+                  return dimension.id();
+                }
+
+                public int dataVersion() throws IOException {
+                  return layout.dataVersion();
+                }
+
+                public Scan scan(org.worldgit.core.capture.ScanIndex previous, boolean full) {
+                  throw new AssertionError("區域選擇不可 scan 世界");
+                }
+
+                public java.util.concurrent.CompletionStage<Optional<ChunkSnapshot>> snapshot(
+                    ChunkPos pos, IgnoreRules rules) {
+                  assertTrue(chunks.contains(pos));
+                  return disk.snapshot(pos, rules);
+                }
+
+                public void close() throws IOException {
+                  disk.close();
+                }
+              };
+            }
+
+            public AutoCloseable lockChunks(Map<DimensionId, Set<ChunkPos>> chunks) {
+              assertEquals(Map.of(DimensionId.OVERWORLD, expected), chunks);
+              return () -> {};
+            }
+
+            public void validate(ApplyPlan plan) {
+              assertTrue(plan.chunks().keySet().stream().allMatch(expected::contains));
+              plan.chunks()
+                  .values()
+                  .forEach(
+                      c ->
+                          c.sections()
+                              .values()
+                              .forEach(section -> assertEquals(1, section.coveredCount())));
+            }
+
+            public void applyAll(Collection<ApplyPlan> plans) throws IOException {
+              new OfflineApplier(layout).applyAll(plans, session);
+            }
+          };
+      try (var ops = WorldOperations.live(layout, access)) {
+        var first = ops.selectRegion(1, Choice.THEIRS, false, false);
+        assertTrue(first.success(), first.error());
+        long size = Files.size(MergeState.updatesPath(statePath));
+        assertTrue(size < 2048);
+        assertTrue(ops.markResolved(1, false, false).success());
+        assertFalse(OperationState.partial(layout.repositoryRoot()));
+        assertArrayEquals(base, Files.readAllBytes(statePath));
+        var second = ops.selectRegion(1, Choice.BASE, true, false);
+        assertTrue(second.success(), second.error());
+        assertTrue(Files.size(MergeState.updatesPath(statePath)) - size < 2048);
+        assertArrayEquals(base, Files.readAllBytes(statePath));
+        assertEquals(Choice.BASE, ops.merging().regions().getFirst().choice());
+        assertEquals(0, ops.merging().remaining());
+      }
+    }
+    assertEquals(4, touched.size());
+    assertTrue(dimensions.stream().allMatch(DimensionId.OVERWORLD::equals));
+    try (var ops = new WorldOperations(layout)) {
+      assertEquals(Choice.BASE, ops.merging().regions().getFirst().choice());
+      assertTrue(ops.verify("base", null, Scope.all(), true).success());
+      assertTrue(ops.abortMerge(false).success());
+    }
+  }
+
+  @Test
+  void persistenceFailureAfterRegionApplyIsPartialAndAbortRecovers() throws Exception {
+    var layout = init("1.21.11");
+    branches(layout, true);
+    Path statePath = layout.repositoryRoot().resolve("merge-state.bin");
+    try (var ops = new WorldOperations(layout)) {
+      assertTrue(ops.merge("B", opts(true, null, false)).success());
+    }
+    // 故障發生於世界已寫入且驗證成功、選擇狀態尚未 force 的窗口。
+    try (var ops =
+        new WorldOperations(
+            layout,
+            (plan, lock) -> {
+              new OfflineApplier(layout).apply(plan, lock);
+              Files.createDirectory(MergeState.updatesPath(statePath));
+            })) {
+      var selected = ops.selectRegion(1, Choice.THEIRS, true, false);
+      assertEquals("PARTIAL", selected.state());
+      assertTrue(OperationState.partial(layout.repositoryRoot()));
+    }
+    Files.delete(MergeState.updatesPath(statePath));
+    try (var ops = new WorldOperations(layout)) {
+      assertEquals(Choice.OURS, ops.merging().regions().getFirst().choice());
+      assertThrows(IOException.class, () -> ops.selectRegion(1, Choice.BASE, false, false));
+      assertTrue(ops.abortMerge(false).success());
+      assertTrue(ops.verify("A", null, Scope.all(), true).success());
+    }
+  }
+
+  @Test
+  void tornFinalDeltaKeepsPreviousSelectionAndApplyingRequiresAbort() throws Exception {
+    var layout = init("1.21.11");
+    branches(layout, true);
+    Path path = layout.repositoryRoot().resolve("merge-state.bin");
+    try (var ops = new WorldOperations(layout)) {
+      assertTrue(ops.merge("B", opts(true, null, false)).success());
+      assertTrue(ops.selectRegion(1, Choice.THEIRS, false, false).success());
+    }
+    OperationState.write(
+        layout.repositoryRoot().resolve("apply-state.yml"),
+        Map.of("state", "APPLYING", "mode", "merge-select"));
+    // 20 bytes payload 的 header 已寫，但 payload 在當機時僅剩 3 bytes。
+    Files.write(
+        MergeState.updatesPath(path),
+        java.nio.ByteBuffer.allocate(11).putInt(20).putInt(0).put(new byte[3]).array(),
+        StandardOpenOption.APPEND);
+    try (var ops = new WorldOperations(layout)) {
+      assertEquals(Choice.THEIRS, ops.merging().regions().getFirst().choice());
+      assertThrows(
+          IOException.class, () -> ops.continueMerge(AUTHOR, CommitMetadata.Source.CLI, false));
+      assertTrue(ops.abortMerge(false).success());
+      assertNull(ops.merging());
+      assertFalse(Files.exists(MergeState.updatesPath(path)));
+      assertTrue(ops.verify("A", null, Scope.all(), true).success());
+    }
+  }
+
+  private void moveCow(WorldLayout layout, UUID id, double x, float health) throws Exception {
+    int[] uuid = {
+      (int) (id.getMostSignificantBits() >>> 32),
+      (int) id.getMostSignificantBits(),
+      (int) (id.getLeastSignificantBits() >>> 32),
+      (int) id.getLeastSignificantBits()
+    };
+    var nbt =
+        new Nbt.Compound()
+            .with("id", "minecraft:cow")
+            .with("UUID", uuid)
+            .with("NoAI", (byte) 1)
+            .with("Pos", new Nbt.ListTag(6, List.of(x, 145d, 2d)))
+            .with("Health", health);
+    var plan =
+        new ApplyPlan(
+            DimensionId.OVERWORLD,
+            null,
+            null,
+            layout.dataVersion(),
+            Scope.all(),
+            List.of(),
+            List.of(new ApplyPlan.EntityOp(id, null, new EntitySnapshot(id, nbt))),
+            Map.of(),
+            List.of());
+    new OfflineApplier(layout).apply(plan);
+  }
+
+  @Test
+  void entityRegionIncludesActualChunkAfterManualMove() throws Exception {
+    checkEntityRegionAfterManualMove(true);
+  }
+
+  @Test
+  void selectingEmptyBaseRemovesNewUuidAfterManualMove() throws Exception {
+    checkEntityRegionAfterManualMove(false);
+  }
+
+  private void checkEntityRegionAfterManualMove(boolean baseHasEntity) throws Exception {
+    var layout = init("1.21.11");
+    var id = UUID.randomUUID();
+    set(layout, DimensionId.OVERWORLD, 48, 144, 0, "dirt");
+    if (baseHasEntity) moveCow(layout, id, 1, 20);
+    commit(layout, "entity base");
+    try (var ops = new WorldOperations(layout)) {
+      ops.createBranch("base", null);
+      ops.createBranch("B", null);
+    }
+    moveCow(layout, id, 2, 10);
+    commit(layout, "entity ours");
+    try (var ops = new WorldOperations(layout)) {
+      ops.createBranch("A", null);
+      assertTrue(ops.switchTo("B", false, false, false, false).success());
+    }
+    moveCow(layout, id, 4, 5);
+    commit(layout, "entity theirs");
+    try (var ops = new WorldOperations(layout)) {
+      assertTrue(ops.switchTo("A", false, false, false, false).success());
+      assertTrue(ops.merge("B", opts(true, null, false)).success());
+    }
+    moveCow(layout, id, 50, 8);
+    try (var ops = new WorldOperations(layout)) {
+      var result =
+          ops.selectRegion(
+              ops.merging().regions().getFirst().id(),
+              baseHasEntity ? Choice.THEIRS : Choice.BASE,
+              true,
+              false);
+      assertTrue(result.success(), result.error());
+      assertEquals(
+          Set.of(new ChunkPos(0, 0), new ChunkPos(3, 0)),
+          result.plans().get(DimensionId.OVERWORLD).scope().chunks());
+      assertTrue(ops.verify(baseHasEntity ? "B" : "base", null, Scope.all(), true).success());
+      assertTrue(ops.abortMerge(false).success());
+      assertTrue(ops.verify("A", null, Scope.all(), true).success());
+    }
+  }
+
+  private void ridingCow(WorldLayout layout, UUID parent, UUID passenger, double x, float health)
+      throws Exception {
+    moveCow(layout, parent, x, health);
+    try (var source =
+        new OfflineSnapshotSource(layout, layout.dimensions().get(DimensionId.OVERWORLD))) {
+      var snapshot =
+          source
+              .snapshot(new ChunkPos((int) Math.floor(x / 16), 0), IgnoreRules.parse(""))
+              .toCompletableFuture()
+              .join()
+              .orElseThrow();
+      var data =
+          (Nbt.Compound)
+              Nbt.copy(
+                  snapshot.entities().stream()
+                      .filter(e -> e.uuid().equals(parent))
+                      .findFirst()
+                      .orElseThrow()
+                      .data());
+      var child = (Nbt.Compound) Nbt.copy(data);
+      child.put(
+          "UUID",
+          new int[] {
+            (int) (passenger.getMostSignificantBits() >>> 32),
+            (int) passenger.getMostSignificantBits(),
+            (int) (passenger.getLeastSignificantBits() >>> 32),
+            (int) passenger.getLeastSignificantBits()
+          });
+      child.put("Health", 20f);
+      data.put("Passengers", new Nbt.ListTag(10, List.of(child)));
+      new OfflineApplier(layout)
+          .apply(
+              new ApplyPlan(
+                  DimensionId.OVERWORLD,
+                  null,
+                  null,
+                  layout.dataVersion(),
+                  Scope.all(),
+                  List.of(),
+                  List.of(new ApplyPlan.EntityOp(parent, null, new EntitySnapshot(parent, data))),
+                  Map.of(),
+                  List.of()));
+    }
+  }
+
+  @Test
+  void passengerUuidScopeIncludesDetachedRootAndOtherVehicle() throws Exception {
+    var layout = init("1.21.11");
+    var parent = UUID.randomUUID();
+    var child = UUID.randomUUID();
+    var other = UUID.randomUUID();
+    set(layout, DimensionId.OVERWORLD, 48, 144, 0, "dirt");
+    set(layout, DimensionId.OVERWORLD, 64, 144, 0, "dirt");
+    moveCow(layout, other, 50, 20);
+    ridingCow(layout, parent, child, 1, 20);
+    commit(layout, "passenger base");
+    try (var ops = new WorldOperations(layout)) {
+      ops.createBranch("B", null);
+    }
+    ridingCow(layout, parent, child, 2, 10);
+    commit(layout, "passenger ours");
+    try (var ops = new WorldOperations(layout)) {
+      ops.createBranch("A", null);
+      assertTrue(ops.switchTo("B", false, false, false, false).success());
+    }
+    ridingCow(layout, parent, child, 4, 5);
+    commit(layout, "passenger theirs");
+    try (var ops = new WorldOperations(layout)) {
+      assertTrue(ops.switchTo("A", false, false, false, false).success());
+      assertTrue(ops.merge("B", opts(true, null, false)).success());
+    }
+
+    moveCow(layout, parent, 2, 10); // 玩家先拆離乘客，乘客成為其他 chunk 的 root。
+    moveCow(layout, child, 66, 20);
+    try (var ops = new WorldOperations(layout)) {
+      int region = ops.merging().regions().getFirst().id();
+      var result = ops.selectRegion(region, Choice.THEIRS, false, false);
+      assertTrue(result.success(), result.error());
+      assertEquals(
+          Set.of(new ChunkPos(0, 0), new ChunkPos(4, 0)),
+          result.plans().get(DimensionId.OVERWORLD).scope().chunks());
+      assertTrue(ops.verify("B", null, Scope.all(), true).success());
+    }
+
+    moveCow(layout, parent, 4, 5);
+    ridingCow(layout, other, child, 50, 20); // 乘客改騎未選中的載具，保留該載具的其他資料。
+    try (var ops = new WorldOperations(layout)) {
+      var result =
+          ops.selectRegion(ops.merging().regions().getFirst().id(), Choice.THEIRS, true, false);
+      assertTrue(result.success(), result.error());
+      assertEquals(
+          Set.of(new ChunkPos(0, 0), new ChunkPos(3, 0)),
+          result.plans().get(DimensionId.OVERWORLD).scope().chunks());
+      assertTrue(ops.verify("B", null, Scope.all(), true).success());
+      assertTrue(ops.abortMerge(false).success());
+      assertTrue(ops.verify("A", null, Scope.all(), true).success());
     }
   }
 }

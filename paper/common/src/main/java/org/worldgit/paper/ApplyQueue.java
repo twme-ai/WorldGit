@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.*;
 import org.bukkit.World;
 import org.bukkit.Chunk;
 import org.worldgit.core.apply.ApplyPlan;
+import org.worldgit.core.service.OperationTimings;
 import org.worldgit.core.config.IgnoreRules;
 import org.worldgit.core.model.ChunkPos;
 import org.worldgit.platform.ApplyBudget;
@@ -79,6 +80,9 @@ final class ApplyQueue {
   }
   private static Throwable merge(Throwable a,Throwable b) { if(a==null) return b; if(b!=null && a!=b) a.addSuppressed(b); return a; }
   CompletionStage<Void> apply(World world,ApplyPlan.ChunkOp op,IgnoreRules rules,ApplyBudget budget) {
+    return apply(world,op,rules,budget,null);
+  }
+  CompletionStage<Void> apply(World world,ApplyPlan.ChunkOp op,IgnoreRules rules,ApplyBudget budget,OperationTimings timings) {
     var result=new CompletableFuture<Void>();
     var sectionList=new ArrayList<>(op.sections().values());
     new Object() {
@@ -95,7 +99,9 @@ final class ApplyQueue {
             }
             var section=sectionList.get(next++); long start=System.nanoTime();
             plugin.bridge().applyChunk(world,new ApplyPlan.ChunkOp(op.pos(),false,new TreeMap<>(Map.of(section.y(),section)),new TreeMap<>(),false,null,false,null),rules);
-            used.nanos+=System.nanoTime()-start; used.sections++; sections.incrementAndGet();
+            long elapsed=System.nanoTime()-start; used.nanos+=elapsed;
+            if(timings!=null) timings.record("apply-owner",elapsed);
+            used.sections++; sections.incrementAndGet();
           }
           if(!cancelled.get() && !stopping) plugin.bridge().applyChunk(world,new ApplyPlan.ChunkOp(op.pos(),op.delete(),new TreeMap<>(),op.biomes(),op.setTicks(),op.ticks(),op.setStructures(),op.structures()),rules);
           finish(null);
@@ -104,7 +110,9 @@ final class ApplyQueue {
       void finish(Throwable failure) {
         try {
           // 失敗／取消仍等待已提交的光照，並刷新玩家畫面；存檔在全組 barrier 做一次。
+          long lightingStarted=System.nanoTime();
           plugin.bridge().finishChunk(world,op.pos().x(),op.pos().z()).whenComplete((v,lighting)->{
+            if(timings!=null) timings.record("lighting",System.nanoTime()-lightingStarted);
             Throwable error=merge(failure,lighting);
             try { plugin.platform().region(world,op.pos().x(),op.pos().z(),()->{
               Throwable finalError=error;

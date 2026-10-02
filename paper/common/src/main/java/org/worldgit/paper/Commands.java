@@ -458,7 +458,7 @@ final class Commands implements CommandExecutor, TabCompleter {
       int id=args[0].equals("all") ? 0 : Integer.parseInt(args[0].replaceFirst("^#",""));
       if(id<0 || (id==0 && !args[0].equals("all"))) throw bad("paper.merge.usage");
       var choice=MergeReport.Choice.valueOf(args[1].toUpperCase(Locale.ROOT));
-      plugin.repo().mergeOperation("resolve",ops->choice==MergeReport.Choice.MANUAL ? ops.core().markResolved(id,true,false) : ops.core().selectRegion(id,choice,true,false))
+      plugin.repo().regionOperation("resolve",ops->choice==MergeReport.Choice.MANUAL ? ops.core().markResolved(id,true,false) : ops.core().selectRegion(id,choice,true,false))
           .whenComplete((result,error)->plugin.merges().feedback(sender,result,error)); return;
     }
     if(args.length!=1) throw bad("paper.merge.usage");

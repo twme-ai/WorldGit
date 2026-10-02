@@ -163,6 +163,14 @@ python3 fabric/tools/accept-paper.py 26.2
 
 ## 目前限制
 
-線上不刪除 chunk：stash 若需刪除 HEAD 沒有的新增 chunk，預檢會拒絕，須關閉世界後使用 CLI stash；一般 switch 預設保留這些 chunk 並標 untracked。線上 metadata 目前只接出生點、1.21.11 的 gamerules／難度／邊界等 level.dat 設定，地圖／scoreboard／26.2 各維度 saved-data、世界生成等變動會在任何寫入前拒絕，須離線還原。跨 DataVersion、規則不同仍明確拒絕；沒有 DataFixer 或 merge。legacy `ChunkPatch` 套用入口仍拒絕，正式 Phase 2 使用 ApplyPlan。
+線上不刪除 chunk：stash 若需刪除 HEAD 沒有的新增 chunk，預檢會拒絕，須關閉世界後使用 CLI stash；一般 switch 預設保留這些 chunk 並標 untracked。線上 metadata 目前只接出生點、1.21.11 的 gamerules／難度／邊界等 level.dat 設定，地圖／scoreboard／26.2 各維度 saved-data、世界生成等變動會在任何寫入前拒絕，須離線還原。跨 DataVersion、規則不同仍明確拒絕；沒有 DataFixer；單人合併流程見上方 Phase 3 章節。legacy `ChunkPatch` 套用入口仍拒絕，正式 Phase 2 使用 ApplyPlan。
 
 尚無準星「舊→新」UI、實體／biome 模型、流體或特殊 block entity renderer、Mod Menu 畫面、資源包重載後模型快取重建、Sodium／Iris 或硬體 GPU 驗收。鬼影使用固定光照與 quad 順序，沒有透明面排序／內部面消除；既有大量格數驗收是 3,072 格、6 sections，不能據此宣稱 100,000 格效能。Phase 2 使用受控平坦世界及凍結 tick，不是大型自然生物世界的 TPS 量測。
+
+## 單人世界局部區域切換（2026-10-02）
+
+`conflict-select`／`resolve` 經共用 core 的局部 source、精確 atoms mask、完整受影響 chunk 驗證及增量 MERGING journal。Fabric 在 server owner 以 vanilla ChunkMap serializer、entity storage 與 POI flush 只排入指定 chunk，三種 storage 分別保存（terrain 卸載不代表 entity／POI 已卸載），保留光照／chunk 封包／IO barrier；不寫使用中的 `.mca`。一般區域的 LevelChunk 寫入鎖限受影響 chunk；短暫 tick freeze 及容器／指令屏障保留，防止 vanilla 或跨位置編輯穿越操作。continue／commit 再全組 capture／驗證，abort 保留完整恢復。
+
+`merge-state.bin.updates` 須與基底一起讀取／保存，當機恢復仍用 abort。區域外其他 chunk 的 manual 編輯在 continue 捕捉；其交界提示於 continue 完整重算。全域 IO queue 積壓與 UUID 定位仍可能增加延遲；大型自然世界及第三方忽略鎖的寫入不在本次效能保證內。
+
+`WG_PHASE3=1 JAVA_TOOL_OPTIONS=-Dworldgit.profile=true ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh <版本> --record` 會保留 UI 命令→完成的逐次延遲與 core 分段計時（result.json），同時執行原 Phase 3 客戶端驗收。根因與兩版數字見 [docs/13 區域切換延遲](../docs/13-phase3-progress.md#區域切換延遲)。

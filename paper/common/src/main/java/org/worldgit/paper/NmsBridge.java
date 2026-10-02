@@ -59,6 +59,7 @@ public interface NmsBridge {
   java.util.concurrent.CompletionStage<Void> finishChunk(World world, int x, int z);
   void saveRegion(World world);
   /** repo 背景執行緒等待 terrain/entity/POI IO 強制落盤。 */
+  default void saveChunk(World world, int x, int z) { saveRegion(world); }
   void flushIo(World world);
   /** 全域 scheduler，保存／恢復 vanilla freeze 與 step 狀態。 */
   AutoCloseable freeze(World world);

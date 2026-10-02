@@ -66,6 +66,11 @@
 | 59 | 區域訊息欄位 | `worldgit:conflicts` 的 body 新增可選 `ours-authors`／`theirs-authors` 與 `updateShapes`（交界提示座標，客戶端依區域包圍盒外擴 1 格歸屬）；缺少時讀為空清單，舊 v1 body 與舊建構子相容。2026-10-02 |
 | 60 | MERGING 與自動 commit | MERGING 期間定時／登出／關機的自動 commit 跳過（不推進 HEAD 也不寫入半成品）；手動 `/wg commit -m` 等同 `merge --continue`。2026-10-02 |
 | 61 | core 小修正 | `WorldOperations.LiveAccess` 新增 `default void beforeComplete()`（驗證完成後、移動 HEAD／結束 journal 前呼叫），讓平台的取消／停用檢查可在最後一刻中止；預設空實作，向後相容。2026-10-02 |
+| 62 | 區域切換的局部 capture／verify | 一般 chunk atoms 的切換只 flush／capture／驗證 atoms 所在 chunk，UUID 區域另包含歷史端點與目前全維度 UUID（含巢狀乘客）的位置；方塊／BE 寫入使用精確 atoms mask，驗證整個受影響 chunk（含區域外的格子、BE、其他實體），實體容許距離為 0。世界 metadata／非 chunk FILE 區域保守沿用完整路徑。merge 開始、abort 與 continue／commit 保留全組 capture／驗證；continue 新增發布 HEAD 前第二次完整 capture 比對。2026-10-02 | core README、[13](13-phase3-progress.md) 區域切換延遲 |
+| 63 | MERGING 增量與當機窗口 | 一般區域不重寫 `merge-state.bin` 基底（metadata 等完整回退路徑可更新 checkpoint）；`merge-state.bin.updates` 為有長度／CRC32C／operation UUID 的小型 append WAL，只記 result commit、choice／resolved 與交界提示差異，force 後才將 chunk journal 標 COMPLETE。最後一筆截斷可讀回上一個完整狀態；APPLYING／PARTIAL 擋寫，abort 完整重套。新 readers 合併基底＋WAL，continue／abort 清除兩者；基底與 WAL 各上限 32 MiB。2026-10-02 | core README、[13](13-phase3-progress.md) 區域切換延遲 |
+| 64 | 平台局部存檔與短暫鎖 | Paper／Folia 使用 owner 的 `NewChunkHolder.save(false)` 保存指定 terrain／entity／POI，Fabric 使用 vanilla chunk serializer、entity store 與 POI flush；等待原平台 IO queue，無線上直接 Anvil 寫入。方塊區域只鎖指定 chunk 的寫入，UUID 定位期間保守鎖全組，Paper 在鎖內刷新 live census 以涵蓋剛移動的實體；保留短暫 vanilla tick freeze 與保守的容器／第三方協調，保存及恢復原 freeze 狀態。全組作業仍沿用原完整屏障。2026-10-02 | Paper／Fabric README、[13](13-phase3-progress.md) 區域切換延遲 |
+| 65 | 交界提示與局部驗證界線 | 切換只重算選擇 atoms 與六鄰居的 updateShapes，其他提示沿用；continue 的完整 capture 重算整份完成報告。不變 chunk 不在每次切換重讀；MERGING 期間其他 chunk 的 manual 編輯仍以 continue 的活世界為權威。第三方忽略鎖的寫入、全域 IO backlog、UUID storage 定位成本不保證與世界大小無關；#46 保持快照 state、不執行鄰居更新。2026-10-02 | core README、[13](13-phase3-progress.md) 區域切換延遲 |
+
 
 
 ## 路線圖（四端並行）

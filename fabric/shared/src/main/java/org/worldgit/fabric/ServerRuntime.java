@@ -228,6 +228,34 @@ public final class ServerRuntime {
         onServer(() -> server.saveEverything(true, true, true));
     }
 
+    /** 只排入指定 chunk 的 terrain／entity／POI；最後等待 IO queue（不掃其他 chunk）。 */
+    void flushChunks(Map<DimensionId,Set<ChunkPos>> chunks) {
+        var timings=org.worldgit.core.service.OperationTimings.current();
+        onServer(()->{
+            for(var entry:chunks.entrySet()) {
+                var level=server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(entry.getKey().value())));
+                var entities=((org.worldgit.fabric.mixin.ServerLevelAccess)level).worldgit$entities();
+                @SuppressWarnings("unchecked") var entityAccess=(org.worldgit.fabric.mixin.EntityManagerAccess<net.minecraft.world.entity.Entity>)(Object)entities;
+                var map=level.getChunkSource().chunkMap;
+                for(var pos:entry.getValue()) {
+                    var chunk=level.getChunkSource().getChunkNow(pos.x(),pos.z());
+                    // entity／POI 可以仍在記憶體中，而 terrain 已卸載；三種 storage 分別保存。
+                    if(!entityAccess.worldgit$store(((long)pos.x() & 0xffffffffL) | ((long)pos.z() << 32),e->{}))
+                        throw new IOException("entity IO 尚未完成："+pos);
+                    if(chunk!=null) {
+                        // capture/apply 已等待 loaded entity chunks；未 ready 時不能假裝持久化完成。
+                        ((org.worldgit.fabric.mixin.ChunkMapAccess)map).worldgit$save(chunk);
+                    }
+                    level.getPoiManager().flush(new net.minecraft.world.level.ChunkPos(pos.x(),pos.z()));
+                }
+                long ioStarted=System.nanoTime(); entityAccess.worldgit$storage().flush(false); map.synchronize(true).join();
+                ((org.worldgit.fabric.mixin.SectionStorageAccess)level.getPoiManager()).worldgit$region().synchronize(true).join();
+                if(timings!=null) timings.record("io-barrier",System.nanoTime()-ioStarted);
+            }
+            return null;
+        });
+    }
+
     <T> CompletableFuture<T> runRepo(Callable<T> task) {
         var future = new CompletableFuture<T>();
         if (closed) {
@@ -258,6 +286,16 @@ public final class ServerRuntime {
     private volatile int editLocks;
     private boolean mutation, wasFrozen;
     public boolean editsLocked() { return editLocks>0; }
+    private volatile Map<DimensionId,Set<ChunkPos>> regionEditChunks;
+    public boolean editsLocked(DimensionId dimension,ChunkPos chunk) {
+        var scope=regionEditChunks;
+        return editLocks>0 && (scope==null || scope.getOrDefault(dimension,Set.of()).contains(chunk));
+    }
+    AutoCloseable lockChunks(Map<DimensionId,Set<ChunkPos>> chunks) {
+        var lock=lockWorld();
+        regionEditChunks=chunks.values().stream().anyMatch(Set::isEmpty) ? null : Map.copyOf(chunks);
+        return ()->{ regionEditChunks=null; lock.close(); };
+    }
     public boolean internalMutation() { return server.isSameThread() && mutation; }
     @FunctionalInterface interface Mutation { void run() throws Exception; }
     void mutate(Mutation action) throws Exception {
@@ -332,7 +370,9 @@ public final class ServerRuntime {
         });
     }
     @FunctionalInterface public interface LiveAction<T> { T run(WorldOperations operations) throws IOException; }
-    public <T> CompletableFuture<T> live(LiveAction<T> action) {
+    public <T> CompletableFuture<T> live(LiveAction<T> action) { return live(action,false); }
+    public <T> CompletableFuture<T> region(LiveAction<T> action) { return live(action,true); }
+    private <T> CompletableFuture<T> live(LiveAction<T> action,boolean region) {
         if(!server.isSingleplayer()) return CompletableFuture.failedFuture(new IOException("世界切換指令目前只支援單人世界"));
         synchronized(this) {
             if(operation!=null) return CompletableFuture.failedFuture(new IOException("已有套用作業；可用 /wg cancel 取消"));
@@ -340,8 +380,8 @@ public final class ServerRuntime {
         }
         var future=runRepo(()->{
             UUID id=operation;
-            try(var editLock=lockWorld()) {
-                flushBlocking();
+            try(var timing=org.worldgit.core.service.OperationTimings.start("fabric-live"); var editLock=region ? (AutoCloseable)()->{} : lockWorld()) {
+                if(!region) try(var timingFlush=org.worldgit.core.service.OperationTimings.stage("flush")) { flushBlocking(); }
                 if(cancel.get()) throw new IOException("作業已取消，尚未寫入世界");
                 var layout=WorldLayout.discover(worldRoot());
                 T result;
@@ -351,12 +391,12 @@ public final class ServerRuntime {
                 if(result instanceof WorldOperations.Result r && r.state()!=WorldOperations.State.DRY_RUN) onServer(()->{
                     for(var player:server.getPlayerList().getPlayers()) clearPreview(player); return null;
                 });
-                if(result instanceof WorldOperations.MergeResult m && !m.state().equals("DRY_RUN")) onServer(()->{
+                if(result instanceof WorldOperations.MergeResult m && !m.state().equals("DRY_RUN")) try(var notification=org.worldgit.core.service.OperationTimings.stage("notification")) { onServer(()->{
                     for(var player:server.getPlayerList().getPlayers()) {
                         clearPreview(player); sendConflicts(player,m.merging());
                     }
                     return null;
-                });
+                }); }
                 var prior=lastProgress;
                 progress(new ApplyProgress(id,partial ? ApplyProgress.Phase.PARTIAL : ApplyProgress.Phase.COMPLETE,
                     prior==null ? 0 : prior.completedBatches(),prior==null ? 0 : prior.totalBatches(),prior==null ? 0 : prior.completedSections(),prior==null ? 0 : prior.totalSections(),cancel.get()));

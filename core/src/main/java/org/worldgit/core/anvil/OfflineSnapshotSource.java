@@ -173,12 +173,15 @@ public final class OfflineSnapshotSource implements SnapshotSource {
   public CompletionStage<Optional<ChunkSnapshot>> snapshot(ChunkPos pos, IgnoreRules rules) {
     try {
       Path path = terrainPaths.get(pos);
-      if (path == null) return CompletableFuture.completedFuture(Optional.empty());
+      if (path == null) path = dimension.region().resolve(pos.regionName() + ".mca");
+      if (!Files.isRegularFile(path) || !region(path).has(pos.regionIndex()))
+        return CompletableFuture.completedFuture(Optional.empty());
       Nbt.Compound raw = region(path).read(pos.regionIndex());
       if (!ChunkNormalizer.full(raw)) return CompletableFuture.completedFuture(Optional.empty());
       var entities = new ArrayList<Nbt.Compound>();
       Path ep = entityPaths.get(pos);
-      if (ep != null)
+      if (ep == null) ep = dimension.entities().resolve(pos.regionName() + ".mca");
+      if (Files.isRegularFile(ep) && region(ep).has(pos.regionIndex()))
         for (Object e : region(ep).read(pos.regionIndex()).list("Entities").values())
           entities.add((Nbt.Compound) e);
       return CompletableFuture.completedFuture(

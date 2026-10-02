@@ -14,12 +14,40 @@ import org.worldgit.platform.*;
 
 /** Repo 執行緒上執行；owner futures 的等待不阻塞伺服器。共用 core journal／HEAD／stash 語意。 */
 final class FabricOperations implements WorldOperations.LiveAccess {
+    private boolean regionMode;
     private final ServerRuntime runtime;
     private final WorldLayout layout;
     private final SortedMap<DimensionId,FabricLiveWorld> worlds=new TreeMap<>();
     private final Map<UUID,Nbt.Compound> oldEntities=new HashMap<>();
     FabricOperations(ServerRuntime runtime,WorldLayout layout) { this.runtime=runtime;this.layout=layout; }
     @Override public SnapshotSource source(WorldLayout.Dimension dimension) { return new FabricLiveWorld(runtime,layout,dimension); }
+    @Override public SnapshotSource source(WorldLayout.Dimension dimension,Set<ChunkPos> chunks) {
+        try(var timing=org.worldgit.core.service.OperationTimings.stage("flush")) { runtime.flushChunks(Map.of(dimension.id(),chunks)); }
+        return new FabricLiveWorld(runtime,layout,dimension);
+    }
+    @Override public AutoCloseable lockChunks(Map<DimensionId,Set<ChunkPos>> chunks) {
+        try(var timing=org.worldgit.core.service.OperationTimings.stage("lock")) { return runtime.lockChunks(chunks); }
+    }
+    @Override public Set<ChunkPos> entityChunks(WorldLayout.Dimension dimension,Set<UUID> ids) throws IOException {
+        var positions=new TreeSet<ChunkPos>();
+        for(var path:RegionFile.list(dimension.entities())) try(var region=new RegionFile(path)) {
+            for(int i=0;i<1024;i++) if(region.has(i) && contains(region.read(i).list("Entities"),ids)) positions.add(region.pos(i));
+        }
+        positions.addAll(runtime.onServer(()->{
+            var result=new TreeSet<ChunkPos>();
+            var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(dimension.id().value())));
+            if(level!=null) for(var entity:level.getAllEntities()) if(ids.contains(entity.getUUID())) result.add(ServerRuntime.corePos(entity.chunkPosition()));
+            return result;
+        }));
+        return positions;
+    }
+    @Override public void beforeComplete() throws IOException {
+        if(runtime.cancelRequested()) throw new IOException("操作已取消");
+    }
+    @Override public void applyRegions(Collection<ApplyPlan> plans) throws IOException {
+        regionMode=true;
+        try { applyAll(plans); } finally { regionMode=false; }
+    }
     @Override public EntityTagRegistry.PackResolver packs() { return ModPacks.INSTANCE; }
     @Override public void validate(ApplyPlan plan) throws IOException {
         if(plan.chunks().values().stream().anyMatch(ApplyPlan.ChunkOp::delete))
@@ -92,17 +120,19 @@ final class FabricOperations implements WorldOperations.LiveAccess {
                 var world=world(batch.dimension());
                 world.nextApplyTick(batch).toCompletableFuture().join();
                 if(runtime.cancelRequested()) throw new IOException("套用已取消");
-                world.apply(batch,budget).toCompletableFuture().join();
+                try(var timing=org.worldgit.core.service.OperationTimings.stage("apply-owner")) { world.apply(batch,budget).toCompletableFuture().join(); }
                 complete++; sections+=batch.stats().sections();
             }
         } catch(Throwable ex) { error=ex; }
         // Always try every dimension cleanup, even if a prior barrier failed.
         runtime.progress(new ApplyProgress(runtime.operationId(),ApplyProgress.Phase.LIGHTING,complete,batches.size(),sections,totalSections,runtime.cancelRequested()));
-        for(var entry:affected.entrySet()) try { world(entry.getKey()).finishApply(entry.getValue()).toCompletableFuture().join(); }
+        for(var entry:affected.entrySet()) try(var timing=org.worldgit.core.service.OperationTimings.stage("lighting")) { world(entry.getKey()).finishApply(entry.getValue()).toCompletableFuture().join(); }
         catch(Throwable ex) { if(error==null) error=ex; else error.addSuppressed(ex); }
         try {
             runtime.progress(new ApplyProgress(runtime.operationId(),ApplyProgress.Phase.SAVING,complete,batches.size(),sections,totalSections,runtime.cancelRequested()));
-            runtime.flushBlocking();
+            try(var timing=org.worldgit.core.service.OperationTimings.stage("flush-after-apply")) {
+                if(regionMode) runtime.flushChunks(affected); else runtime.flushBlocking();
+            }
         } catch(Throwable ex) { if(error==null) error=ex; else error.addSuppressed(ex); }
         for(var w:worlds.values()) try { w.close(); } catch(Throwable ex) { if(error==null) error=ex; else error.addSuppressed(ex); }
         if(error!=null) {

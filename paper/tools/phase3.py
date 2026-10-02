@@ -1,5 +1,5 @@
 """Phase 3 Paper／Folia：線上 merge／工具／GUI／重啟／patch／1000 chunk，有 bot。自己持 bench.lock。"""
-import hashlib, json, os, re, shutil, subprocess, time, traceback
+import glob, hashlib, json, os, re, shutil, statistics, subprocess, time, traceback
 import harness
 from harness import BenchLock, Server, ROOT, WORK, JAVA
 
@@ -19,9 +19,9 @@ def run(platform, version):
     helper=os.path.join(evidence,'classes');os.makedirs(helper)
     def wgit(args,check=True):
         proc=subprocess.run([JAVA['1.21.11'],'-Xmx512m','-jar',cli,*args],text=True,capture_output=True,timeout=900)
-        text=strip(proc.stdout+proc.stderr)
-        with open(os.path.join(evidence,'cli.log'),'a') as f:f.write('wgit '+str(args)+'\n'+text+'\n')
-        if check and proc.returncode: raise RuntimeError(text)
+        text=strip(proc.stdout)
+        with open(os.path.join(evidence,'cli.log'),'a') as f:f.write('wgit '+str(args)+'\n'+text+'\n'+strip(proc.stderr)+'\n')
+        if check and proc.returncode: raise RuntimeError(text+strip(proc.stderr))
         return text
     def inspect(action,*args):
         out=subprocess.check_output([JAVA['1.21.11'],'-Xmx512m','-cp',helper+':'+cli,'MergeEvidence',action,*map(str,args)],text=True,timeout=90)
@@ -41,6 +41,12 @@ def run(platform, version):
         client=bot.ask(f'sample {cx} {cz} {sy}','sample',60)
         target=inspect('section',s.world,revision,cx,cz,sy) if revision else h
         check(f'逐格 state／client {revision or "live"} {cx},{cz},{sy}',client['missing']==0 and client['hash']==h==target,server=h,client=client,target=target)
+    def stored_chunks():
+        count=0
+        for path in glob.glob(os.path.join(s.dir,'world*','**','region','r.*.mca'),recursive=True):
+            with open(path,'rb') as f:header=f.read(4096)
+            count+=sum(header[i:i+4]!=bytes(4) for i in range(0,len(header),4))
+        return count
     def state():return inspect('state',s.world)
     def wait_state(choice=None,resolved=None,timeout=180):
         end=time.time()+timeout
@@ -56,11 +62,13 @@ def run(platform, version):
         # 模擬 Bukkit 事件；不是直接呼叫 selectRegion（驗收允許此方式）。
         s.send('wg debug merge-tool WgBot '+action)
         if action=='cycle':
-            s.wait(r'apply sections=|錯誤|Error|PARTIAL',900,mark)
+            s.wait(r'WGREGIONDONE|錯誤|Error|PARTIAL',900,mark)
+            wall=time.monotonic()-started
             prot=strip(s.cmd('wg debug protection WgBot',r'ENTITY_ATTACK'))
             check('區域切換三種保護',all(f'cause={k} cancelled=true' in prot for k in ('FALL','SUFFOCATION','DROWNING')),output=prot[-400:])
         if expected:wait_state(expected, action=='resolve')
-        time.sleep(1);wall=time.monotonic()-started-1;result.setdefault('region_switch_seconds',[]).append(wall);save();return wall
+        if action=='cycle':result.setdefault('region_switch_seconds',[]).append(wall)
+        save();return wall if action=='cycle' else None
     def builds(bot,x,item):
         s.cmd(f'tp {bot.name} {x+5} 65 8');time.sleep(1)
         s.cmd('wg debug freeze off',r'WGFREEZE restored');time.sleep(.5)
@@ -126,11 +134,13 @@ def run(platform, version):
             check('重啟 MERGING 與全體授權玩家描邊恢復',all(x>=12 for x in displays),displays=displays)
             bots[0].ask('chat /wg tool','chat_sent');time.sleep(2)
             s.cmd('gamemode survival WgBot');s.cmd('effect give WgBot minecraft:instant_health 1 5')
-            for choice,rev in [('THEIRS','theirs-original'),('BASE','base'),('OURS','ours-original')]:
+            for choice,rev in [('THEIRS','theirs-original'),('BASE','base'),('OURS','ours-original')]*2:
                 tool(expected=choice)
                 for bot in bots:
                     sample(bot,0,0,revision=rev);sample(bot,1,0,revision=rev)
                 check('區域內切換無傷害 '+choice,bots[0].ask('health','health_now')['health']==20)
+            result['region_latency']={'stored_chunks':stored_chunks(),'samples_seconds':result['region_switch_seconds'],'median_seconds':statistics.median(result['region_switch_seconds']),'max_seconds':max(result['region_switch_seconds'])}
+            check('小區域切換中位數 ≤ 2 秒',result['region_latency']['median_seconds']<=2,**result['region_latency'])
             s.cmd('gamemode creative WgBot')
             bots[0].ask('chat /wg conflicts','chat_sent');time.sleep(2);win=bots[0].ask('window','window');check('箱子 GUI 開啟含清單',win['opened'] and win['slots']>=3,window=win)
             # 真 client inventory click packet；Folia handler 使用 teleportAsync。
@@ -158,6 +168,23 @@ def run(platform, version):
             cmd('wg switch bench-A',r'已切換到|Switched|錯誤|Error|PARTIAL');s.cmd('wg debug probe start',r'probe 開始');started=time.monotonic();out=cmd('wg merge bench-B');wall=time.monotonic()-started
             probe=strip(s.cmd('wg debug probe stop',r'probe ticks='));result['benchmark']={'wall_seconds':wall,'probe':probe,'output':out[-1500:]};save()
             check('線上 1000 chunk merge、bot 在線、零衝突',state() is None and len(git('rev-list','--parents','-n','1','HEAD').split())==3,seconds=wall,probe=probe)
+            # 大世界、200 個不相連區域：同一 chunk 內只改 local X=10，跨 chunk 距離 16。
+            branch('conflict200-B');branch('conflict200-A');cmd('wg switch conflict200-A',r'已切換到|Switched|錯誤|Error|PARTIAL')
+            s.cmd('wg debug fill 32 emerald_block 200 10',r'debug fill 完成',900);commit('200 ours');s.cmd('wg debug release',r'已釋放')
+            cmd('wg switch conflict200-B',r'已切換到|Switched|錯誤|Error|PARTIAL')
+            s.cmd('wg debug fill 32 lapis_block 200 10',r'debug fill 完成',900);commit('200 theirs');s.cmd('wg debug release',r'已釋放')
+            cmd('wg switch conflict200-A',r'已切換到|Switched|錯誤|Error|PARTIAL');cmd('wg merge conflict200-B')
+            many=state();rows=[r for d in many['dimensions'].values() for r in d['report']['regions']]
+            check('大世界有 200 個衝突區域',len(rows)==200,regions=len(rows))
+            latency=[]
+            for choice in ('theirs','base','ours','theirs','base','ours'):
+                mark=s.mark();started=time.monotonic();s.send('wg resolve 1 '+choice)
+                s.wait(r'WGREGIONDONE|錯誤|Error|PARTIAL',900,mark);latency.append(time.monotonic()-started)
+                many=state();selected=[r for d in many['dimensions'].values() for r in d['report']['regions'] if r['id']==1][0]
+                check('200 區域切換 '+choice,selected['choice']==choice.upper(),seconds=latency[-1])
+            result['region_latency_200']={'stored_chunks':stored_chunks(),'samples_seconds':latency,'median_seconds':statistics.median(latency),'max_seconds':max(latency),'regions':len(rows)}
+            check('200 區域單區切換中位數 ≤ 2 秒',statistics.median(latency)<=2,**result['region_latency_200'])
+            cmd('wg resolve all theirs');cmd('wg merge --continue')
             result['final_head']=git('rev-parse','HEAD');save()
         except BaseException:
             result['steps'].append({'name':'場景例外','ok':False,'trace':traceback.format_exc()});save();print(traceback.format_exc(),flush=True)
@@ -171,6 +198,9 @@ def run(platform, version):
             except BaseException:
                 result['steps'].append({'name':'離線驗證例外','ok':False,'trace':traceback.format_exc()});save()
             problems=[l for l in s.lines_since() if 'ERROR' in l or 'Exception' in l];result['problem_lines']=problems[-30:]
+            result['profiles']=[]
+            for line in s.lines_since():
+                if 'WGPROFILE {' in line: result['profiles'].append(json.loads(line[line.index('WGPROFILE ')+10:]))
             result['finished']=time.strftime('%F %T');save()
             if not os.environ.get('WG_KEEP_SERVER'):shutil.rmtree(s.dir,ignore_errors=True)
             os.environ.pop('WG_BOT_DUMP',None)

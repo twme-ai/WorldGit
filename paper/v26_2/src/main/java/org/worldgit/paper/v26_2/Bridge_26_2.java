@@ -218,6 +218,10 @@ public final class Bridge_26_2 implements NmsBridge {
     return result;
   }
   @Override public void saveRegion(World world) { level(world).moonrise$getChunkTaskScheduler().chunkHolderManager.saveAllChunks(true,false,false,true); }
+  @Override public void saveChunk(World world,int x,int z) {
+    var holder=level(world).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(x,z);
+    if(holder!=null) holder.save(false); // terrain／entity／POI，在該 chunk owner 排入 IO。
+  }
   @Override public void flushIo(World world) { ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush(level(world)); }
   @Override public AutoCloseable freeze(World world) {
     var manager=level(world).getServer().tickRateManager(); boolean frozen=manager.isFrozen(); int steps=manager.frozenTicksToRun();

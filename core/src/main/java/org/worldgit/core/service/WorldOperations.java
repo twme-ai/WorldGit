@@ -12,6 +12,7 @@ import org.worldgit.core.config.*;
 import org.worldgit.core.diff.*;
 import org.worldgit.core.merge.*;
 import org.worldgit.core.model.*;
+import org.worldgit.core.normalize.SnapshotCodec;
 import org.worldgit.core.store.*;
 
 /** 一組維度的離線復原入口。全組 repo/session 鎖、預檢、journal、寫回、驗證、HEAD barrier。 */
@@ -50,10 +51,49 @@ public final class WorldOperations implements AutoCloseable {
 
   /**
    * 線上平台持有遊戲的 session；全組套用必須有跨維度 UUID removal barrier。 呼叫端在建構之前鎖定編輯並 flush，直到 close 之後才解鎖。禁止在遊戲
-   * owner 執行緒呼叫。
+   * owner 執行緒呼叫。區域選擇另由 lockChunks／局部 source／applyRegions 管理短暫的 chunk 屏障。
    */
   public interface LiveAccess {
     SnapshotSource source(WorldLayout.Dimension dimension) throws IOException;
+
+    /** 局部來源：必須以 owner 活資料或完成 IO 的磁碟快照讀取指定 chunks；不需 scan。 */
+    default SnapshotSource source(WorldLayout.Dimension dimension, Set<ChunkPos> chunks)
+        throws IOException {
+      var source = source(dimension);
+      try {
+        source.scan(org.worldgit.core.capture.ScanIndex.empty(), true);
+        return source;
+      } catch (Exception ex) {
+        source.close();
+        throw ex instanceof IOException io ? io : new IOException(ex);
+      }
+    }
+
+    /** UUID 的目前位置（含 passengers／未載入 storage）；不擷取無關 chunk。 */
+    default Set<ChunkPos> entityChunks(WorldLayout.Dimension dimension, Set<UUID> ids)
+        throws IOException {
+      var result = new TreeSet<ChunkPos>();
+      try (var source = source(dimension)) {
+        for (var pos : source.scan(org.worldgit.core.capture.ScanIndex.empty(), true).present())
+          for (var entity :
+              source
+                  .snapshot(pos, IgnoreRules.none())
+                  .toCompletableFuture()
+                  .join()
+                  .orElseThrow()
+                  .entities()) if (ids.contains(entity.uuid())) result.add(pos);
+      }
+      return result;
+    }
+
+    /** 區域操作仍與其他 repo 操作互斥；平台只鎖定指定 chunks。 */
+    default AutoCloseable lockChunks(Map<DimensionId, Set<ChunkPos>> chunks) throws IOException {
+      return () -> {};
+    }
+
+    default void applyRegions(Collection<ApplyPlan> plans) throws IOException {
+      applyAll(plans);
+    }
 
     void validate(ApplyPlan plan) throws IOException;
 
@@ -250,10 +290,11 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   private String capture(DimensionRepository repo) throws IOException {
-    try (var source =
-        live == null
-            ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()))
-            : live.source(layout.dimensions().get(repo.dimension()))) {
+    try (var timing = OperationTimings.stage("capture");
+        var source =
+            live == null
+                ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()))
+                : live.source(layout.dimensions().get(repo.dimension()))) {
       return repo.workingTree(source, worlds.manifest(), tolerance);
     }
   }
@@ -389,8 +430,24 @@ public final class WorldOperations implements AutoCloseable {
     return false;
   }
 
+  @FunctionalInterface
+  private interface PersistCompletion {
+    void write() throws IOException;
+  }
+
   private Result execute(
       String mode, Prepared prepared, String branch, boolean moveHead, boolean dryRun)
+      throws IOException {
+    return execute(mode, prepared, branch, moveHead, dryRun, () -> {});
+  }
+
+  private Result execute(
+      String mode,
+      Prepared prepared,
+      String branch,
+      boolean moveHead,
+      boolean dryRun,
+      PersistCompletion persistence)
       throws IOException {
     if (dryRun) return new Result(State.DRY_RUN, stats(prepared), null);
     var old = new TreeMap<DimensionId, RefStore.Head>();
@@ -427,8 +484,10 @@ public final class WorldOperations implements AutoCloseable {
               repo.ignorePath(), TreeFilter.rules(repo.objects(), entry.getValue().tree()));
           restoreConfig(repo, entry.getValue());
         }
-      if (live != null) live.applyAll(prepared.plans.values());
-      else if (groupedWriter) applier.applyAll(prepared.plans.values(), session);
+      try (var timing = OperationTimings.stage("apply-and-barrier")) {
+        if (live != null) live.applyAll(prepared.plans.values());
+        else if (groupedWriter) applier.applyAll(prepared.plans.values(), session);
+      }
       for (var entry : prepared.plans.entrySet()) {
         if (live == null && !groupedWriter) writer.apply(entry.getValue(), session);
         repos.get(entry.getKey()).invalidateIndex();
@@ -437,16 +496,18 @@ public final class WorldOperations implements AutoCloseable {
         row.put("applied", true);
         writeJournal(journal);
       }
-      var checked =
-          prepare(
-              prepared.commits,
-              null,
-              prepared.plans.get(prepared.plans.firstKey()).scope(),
-              prepared.plans.values().stream().anyMatch(p -> !p.worldMeta().isEmpty()),
-              false);
-      for (var entry : checked.plans.entrySet())
-        if (!entry.getValue().empty())
-          throw new IOException("套用驗證失敗：" + entry.getKey() + " " + entry.getValue().stats());
+      try (var timing = OperationTimings.stage("verify")) {
+        var checked =
+            prepare(
+                prepared.commits,
+                null,
+                prepared.plans.get(prepared.plans.firstKey()).scope(),
+                prepared.plans.values().stream().anyMatch(p -> !p.worldMeta().isEmpty()),
+                false);
+        for (var entry : checked.plans.entrySet())
+          if (!entry.getValue().empty())
+            throw new IOException("套用驗證失敗：" + entry.getKey() + " " + entry.getValue().stats());
+      }
       if (live != null) live.beforeComplete();
       if (moveHead)
         for (var entry : prepared.commits.entrySet()) {
@@ -466,6 +527,7 @@ public final class WorldOperations implements AutoCloseable {
         if (moveHead) restoreConfig(repo, prepared.commits.get(entry.getKey()));
         repo.invalidateIndex();
       }
+      persistence.write();
       journal.put("state", "COMPLETE");
       writeJournal(journal);
       return new Result(State.COMPLETE, stats(prepared), null);
@@ -506,7 +568,9 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   private void writeJournal(Map<String, Object> journal) throws IOException {
-    OperationState.write(worlds.root().resolve("apply-state.yml"), journal);
+    try (var timing = OperationTimings.stage("journal")) {
+      OperationState.write(worlds.root().resolve("apply-state.yml"), journal);
+    }
   }
 
   private static String message(Exception ex) {
@@ -1113,16 +1177,19 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   private void saveMerge(MergeState state) throws IOException {
-    state.write(worlds.root().resolve("merge-state.bin"));
-    for (var e : state.dimensions().entrySet())
-      RegionFile.atomicWrite(
-          repos.get(e.getKey()).directory().resolve("MERGE_HEAD"),
-          (e.getValue().sourceCommit() + "\n").getBytes(StandardCharsets.US_ASCII));
+    try (var timing = OperationTimings.stage("merge-state")) {
+      state.write(worlds.root().resolve("merge-state.bin"));
+      for (var e : state.dimensions().entrySet())
+        RegionFile.atomicWrite(
+            repos.get(e.getKey()).directory().resolve("MERGE_HEAD"),
+            (e.getValue().sourceCommit() + "\n").getBytes(StandardCharsets.US_ASCII));
+    }
   }
 
   private void clearMerge() throws IOException {
     for (var repo : repos.values()) Files.deleteIfExists(repo.directory().resolve("MERGE_HEAD"));
     Files.deleteIfExists(worlds.root().resolve("merge-state.bin"));
+    Files.deleteIfExists(MergeState.updatesPath(worlds.root().resolve("merge-state.bin")));
   }
 
   private MergeState activeMerge() throws IOException {
@@ -1141,6 +1208,25 @@ public final class WorldOperations implements AutoCloseable {
     if (OperationState.partial(worlds.root()))
       throw new IOException("合併為 PARTIAL；請先 merge --abort");
     var state = activeMerge();
+    var selectedRegions =
+        state.regions().stream().filter(r -> regionId == 0 || r.id() == regionId).toList();
+    if (selectedRegions.isEmpty()) throw new IOException("找不到衝突區域 #" + regionId);
+    if (selectedRegions.stream()
+        .flatMap(r -> r.atoms().stream())
+        .allMatch(a -> a.kind() == MergeReport.Kind.ENTITY || a.path().startsWith("r.")))
+      return selectChunks(state, selectedRegions, choice, resolved, dryRun);
+    var all = new TreeMap<DimensionId, Set<ChunkPos>>();
+    state.dimensions().keySet().forEach(id -> all.put(id, Set.of()));
+    try (AutoCloseable lock = live == null ? () -> {} : live.lockChunks(all)) {
+      return selectFull(state, regionId, choice, resolved, dryRun);
+    } catch (Exception ex) {
+      throw ex instanceof IOException io ? io : new IOException(ex);
+    }
+  }
+
+  private MergeResult selectFull(
+      MergeState state, int regionId, MergeReport.Choice choice, boolean resolved, boolean dryRun)
+      throws IOException {
     var ds = new TreeMap<>(state.dimensions());
     var plans = new TreeMap<DimensionId, ApplyPlan>();
     var commits = new TreeMap<DimensionId, RefStore.Commit>();
@@ -1150,60 +1236,424 @@ public final class WorldOperations implements AutoCloseable {
       var repo = repos.get(e.getKey());
       var regions = new ArrayList<MergeReport.Region>();
       String current = capture(repo), target = current;
-      boolean changed = false;
-      for (var r : d.report().regions()) {
-        if (regionId == 0 || r.id() == regionId) {
-          found = true;
-          changed = true;
-          if (choice != MergeReport.Choice.MANUAL) {
-            String source =
-                switch (choice) {
-                  case OURS -> d.oursTree();
-                  case THEIRS -> d.theirsTree();
-                  case BASE -> d.baseTree();
-                  default -> throw new AssertionError();
-                };
-            target = MergeEngine.select(repo.objects(), target, source, r);
+      try (var timing = OperationTimings.stage("plan-and-shapes")) {
+        boolean changed = false;
+        for (var r : d.report().regions()) {
+          if (regionId == 0 || r.id() == regionId) {
+            found = true;
+            changed = true;
+            if (choice != MergeReport.Choice.MANUAL) {
+              String source =
+                  switch (choice) {
+                    case OURS -> d.oursTree();
+                    case THEIRS -> d.theirsTree();
+                    case BASE -> d.baseTree();
+                    default -> throw new AssertionError();
+                  };
+              target = MergeEngine.select(repo.objects(), target, source, r);
+            }
+            r = r.selected(choice, resolved);
           }
-          r = r.selected(choice, resolved);
+          regions.add(r);
         }
-        regions.add(r);
+        if (!changed) continue;
+        var report =
+            new MergeReport(
+                d.report().automaticallyMergedSections(),
+                regions,
+                d.report().ruleDifferences(),
+                MergeEngine.updateShapes(
+                    repo.objects(), e.getKey(), d.baseTree(), d.oursTree(), d.theirsTree(), target),
+                d.report().warnings());
+        var prior = repo.refs().readCommit(d.resultCommit());
+        String c =
+            dryRun
+                ? prior.id()
+                : provisional(
+                    repo,
+                    target,
+                    prior.parents().isEmpty() ? null : prior.parents().getFirst(),
+                    prior.metadata());
+        commits.put(e.getKey(), new RefStore.Commit(c, target, prior.parents(), prior.metadata()));
+        plans.put(e.getKey(), mergePlan(repo, current, target));
+        e.setValue(d.withResult(c, report));
       }
-      if (!changed) continue;
-      var report =
-          new MergeReport(
-              d.report().automaticallyMergedSections(),
-              regions,
-              d.report().ruleDifferences(),
-              MergeEngine.updateShapes(
-                  repo.objects(), e.getKey(), d.baseTree(), d.oursTree(), d.theirsTree(), target),
-              d.report().warnings());
-      var prior = repo.refs().readCommit(d.resultCommit());
-      String c =
-          dryRun
-              ? prior.id()
-              : provisional(
-                  repo,
-                  target,
-                  prior.parents().isEmpty() ? null : prior.parents().getFirst(),
-                  prior.metadata());
-      commits.put(e.getKey(), new RefStore.Commit(c, target, prior.parents(), prior.metadata()));
-      plans.put(e.getKey(), mergePlan(repo, current, target));
-      e.setValue(d.withResult(c, report));
     }
     if (!found) throw new IOException("找不到衝突區域 #" + regionId);
     var updated =
         new MergeState(state.operation(), state.mode(), state.source(), state.message(), ds);
     if (dryRun) return mergeResult("DRY_RUN", updated, plans, new TreeMap<>(), null);
     // 先套用並驗證，再发布 resolved；若中途崩潰，舊狀態仍 unresolved，可 abort。
-    var applied = execute("merge-select", new Prepared(commits, plans), null, false, false);
-    if (applied.success()) saveMerge(updated);
+    var applied =
+        execute(
+            "merge-select",
+            new Prepared(commits, plans),
+            null,
+            false,
+            false,
+            () -> saveMerge(updated));
     return mergeResult(
         applied.success() ? "MERGING" : "PARTIAL",
         applied.success() ? updated : state,
         plans,
         new TreeMap<>(),
         applied.error());
+  }
+
+  private Set<ChunkPos> affectedChunks(
+      DimensionRepository repo, MergeState.Dimension d, List<MergeReport.Region> regions)
+      throws IOException {
+    var chunks = new TreeSet<ChunkPos>();
+    var ids = new HashSet<UUID>();
+    for (var r : regions)
+      for (var atom : r.atoms()) {
+        if (atom.position() != null) chunks.add(atom.position().chunk());
+        // ticks／structures 等沒有 position 的 chunk 級 atoms。
+        String[] path = atom.path().split("/");
+        if (path.length > 1 && path[1].startsWith("c.")) {
+          String[] c = path[1].split("\\.");
+          chunks.add(new ChunkPos(Integer.parseInt(c[1]), Integer.parseInt(c[2])));
+        }
+        if (atom.uuid() != null) ids.add(atom.uuid());
+      }
+    if (!ids.isEmpty()) {
+      // 歷史 UUID 端點加上活世界的真正位置；一般方塊區域完全不掃實體。
+      var engine = new DiffEngine(repo.objects());
+      for (String tree : List.of(d.baseTree(), d.oursTree(), d.theirsTree()))
+        for (var e : engine.entities(tree).entrySet())
+          if (ids.contains(e.getKey())) chunks.add(e.getValue().chunk());
+    }
+    return chunks;
+  }
+
+  private Set<ChunkPos> entityChunks(WorldLayout.Dimension dimension, Set<UUID> ids)
+      throws IOException {
+    if (live != null) return live.entityChunks(dimension, ids);
+    var result = new TreeSet<ChunkPos>();
+    for (var path : RegionFile.list(dimension.entities()))
+      try (var region = new RegionFile(path)) {
+        for (int i = 0; i < 1024; i++)
+          if (region.has(i) && containsEntityIds(region.read(i).list("Entities"), ids))
+            result.add(region.pos(i));
+      }
+    return result;
+  }
+
+  private static boolean containsEntityIds(Nbt.ListTag list, Set<UUID> ids) {
+    for (Object value : list.values()) {
+      var entity = (Nbt.Compound) value;
+      if (ids.contains(org.worldgit.core.normalize.EntityNormalizer.uuid(entity))
+          || containsEntityIds(entity.list("Passengers"), ids)) return true;
+    }
+    return false;
+  }
+
+  private String captureChunks(DimensionRepository repo, Set<ChunkPos> chunks) throws IOException {
+    try (var timing = OperationTimings.stage("capture");
+        var source =
+            live == null
+                ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()))
+                : live.source(layout.dimensions().get(repo.dimension()), chunks)) {
+      var editor = new TreeEditor(repo.objects(), null);
+      var rules = IgnoreRules.parse(Files.readString(repo.ignorePath()));
+      for (var pos : chunks) {
+        try {
+          var snapshot = source.snapshot(pos, rules).toCompletableFuture().join();
+          if (snapshot.isPresent()) {
+            if (!snapshot.get().pos().equals(pos)) throw new IOException("来源回傳錯誤 chunk 座標");
+            editor.replaceTree(pos.treePath(), SnapshotCodec.chunkFiles(snapshot.get()));
+          }
+        } catch (java.util.concurrent.CompletionException ex) {
+          throw new IOException("局部 capture 失敗：" + pos, ex.getCause());
+        }
+      }
+      String tree = editor.write();
+      repo.objects().flush();
+      return tree;
+    }
+  }
+
+  private ApplyPlan chunkPlan(
+      DimensionRepository repo, String current, String target, Set<ChunkPos> chunks)
+      throws IOException {
+    var rules = IgnoreRules.parse(Files.readString(repo.ignorePath()));
+    var options =
+        new ApplyPlanner.Options(
+            rules,
+            rules,
+            EntityTagRegistry.load(
+                layout.world(), layout.dataVersion(), live == null ? null : live.packs()),
+            0,
+            false,
+            false,
+            layout.dataVersion());
+    return ApplyPlanner.plan(
+        repo.objects(), repo.dimension(), current, target, Scope.chunkSet(chunks), options);
+  }
+
+  private ApplyPlan regionPlan(
+      DimensionRepository repo,
+      String current,
+      String target,
+      Set<ChunkPos> chunks,
+      List<MergeReport.Region> regions)
+      throws IOException {
+    var plan = chunkPlan(repo, current, target, chunks);
+    var masks = new HashMap<String, long[]>();
+    var files = new HashSet<String>();
+    for (var r : regions)
+      for (var atom : r.atoms()) {
+        if (atom.kind() == MergeReport.Kind.BLOCK) {
+          var mask = masks.computeIfAbsent(atom.path(), p -> new long[64]);
+          int i = atom.position().index();
+          mask[i >>> 6] |= 1L << (i & 63);
+        } else if (atom.kind() == MergeReport.Kind.FILE) files.add(atom.path());
+      }
+    var ops = new ArrayList<ApplyPlan.ChunkOp>();
+    for (var chunk : plan.chunks().values()) {
+      var sections = new TreeMap<Integer, ApplyPlan.SectionOp>();
+      for (var section : chunk.sections().values()) {
+        String path = chunk.pos().treePath() + "/s." + section.y() + ".bin";
+        if (files.contains(path)) sections.put(section.y(), section);
+        else {
+          var selected = masks.get(path);
+          if (selected == null) continue;
+          var mask = selected.clone();
+          for (int i = 0; i < 4096; i++) if (!section.covers(i)) mask[i >>> 6] &= ~(1L << (i & 63));
+          if (Arrays.stream(mask).anyMatch(n -> n != 0))
+            sections.put(section.y(), new ApplyPlan.SectionOp(section.y(), section.blob(), mask));
+        }
+      }
+      var op =
+          new ApplyPlan.ChunkOp(
+              chunk.pos(),
+              chunk.delete(),
+              sections,
+              chunk.biomes(),
+              chunk.setTicks(),
+              chunk.ticks(),
+              chunk.setStructures(),
+              chunk.structures());
+      if (!op.empty()) ops.add(op);
+    }
+    return new ApplyPlan(
+            plan.dimension(),
+            plan.baseTree(),
+            plan.targetTree(),
+            plan.dataVersion(),
+            plan.scope(),
+            ops,
+            plan.entities(),
+            plan.worldMeta(),
+            plan.untrackedKept())
+        .withRules(plan.ignoreRules());
+  }
+
+  private String overlayChunks(
+      DimensionRepository repo, String full, String local, Set<ChunkPos> chunks)
+      throws IOException {
+    var editor = new TreeEditor(repo.objects(), full);
+    for (var pos : chunks) {
+      var entry = TreeEditor.find(repo.objects(), local, pos.treePath());
+      if (entry == null) editor.remove(pos.treePath());
+      else {
+        var blobs = new TreeMap<String, byte[]>();
+        for (var leaf : repo.objects().readTree(entry.id()).values())
+          blobs.put(leaf.name(), repo.objects().readBlob(leaf.id()));
+        editor.replaceTree(pos.treePath(), blobs);
+      }
+    }
+    return editor.write();
+  }
+
+  private MergeResult selectChunks(
+      MergeState state,
+      List<MergeReport.Region> selected,
+      MergeReport.Choice choice,
+      boolean resolved,
+      boolean dryRun)
+      throws IOException {
+    var affected = new TreeMap<DimensionId, Set<ChunkPos>>();
+    for (var entry : state.dimensions().entrySet()) {
+      var regions = selected.stream().filter(r -> r.dimension().equals(entry.getKey())).toList();
+      if (!regions.isEmpty())
+        affected.put(
+            entry.getKey(), affectedChunks(repos.get(entry.getKey()), entry.getValue(), regions));
+    }
+    var plans = new TreeMap<DimensionId, ApplyPlan>();
+    var targets = new TreeMap<DimensionId, String>();
+    var ds = new TreeMap<>(state.dimensions());
+    var journal = new LinkedHashMap<String, Object>();
+    journal.put("version", 2);
+    journal.put("operation", UUID.randomUUID().toString());
+    journal.put("merge", state.operation().toString());
+    journal.put("mode", "merge-select");
+    journal.put("state", "APPLYING");
+    boolean attempted = false;
+    var locking = new TreeMap<>(affected);
+    var entityIds = regionEntityIds(state, selected);
+    if (!entityIds.isEmpty()) repos.keySet().forEach(id -> locking.put(id, Set.of()));
+    try (var lockTiming = OperationTimings.stage("region-operation");
+        AutoCloseable lock = live == null ? () -> {} : live.lockChunks(locking)) {
+      if (!entityIds.isEmpty())
+        for (var dimension : layout.dimensions().values())
+          if (repos.containsKey(dimension.id())) {
+            var positions = entityChunks(dimension, entityIds);
+            if (!positions.isEmpty()) {
+              var expanded = new TreeSet<>(affected.getOrDefault(dimension.id(), Set.of()));
+              expanded.addAll(positions);
+              affected.put(dimension.id(), expanded);
+            }
+          }
+      var rows = new TreeMap<String, Object>();
+      for (var entry : affected.entrySet()) {
+        var repo = repos.get(entry.getKey());
+        var d = ds.get(entry.getKey());
+        String current = captureChunks(repo, entry.getValue()), target = current;
+        try (var timing = OperationTimings.stage("plan-and-shapes")) {
+          var selectedIds = new HashSet<Integer>();
+          // 先清除 root／乘客 UUID 的舊位置，再於 region 所屬維度生成來源。
+          // 乘客可能已被玩家拆離，成為另一個 chunk 的 root。
+          if (choice != MergeReport.Choice.MANUAL && !entityIds.isEmpty()) {
+            target = MergeEngine.withoutEntities(repo.objects(), target, entityIds);
+          }
+          for (var r : selected)
+            if (r.dimension().equals(entry.getKey())) {
+              selectedIds.add(r.id());
+              if (choice != MergeReport.Choice.MANUAL)
+                target =
+                    MergeEngine.select(
+                        repo.objects(),
+                        target,
+                        switch (choice) {
+                          case OURS -> d.oursTree();
+                          case THEIRS -> d.theirsTree();
+                          case BASE -> d.baseTree();
+                          default -> throw new AssertionError();
+                        },
+                        r);
+            }
+          var plan = regionPlan(repo, current, target, entry.getValue(), selected);
+          if (live != null) live.validate(plan);
+          plans.put(entry.getKey(), plan);
+          targets.put(entry.getKey(), target);
+          var prior = repo.refs().readCommit(d.resultCommit());
+          String fullTarget = overlayChunks(repo, prior.tree(), target, entry.getValue());
+          var cells =
+              selected.stream()
+                  .filter(r -> r.dimension().equals(entry.getKey()))
+                  .flatMap(r -> r.atoms().stream())
+                  .filter(a -> a.kind() == MergeReport.Kind.BLOCK)
+                  .map(MergeReport.Atom::position)
+                  .toList();
+          var report =
+              new MergeReport(
+                  d.report().automaticallyMergedSections(),
+                  d.report().regions().stream()
+                      .map(r -> selectedIds.contains(r.id()) ? r.selected(choice, resolved) : r)
+                      .toList(),
+                  d.report().ruleDifferences(),
+                  MergeEngine.updateShapesNear(
+                      repo.objects(),
+                      d.baseTree(),
+                      d.oursTree(),
+                      d.theirsTree(),
+                      fullTarget,
+                      d.report().updateShapes(),
+                      cells),
+                  d.report().warnings());
+          String c =
+              dryRun
+                  ? prior.id()
+                  : provisional(
+                      repo,
+                      fullTarget,
+                      prior.parents().isEmpty() ? null : prior.parents().getFirst(),
+                      prior.metadata());
+          if (!dryRun)
+            repo.refs()
+                .updateRef("refs/worldgit/operations/" + journal.get("operation") + "/to", null, c);
+          ds.put(entry.getKey(), d.withResult(c, report));
+          rows.put(
+              entry.getKey().value(),
+              Map.of(
+                  "from",
+                  d.resultCommit(),
+                  "to",
+                  c,
+                  "chunks",
+                  entry.getValue().stream().map(p -> List.of(p.x(), p.z())).toList()));
+        }
+      }
+      var updated =
+          new MergeState(state.operation(), state.mode(), state.source(), state.message(), ds);
+      if (dryRun) return mergeResult("DRY_RUN", updated, plans, new TreeMap<>(), null);
+      journal.put("dimensions", rows);
+      writeJournal(journal);
+      attempted = true;
+      try (var timing = OperationTimings.stage("apply-and-barrier")) {
+        if (live != null) live.applyRegions(plans.values());
+        else if (groupedWriter) applier.applyAll(plans.values(), session);
+        else for (var plan : plans.values()) writer.apply(plan, session);
+      }
+      try (var timing = OperationTimings.stage("verify")) {
+        for (var entry : affected.entrySet()) {
+          var repo = repos.get(entry.getKey());
+          var checked =
+              chunkPlan(
+                  repo,
+                  captureChunks(repo, entry.getValue()),
+                  targets.get(entry.getKey()),
+                  entry.getValue());
+          if (!checked.empty())
+            throw new IOException("區域 chunk 驗證失敗：" + entry.getKey() + " " + checked.stats());
+          repo.invalidateIndex();
+        }
+      }
+      if (live != null) live.beforeComplete();
+      // journal 一直到增量狀態 force 完成才 COMPLETE；崩潰或保存失敗可 abort。
+      try (var timing = OperationTimings.stage("merge-state")) {
+        MergeState.append(worlds.root().resolve("merge-state.bin"), state, updated);
+      }
+      journal.put("state", "COMPLETE");
+      writeJournal(journal);
+      return mergeResult("MERGING", updated, plans, new TreeMap<>(), null);
+    } catch (Exception ex) {
+      if (!attempted) throw ex instanceof IOException io ? io : new IOException("區域操作失敗", ex);
+      journal.put("state", "PARTIAL");
+      journal.put("error", ex.toString());
+      writeJournal(journal);
+      return mergeResult("PARTIAL", state, plans, new TreeMap<>(), ex.toString());
+    }
+  }
+
+  private Set<UUID> regionEntityIds(MergeState state, List<MergeReport.Region> selected)
+      throws IOException {
+    var roots = new HashSet<UUID>();
+    selected.forEach(
+        r ->
+            r.atoms()
+                .forEach(
+                    a -> {
+                      if (a.uuid() != null) roots.add(a.uuid());
+                    }));
+    var ids = new HashSet<>(roots);
+    if (ids.isEmpty()) return ids;
+    for (var entry : state.dimensions().entrySet()) {
+      var engine = new DiffEngine(repos.get(entry.getKey()).objects());
+      var d = entry.getValue();
+      for (String tree : List.of(d.baseTree(), d.oursTree(), d.theirsTree()))
+        for (var entity : engine.entities(tree).entrySet())
+          if (roots.contains(entity.getKey()))
+            collectEntityIds(entity.getValue().entity().data(), ids);
+    }
+    return ids;
+  }
+
+  private static void collectEntityIds(Nbt.Compound entity, Set<UUID> ids) {
+    ids.add(org.worldgit.core.normalize.EntityNormalizer.uuid(entity));
+    for (var child : entity.list("Passengers").values())
+      collectEntityIds((Nbt.Compound) child, ids);
   }
 
   public List<MergeReport.PreviewBlock> regionPreview(int regionId, MergeReport.Choice choice)
@@ -1255,7 +1705,26 @@ public final class WorldOperations implements AutoCloseable {
     if (!found) throw new IOException("找不到衝突區域 #" + regionId);
     var updated =
         new MergeState(state.operation(), state.mode(), state.source(), state.message(), ds);
-    if (!dryRun) saveMerge(updated);
+    if (!dryRun) {
+      var journal = new LinkedHashMap<String, Object>();
+      journal.put("version", 2);
+      journal.put("operation", UUID.randomUUID().toString());
+      journal.put("merge", state.operation().toString());
+      journal.put("mode", "merge-mark-resolved");
+      journal.put("state", "APPLYING");
+      writeJournal(journal);
+      try {
+        if (live != null) live.beforeComplete();
+        MergeState.append(worlds.root().resolve("merge-state.bin"), state, updated);
+        journal.put("state", "COMPLETE");
+        writeJournal(journal);
+      } catch (IOException ex) {
+        journal.put("state", "PARTIAL");
+        journal.put("error", message(ex));
+        writeJournal(journal);
+        return mergeResult("PARTIAL", state, new TreeMap<>(), new TreeMap<>(), message(ex));
+      }
+    }
     return mergeResult(
         dryRun ? "DRY_RUN" : "MERGING", updated, new TreeMap<>(), new TreeMap<>(), null);
   }
@@ -1287,6 +1756,30 @@ public final class WorldOperations implements AutoCloseable {
         throw new IOException("MERGING 期間 .wgignore 被修改；請 abort 後提交規則");
       trees.put(e.getKey(), capture(e.getValue()));
     }
+    // continue 的完整 capture 也更新全部提示，涵蓋 MERGING 期間的區域外 manual 編輯。
+    var completedReports = new TreeMap<>(state.dimensions());
+    for (var e : completedReports.entrySet()) {
+      var d = e.getValue();
+      var report = d.report();
+      e.setValue(
+          d.withResult(
+              d.resultCommit(),
+              new MergeReport(
+                  report.automaticallyMergedSections(),
+                  report.regions(),
+                  report.ruleDifferences(),
+                  MergeEngine.updateShapes(
+                      repos.get(e.getKey()).objects(),
+                      e.getKey(),
+                      d.baseTree(),
+                      d.oursTree(),
+                      d.theirsTree(),
+                      trees.get(e.getKey())),
+                  report.warnings())));
+    }
+    state =
+        new MergeState(
+            state.operation(), state.mode(), state.source(), state.message(), completedReports);
     if (dryRun) return mergeResult("DRY_RUN", state, new TreeMap<>(), new TreeMap<>(), null);
     for (var e : repos.entrySet()) {
       var d = state.dimensions().get(e.getKey());
@@ -1323,6 +1816,13 @@ public final class WorldOperations implements AutoCloseable {
     }
     var completed = new ArrayList<DimensionId>();
     try {
+      try (var timing = OperationTimings.stage("verify-full-commit")) {
+        for (var e : repos.entrySet()) {
+          var checked = mergePlan(e.getValue(), capture(e.getValue()), trees.get(e.getKey()));
+          if (!checked.empty())
+            throw new IOException("提交前全組驗證失敗：" + e.getKey() + " " + checked.stats());
+        }
+      }
       if (live != null) live.beforeComplete();
       for (var e : targets.entrySet()) {
         var refs = repos.get(e.getKey()).refs();

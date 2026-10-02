@@ -445,14 +445,14 @@ public final class WgCommands {
                 if(pos.size()!=2) throw new IllegalArgumentException();
                 int id=Integer.parseInt(pos.getFirst()); var choice=MergeReport.Choice.valueOf(pos.get(1).toUpperCase(Locale.ROOT));
                 if(id<1 || choice==MergeReport.Choice.MANUAL) throw new IllegalArgumentException();
-                future=rt.live(ops -> ops.selectRegion(id,choice,false,false));
+                future=rt.region(ops -> ops.selectRegion(id,choice,false,false));
             } else {
                 var args=MergeArgs.parse(command,text);
-                future=rt.live(ops -> {
+                if(command.equals("resolve")) future=rt.region(ops -> args.choice()==MergeReport.Choice.MANUAL
+                    ? ops.markResolved(args.region(),true,args.dryRun()) : ops.selectRegion(args.region(),args.choice(),true,args.dryRun()));
+                else future=rt.live(ops -> {
                     if(args.abort()) return ops.abortMerge(args.dryRun());
                     if(args.resume()) return ops.continueMerge(author,CommitMetadata.Source.MOD,args.dryRun());
-                    if(command.equals("resolve")) return args.choice()==MergeReport.Choice.MANUAL
-                        ? ops.markResolved(args.region(),true,args.dryRun()) : ops.selectRegion(args.region(),args.choice(),true,args.dryRun());
                     var result=switch(command) {
                         case "merge" -> ops.merge(args.revision(),args.options(author));
                         case "revert" -> ops.revert(args.revision(),args.options(author));

@@ -686,6 +686,70 @@ public final class MergeEngine {
     return engine.shapes(result);
   }
 
+  /** 移除局部 tree 內指定 UUID，供跨維度 removal barrier 使用。 */
+  public static String withoutEntities(ObjectStore store, String tree, Set<UUID> ids)
+      throws IOException {
+    var entities = new DiffEngine(store).entities(tree);
+    var cleaned = new HashMap<UUID, DiffEngine.Placed>();
+    for (var entry : entities.entrySet()) {
+      var data = removeEntityIds(entry.getValue().entity().data(), ids);
+      if (data != null)
+        cleaned.put(
+            entry.getKey(),
+            new DiffEngine.Placed(
+                entry.getValue().chunk(), new EntitySnapshot(entry.getKey(), data)));
+    }
+    return writeEntities(store, tree, cleaned);
+  }
+
+  private static Nbt.Compound removeEntityIds(Nbt.Compound entity, Set<UUID> ids) {
+    if (ids.contains(org.worldgit.core.normalize.EntityNormalizer.uuid(entity))) return null;
+    var passengers = new ArrayList<Object>();
+    boolean changed = false;
+    for (var value : entity.list("Passengers").values()) {
+      var child = removeEntityIds((Nbt.Compound) value, ids);
+      changed |= child != value;
+      if (child != null) passengers.add(child);
+    }
+    if (!changed) return entity;
+    var result = (Nbt.Compound) Nbt.copy(entity);
+    if (passengers.isEmpty()) result.remove("Passengers");
+    else result.put("Passengers", new Nbt.ListTag(10, passengers));
+    return result;
+  }
+
+  /** 只重算選擇的格子及六鄰居的交界提示，其他提示沿用。 */
+  public static List<Cell> updateShapesNear(
+      ObjectStore store,
+      String base,
+      String ours,
+      String theirs,
+      String result,
+      List<Cell> previous,
+      Collection<Cell> changed)
+      throws IOException {
+    var halo = new TreeSet<Cell>();
+    for (var p : changed) {
+      halo.add(p);
+      for (int[] d : NEIGHBORS) halo.add(p.offset(d[0], d[1], d[2]));
+    }
+    if (halo.isEmpty()) return previous;
+    var engine =
+        new MergeEngine(store, DimensionId.OVERWORLD, base, ours, theirs, List.of(), List.of());
+    // 一個提示可能由相鄰 theirs 格贡献；包含外一圈來源 section。
+    for (var p : halo) {
+      engine.changedSections.add(p.chunk().treePath() + "/s." + p.sectionY() + ".bin");
+      for (int[] d : NEIGHBORS) {
+        var q = p.offset(d[0], d[1], d[2]);
+        engine.changedSections.add(q.chunk().treePath() + "/s." + q.sectionY() + ".bin");
+      }
+    }
+    var hints = new TreeSet<Cell>(previous);
+    hints.removeAll(halo);
+    for (var hint : engine.shapes(result)) if (halo.contains(hint)) hints.add(hint);
+    return List.copyOf(hints);
+  }
+
   /** 從目前世界樹替換區域精確 atoms；包圍盒內的其他方塊及玩家手動編輯保持。 */
   public static String select(ObjectStore store, String current, String source, Region region)
       throws IOException {

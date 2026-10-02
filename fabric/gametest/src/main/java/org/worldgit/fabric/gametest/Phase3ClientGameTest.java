@@ -112,6 +112,13 @@ final class Phase3ClientGameTest {
             var hints=ctx.<Integer,RuntimeException>computeOnClient(c->ClientRuntime.get().conflicts().regions().stream().mapToInt(r->r.hints().size()).sum());
             log("client-hints="+hints);
 
+            if (System.getenv("WG_REGION_PROFILE_ONLY") != null) {
+                for (var choice : List.of(Choice.THEIRS, Choice.BASE, Choice.OURS, Choice.THEIRS, Choice.BASE, Choice.OURS))
+                    ui(ctx, server, door, choice, false);
+                log("profile-only=true");
+                return;
+            }
+
             // 疊圖＋UI 預覽：先 G 鍵開清單（截圖），選區域，ours／theirs／base 的格子與快照相同，世界不變
             server.runCommand("tp @p 14.5 -57 2 0 30");
             ctx.waitTicks(10);
@@ -247,9 +254,11 @@ final class Phase3ClientGameTest {
         var key=new ClientConflicts.Key(r.dimension(),r.id());
         ctx.runOnClient(c->ClientRuntime.get().selectConflict(key));
         var previous=server.computeOnServer(s->WorldGitMod.runtime(s).lastOperation());
+        long switchStarted=System.nanoTime();
         ctx.runOnClient(c->ClientRuntime.get().applyConflict(choice,resolve));
         var result=await(ctx,waitNewOperation(ctx,server,previous),3600);
         if(result instanceof WorldOperations.MergeResult m) check(m.success(),"UI 切換 #"+r.id()+" "+choice+" 失敗："+m);
+        log("region-latency id="+r.id()+" choice="+choice+" resolve="+resolve+" seconds="+(System.nanoTime()-switchStarted)/1_000_000_000.0);
         ctx.waitTicks(4);
     }
 

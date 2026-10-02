@@ -20,7 +20,7 @@ abstract class LevelChunkMixin {
         var chunk=(LevelChunk)(Object)this;
         if(chunk.getLevel() instanceof net.minecraft.server.level.ServerLevel level) {
             var runtime=WorldGitMod.runtime(level.getServer());
-            if(runtime!=null && runtime.editsLocked() && !runtime.internalMutation()) ci.setReturnValue(null);
+            if(runtime!=null && runtime.editsLocked(new org.worldgit.core.model.DimensionId(level.dimension().identifier().toString()),new org.worldgit.core.model.ChunkPos(pos.getX()>>4,pos.getZ()>>4)) && !runtime.internalMutation()) ci.setReturnValue(null);
         }
     }
 

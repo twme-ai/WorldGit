@@ -40,6 +40,8 @@ final class PaperOperations implements AutoCloseable {
   private final Map<DimensionId,String> captured=new HashMap<>();
   private final Map<UUID,Nbt.Compound> removedEntities=new ConcurrentHashMap<>();
 
+  private boolean regionMode;
+  private Map<DimensionId,Set<ChunkPos>> regionChunks=Map.of();
   private final double tolerance;
 
   PaperOperations(WorldGitPlugin plugin, WorldMapper.Mapping mapping, ApplyQueue queue) throws IOException {
@@ -62,7 +64,52 @@ final class PaperOperations implements AutoCloseable {
           var world=mapping.worlds().get(dimension.id());
           if(world==null) throw new IOException("維度未在線："+dimension.id());
           var source=new PaperLiveWorld(plugin,plugin.state(dimension.id(),world),world,layout,false);
-          try { await(source.flush()); return source; } catch(IOException e) { source.close(); throw e; }
+          try(var timing=OperationTimings.stage("flush")) { await(source.flush()); return source; } catch(IOException e) { source.close(); throw e; }
+        }
+        public SnapshotSource source(WorldLayout.Dimension dimension,Set<ChunkPos> chunks) throws IOException {
+          var world=mapping.worlds().get(dimension.id());
+          var source=new PaperLiveWorld(plugin,plugin.state(dimension.id(),world),world,layout,false);
+          try(var timing=OperationTimings.stage("flush")) {
+            await(source.flush(chunks)); source.captureOnly(chunks); return source;
+          } catch(IOException ex) { source.close(); throw ex; }
+        }
+        public Set<ChunkPos> entityChunks(WorldLayout.Dimension dimension,Set<UUID> ids) throws IOException {
+          var source=live.get(dimension.id());
+          var found=new TreeSet<ChunkPos>(source.storedEntityChunks(ids));
+          var world=mapping.worlds().get(dimension.id());
+          // 背景 census 可能仍是 UUID 移動前的位置；在全組鎖內重新普查。
+          for(var pos:plugin.state(dimension.id(),world).refresh(plugin.bridge(),world).entityChunks()) {
+            var done=new CompletableFuture<Boolean>();
+            plugin.platform().region(world,pos.x(),pos.z(),()->{
+              try { var raw=plugin.bridge().copy(world,pos.x(),pos.z());
+                var matches=new HashSet<UUID>(); if(raw!=null) raw.entities().forEach(n->collectIds(n,matches));
+                done.complete(!Collections.disjoint(ids,matches));
+              } catch(Throwable e) { done.completeExceptionally(e); }
+            });
+            if(await(done)) found.add(pos);
+          }
+          return found;
+        }
+        public AutoCloseable lockChunks(Map<DimensionId,Set<ChunkPos>> chunks) throws IOException {
+          var locks=new ArrayList<AutoCloseable>();
+          try(var timing=OperationTimings.stage("lock")) {
+            for(var entry:chunks.entrySet()) locks.add(live.get(entry.getKey()).lockEdits(entry.getValue(),"WorldGit region"));
+          } catch(Exception ex) {
+            for(var lock:locks) try { lock.close(); } catch(Exception cleanup) { ex.addSuppressed(cleanup); }
+            throw ex instanceof IOException io ? io : new IOException(ex);
+          }
+          regionChunks=chunks;
+          return ()->{ for(int i=locks.size()-1;i>=0;i--) locks.get(i).close(); };
+        }
+        public void applyRegions(Collection<ApplyPlan> plans) throws IOException {
+          var actual=new TreeMap<DimensionId,Set<ChunkPos>>();
+          for(var plan:plans) {
+            var chunks=new TreeSet<ChunkPos>(plan.scope().chunks());
+            actual.put(plan.dimension(),chunks);
+          }
+          regionChunks=actual;
+          regionMode=true;
+          try { applyAll(plans); } finally { regionMode=false; }
         }
         public void beforeComplete() throws IOException {
           if(queue.stopping || queue.cancelled.get() || Thread.currentThread().isInterrupted()) throw new IOException("操作已取消或插件關閉中");
@@ -452,6 +499,7 @@ final class PaperOperations implements AutoCloseable {
   }
   private ApplyBudget budget() { return plugin.getServer().getOnlinePlayers().isEmpty() ? ApplyBudget.DEFAULT : ApplyBudget.WITH_PLAYERS; }
   private void applyAll(SortedMap<DimensionId,ApplyPlan> plans) throws IOException {
+    var timings=OperationTimings.current();
     var ids=new HashSet<UUID>();
     for(var plan:plans.values()) for(var op:plan.entities()) collectIds(op.target()==null ? null : op.target().data(),ids);
     for(var plan:plans.values()) for(var op:plan.entities()) ids.add(op.uuid());
@@ -459,7 +507,9 @@ final class PaperOperations implements AutoCloseable {
     var tasks=new ArrayList<ApplyQueue.Task>();
     if(!ids.isEmpty()) for(var entry:live.entrySet()) {
       var source=entry.getValue(); var world=mapping.worlds().get(entry.getKey());
-      var candidates=new TreeSet<ChunkPos>(source.storedEntityChunks(ids)); candidates.addAll(source.entityChunks());
+      var candidates=new TreeSet<ChunkPos>();
+      if(regionMode) candidates.addAll(regionChunks.getOrDefault(entry.getKey(),Set.of()));
+      else { candidates.addAll(source.storedEntityChunks(ids)); candidates.addAll(source.entityChunks()); }
       var own=plans.get(entry.getKey());
       if(own!=null) for(var e:own.entities()) if(e.hint()!=null) candidates.add(e.hint());
       for(var pos:candidates) tasks.add(new ApplyQueue.Task(world,pos,(w,c)->{ var raw=plugin.bridge().copy(w,pos.x(),pos.z()); if(raw!=null) for(var entity:raw.entities()) rememberEntity(entity,ids);
@@ -473,7 +523,7 @@ final class PaperOperations implements AutoCloseable {
       tasks.clear();
       for(var entry:plans.entrySet()) {
         var world=mapping.worlds().get(entry.getKey()); var rules=IgnoreRules.parse(entry.getValue().ignoreRules());
-        for(var op:entry.getValue().chunks().values()) tasks.add(new ApplyQueue.Task(world,op.pos(),(w,c)->queue.apply(w,op,rules,budget())));
+        for(var op:entry.getValue().chunks().values()) tasks.add(new ApplyQueue.Task(world,op.pos(),(w,c)->queue.apply(w,op,rules,budget(),timings)));
       }
       await(queue.run(tasks,budget(),false));
       if(queue.cancelled.get()) throw new IOException("操作已取消");
@@ -495,9 +545,12 @@ final class PaperOperations implements AutoCloseable {
       failure=ex instanceof IOException io ? io : new IOException("套用失敗",ex);
     } finally {
       if(!queue.stopping) {
-        if(attempted) for(var source:live.values()) try { await(source.flush()); }
+        if(attempted) for(var entry:live.entrySet()) try(var timing=OperationTimings.stage("flush-after-apply")) {
+          if(regionMode) { var chunks=regionChunks.get(entry.getKey()); if(chunks!=null) await(entry.getValue().flush(chunks)); }
+          else await(entry.getValue().flush());
+        }
         catch(IOException ex) { if(failure==null) failure=ex; else failure.addSuppressed(ex); }
-        try { plugin.repo().clearPreviews(); }
+        try(var timing=OperationTimings.stage("notification-schedule")) { plugin.repo().clearPreviews(); }
         catch(RuntimeException ex) { if(failure==null) failure=new IOException("清理預覽失敗",ex); else failure.addSuppressed(ex); }
       }
       plugin.getLogger().info("WorldGit apply sections="+queue.sections.get()+" ticketPeak="+queue.peak.get()+" ticketRemaining="+queue.tickets.get());

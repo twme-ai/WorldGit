@@ -3,8 +3,11 @@ package org.worldgit.core.merge;
 import static org.worldgit.core.merge.MergeReport.*;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.*;
 import java.util.*;
+import java.util.zip.CRC32C;
 import org.worldgit.core.anvil.*;
 import org.worldgit.core.apply.BlockBox;
 import org.worldgit.core.model.*;
@@ -90,6 +93,8 @@ public record MergeState(
     byte[] raw = Nbt.write(root);
     if (raw.length > Nbt.MAX_BYTES) throw new IOException("合併狀態超過 32 MiB；請縮小合併範圍／衝突數");
     RegionFile.atomicWrite(path, SnapshotCodec.nbt(6, raw));
+    // 基底 checkpoint 已持久化；caller 的 APPLYING journal 保護同 operation WAL 的清理窗口。
+    Files.deleteIfExists(updatesPath(path));
   }
 
   public static MergeState read(Path path) throws IOException {
@@ -116,15 +121,147 @@ public record MergeState(
                 d.string("result"),
                 report(id, d.compound("report"))));
       }
-      return new MergeState(
-          UUID.fromString(root.string("operation")),
-          root.string("mode"),
-          root.string("source"),
-          root.string("message"),
-          ds);
+      return replay(
+          path,
+          new MergeState(
+              UUID.fromString(root.string("operation")),
+              root.string("mode"),
+              root.string("source"),
+              root.string("message"),
+              ds));
     } catch (RuntimeException ex) {
       throw new IOException("MERGING 狀態損毀", ex);
     }
+  }
+
+  public static Path updatesPath(Path path) {
+    return path.resolveSibling(path.getFileName() + ".updates");
+  }
+
+  /** 小型 WAL：只含 result commit、choice／resolved 與 hints 差異；caller 持有 group lock。 */
+  public static void append(Path path, MergeState before, MergeState after) throws IOException {
+    if (!before.operation().equals(after.operation()))
+      throw new IOException("MERGING operation 不同");
+    var dimensions = new Nbt.Compound();
+    for (var entry : after.dimensions().entrySet()) {
+      var old = before.dimensions().get(entry.getKey());
+      var d = entry.getValue();
+      var selections = new ArrayList<Object>();
+      var oldRegions = new HashMap<Integer, Region>();
+      old.report().regions().forEach(r -> oldRegions.put(r.id(), r));
+      for (var r : d.report().regions()) {
+        var prior = oldRegions.get(r.id());
+        if (prior == null) throw new IOException("增量不可變更 region atoms");
+        if (prior.choice() != r.choice() || prior.resolved() != r.resolved())
+          selections.add(
+              new Nbt.Compound()
+                  .with("id", r.id())
+                  .with("choice", r.choice().name())
+                  .with("resolved", (byte) (r.resolved() ? 1 : 0)));
+      }
+      var removed = new TreeSet<Cell>(old.report().updateShapes());
+      removed.removeAll(d.report().updateShapes());
+      var added = new TreeSet<Cell>(d.report().updateShapes());
+      added.removeAll(old.report().updateShapes());
+      if (!old.resultCommit().equals(d.resultCommit())
+          || !selections.isEmpty()
+          || !removed.isEmpty()
+          || !added.isEmpty())
+        dimensions.put(
+            entry.getKey().value(),
+            new Nbt.Compound()
+                .with("result", d.resultCommit())
+                .with("regions", new Nbt.ListTag(10, selections))
+                .with(
+                    "remove-shapes",
+                    new Nbt.ListTag(11, removed.stream().map(c -> (Object) coords(c)).toList()))
+                .with(
+                    "add-shapes",
+                    new Nbt.ListTag(11, added.stream().map(c -> (Object) coords(c)).toList())));
+    }
+    if (dimensions.isEmpty()) return;
+    byte[] payload =
+        SnapshotCodec.nbt(
+            6,
+            Nbt.write(
+                new Nbt.Compound()
+                    .with("operation", after.operation().toString())
+                    .with("dimensions", dimensions)));
+    var crc = new CRC32C();
+    crc.update(payload);
+    var frame =
+        ByteBuffer.allocate(payload.length + 8)
+            .putInt(payload.length)
+            .putInt((int) crc.getValue())
+            .put(payload);
+    frame.flip();
+    try (var file =
+        FileChannel.open(
+            updatesPath(path),
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.APPEND)) {
+      if (file.size() + frame.remaining() > Nbt.MAX_BYTES)
+        throw new IOException("MERGING 增量超過 32 MiB；請完成或 abort 合併");
+      while (frame.hasRemaining()) file.write(frame);
+      file.force(true);
+    }
+  }
+
+  private static MergeState replay(Path path, MergeState base) throws IOException {
+    Path updates = updatesPath(path);
+    if (!Files.exists(updates)) return base;
+    if (Files.size(updates) > Nbt.MAX_BYTES) throw new IOException("MERGING 增量過大");
+    var bytes = ByteBuffer.wrap(Files.readAllBytes(updates));
+    var ds = new TreeMap<>(base.dimensions());
+    while (bytes.remaining() >= 8) {
+      int length = bytes.getInt(), expected = bytes.getInt();
+      if (length <= 0 || length > Nbt.MAX_BYTES) throw new IOException("MERGING 增量長度損毀");
+      if (length > bytes.remaining()) break; // 最後一筆 torn write：舊 choice 仍可用，APPLYING journal 阻擋新寫入。
+      byte[] payload = new byte[length];
+      bytes.get(payload);
+      var crc = new CRC32C();
+      crc.update(payload);
+      if ((int) crc.getValue() != expected) throw new IOException("MERGING 增量 checksum 損毀");
+      var root = Nbt.read(SnapshotCodec.nbt(6, payload, true));
+      if (!root.string("operation").equals(base.operation().toString())) continue;
+      for (var entry : root.compound("dimensions").entrySet()) {
+        var id = new DimensionId(entry.getKey());
+        var d = ds.get(id);
+        if (d == null) throw new IOException("MERGING 增量維度不同");
+        var row = (Nbt.Compound) entry.getValue();
+        var selections = new HashMap<Integer, Nbt.Compound>();
+        for (Object value : row.list("regions").values()) {
+          var r = (Nbt.Compound) value;
+          selections.put(r.integer("id", 0), r);
+        }
+        var rs = new ArrayList<Region>();
+        for (var r : d.report().regions()) {
+          var selected = selections.remove(r.id());
+          rs.add(
+              selected == null
+                  ? r
+                  : r.selected(
+                      Choice.valueOf(selected.string("choice")),
+                      selected.integer("resolved", 0) == 1));
+        }
+        if (!selections.isEmpty()) throw new IOException("MERGING 增量區域不同");
+        var shapes = new TreeSet<Cell>(d.report().updateShapes());
+        for (Object c : row.list("remove-shapes").values()) shapes.remove(cell((int[]) c));
+        for (Object c : row.list("add-shapes").values()) shapes.add(cell((int[]) c));
+        ds.put(
+            id,
+            d.withResult(
+                row.string("result"),
+                new MergeReport(
+                    d.report().automaticallyMergedSections(),
+                    rs,
+                    d.report().ruleDifferences(),
+                    List.copyOf(shapes),
+                    d.report().warnings())));
+      }
+    }
+    return new MergeState(base.operation(), base.mode(), base.source(), base.message(), ds);
   }
 
   private static Nbt.Compound report(MergeReport r) {

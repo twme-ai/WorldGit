@@ -98,3 +98,13 @@ MergeResult 含 state、merging、各維度 reports／plans、完成 commits、e
 merge 的 `.wgignore` 改用有序三方合併（衝突先拒絕），新規則過濾三邊；重新納入時 ours 可從活世界取回資料，其他歷史不猜測未保存內容。Phase 2 switch／restore 的規則限制不變。DataVersion／DataPacks 仍清楚拒絕不一致。規則不同時保存原來被排除的內容，abort 可以回復；保留原始 MC 暫態／衍生欄位的界線沿用 Phase 2。
 
 驗收／量測與給 Paper／Fabric／Hub 的完整摘要見 [13](../docs/13-phase3-progress.md)，重跑 `scripts/verify-phase3.py`（自行拿 bench.lock），以及 `:core:integrationTest --tests org.worldgit.core.Phase3LocalIntegrationTest`。
+
+## 區域切換延遲（2026-10-02）
+
+`selectRegion` 的一般 chunk atoms 路徑使用 `LiveAccess.source(dimension, chunks)`、`lockChunks` 與 `applyRegions`：不呼叫世界 scan／workingTree，不擷取沒有選擇區域的維度。離線來源也能直接依座標讀取 chunk，不需先全量 scan。方塊／BE 的 mask 僅含選擇 atoms；套用後以 0 格實體容許距離驗證完整受影響 chunk，因此同 chunk 區域外的追蹤資料也要相同。UUID 切換加入歷史與實際位置，包含巢狀乘客拆離／改騎其他載具後的位置及其他維度的 removal；定位仍需掃描 entity storage，不保證此特殊路徑與世界大小無關。舊 LiveAccess 預設方法保守準備全量來源；要取得局部效能，adapter 須覆寫局部 source。
+
+`merge-state.bin` 為基底，`merge-state.bin.updates` 保存 result commit、choice／resolved 及提示差異。`MergeState.read` 會重播 WAL，CLI／平台不可只讀基底；舊 binary readers 無法看到增量，需一併升級。WAL 有長度、CRC32C、operation UUID 及 32 MiB 上限；最後一筆截斷沿用上一筆完整狀態。metadata 等完整回退路徑可更新基底 checkpoint 並清除 WAL，清理窗口仍由 APPLYING journal 保護。小型 chunk journal 在第一次套用前寫 APPLYING，在驗證與 WAL force 完成後才 COMPLETE；保存失敗也是 PARTIAL。恢復仍用完整 abort，不提供未驗證的逐批續傳。
+
+merge 開始、abort、continue／commit 的完整世界屏障保留；continue 在發布 HEAD 前再次 capture 全組並比對，完成報告重算全部交界提示。區域外其他 chunk 的玩家 manual 編輯在 continue 取活世界資料，切換時不重讀；提示可能暫時落後於此類編輯。metadata／非 chunk FILE 選擇沿用完整路徑。所有平台都不觸發鄰居更新（#46）。
+
+以 `-Dworldgit.profile=true` 開啟 `WGPROFILE` 分段計時，階段是 inclusive（例如 verify 內含 capture），不可直接相加。Paper lighting 的數值為 owner 回呼等待時間加總；總耗時使用 monotonic wall clock。根因、六端驗收數字與限制見 [區域切換延遲報告](../docs/13-phase3-progress.md#區域切換延遲)。

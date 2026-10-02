@@ -29,8 +29,9 @@ final class EditGuard implements Listener {
   }
   void shutdown() {
     if(freeze!=null) try { freeze.close(); } catch(Exception e) { plugin.getLogger().warning("恢復 tick 狀態失敗："+e); }
-    freeze=null; freezeUsers=0; locked.clear();
+    freeze=null; freezeUsers=0; locked.clear(); chunkLocks.clear();
   }
+  private final Map<UUID,Set<ChunkPos>> chunkLocks=new ConcurrentHashMap<>();
   private final Set<UUID> locked = ConcurrentHashMap.newKeySet();
   private record ProtectionKey(UUID operation, UUID world) {}
   private final Map<ProtectionKey, Policy> protections = new ConcurrentHashMap<>();
@@ -41,7 +42,7 @@ final class EditGuard implements Listener {
     volatile long until = Long.MAX_VALUE;
     Policy(World world, PlayerProtection p) { this.world=world.getUID(); protection=p; }
   }
-  boolean locked(World world) { return locked.contains(world.getUID()); }
+  boolean locked(World world) { return locked.contains(world.getUID()) || chunkLocks.containsKey(world.getUID()); }
   void spawn(World world,org.worldgit.core.model.EntitySnapshot entity) throws java.io.IOException {
     boolean previous=ownWrite.get(); ownWrite.set(true);
     try { plugin.bridge().spawnEntity(world,entity); }
@@ -51,6 +52,15 @@ final class EditGuard implements Listener {
   AutoCloseable lock(World world) {
     if(!locked.add(world.getUID())) throw new IllegalStateException("世界已有進行中的操作");
     return ()->locked.remove(world.getUID());
+  }
+  AutoCloseable lock(World world,Collection<ChunkPos> chunks) {
+    if(chunks.isEmpty()) return lock(world);
+    if(locked(world) || chunkLocks.putIfAbsent(world.getUID(),Set.copyOf(chunks))!=null) throw new IllegalStateException("世界已有進行中的操作");
+    return ()->chunkLocks.remove(world.getUID());
+  }
+  private boolean blocked(org.bukkit.Location pos) {
+    return locked.contains(pos.getWorld().getUID()) || chunkLocks.getOrDefault(pos.getWorld().getUID(),Set.of())
+        .contains(new ChunkPos(pos.getBlockX()>>4,pos.getBlockZ()>>4));
   }
   void protect(World world, PlayerProtection protection) {
     var id=new ProtectionKey(protection.operation()==null ? UUID.randomUUID() : protection.operation(),world.getUID());
@@ -67,7 +77,7 @@ final class EditGuard implements Listener {
     for(var p:protections.values()) if(p.world.equals(player.getWorld().getUID()) && p.protection.chunks().contains(pos)) p.players.add(player.getUniqueId());
   }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void damage(EntityDamageEvent e) {
-    if(!(e.getEntity() instanceof Player player)) { if(locked(e.getEntity().getWorld()) && !ownWrite.get()) e.setCancelled(true); return; }
+    if(!(e.getEntity() instanceof Player player)) { if(blocked(e.getEntity().getLocation()) && !ownWrite.get()) e.setCancelled(true); return; }
     var cause=switch(e.getCause()) { case FALL->PlayerProtection.Damage.FALL; case SUFFOCATION->PlayerProtection.Damage.SUFFOCATION; case DROWNING->PlayerProtection.Damage.DROWNING; default->null; };
     if(cause==null) return;
     if(protectedFrom(player,cause)) e.setCancelled(true);
@@ -80,31 +90,34 @@ final class EditGuard implements Listener {
   @EventHandler public void move(PlayerMoveEvent e) { observe(e.getPlayer()); }
   @EventHandler public void join(PlayerJoinEvent e) { observe(e.getPlayer()); }
   @EventHandler public void quit(PlayerQuitEvent e) { protections.values().forEach(p->p.players.remove(e.getPlayer().getUniqueId())); }
-  private boolean blocked(Block b) { return locked(b.getWorld()); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void place(BlockPlaceEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
+  private boolean blocked(Block b) { return blocked(b.getLocation()); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void place(BlockPlaceEvent e) { if(blocked(e.getBlock()) || e instanceof BlockMultiPlaceEvent multi && multi.getReplacedBlockStates().stream().anyMatch(b->blocked(b.getBlock()))) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void breaking(BlockBreakEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void interact(PlayerInteractEvent e) { if(locked(e.getPlayer().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void interactEntity(PlayerInteractEntityEvent e) { if(locked(e.getPlayer().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void armorStand(PlayerArmorStandManipulateEvent e) { if(locked(e.getPlayer().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void drop(PlayerDropItemEvent e) { if(locked(e.getPlayer().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void pickup(EntityPickupItemEvent e) { if(locked(e.getEntity().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void spawn(CreatureSpawnEvent e) { if(locked(e.getEntity().getWorld()) && !ownWrite.get()) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void spawn(ItemSpawnEvent e) { if(locked(e.getEntity().getWorld()) && !ownWrite.get()) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void transform(EntityTransformEvent e) { if(locked(e.getEntity().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void breed(EntityBreedEvent e) { if(locked(e.getEntity().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void bucketFill(PlayerBucketFillEvent e) { if(locked(e.getPlayer().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void bucketEmpty(PlayerBucketEmptyEvent e) { if(locked(e.getPlayer().getWorld())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void interact(PlayerInteractEvent e) { if(blocked(e.getPlayer().getLocation()) || e.getClickedBlock()!=null && (blocked(e.getClickedBlock()) || blocked(e.getClickedBlock().getRelative(e.getBlockFace())))) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void interactEntity(PlayerInteractEntityEvent e) { if(blocked(e.getPlayer().getLocation()) || blocked(e.getRightClicked().getLocation())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void armorStand(PlayerArmorStandManipulateEvent e) { if(blocked(e.getPlayer().getLocation()) || blocked(e.getRightClicked().getLocation())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void drop(PlayerDropItemEvent e) { if(blocked(e.getPlayer().getLocation())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void pickup(EntityPickupItemEvent e) { if(blocked(e.getEntity().getLocation())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void spawn(CreatureSpawnEvent e) { if(blocked(e.getEntity().getLocation()) && !ownWrite.get()) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void spawn(ItemSpawnEvent e) { if(blocked(e.getEntity().getLocation()) && !ownWrite.get()) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void transform(EntityTransformEvent e) { if(blocked(e.getEntity().getLocation())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void breed(EntityBreedEvent e) { if(blocked(e.getEntity().getLocation())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void bucketFill(PlayerBucketFillEvent e) { if(blocked(e.getBlock()) || blocked(e.getBlockClicked())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void bucketEmpty(PlayerBucketEmptyEvent e) { if(blocked(e.getBlock()) || blocked(e.getBlockClicked().getRelative(e.getBlockFace()))) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void click(InventoryClickEvent e) { if(locked(e.getWhoClicked().getWorld())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void drag(InventoryDragEvent e) { if(locked(e.getWhoClicked().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void dispense(BlockDispenseEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void dispense(BlockDispenseEvent e) { if(locked(e.getBlock().getWorld())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void open(InventoryOpenEvent e) { if(locked(e.getPlayer().getWorld())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void transfer(InventoryMoveItemEvent e) { if(!locked.isEmpty()) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void piston(BlockPistonExtendEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void piston(BlockPistonRetractEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void transfer(InventoryMoveItemEvent e) { if((!locked.isEmpty() || !chunkLocks.isEmpty())) e.setCancelled(true); }
+  private boolean pistonBlocked(Block base,org.bukkit.block.BlockFace direction,List<Block> moved) {
+    return blocked(base) || blocked(base.getRelative(direction)) || blocked(base.getRelative(direction.getOppositeFace())) || moved.stream().anyMatch(b->blocked(b) || blocked(b.getRelative(direction)) || blocked(b.getRelative(direction.getOppositeFace())));
+  }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void piston(BlockPistonExtendEvent e) { if(pistonBlocked(e.getBlock(),e.getDirection(),e.getBlocks())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void piston(BlockPistonRetractEvent e) { if(pistonBlocked(e.getBlock(),e.getDirection(),e.getBlocks())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void flow(BlockFromToEvent e) { if(blocked(e.getBlock())||blocked(e.getToBlock())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void physics(BlockPhysicsEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST) public void redstone(BlockRedstoneEvent e) { if(blocked(e.getBlock())) e.setNewCurrent(e.getOldCurrent()); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void explode(BlockExplodeEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void explode(BlockExplodeEvent e) { if(blocked(e.getBlock()) || e.blockList().stream().anyMatch(this::blocked)) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void explode(EntityExplodeEvent e) { if(locked(e.getLocation().getWorld())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void change(EntityChangeBlockEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void grow(BlockGrowEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
@@ -113,10 +126,10 @@ final class EditGuard implements Listener {
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void fade(BlockFadeEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void burn(BlockBurnEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void ignite(BlockIgniteEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void fertilize(BlockFertilizeEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void death(EntityDeathEvent e) { if(locked(e.getEntity().getWorld())) { e.getDrops().clear(); e.setDroppedExp(0); } }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void command(PlayerCommandPreprocessEvent e) { if(!locked.isEmpty() && !allowedCommand(e.getMessage())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void command(ServerCommandEvent e) { if(!locked.isEmpty() && !allowedCommand(e.getCommand())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void fertilize(BlockFertilizeEvent e) { if(blocked(e.getBlock()) || e.getBlocks().stream().anyMatch(b->blocked(b.getBlock()))) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void death(EntityDeathEvent e) { if(blocked(e.getEntity().getLocation())) { e.getDrops().clear(); e.setDroppedExp(0); } }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void command(PlayerCommandPreprocessEvent e) { if((!locked.isEmpty() || !chunkLocks.isEmpty()) && !allowedCommand(e.getMessage())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void command(ServerCommandEvent e) { if((!locked.isEmpty() || !chunkLocks.isEmpty()) && !allowedCommand(e.getCommand())) e.setCancelled(true); }
   private boolean allowedCommand(String text) {
     String cmd=text.replaceFirst("^/","").split(" ",2)[0].toLowerCase(Locale.ROOT);
     return Set.of("wg","worldgit","stop","list","tps","mspt","say","msg","tell").contains(cmd);
