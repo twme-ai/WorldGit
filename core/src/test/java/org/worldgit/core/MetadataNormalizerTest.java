@@ -18,6 +18,26 @@ class MetadataNormalizerTest {
   @TempDir Path temp;
 
   @Test
+  void platformMarkersDoNotChangePortablePacksOrTheirPriority() {
+    var packs =
+        new Nbt.Compound()
+            .with(
+                "Enabled",
+                new Nbt.ListTag(
+                    (byte) 8,
+                    List.of(
+                        "vanilla",
+                        "paper",
+                        "file/bukkit",
+                        "fabric-convention-tags-v2",
+                        "mod:worldgen")));
+    var normalized = MetadataNormalizer.portablePacks(packs);
+    assertEquals(
+        List.of("vanilla", "file/bukkit", "mod:worldgen"), normalized.list("Enabled").values());
+    assertEquals(5, packs.list("Enabled").values().size());
+  }
+
+  @Test
   void fieldSelectorsAndNegationPreserveOtherMetadata() throws Exception {
     byte[] map =
         Nbt.write(new Nbt.Compound().with("data", new Nbt.Compound().with("scale", (byte) 2)));

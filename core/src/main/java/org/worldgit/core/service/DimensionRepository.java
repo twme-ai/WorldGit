@@ -198,6 +198,19 @@ public final class DimensionRepository implements AutoCloseable {
     String ignore = Files.exists(ignorePath()) ? Files.readString(ignorePath()) : "";
     IgnoreRules rules = IgnoreRules.parse(ignore);
     WorldGitConfig.Repo config = WorldGitConfig.readRepo(configPath());
+    Optional<Set<ChunkPos>> modified = Optional.empty();
+    if (config.track() == WorldGitConfig.Track.MODIFIED_ONLY) {
+      modified = source.modifiedChunks();
+      var saved = ModifiedChunks.read(directory);
+      if (modified.isEmpty()) modified = saved;
+      else if (saved.isPresent()) {
+        var union = new TreeSet<>(modified.get());
+        union.addAll(saved.get());
+        modified = Optional.of(union);
+      }
+      modified = modified.map(Set::copyOf);
+    }
+    String modifiedPolicy = modified.map(s -> new TreeSet<>(s).toString()).orElse("unknown");
     String configText = WorldGitConfig.write(config);
     String rulesHash =
         OfflineSnapshotSource.hash(
@@ -209,6 +222,7 @@ public final class DimensionRepository implements AutoCloseable {
                     + tolerance
                     + "\0"
                     + source.normalizationFingerprint())
+                .concat("\0" + modifiedPolicy)
                 .getBytes(StandardCharsets.UTF_8));
     var warnings = new ArrayList<String>();
     warnings.addAll(source.warnings());
@@ -228,6 +242,10 @@ public final class DimensionRepository implements AutoCloseable {
     var editor = new TreeEditor(store, working);
     SnapshotSource.Scan scan = source.scan(old, full);
     for (ChunkPos pos : new TreeSet<>(scan.candidates())) {
+      if (modified.isPresent() && !modified.get().contains(pos)) {
+        editor.remove(pos.treePath());
+        continue;
+      }
       Optional<ChunkSnapshot> snapshot;
       try {
         snapshot = source.snapshot(pos, rules).toCompletableFuture().join();
@@ -266,8 +284,8 @@ public final class DimensionRepository implements AutoCloseable {
               || !Arrays.equals(store.readBlob(e.id()), ignore.getBytes(StandardCharsets.UTF_8));
     }
     if (ignoreChanged) warnings.add(".wgignore 已修改；新規則排除的已追蹤內容會在下次 commit 從快照移除。");
-    if (config.track() == WorldGitConfig.Track.MODIFIED_ONLY)
-      warnings.add("track: modified-only 已記錄；Phase 1 尚未篩選自然地形，目前仍追蹤全部 full chunk。");
+    if (config.track() == WorldGitConfig.Track.MODIFIED_ONLY && modified.isEmpty())
+      warnings.add("track: modified-only 缺少完整的曾編輯 chunk 集合；保守追蹤全部 full chunk。");
     String comparison = tree;
     var untracked = WorldOperations.untracked(directory);
     if (!untracked.isEmpty() && base != null) {

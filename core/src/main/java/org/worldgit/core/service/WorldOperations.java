@@ -477,6 +477,32 @@ public final class WorldOperations implements AutoCloseable {
     journal.put("dimensions", rows);
     writeJournal(journal);
     try {
+      for (var entry : prepared.commits.entrySet()) {
+        var repo = repos.get(entry.getKey());
+        String path =
+            repo.dimension().equals(DimensionId.OVERWORLD)
+                ? "world-meta/worldgit.yml"
+                : "worldgit.yml";
+        var config = TreeEditor.find(repo.objects(), entry.getValue().tree(), path);
+        var saved = org.worldgit.core.capture.ModifiedChunks.read(repo.directory());
+        boolean sparse =
+            config != null
+                && WorldGitConfig.readRepo(
+                            new String(
+                                repo.objects().readBlob(config.id()), StandardCharsets.UTF_8),
+                            path)
+                        .track()
+                    == WorldGitConfig.Track.MODIFIED_ONLY;
+        if (sparse || saved.isPresent()) {
+          var chunks = new TreeSet<>(saved.orElse(Set.of()));
+          var scope = prepared.plans.get(entry.getKey()).scope();
+          for (var p :
+              org.worldgit.core.capture.ModifiedChunks.tree(
+                  repo.objects(), entry.getValue().tree()))
+            if (scope.touchesChunk(p)) chunks.add(p);
+          org.worldgit.core.capture.ModifiedChunks.write(repo.directory(), chunks);
+        }
+      }
       if (mode.startsWith("merge-"))
         for (var entry : prepared.commits.entrySet()) {
           var repo = repos.get(entry.getKey());
@@ -513,7 +539,7 @@ public final class WorldOperations implements AutoCloseable {
         for (var entry : prepared.commits.entrySet()) {
           var repo = repos.get(entry.getKey());
           var prior = old.get(entry.getKey());
-          if (mode.equals("reset") && prior.branch() != null) {
+          if ((mode.equals("reset") || mode.equals("pull")) && prior.branch() != null) {
             repo.refs()
                 .updateRef("refs/heads/" + prior.branch(), prior.commit(), entry.getValue().id());
           } else repo.refs().checkout(prior, new RefStore.Head(entry.getValue().id(), branch));
@@ -864,6 +890,72 @@ public final class WorldOperations implements AutoCloseable {
       throw new IOException("世界為 MERGING；請 resolve 後 merge --continue，或 merge --abort。");
   }
 
+  public record PullPreview(
+      SortedMap<DimensionId, String> expectedHeads,
+      SortedMap<DimensionId, String> targets,
+      boolean fastForward,
+      MergeResult result) {}
+
+  /** 不自動取得網路更新；輸入來自成功的 WorldRemotes.fetch。dryRun 為線上 preview。 */
+  public PullPreview pull(
+      Map<DimensionId, String> targets,
+      Map<DimensionId, String> expectedHeads,
+      boolean ffOnly,
+      MergeOptions opts)
+      throws IOException {
+    requireComplete();
+    if (!targets.keySet().equals(repos.keySet())) throw new IOException("pull 必須涵蓋所有已追蹤維度");
+    if (dirty(true)) throw new IOException("pull 要求乾淨工作區（含 untracked）；請先 commit 或 stash push");
+    var prior = new TreeMap<DimensionId, String>();
+    var commits = new TreeMap<DimensionId, RefStore.Commit>();
+    boolean ff = true, already = true;
+    String branch = null;
+    for (var e : repos.entrySet()) {
+      var refs = e.getValue().refs();
+      var head = refs.headState();
+      if (head.branch() == null || branch != null && !branch.equals(head.branch()))
+        throw new IOException("pull 需要全組同名分支");
+      branch = head.branch();
+      prior.put(e.getKey(), head.commit());
+      if (expectedHeads != null && !Objects.equals(expectedHeads.get(e.getKey()), head.commit()))
+        throw new IOException("pull preview 已過期；請重新預覽");
+      String target = targets.get(e.getKey());
+      var c = refs.readCommit(target);
+      if (!c.metadata().dimension().equals(e.getKey())) throw new IOException("pull 目標維度不符");
+      commits.put(e.getKey(), c);
+      ff &= refs.isAncestor(head.commit(), target);
+      already &= refs.isAncestor(target, head.commit());
+    }
+    org.worldgit.core.remote.RepositoryGroup.validateSnapshot(
+        commits, (d, snapshot) -> repos.get(d).refs().resolve("refs/worldgit/groups/" + snapshot));
+    MergeResult result;
+    if (already)
+      result =
+          new MergeResult(
+              opts.dryRun() ? "DRY_RUN" : "COMPLETE",
+              null,
+              new TreeMap<>(),
+              new TreeMap<>(),
+              prior,
+              null);
+    else if (ff) {
+      var prepared = prepare(commits, null, Scope.all(), true, false);
+      var applied = execute("pull", prepared, branch, true, opts.dryRun());
+      result =
+          new MergeResult(
+              applied.state().name(),
+              null,
+              new TreeMap<>(),
+              prepared.plans,
+              new TreeMap<>(targets),
+              applied.error());
+    } else {
+      if (ffOnly) throw new IOException("pull --ff-only 拒絕分歧歷史；請一般 pull 進行三方合併");
+      result = beginMerge("merge", "remote update", opts, commits);
+    }
+    return new PullPreview(prior, new TreeMap<>(targets), ff, result);
+  }
+
   public MergeResult merge(String revision, MergeOptions options) throws IOException {
     return beginMerge("merge", revision, options);
   }
@@ -878,9 +970,18 @@ public final class WorldOperations implements AutoCloseable {
 
   private MergeResult beginMerge(String mode, String revision, MergeOptions opts)
       throws IOException {
+    return beginMerge(mode, revision, opts, null);
+  }
+
+  private MergeResult beginMerge(
+      String mode,
+      String revision,
+      MergeOptions opts,
+      SortedMap<DimensionId, RefStore.Commit> mergeOverride)
+      throws IOException {
     requireComplete();
     if (dirty(true)) throw new IOException("合併要求乾淨工作區（含 untracked）；請先 commit 或 stash push。");
-    var targets = resolveForMerge(revision);
+    var targets = mergeOverride == null ? resolveForMerge(revision) : mergeOverride;
     var operation = UUID.randomUUID();
     var dimensions = new TreeMap<DimensionId, MergeState.Dimension>();
     var plans = new TreeMap<DimensionId, ApplyPlan>();

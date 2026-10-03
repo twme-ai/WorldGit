@@ -14,10 +14,10 @@
 
 ## 2. 傳輸
 
-- 若採用 JGit 後端（見 [03](03-storage-backend.md)）：直接使用 git 的 smart HTTP / SSH 協定，Hub 可以先用現成的 git 伺服器（Gitea、GitHub）當儲存，自己只做「看世界」的層。
+- 若採用 JGit 後端（見 [03](03-storage-backend.md)）：設計採用 git 的 smart HTTP / SSH 協定（Phase 4 本次實作 HTTP(S)/file，SSH 尚未提供），Hub 可以先用現成的 git 伺服器（Gitea、GitHub）當儲存，自己只做「看世界」的層。
 - push/pull 只傳對方沒有的 section，通常一次幾百 KB～數 MB。
-- Phase 0 實測（`experiments/06-survival-scale/`）：2 萬 chunk 世界首次 push／clone 約 110 MB、數秒（本機）；之後增量約 1–2 MB。`--depth 1` 不省流量。**單一 pack 會超過 GitHub 100 MB 單檔限制**。已決定（[09](09-roadmap-open-questions.md) #17）：pack 一律切成 < 100 MB；小世界可放 GitHub，大世界放自架服務；每個維度是獨立 repo（#18），各自 push/pull。
-- **部分 clone**：大伺服器（數十 GB）只想拉某區域 → 先依維度選 repo，repo 內路徑本身就帶座標（`r.x.z/c.x.z/...`），可用 git 的 sparse-checkout / partial clone 以 region 為單位篩選。
+- Phase 0 實測（`experiments/06-survival-scale/`）：2 萬 chunk 世界首次 push／clone 約 110 MB、數秒（本機）；之後增量約 1–2 MB。`--depth 1` 不省流量。**單一 pack 會超過 GitHub 100 MB 單檔限制**。已決定（[09](09-roadmap-open-questions.md) #17）：pack 一律切成 < 100 MB；小世界可放 GitHub，大世界放自架服務；每個維度是獨立 repo（#18），底層各自傳輸，正式 CLI/core 以全維度 snapshot group 協調發布。
+- **部分 clone**：大伺服器（數十 GB）只想拉某區域 → 先依維度選 repo，repo 內路徑本身就帶座標（`r.x.z/c.x.z/...`），未來可用 git 的 sparse-checkout / partial clone 以 region 為單位篩選。本次只提供 `clone --dimension`，尚未實作 region sparse。
 
 ## 3. Hub（類 GitHub 網頁端）功能
 
@@ -72,3 +72,31 @@ Hub 以 **OCI 容器映像**發佈，**Docker 與 Podman 都要能直接部署**
 - 插件設定 Hub token 後，可在遊戲內 `/wg push`、`/wg pull`、`/wg pr create`
 - Hub 上合併 PR 後可 webhook 通知伺服器（顯示「main 有新版本，/wg pull 更新」），**不自動套用**到活的世界，避免玩家腳下的方塊突然消失
 - Hub 上的座標留言可以同步到遊戲內顯示（例如 TextDisplay 標記）
+
+## 6. Phase 4 core／CLI remote 契約（2026-10-03）
+
+Hub 世界 URL `https://hub.example.com/alice/castle` 展開為 `https://hub.example.com/git/alice/castle/minecraft.overworld.git` 等路徑；反向代理前綴可保留。一般 GitHub/Gitea 各維度建立 repo，使用 `https://git.example/team/castle-{dimension}.git`，`{dimension}` 是安全的維度目錄名（例如 minecraft.the_nether），或建立 YAML 世界清單：
+
+```yaml
+dimensions:
+  minecraft:overworld: https://git.example/team/castle-main.git
+  minecraft:the_nether: https://git.example/team/castle-nether.git
+  minecraft:the_end: https://git.example/team/castle-end.git
+```
+
+`wgit remote add origin manifest+file:///path/world.yml` 或 `manifest+https://example/world.yml` 讀取清單並把展開結果保存到本機 remotes.yml，之後不隱式重新抓清單。清單最多 64 KiB／32 維度；clone 需要包含 world-meta 的主世界 repo。manifest 取得目前限公開 URL，不帶 PAT；repo 傳輸各自按 origin 解析憑證。URL 禁止 userinfo/query/fragment，SSH URL 尚未支援。
+
+憑證優先 `WGIT_TOKEN`（WGIT_AUTH=basic/bearer、WGIT_USERNAME 預設 token）→ `~/.config/worldgit/credentials.yml`（或 WGIT_CREDENTIALS_FILE；普通檔案且 POSIX 600）→ 平台 Provider → anonymous 空密碼 Basic。使用者檔格式：
+
+```yaml
+credentials:
+  https://hub.example.com:
+    mode: bearer
+    token: YOUR_PAT
+```
+
+token 不寫 remotes.yml／git config／trees，不接受 URL 內秘密，禁止 HTTP redirect 轉送 Authorization；錯誤遮罩原 token、Authorization 與 URL userinfo，parser 不附秘密原文。平台自行保管設定及權限；不要把 credentials 檔放進世界 datapacks。公開 Hub clone 用明確 anonymous Basic，與既有 GitAuthFilter 一致。
+
+伺服器流程是：背景 executor `WorldRemotes.fetch` → `trackingHeads` → 在既有 live coordinator 取得 dry-run `WorldOperations.pull` 預覽 → 玩家/管理員明確執行套用 → 再次鎖編輯、flush、檢查 expectedHeads、applyAll/verify/HEAD barrier。fetch 自己完全不開 session.lock、不套用世界；preview/套用由 caller 以 `WorldOperations.live` 完成，不可對活世界建立離線 WorldOperations。遠端通知與 preview 不得自動觸發 apply。實際平台指令、PR/帳號/受保護分支 HTTP 層是接續任務。
+
+跨維度 PARTIAL、安全重試、有界 packs、clone/export、裸合併與真平台驗收詳見 [14](14-phase4-progress.md)。分批 protocol 會產生多次 HTTP 認證；現有 Hub 預設 attempts=30/window=60s 可能回 429，client 會持久化 PARTIAL 而不自動無限重試。本機密集驗收只在 loopback 臨時 Hub 提高 attempts=10000，正式預設沒有改；Hub 接續任務應評估成功 PAT 請求與認證失敗的限流政策。

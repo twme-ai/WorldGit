@@ -23,6 +23,6 @@ tasks.register<Jar>("acceptanceToolsJar") {
     manifest { attributes["Main-Class"] = "org.worldgit.core.AcceptanceTool" }
     from({ zipTree(fatJar.get().archiveFile.get()) }) { exclude("META-INF/MANIFEST.MF") }
     from(project(":core").layout.buildDirectory.dir("classes/java/test")) {
-        include("org/worldgit/core/AcceptanceTool*.class", "org/worldgit/core/Phase2AcceptanceTool*.class", "org/worldgit/core/TestWorlds*.class", "org/worldgit/core/Phase3AcceptanceTool*.class")
+        include("org/worldgit/core/AcceptanceTool*.class", "org/worldgit/core/Phase2AcceptanceTool*.class", "org/worldgit/core/TestWorlds*.class", "org/worldgit/core/Phase3AcceptanceTool*.class", "org/worldgit/core/Phase4AcceptanceTool*.class")
     }
 }

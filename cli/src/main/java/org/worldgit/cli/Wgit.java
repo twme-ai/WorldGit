@@ -12,6 +12,7 @@ import org.worldgit.core.capture.ScanIndex;
 import org.worldgit.core.config.*;
 import org.worldgit.core.diff.*;
 import org.worldgit.core.model.*;
+import org.worldgit.core.remote.*;
 import org.worldgit.core.service.*;
 import org.worldgit.core.store.*;
 import org.worldgit.platform.*;
@@ -41,7 +42,14 @@ import picocli.CommandLine.Model.CommandSpec;
       Wgit.Conflicts.class,
       Wgit.Resolve.class,
       Wgit.Revert.class,
-      Wgit.CherryPick.class
+      Wgit.CherryPick.class,
+      Wgit.Remote.class,
+      Wgit.Fetch.class,
+      Wgit.Push.class,
+      Wgit.Pull.class,
+      Wgit.Clone.class,
+      Wgit.Tag.class,
+      Wgit.Export.class
     })
 public final class Wgit implements Runnable {
   enum Color {
@@ -378,8 +386,19 @@ public final class Wgit implements Runnable {
         var merging =
             org.worldgit.core.merge.MergeState.read(repos.root().resolve("merge-state.bin"));
         if (root.format == Format.json) {
-          if (merging == null) root.json(batch);
-          else
+          if (merging == null) {
+            try (var remote = new WorldRemotes(layout, Credentials.system())) {
+              var data = new LinkedHashMap<String, Object>();
+              data.put("snapshot", batch.snapshot());
+              data.put("dimensions", batch.dimensions());
+              data.put("tracking", remote.tracking());
+              root.json(data);
+            }
+          } else {
+            List<WorldRemotes.Tracking> tracking;
+            try (var remote = new WorldRemotes(layout, Credentials.system())) {
+              tracking = remote.tracking();
+            }
             root.json(
                 Map.of(
                     "status",
@@ -393,7 +412,10 @@ public final class Wgit implements Runnable {
                     "remaining",
                     merging.remaining(),
                     "regions",
-                    merging.regions()));
+                    merging.regions(),
+                    "tracking",
+                    tracking));
+          }
         } else {
           if (merging != null)
             root.spec
@@ -420,6 +442,16 @@ public final class Wgit implements Runnable {
               root.spec.commandLine().getErr().println(e.getKey() + " 失敗：" + e.getValue().error());
           }
         }
+        if (root.format != Format.json)
+          try (var remote = new WorldRemotes(layout, Credentials.system())) {
+            for (var t : remote.tracking())
+              root.spec
+                  .commandLine()
+                  .getOut()
+                  .printf(
+                      "%s/%s ahead=%d behind=%d%s%n",
+                      t.remote(), t.branch(), t.ahead(), t.behind(), t.estimated() ? "（估算）" : "");
+          }
         return batch.success() ? 0 : 1;
       }
     }
@@ -622,8 +654,7 @@ public final class Wgit implements Runnable {
 
   private void requireWholeGroup() throws IOException {
     if (dimension != null)
-      throw new IOException(
-          "branch、switch、reset、stash 必須對所有維度同步；--dimension 僅適用 restore／verify 與讀取指令。");
+      throw new IOException("此操作必須對已追蹤的所有維度同步；--dimension 僅適用 clone、restore／verify 與讀取指令。");
   }
 
   abstract static class ApplyCommand extends Subcommand {
@@ -842,16 +873,7 @@ public final class Wgit implements Runnable {
 
   private int printMerge(WorldOperations.MergeResult result) throws IOException {
     if (format == Format.json) {
-      var value = new LinkedHashMap<String, Object>();
-      value.put("state", result.state());
-      value.put("reports", result.reports());
-      value.put("remaining", result.merging() == null ? 0 : result.merging().remaining());
-      value.put("commits", result.commits());
-      value.put("error", result.error());
-      var plans = new TreeMap<DimensionId, org.worldgit.core.apply.ApplyPlan.Stats>();
-      result.plans().forEach((id, p) -> plans.put(id, p.stats()));
-      value.put("plans", plans);
-      json(value);
+      json(mergeData(result));
     } else {
       var out = spec.commandLine().getOut();
       out.println(
@@ -891,6 +913,19 @@ public final class Wgit implements Runnable {
       if (result.error() != null) spec.commandLine().getErr().println(result.error());
     }
     return result.success() ? 0 : 1;
+  }
+
+  private Map<String, Object> mergeData(WorldOperations.MergeResult result) {
+    var value = new LinkedHashMap<String, Object>();
+    value.put("state", result.state());
+    value.put("reports", result.reports());
+    value.put("remaining", result.merging() == null ? 0 : result.merging().remaining());
+    value.put("commits", result.commits());
+    value.put("error", result.error());
+    var plans = new TreeMap<DimensionId, org.worldgit.core.apply.ApplyPlan.Stats>();
+    result.plans().forEach((id, p) -> plans.put(id, p.stats()));
+    value.put("plans", plans);
+    return value;
   }
 
   private void printRegions(
@@ -1066,6 +1101,324 @@ public final class Wgit implements Runnable {
       try (var ops = new WorldOperations(root.layout())) {
         return root.printMerge(ops.cherryPick(revision, opts));
       }
+    }
+  }
+
+  private int transfer(WorldRemotes.TransferResult result) throws IOException {
+    if (format == Format.json) json(result);
+    else {
+      spec.commandLine().getOut().println(result.state() + " operation=" + result.operation());
+      for (var e : result.commits().entrySet())
+        spec.commandLine().getOut().println(e.getKey() + " " + e.getValue());
+      for (var e : result.packs().entrySet()) {
+        long bytes = e.getValue().stream().mapToLong(GitTransfer.PackSize::preparedBytes).sum();
+        spec.commandLine()
+            .getOut()
+            .println(e.getKey() + " packs=" + e.getValue().size() + " bytes=" + bytes);
+      }
+      if (result.error() != null) spec.commandLine().getErr().println(result.error());
+    }
+    return result.success() ? 0 : 1;
+  }
+
+  @Command(name = "remote", mixinStandardHelpOptions = true, description = "世界遠端設定（YAML）")
+  static final class Remote extends Subcommand {
+    @Parameters(index = "0", defaultValue = "list")
+    String action;
+
+    @Parameters(index = "1", arity = "0..1")
+    String name;
+
+    @Parameters(index = "2", arity = "0..1")
+    String url;
+
+    @Option(names = "--dry-run")
+    boolean dryRun;
+
+    @Override
+    public Integer call() throws Exception {
+      try (var remotes = new WorldRemotes(root.layout(), Credentials.system())) {
+        if (action.equals("list")) {
+          if (name != null || url != null) throw new IOException("remote list 不接受參數");
+          if (root.format == Format.json) root.json(remotes.remotes());
+          else
+            remotes
+                .remotes()
+                .forEach(
+                    (n, r) ->
+                        root.spec
+                            .commandLine()
+                            .getOut()
+                            .println(
+                                n + " " + (r.dimensions().isEmpty() ? r.url() : r.dimensions())));
+        } else {
+          if (name == null || (!action.equals("remove") && url == null))
+            throw new IOException("remote add/set-url 需要 name/url；remove 需要 name");
+          remotes.configure(action, name, url, dryRun);
+          if (root.format == Format.json)
+            root.json(Map.of("state", dryRun ? "DRY_RUN" : "COMPLETE", "remote", name));
+          else
+            root.spec
+                .commandLine()
+                .getOut()
+                .println((dryRun ? "DRY_RUN " : "") + action + " " + name);
+        }
+        return 0;
+      }
+    }
+  }
+
+  @Command(name = "fetch", mixinStandardHelpOptions = true, description = "取得全維度更新；不套用世界")
+  static final class Fetch extends Subcommand {
+    @Parameters(index = "0", defaultValue = "origin")
+    String remote;
+
+    @Option(names = "--dry-run")
+    boolean dryRun;
+
+    @Override
+    public Integer call() throws Exception {
+      root.requireWholeGroup();
+      try (var r = new WorldRemotes(root.layout(), Credentials.system())) {
+        return root.transfer(r.fetch(remote, dryRun));
+      }
+    }
+  }
+
+  @Command(name = "push", mixinStandardHelpOptions = true, description = "推送全維度分支及 snapshot groups")
+  static final class Push extends Subcommand {
+    @Parameters(index = "0", defaultValue = "origin")
+    String remote;
+
+    @Parameters(index = "1", arity = "0..1")
+    String branch;
+
+    @Option(names = "--tags")
+    boolean tags;
+
+    @Option(names = "--force-with-lease")
+    boolean forceLease;
+
+    @Option(names = "--dry-run")
+    boolean dryRun;
+
+    @Override
+    public Integer call() throws Exception {
+      root.requireWholeGroup();
+      try (var r = new WorldRemotes(root.layout(), Credentials.system())) {
+        return root.transfer(r.push(remote, branch, tags, forceLease, dryRun, root.identity()));
+      }
+    }
+  }
+
+  @Command(name = "pull", mixinStandardHelpOptions = true, description = "fetch 後以 FF 或三方合併寫回離線世界")
+  static final class Pull extends Subcommand {
+    @Parameters(index = "0", defaultValue = "origin")
+    String remote;
+
+    @Parameters(index = "1", arity = "0..1")
+    String branch;
+
+    @Option(names = "--ff-only")
+    boolean ffOnly;
+
+    @Option(names = "--dry-run")
+    boolean dryRun;
+
+    @Override
+    public Integer call() throws Exception {
+      root.requireWholeGroup();
+      var layout = root.layout();
+      SortedMap<DimensionId, String> targets;
+      try (var r = new WorldRemotes(layout, Credentials.system())) {
+        var f = r.fetch(remote, false);
+        if (!f.success()) return root.transfer(f);
+        if (branch == null) branch = r.branch();
+        targets = r.trackingHeads(remote, branch);
+      }
+      try (var ops = new WorldOperations(layout)) {
+        var result =
+            ops.pull(
+                targets,
+                null,
+                ffOnly,
+                new WorldOperations.MergeOptions(
+                    false, null, 1, dryRun, root.identity(), CommitMetadata.Source.CLI));
+        if (root.format == Format.json)
+          root.json(
+              Map.of(
+                  "expectedHeads",
+                  result.expectedHeads(),
+                  "targets",
+                  result.targets(),
+                  "fastForward",
+                  result.fastForward(),
+                  "result",
+                  root.mergeData(result.result())));
+        else {
+          root.spec
+              .commandLine()
+              .getOut()
+              .println(
+                  result.result().state()
+                      + " "
+                      + (result.fastForward() ? "fast-forward" : "merge"));
+          root.printMerge(result.result());
+        }
+        return result.result().success() ? 0 : 1;
+      }
+    }
+  }
+
+  @Command(name = "clone", mixinStandardHelpOptions = true, description = "下載並組裝可直接開啟的世界")
+  static final class Clone extends Subcommand {
+    @Parameters(index = "0")
+    String url;
+
+    @Parameters(index = "1", arity = "0..1")
+    Path directory;
+
+    @Option(names = "--branch", defaultValue = "main")
+    String branch;
+
+    @Override
+    public Integer call() throws Exception {
+      var remote = RemoteSpec.parse(url);
+      if (directory == null) {
+        String value = url.replaceAll("/+$", "");
+        String name = value.substring(value.lastIndexOf('/') + 1).replaceAll("\\.git$", "");
+        if (name.isBlank()
+            || name.contains("{")
+            || name.contains(":")
+            || name.equals(".")
+            || name.equals("..")) name = "world";
+        directory = Path.of(name);
+      }
+      var result =
+          WorldClone.cloneWorld(
+              remote,
+              directory,
+              branch,
+              root.dimension == null ? null : Set.of(root.selected()),
+              Credentials.system(),
+              WorldAssembler.Budget.defaults());
+      if (root.format == Format.json)
+        root.json(
+            Map.of(
+                "world",
+                result.world().toString(),
+                "dimensions",
+                result.dimensions(),
+                "assembly",
+                result.assembly(),
+                "packs",
+                result.packs()));
+      else root.spec.commandLine().getOut().println("clone 完成：" + result.world() + "（可直接開啟）");
+      return 0;
+    }
+  }
+
+  @Command(name = "tag", mixinStandardHelpOptions = true, description = "全維度輕量或附註 tag")
+  static final class Tag extends Subcommand {
+    @Parameters(index = "0", arity = "0..1")
+    String name;
+
+    @Parameters(index = "1", arity = "0..1")
+    String revision;
+
+    @Option(names = {"-m", "--message"})
+    String message;
+
+    @Option(names = {"-l", "--list"})
+    boolean list;
+
+    @Option(names = {"-d", "--delete"})
+    boolean delete;
+
+    @Option(names = "--dry-run")
+    boolean dryRun;
+
+    @Override
+    public Integer call() throws Exception {
+      root.requireWholeGroup();
+      var layout = root.layout();
+      try (var group =
+          new RepositoryGroup(layout.repositoryRoot(), new WorldRepositories(layout).tracked())) {
+        if (list || name == null) {
+          if (delete || message != null || revision != null) throw new IOException("tag list 選項無效");
+          if (root.format == Format.json) root.json(group.tags());
+          else group.tags().forEach(n -> root.spec.commandLine().getOut().println(n));
+        } else {
+          if (delete && (message != null || revision != null))
+            throw new IOException("tag -d 只接受名稱");
+          group.tag(name, revision, message, root.identity(), delete, dryRun);
+          if (root.format == Format.json)
+            root.json(Map.of("state", dryRun ? "DRY_RUN" : "COMPLETE", "tag", name));
+          else root.spec.commandLine().getOut().println((dryRun ? "DRY_RUN " : "") + "tag " + name);
+        }
+      }
+      return 0;
+    }
+  }
+
+  @Command(
+      name = "export",
+      mixinStandardHelpOptions = true,
+      description = "從 commit/tag 串流輸出世界 ZIP")
+  static final class Export extends Subcommand {
+    @Parameters(index = "0")
+    String revision;
+
+    @Parameters(index = "1")
+    Path output;
+
+    @Option(names = "--max-bytes", defaultValue = "2147483648")
+    long maxBytes;
+
+    @Option(names = "--max-seconds", defaultValue = "900")
+    long maxSeconds;
+
+    @Option(names = "--dry-run")
+    boolean dryRun;
+
+    @Override
+    public Integer call() throws Exception {
+      root.requireWholeGroup();
+      var layout = root.layout();
+      try (var group =
+          new RepositoryGroup(layout.repositoryRoot(), new WorldRepositories(layout).tracked())) {
+        if (Files.exists(output)) throw new IOException("export 目的地已存在");
+        if (dryRun) {
+          group.resolve(revision);
+          if (root.format == Format.json)
+            root.json(Map.of("state", "DRY_RUN", "output", output.toString()));
+          else root.spec.commandLine().getOut().println("DRY_RUN export " + output);
+          return 0;
+        }
+        Path dest = output.toAbsolutePath();
+        Files.createDirectories(dest.getParent());
+        Path temp = Files.createTempFile(dest.getParent(), ".wgit-export-", ".zip");
+        try {
+          WorldAssembler.Result result;
+          try (var out = Files.newOutputStream(temp)) {
+            result =
+                new WorldAssembler(
+                        new WorldAssembler.Budget(
+                            maxBytes, java.time.Duration.ofSeconds(maxSeconds)))
+                    .zip(group, revision, out, dest.getParent());
+          }
+          Files.move(temp, dest, StandardCopyOption.ATOMIC_MOVE);
+          if (root.format == Format.json) root.json(result);
+          else
+            root.spec
+                .commandLine()
+                .getOut()
+                .println("export 完成：" + output + " bytes=" + result.bytes());
+        } finally {
+          Files.deleteIfExists(temp);
+        }
+      }
+      return 0;
     }
   }
 }

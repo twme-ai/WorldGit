@@ -52,6 +52,23 @@ public interface RefStore {
     throw new IOException("refs 不支援祖先檢查");
   }
 
+  default SortedMap<String, String> refsByPrefix(String prefix) throws IOException {
+    throw new IOException("refs 不支援列舉");
+  }
+
+  default String createTag(
+      String name, String target, String message, CommitMetadata.Identity author)
+      throws IOException {
+    throw new IOException("refs 不支援 tag");
+  }
+
+  /** 只建立 tag 物件，不發布 ref，供世界組先寫 journal。 */
+  default String tagObject(
+      String name, String target, String message, CommitMetadata.Identity author)
+      throws IOException {
+    throw new IOException("refs 不支援 tag 物件");
+  }
+
   String resolve(String revision) throws IOException;
 
   Commit readCommit(String id) throws IOException;

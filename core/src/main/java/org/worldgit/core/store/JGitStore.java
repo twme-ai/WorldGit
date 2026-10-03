@@ -123,6 +123,44 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   }
 
   @Override
+  public SortedMap<String, String> refsByPrefix(String prefix) throws IOException {
+    var result = new TreeMap<String, String>();
+    for (var ref : repo.getRefDatabase().getRefsByPrefix(prefix))
+      if (ref.getObjectId() != null) result.put(ref.getName(), ref.getObjectId().name());
+    return result;
+  }
+
+  @Override
+  public String createTag(
+      String name, String target, String message, CommitMetadata.Identity author)
+      throws IOException {
+    String id = tagObject(name, target, message, author);
+    updateRef("refs/tags/" + name, null, id);
+    return id;
+  }
+
+  @Override
+  public String tagObject(
+      String name, String target, String message, CommitMetadata.Identity author)
+      throws IOException {
+    requireWritable();
+    validateBranch(name);
+    String id = target;
+    if (message != null) {
+      if (message.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 1_048_576)
+        throw new IOException("tag 訊息超過 1 MiB");
+      var tag = new TagBuilder();
+      tag.setTag(name);
+      tag.setObjectId(ObjectId.fromString(target), Constants.OBJ_COMMIT);
+      tag.setTagger(new PersonIdent(author.name(), author.email()));
+      tag.setMessage(message);
+      id = inserter.insert(tag).name();
+      flush();
+    }
+    return id;
+  }
+
+  @Override
   public String resolve(String revision) throws IOException {
     ObjectId id = repo.resolve(revision + "^{commit}");
     if (id == null) throw new IOException("無法解析 commit：" + revision);
@@ -291,6 +329,9 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   public List<Commit> allCommits() throws IOException {
     try (var walk = new RevWalk(repo)) {
       for (var ref : repo.getRefDatabase().getRefs()) {
+        if (ref.getName().contains("worldgit/transfers/")
+            || ref.getName().contains("worldgit/publications/")
+            || ref.getName().contains("worldgit/incoming/")) continue;
         if (ref.getObjectId() != null) {
           var object = walk.parseAny(ref.getObjectId());
           if (object instanceof RevCommit c) walk.markStart(c);

@@ -203,7 +203,7 @@ class RepositoryFixtureTest {
             .value()
             .warnings()
             .stream()
-            .anyMatch(w -> w.contains("尚未")));
+            .anyMatch(w -> w.contains("缺少完整的曾編輯 chunk 集合") && w.contains("保守追蹤")));
     var failing =
         new WorldRepositories(
                 WorldLayout.discover(temp),

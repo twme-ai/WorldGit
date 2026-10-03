@@ -37,7 +37,7 @@ bare repo 的可編輯 sidecar：
 - `<world repo root>/worldgit.yml`：本機 `palette: default|colorblind`、`entity-tolerance: 2`；不進版本控制。
 - `<repo>/worldgit.index`：有版本的 binary cache，不是設定檔，可刪除。綁定 HEAD、規則、容許距離與 working tree id。損毀會警告並重建。
 
-`modified-only` **目前只讀寫、版本控制與提示，篩選尚未生效**。離線 persistence 是版本無關的保守近似；`EntitySemantics` 可由 adapter 提供真正 persistence 與 tag registry。離線 EntityTagRegistry 內建兩版 vanilla tags，依 `DataPacks.Enabled` 載入資料夾/ZIP，支援 replace、遞迴/optional 參照與後面優先；未知 tag 明確報錯。缺少已啟用 pack 提示可能不完整，未知模組內建 pack 要由 adapter 提供 registry。
+`modified-only` 可使用 `SnapshotSource.modifiedChunks()` 或 `ModifiedChunks` 每維度 sidecar 的完整曾編輯集合篩選；缺少集合保守全存並警告。平台事件蒐集尚未接線，離線不猜測哪些地形曾被玩家修改。離線 persistence 是版本無關的保守近似；`EntitySemantics` 可由 adapter 提供真正 persistence 與 tag registry。離線 EntityTagRegistry 內建兩版 vanilla tags，依 `DataPacks.Enabled` 載入資料夾/ZIP，支援 replace、遞迴/optional 參照與後面優先；未知 tag 明確報錯。缺少已啟用 pack 提示可能不完整，未知模組內建 pack 要由 adapter 提供 registry。
 
 world-meta 可用 `field worldgit:map *` 排除地圖，以及 `worldgit:level/scoreboard/boss_events/gamerules/border/worldgen` 對應 NBT 根欄位；`!field` 同樣後面優先。排除不會刪除活世界資料。`SnapshotSource.normalizationFingerprint()` 綁定正規化政策、DataVersion、tag registry；adapter 的政策/registry 改變時要更新 fingerprint，使 index 全量重建。
 
@@ -108,3 +108,42 @@ merge 的 `.wgignore` 改用有序三方合併（衝突先拒絕），新規則�
 merge 開始、abort、continue／commit 的完整世界屏障保留；continue 在發布 HEAD 前再次 capture 全組並比對，完成報告重算全部交界提示。區域外其他 chunk 的玩家 manual 編輯在 continue 取活世界資料，切換時不重讀；提示可能暫時落後於此類編輯。metadata／非 chunk FILE 選擇沿用完整路徑。所有平台都不觸發鄰居更新（#46）。
 
 以 `-Dworldgit.profile=true` 開啟 `WGPROFILE` 分段計時，階段是 inclusive（例如 verify 內含 capture），不可直接相加。Paper lighting 的數值為 owner 回呼等待時間加總；總耗時使用 monotonic wall clock。根因、六端驗收數字與限制見 [區域切換延遲報告](../docs/13-phase3-progress.md#區域切換延遲)。
+
+## Phase 4 遠端協作（2026-10-03）
+
+公用入口在 `org.worldgit.core.remote`，不外洩 JGit 類別：
+
+| API | 契約 |
+|---|---|
+| `RemoteSpec.parse/expand/read/write` | Hub 世界 URL、一般 `{dimension}` 樣板、manifest YAML；只 HTTP(S)/file；世界組 remotes.yml 不進 trees |
+| `Credentials(env,file,Provider)`、`Credentials.system()` | 環境→使用者 600 YAML→平台 provider→anonymous Basic；Secret.toString/error 遮罩，URL 禁止秘密 |
+| `RepositoryGroup(root,dimensionPaths)` | bare-only 世界組鎖；resolve/head/tags/tag，全組版本/snapshot 配對；tag 中斷恢復 |
+| `WorldRemotes(layout,credentials)` 或 bare paths constructor | 不取得 session／不讀寫世界；configure/remotes/fetch/push/trackingHeads/tracking，close 後才另開 WorldOperations |
+| `WorldOperations.pull(targets,expectedHeads,ffOnly,MergeOptions)` | targets 來自成功 fetch；乾淨工作區；dry-run preview 回傳 expectedHeads/targets/fastForward/result；FF 保留分支，三方合併沿用 MERGING/resolve/continue |
+| `BareWorldMerge.preview/merge/recover` | 不需 WorldLayout；tips+distance lease；無衝突或完整區域選擇後產生 Source.HUB、不同 tips 兩 parent（相同 tips 去重）、共用 snapshot 與來源 trailers；report/updateShapes 保留 #46 state |
+| `WorldClone.cloneWorld` | sibling temp→下載/完整驗證/組裝→atomic rename；--branch/selected dimensions；失敗清理 |
+| `WorldAssembler.assemble/zip` | clone/release 共用逐 region Anvil/metadata，ZIP 不關 caller output；Budget 預設 2 GiB/15 分鐘，支援中斷取消 |
+
+```java
+SortedMap<DimensionId, String> targets;
+try (var remote = new WorldRemotes(layout, credentials)) {
+    var fetched = remote.fetch("origin", false);
+    if (!fetched.success()) throw new IOException(fetched.error());
+    targets = remote.trackingHeads("origin", "main");
+}
+try (var operations = new WorldOperations(layout)) { // 離線；線上改用 live
+    var preview = operations.pull(targets, null, false,
+        new WorldOperations.MergeOptions(false, null, 1, true, author, CommitMetadata.Source.CLI));
+    // 使用 preview.expectedHeads()/targets() 再明確執行 pull(dryRun=false)。
+}
+```
+
+線上不可建構離線 operations：沿用 caller 的 lockEdits→flush→`WorldOperations.live(layout,access)`→preview/apply/verify→close→unlock。preview 不移動 refs 或寫世界，但可以寫候選物件/index。套用前需再次取得同一屏障，檢查 lease、工作區和原遠端 targets；preview 後遠端新增提交不會隱式換成另一版目標。衝突期間沿用既有 MERGING 互動與區域鎖，不自動套用通知。
+
+push 預檢全維度 FF，force-with-lease 以 fetch tracking 為 lease；tags/group 不覆寫。publication marker 全維度內容相同且 tips 相符才接受，PARTIAL push 依 push-state.yml 原 remote URL/branch/options/tips 重試；重新設定 remote、改 tips 或第三方修改會拒絕。fetch-state.yml 在追蹤 refs 發布中斷後回復舊組再重新下載。tag-state.yml、bare-merge-state.yml 也有 CAS 恢復。原生 git／目前 Hub 網頁 reader 尚不檢查 marker，不能把跨 repo 看成原子交易。
+
+`GitTransfer` 在標準 refs 上保存合成 commit 批次，各 pack ≤95 MB，量測 prepared bytes 與實際 HTTP PACK bytes／fetch pack 檔案大小。保留 refs/worldgit/transfers 供之後空 repo 順序下載；裸合併也呼叫 stageLocal。外部 native git／託管端 GC 不受此保證，沒有分批 refs 的超限外部 pack 明確拒絕。詳細設計、API 範例、兩版開世界驗收與量測見 [14](../docs/14-phase4-progress.md)。
+
+world-meta 增加可攜資料包原檔與 DragonFight/CustomBossEvents/GameType/allowCommands；資料包每檔≤32 MiB、總計≤64 MiB，不解析為 world-meta NBT。Paper/Fabric 內建 `paper`/`fabric-convention-tags-v2` 標記不入 portable 清單，其他 pack 按原優先序保存。clone 的 .worldgit 放在世界內，舊 init 外置布局不變。modified-only clone 把歷史已存 chunks 納入完整集合；收到的新追蹤 chunks 在 apply journal 內先納入，平台提供的曾編輯集合與 sidecar 取聯集，不能傳當次 dirty batch。自然地形用完整 seed/worldgen 重生，遊戲版本和實際資料包仍需一致。
+
+重跑：`flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home ./gradlew :core:integrationTest --tests org.worldgit.core.Phase4LocalIntegrationTest --no-daemon --configure-on-demand --max-workers=1`；`verify-phase4.py` 自己拿鎖並保證 finally 關 Hub/遊戲伺服器，需先建立 cli:acceptanceToolsJar、hub:bootJar。`--skip-scale` 與 `--only-scale` 可分開跑。完整不足項目列於 [14](../docs/14-phase4-progress.md)。

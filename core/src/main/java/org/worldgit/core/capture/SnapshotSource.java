@@ -36,6 +36,11 @@ public interface SnapshotSource extends AutoCloseable {
     return List.of();
   }
 
+  /** 完整、持久的「曾被編輯」集合；unknown 為 empty Optional，不可用當次 dirty 集合代替。 */
+  default Optional<Set<ChunkPos>> modifiedChunks() throws IOException {
+    return Optional.empty();
+  }
+
   /** Optional.empty 表示不存在或尚未生成完成的 chunk。 */
   CompletionStage<Optional<ChunkSnapshot>> snapshot(ChunkPos pos, IgnoreRules rules);
 

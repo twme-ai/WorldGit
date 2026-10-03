@@ -17,15 +17,74 @@ class CliTest {
   private record Result(int code, String out, String err) {}
 
   private Result run(String... arguments) {
+    return runAt(temp, arguments);
+  }
+
+  private Result runAt(Path world, String... arguments) {
     var out = new StringWriter();
     var err = new StringWriter();
-    var args = new ArrayList<>(List.of("--world", temp.toString()));
+    var args = new ArrayList<>(List.of("--world", world.toString()));
     args.addAll(List.of(arguments));
     return new Result(
         Wgit.execute(
             args.toArray(String[]::new), new PrintWriter(out, true), new PrintWriter(err, true)),
         out.toString(),
         err.toString());
+  }
+
+  @Test
+  void remoteClonePullTagsAndExportAreUsableAsJson() throws Exception {
+    Path source =
+        Path.of(
+            System.getProperty("worldgit.projectRoot"), "core/src/test/resources/fixtures/26.2");
+    try (var files = Files.walk(source)) {
+      for (Path p : files.toList()) {
+        Path target = temp.resolve(source.relativize(p));
+        if (Files.isDirectory(p)) Files.createDirectories(target);
+        else Files.copy(p, target);
+      }
+    }
+    assertEquals(0, run("init").code);
+    Path hosted = temp.resolve("hosted");
+    Files.createDirectories(hosted);
+    for (var d : WorldLayout.discover(temp).dimensions().keySet())
+      try (var ignored =
+          new org.worldgit.core.store.JGitStore(
+              hosted.resolve(d.directoryName() + ".git"), true)) {}
+    String url = hosted.toUri() + "{dimension}.git";
+    var json = new ObjectMapper();
+    assertEquals(0, run("remote", "add", "origin", url).code);
+    assertEquals(0, run("remote", "set-url", "origin", url, "--dry-run").code);
+    assertTrue(json.readTree(run("remote", "list", "--format=json").out).has("origin"));
+    assertEquals(0, run("tag", "v1", "-m", "release").code);
+    assertEquals(1, json.readTree(run("tag", "-l", "--format=json").out).size());
+    assertEquals(0, run("push", "--tags", "--format=json").code);
+    Path b = temp.resolve("copy");
+    var cloned = run("clone", url, b.toString(), "--format=json");
+    assertEquals(0, cloned.code, cloned.err);
+    assertEquals(3, json.readTree(cloned.out).path("dimensions").size());
+    setSection("minecraft:gold_block");
+    assertEquals(0, run("commit", "-m", "update").code);
+    assertEquals(0, run("push").code);
+    var preview = runAt(b, "pull", "--dry-run", "--format=json");
+    assertEquals(0, preview.code, preview.err);
+    assertEquals("DRY_RUN", json.readTree(preview.out).path("result").path("state").asText());
+    assertEquals(
+        1,
+        json.readTree(runAt(b, "status", "--format=json").out)
+            .path("tracking")
+            .get(0)
+            .path("behind")
+            .asInt());
+    var applied = runAt(b, "pull", "--ff-only", "--format=json");
+    assertEquals(0, applied.code, applied.err);
+    assertTrue(json.readTree(applied.out).path("fastForward").asBoolean());
+    assertEquals(0, runAt(b, "verify").code);
+    assertEquals(
+        0, runAt(b, "export", "v1", temp.resolve("world.zip").toString(), "--format=json").code);
+    assertEquals(0, runAt(b, "tag", "-d", "v1").code);
+    assertEquals(0, runAt(b, "remote", "remove", "origin").code);
+    assertEquals(0, json.readTree(runAt(b, "remote", "list", "--format=json").out).size());
   }
 
   @Test

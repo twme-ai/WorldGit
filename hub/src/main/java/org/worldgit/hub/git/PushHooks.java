@@ -56,7 +56,7 @@ final class PushHooks {
           }
           for (ReceiveCommand cmd : commands) {
             if (cmd.getResult() == ReceiveCommand.Result.NOT_ATTEMPTED && cmd.getType() != ReceiveCommand.Type.DELETE)
-              walk.markStart(walk.parseCommit(cmd.getNewId()));
+              walk.markStart((RevCommit) walk.peel(walk.parseAny(cmd.getNewId())));
           }
           int count = 0;
           for (var commit : walk) {

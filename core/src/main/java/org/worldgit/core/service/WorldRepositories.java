@@ -60,7 +60,22 @@ public final class WorldRepositories {
     return result;
   }
 
-  public Map<DimensionId, String> manifest() {
+  public Map<DimensionId, String> manifest() throws IOException {
+    Path retained = root().resolve("dimension-manifest.yml");
+    if (Files.exists(retained)) {
+      var document = OperationState.read(retained);
+      if (!(document.get("dimensions") instanceof Map<?, ?> map) || map.size() > 32)
+        throw new IOException("維度宣告清單無效");
+      var result = new TreeMap<DimensionId, String>();
+      for (var e : map.entrySet()) {
+        if (!(e.getKey() instanceof String id) || !(e.getValue() instanceof String path))
+          throw new IOException("維度宣告清單型別無效");
+        var dimension = new DimensionId(id);
+        if (!path.equals("../" + dimension.directoryName())) throw new IOException("維度宣告路徑無效");
+        result.put(dimension, path);
+      }
+      return result;
+    }
     var m = new TreeMap<DimensionId, String>();
     tracked()
         .forEach(
@@ -110,7 +125,7 @@ public final class WorldRepositories {
         } catch (Exception ex) {
           result.put(e.getKey(), new Outcome<>(null, error(ex)));
         }
-    recordGroup(snapshot,result);
+    recordGroup(snapshot, result);
     return new Batch<>(snapshot, result);
   }
 
@@ -134,18 +149,24 @@ public final class WorldRepositories {
       } catch (Exception ex) {
         result.put(e.getKey(), new Outcome<>(null, error(ex)));
       }
-    recordGroup(snapshot,result);
+    recordGroup(snapshot, result);
     return new Batch<>(snapshot, result);
   }
 
   /** 沒改變的維度也記下同一次 snapshot 的 HEAD，讓 hash 入口可精確配對。 */
-  private void recordGroup(UUID snapshot,SortedMap<DimensionId,Outcome<DimensionRepository.CommitResult>> result) {
-    for(var entry:result.entrySet()) if(entry.getValue().success()) {
-      try(var repo=new DimensionRepository(root().resolve(entry.getKey().directoryName()),entry.getKey(),false)) {
-        String head=repo.refs().head();
-        if(head!=null) repo.refs().updateRef("refs/worldgit/groups/"+snapshot,null,head);
-      } catch(IOException ex) { result.put(entry.getKey(),new Outcome<>(entry.getValue().value(),error(ex))); }
-    }
+  private void recordGroup(
+      UUID snapshot, SortedMap<DimensionId, Outcome<DimensionRepository.CommitResult>> result) {
+    for (var entry : result.entrySet())
+      if (entry.getValue().success()) {
+        try (var repo =
+            new DimensionRepository(
+                root().resolve(entry.getKey().directoryName()), entry.getKey(), false)) {
+          String head = repo.refs().head();
+          if (head != null) repo.refs().updateRef("refs/worldgit/groups/" + snapshot, null, head);
+        } catch (IOException ex) {
+          result.put(entry.getKey(), new Outcome<>(entry.getValue().value(), error(ex)));
+        }
+      }
   }
 
   public Batch<DimensionRepository.Status> status(

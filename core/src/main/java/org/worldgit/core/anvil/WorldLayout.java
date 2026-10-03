@@ -56,7 +56,11 @@ public final class WorldLayout {
         for (Path dir :
             stream
                 .filter(Files::isDirectory)
-                .filter(d -> Files.isDirectory(d.resolve("region")))
+                .filter(
+                    d ->
+                        Files.isDirectory(d.resolve("region"))
+                            || Files.isRegularFile(
+                                d.resolve("data/minecraft/world_gen_settings.dat")))
                 .toList()) {
           Path relative = dimensions.relativize(dir);
           if (relative.getNameCount() < 2) continue;
@@ -75,7 +79,9 @@ public final class WorldLayout {
   }
 
   private static void add(Map<DimensionId, Dimension> dims, DimensionId id, Path dir) {
-    if (Files.isDirectory(dir.resolve("region"))) dims.put(id, new Dimension(id, dir));
+    if (Files.isDirectory(dir.resolve("region"))
+        || Files.isRegularFile(dir.resolve("data/minecraft/world_gen_settings.dat")))
+      dims.put(id, new Dimension(id, dir));
   }
 
   public Path world() {
@@ -87,6 +93,7 @@ public final class WorldLayout {
   }
 
   public Path repositoryRoot() {
+    if (Files.isDirectory(world.resolve(".worldgit"))) return world.resolve(".worldgit");
     return server.resolve(".worldgit").resolve(world.getFileName().toString());
   }
 
@@ -114,6 +121,10 @@ public final class WorldLayout {
             "DataVersion",
             "DataPacks",
             "WorldGenSettings",
+            "DragonFight",
+            "CustomBossEvents",
+            "GameType",
+            "allowCommands",
             "SpawnX",
             "SpawnY",
             "SpawnZ",
@@ -133,7 +144,36 @@ public final class WorldLayout {
             "BorderWarningTime",
             "BorderDamagePerBlock",
             "LevelName")) if (data.containsKey(k)) tracked.put(k, Nbt.copy(data.get(k)));
+    var end = dimensions.get(new DimensionId("minecraft:the_end"));
+    if (dataVersion() < 4903
+        && end != null
+        && end.directory().getFileName().toString().equals("DIM1")
+        && Files.isRegularFile(end.directory().getParent().resolve("level.dat"))) {
+      var endData = readGzip(end.directory().getParent().resolve("level.dat")).compound("Data");
+      if (endData.containsKey("DragonFight"))
+        tracked.put("DragonFight", Nbt.copy(endData.get("DragonFight")));
+    }
     result.put("level.nbt", Nbt.write(tracked));
+    Path packs = world.resolve("datapacks");
+    long assets = 0;
+    if (Files.isDirectory(packs))
+      try (var files = Files.walk(packs)) {
+        for (Path f : files.filter(Files::isRegularFile).sorted().toList()) {
+          if (Files.isSymbolicLink(f) || !f.toRealPath().startsWith(packs.toRealPath()))
+            throw new IOException("資料包包含符號連結");
+          long n = Files.size(f);
+          assets += n;
+          if (n > Nbt.MAX_BYTES || assets > 64L * 1024 * 1024)
+            throw new IOException("資料包超過快照預算（單檔 32 MiB／全部 64 MiB）");
+          String relative = world.relativize(f).toString().replace(java.io.File.separatorChar, '/');
+          result.put(
+              "asset."
+                  + Base64.getUrlEncoder()
+                      .withoutPadding()
+                      .encodeToString(relative.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+              Files.readAllBytes(f));
+        }
+      }
     for (Path dir : List.of(world.resolve("data"), world.resolve("data/minecraft"))) {
       if (!Files.isDirectory(dir)) continue;
       try (var stream = Files.list(dir)) {
@@ -156,6 +196,13 @@ public final class WorldLayout {
         Path file = dimension.directory().resolve("data/minecraft/" + n);
         if (Files.isRegularFile(file))
           result.put(dimension.id().directoryName() + "." + n + ".nbt", Nbt.write(readGzip(file)));
+      }
+    if (dataVersion() >= 4903)
+      for (String name : List.of("game_rules.dat", "world_border.dat", "world_gen_settings.dat")) {
+        String dimensionKey = DimensionId.OVERWORLD.directoryName() + "." + name + ".nbt";
+        if (result.containsKey(dimensionKey)
+            && (data.containsKey("Bukkit.Version") || !result.containsKey(name + ".nbt")))
+          result.put(name + ".nbt", result.get(dimensionKey));
       }
     Path dataDir = world.resolve("data");
     if (Files.isDirectory(dataDir))

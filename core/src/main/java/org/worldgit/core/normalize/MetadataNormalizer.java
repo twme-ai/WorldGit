@@ -19,10 +19,29 @@ public final class MetadataNormalizer {
         continue;
       }
       var data = Nbt.read(entry.getValue());
+      if (entry.getKey().equals("level.nbt") && data.containsKey("DataPacks"))
+        data.put("DataPacks", portablePacks(data.compound("DataPacks")));
       data.keySet().removeIf(field -> rules.ignoredField(type, field, false));
       if (!data.isEmpty()) result.put(entry.getKey(), Nbt.write(data));
     }
     return result;
+  }
+
+  /** Paper 標記與 Fabric API 共用標籤包由平台提供；實際世界資料包及其順序完整保留。 */
+  public static Nbt.Compound portablePacks(Nbt.Compound packs) {
+    var out = Nbt.copy(packs);
+    for (String key : List.of("Enabled", "Disabled"))
+      if (out.containsKey(key)) {
+        var list = out.list(key);
+        out.put(
+            key,
+            new Nbt.ListTag(
+                list.type(),
+                list.values().stream()
+                    .filter(v -> !v.equals("paper") && !v.equals("fabric-convention-tags-v2"))
+                    .toList()));
+      }
+    return out;
   }
 
   public static String type(String name) {

@@ -1,6 +1,6 @@
 # wgit
 
-離線 Minecraft 世界的 git 式版本控制。需要 Java 21+；操作期間取得實際 `session.lock`，若世界正由伺服器使用會警告並以非零狀態結束。
+離線 Minecraft 世界的 git 式版本控制。需要 Java 21+；世界讀寫操作期間取得實際 `session.lock`，若世界正由伺服器使用會警告並以非零狀態結束。
 
 ```sh
 export GRADLE_USER_HOME="$PWD/.work/gradle-home"
@@ -21,7 +21,7 @@ export GRADLE_USER_HOME="$PWD/.work/gradle-home"
 | 指令／選項 | 行為 |
 |---|---|
 | `init --template creative\|survival` | 建立 repo、`.wgignore` 及初次完整快照；預設 creative |
-| `init --track all\|modified-only` | 追蹤設定寫入 repo；後者目前只記錄，仍儲存所有 full chunk |
+| `init --track all\|modified-only` | 追蹤設定寫入 repo；後者有完整曾編輯集合才篩選，缺集合保守全存並警告 |
 | `status [--full]` | HEAD → 活世界的摘要；一般模式使用 index，全量模式重驗 |
 | `commit -m '訊息'` | 所有已追蹤維度使用同一 snapshot trailer，只有改變的維度產生 commit |
 | `log [-n 20]` | 依 snapshot 分組，列出當次有 commit 的維度 |
@@ -97,3 +97,42 @@ wgit cherry-pick feature
 merge／resolve／continue／abort／revert／cherry-pick 支援 --dry-run，JSON 無 ANSI。merge JSON 包含 state、reports、remaining、commits、plans 統計與 error；區域 choice 為小寫 ours／theirs／base／manual。無衝突預設自動 commit；--no-commit 保留 MERGING，--strategy-option 只選衝突、不丟棄無衝突的另一邊內容。
 
 離線保留柵欄／牆／紅石線等來源連接 state，報告列出需要線上 updateShape 的格子，不能假設開服後自動修正。完整驗收與限制見 [Phase 3 進度](../docs/13-phase3-progress.md)。
+
+## Phase 4 遠端與世界下載（2026-10-03）
+
+```sh
+wgit remote add origin https://hub.example.com/alice/castle
+# 一般 git 每維度一 repo：
+wgit remote set-url origin 'https://git.example/team/castle-{dimension}.git'
+# 或明確世界清單：
+wgit remote add backup manifest+file:///srv/worlds/castle.yml
+wgit remote list --format=json
+wgit fetch origin
+wgit status
+wgit push origin main --tags
+wgit pull origin main --ff-only
+wgit clone https://hub.example.com/alice/castle castle --branch main
+wgit clone https://hub.example.com/alice/castle nether-only --dimension minecraft:the_nether
+wgit tag v1 HEAD -m '城堡完成'
+wgit tag -l
+wgit tag -d v1
+wgit export v1 castle.zip --max-bytes 2147483648 --max-seconds 900
+```
+
+| 指令 | 行為 |
+|---|---|
+| `remote add/remove/list/set-url` | 世界組 YAML sidecar；add/set-url 解析 URL/manifest，禁止帳密/query/fragment；變更支援 --dry-run |
+| `fetch [remote]` | 預設 origin；全維度下載 refs/objects/tags，驗證完整 publication/group 才更新 tracking；不套用世界 |
+| `push [remote] [branch] [--tags] [--force-with-lease]` | 預設 origin/目前分支；非 FF 提示 pull；force lease 比對最近 fetch tip，不等於無條件強推；server 政策仍可拒絕 |
+| `pull [remote] [branch] [--ff-only]` | fetch→對目前分支 FF 或三方合併；乾淨含 untracked；衝突進入 MERGING，resolve/merge --continue/abort 沿用 Phase 3 |
+| `clone <url> [dir] [--branch b] [--dimension d]` | 預設 main／URL 最後一段；輸出單人原版世界與世界內 .worldgit；目的地必須不存在；先 temp 完整組裝再 rename |
+| `tag <name> [rev] [-m msg]`／`tag -l`／`tag -d` | 輕量／附註 tag，預設 HEAD；全維度共用快照配對，list/delete 有全組 journal |
+| `export <rev> <out.zip>` | release 世界 ZIP，串流輸出且不帶 repo/player/session；暫存 Anvil 同時受大小與時間預算限制 |
+
+remote/fetch/push/tag/export 不開 session、不寫世界；pull 以及既有世界操作仍要求世界停止。fetch/push/pull/tag/export/remote 變更支援 --dry-run（clone/list 不適用）；fetch/push dry-run 只查 refs，尚不量測 PACK。**pull --dry-run 仍執行真 fetch、更新 tracking，只對世界套用做 dry-run**。export dry-run 只解析 revision；資料完整性／組裝大小需真正 export 才知道。JSON 沿用無 ANSI 的統計格式，pull 為 expectedHeads/targets/fastForward/result，其中 result.plans 是統計，report/remaining/commits 與 merge 一致。MERGING 是正常流程，exit 0；PARTIAL/error 非零。
+
+status 的 tracking 以 snapshot UUID 的聯集算 ahead/behind（不重複計三維度），只用最近 fetch 資料，不連網；每維度遍歷超過 20,000 commits 標 estimated，detach 不顯示。fetch/push/pull/tag/export 對所有已追蹤維度同步，拒絕 --dimension；clone 可以限定一維度，仍下載主世界 metadata repo，不完整 clone 禁止 push 整個世界。
+
+PAT 使用環境 `WGIT_TOKEN`，搭配 `WGIT_AUTH=basic|bearer` 和可選 WGIT_USERNAME；或使用者 `~/.config/worldgit/credentials.yml`，格式與權限 600 詳見 [07](../docs/07-remote-hub.md)。不要把 PAT 放 URL、remote 設定或資料包。沒有憑證時明確送 anonymous Basic，公開世界可 clone；私人世界會被 Hub 拒絕。HTTP(S)/file 支援；SSH 尚未提供。
+
+clone 丟棄光照／POI／Heightmaps，由遊戲重建；保留 seed/worldgen、規則、實體、metadata 與資料包。modified-only 未存自然地形會依種子生成，但平台的玩家編輯蒐集尚未接線；可用 core ModifiedChunks 完整 sidecar，不可把當次 dirty 當完整集合。ZIP 是發布副本，不包含玩家進度／背包。pack 每批 ≤95 MB；PARTIAL push 用原 remote/branch/options/tips 重試，失敗紀錄不會印 PAT；若第三方改 refs 會阻擋恢復。完整 API、驗收、量測與限制見 [14](../docs/14-phase4-progress.md)。

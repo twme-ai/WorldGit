@@ -80,6 +80,15 @@
 | 73 | Fabric 專用伺服器合併同步與恢復 | hello 公告 merge-regions-v1／conflict-select-v1；握手成功後在 repo queue 讀 durable MERGING 並推清單，每次選擇／解決／continue／abort 對所有有讀取權限的能力客戶端更新。重啟重讀基底＋WAL，APPLYING 轉 PARTIAL；維持 #60 登出／定時／關機不提交合併半成品。專用伺服器顯示 MERGING bossbar，套用進度與完成訊息依接收者語言以 MiniMessage 發送。（2026-10-03） | Fabric／protocol README、[13](13-phase3-progress.md) |
 | 74 | Fabric 專用伺服器實機驗收 | 新增 accept-dedicated.py（兩版），自取 bench.lock、凍結 jar、真 Fabric Loader 專用伺服器及 Xvfb client、第二個協定 viewer、完整 section 與 durable 狀態比對；包含 Phase 2／3、重啟／abort／patch／編輯鎖／保護／1,000 chunk TPS／區域延遲與截圖。測試 helper 是獨立 fixture mod，正式模組不包含，需 acceptance JVM 且只能由 console 啟用。結果／失敗如實記錄，用完關閉並移除 server 副本。（2026-10-03） | Fabric README、[13](13-phase3-progress.md) |
 
+| 75 | Phase 4 世界 remote 與憑證 | 世界 URL 展開既有 Hub `/git/{owner}/{world}/{dimension}.git`；一般 git 用 `{dimension}` 樣板或 `manifest+file/https` 的 YAML 清單。HTTP(S)/file，禁止 URL 帳密/query/fragment。`remotes.yml` 留在世界組 sidecar，不入 tree；PAT 優先環境→使用者 600 YAML→平台 provider，公開 clone 用 anonymous Basic。SSH 延後。（2026-10-03） | [07](07-remote-hub.md)、[14](14-phase4-progress.md) |
+| 76 | 全維度發布與部分失敗 | 全組先檢查 FF／tag／group 不可變性，再逐維度 CAS 發布；共用 publication 內容指認完整 tip map。push-state.yml 固定原 targets，PARTIAL 原參數／原 tips 重試，第三方改動拒絕覆寫。fetch 先下載 incoming，publication／group 全部驗證才發布 tracking；中斷發布回復舊 refs。不同 repo 無原子交易，原生 git／舊 Hub reader 可能看見短暫混合 tips，WorldGit fetch/clone 會拒絕。（2026-10-03） | [03](03-storage-backend.md)、[07](07-remote-hub.md)、[14](14-phase4-progress.md) |
+| 77 | 有界 git 傳輸 | 不把本機 GC 分包當成網路分包。以物件相依順序建立單調編號 `refs/worldgit/transfers/` 合成 commit，最新 tree 累積引用全部 batch 子樹，每批 ≤95,000,000 bytes，保留 refs 供日後 clone 順序 negotiation；公開分支最後才發布。push 量實際 HTTP PACK bytes，fetch 量落地 pack；超限外部 pack 拒絕並丟棄，不發布 ref。裸合併也先建分批 refs。外部服務自行 GC 與原生 git 直接 clone 不受 core 控制。（2026-10-03） | [03](03-storage-backend.md)、[14](14-phase4-progress.md) |
+| 78 | pull 與線上協調 | fetch 不讀寫世界／session；pull 要求乾淨含 untracked，FF 保留目前分支，否則沿用 Phase 3 MERGING。dry-run preview 回傳 expectedHeads/targets；apply 必須再檢查 lease 和工作區。線上只有 `WorldOperations.live`，呼叫端顯式鎖編輯／flush／applyAll／verify／解鎖，通知或 webhook 永不自動套用。（2026-10-03） | [07](07-remote-hub.md) §5、[14](14-phase4-progress.md) |
+| 79 | clone／release 的可攜世界 | 共用逐 region Anvil 組裝，還原完整 seed/worldgen、metadata 和資料包檔；不含玩家/session，ZIP 不帶 repo 歷史，光照/Heightmaps/POI 由遊戲重建。clone 的 `.worldgit/` 放世界內以便搬移；既有 repo 外置布局向後相容。部分維度仍下載主世界 metadata repo，保留完整維度宣告，禁止發布不完整世界。ZIP 串流但 Anvil 使用有大小/時間預算的暫存目錄。（2026-10-03） | [08](08-architecture.md)、[14](14-phase4-progress.md) |
+| 80 | Hub 裸合併 API | 不需世界的 preview/merge/recover，不同 tips 為兩個 parent（同 tips 依 Phase 3 去重）、全維度共用 snapshot、Source.HUB 與來源 trailers；接受每區域 ours/theirs/base，預覽綁 tips 與分群距離。發布 journal/CAS/publication；有衝突不動分支。保持快照 state（#46），回報 updateShapes。授權／PR／受保護分支及 quota 由下一個 Hub 任務接。（2026-10-03） | [14](14-phase4-progress.md)、core README |
+| 81 | 可攜 metadata 與 modified-only | 納入 datapacks 原檔（每檔≤32 MiB，總計≤64 MiB）、DragonFight/CustomBossEvents/GameType/allowCommands；只去除平台提供的 `paper`、`fabric-convention-tags-v2` 標記，其他 pack 與優先序保留。modified-only 接受完整、持久的曾編輯集合（SnapshotSource 或每維度 modified-chunks.yml）；缺集合保守全存並警告，不把當次 dirty 當完整集合。clone 以已存 chunk 初始化集合，pull 套用前納入收到的 chunk；平台事件蒐集待接。（2026-10-03） | [14](14-phase4-progress.md)、core README |
+| 82 | tag 的全組 journal | 輕量與附註 tag 先建立 objects 再寫 tag-state.yml，最後逐維度 CAS；中斷下次開啟 RepositoryGroup 回復舊 tags，第三方改動拒絕。push --tags 不覆寫不同 tag；fetch 取得 tags。（2026-10-03） | [14](14-phase4-progress.md)、CLI README |
+
 
 
 
@@ -134,3 +143,8 @@
 已建立 Java 21 的 core、platform-api、protocol、CLI 正式 monorepo；Paper/Fabric/Hub 留待接續任務，因此「四端同一份歷史」的整體驗收尚未完成。共用 API、測試與量測見 [11 — Phase 1 進度](11-phase1-progress.md)。`modified-only` 本次只記錄設定，功能尚未生效；其餘限制逐項列在報告，不視為已完成。
 
 真實 Paper 的地獄重寫新增發現：structures `References` 的 long[] 是集合，LongSet 序列化順序會交替改變；正式正規化已補數值排序，並新增回歸測試。這是 #18 每維度 repo 的正式驗證發現，不變更追蹤範圍決策。
+
+
+## Phase 4 第一個實作任務（2026-10-03）
+
+core／CLI 遠端協作、裸 repo 合併、可開世界 clone 與 release ZIP 已建立；Hub PR/帳號與 Paper/Fabric remote 接線留待接續任務。本次真 Hub、兩版 Paper/Fabric 開世界及原生 git HTTP 驗收、量測、API 契約和未完成項目見 [14](14-phase4-progress.md)，不把直接呼叫 bare merge API 視為網頁 PR 功能已完成。

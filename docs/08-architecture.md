@@ -11,6 +11,7 @@ worldgit/
 │   ├─ store/       ObjectStore / RefStore 介面 + JGit 實作
 │   ├─ diff/        tree diff、section diff、方塊級 diff
 │   ├─ merge/       三方合併、衝突分群、合併狀態（MERGE_HEAD 等）
+│   ├─ remote/      世界 remote/credentials、組發布、裸合併、clone/release 組裝
 │   └─ config/      .wgignore 解析（版本控制內）、worldgit.yml（本機設定）
 ├─ platform-api/    「活的世界」抽象：讀快照、套用變更、鎖定、通知玩家
 ├─ protocol/        插件/模組 ↔ 客戶端模組的網路封包定義（diff 預覽、衝突資訊）
@@ -208,3 +209,11 @@ Paper／Fabric 開始操作前 lockEdits＋flush，於 repo executor 呼叫 Worl
 Hub 可以直接使用 ObjectStore＋MergeBases／MergeEngine 計算候選 tree 與衝突區域，再用 MergeEngine.select 在候選 tree 上選擇；不得為無 working world 的 Hub 啟用 OfflineApplier。Hub 的 manual 選擇仍需由可編輯世界提供權威快照，本次未實作 PR／網頁 UI。
 
 protocol v2 不變；可選新 channel `worldgit:conflicts`／`worldgit:conflict_preview` 使用 MergeProtocol v1、能力 merge-regions-v1。平台只有實作對應收送後才宣告能力，未宣告的舊客戶端不發送。區域清單含狀態／選擇；局部預覽含 state／完整 BE NBT，可跨包但完整批次才發布，沿用 28 KB／8 MiB 上限。詳見 protocol README／[13](13-phase3-progress.md)。
+
+## Phase 4 API 與 clone 布局（2026-10-03）
+
+core 的 `remote` 套件不依賴平台或 Hub：`RemoteSpec/Credentials` 管本機設定與秘密來源，`RepositoryGroup/WorldRemotes` 協調維度 refs，`BareWorldMerge` 供 Hub 的 PR 層，`WorldClone/WorldAssembler` 產生可開啟世界／release ZIP。平台沿用 `WorldOperations.live` 與 LiveAccess，沒有新協定封包或自動套用活世界；Hub 本次只做 annotated tag 相容修正，PR/帳號/受保護分支下一個任務接。
+
+既有 init 仍用 `<server>/.worldgit/<world>/…`；clone 改用 `<clone-world>/.worldgit/…` 方便單人存檔整包搬移，discover 優先世界內既有 root。單人原版布局可由 Paper/Fabric 開啟；Paper 1.21.11 首次啟動自己轉成分離地獄／終界目錄。ZIP 不帶歷史與玩家，clone 帶每維度 bare repos、remotes.yml、必要 partial/modified-only sidecar。
+
+`SnapshotSource.modifiedChunks()` 是完整、持久的曾編輯集合，可用 `ModifiedChunks.write/read` 管每維度 YAML；平台事件／第三方編輯接線尚未實作。初次 unknown 保守全存並警告；已有 sparse 歷史 clone 初始化已存 chunks，遊戲自然生成未存 chunks 不自動入庫，收到的追蹤 chunks 在套用前加入本機集合。API 與協調細節、限制、驗收及量測見 [14](14-phase4-progress.md)。
