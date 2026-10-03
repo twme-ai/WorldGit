@@ -34,6 +34,8 @@ public final class MessageKeys {
   public static final String COMMON_NO_PERMISSION = def("common.no-permission");
   public static final String COMMON_ERROR = def("common.error", "message");
 
+  public static final String MERGE_SELECT_UNSUPPORTED = def("fabric.merge.select-unsupported");
+
   // 說明
   public static final String HELP_TITLE = def("fabric.help.title");
   public static final String HELP_INIT = def("fabric.help.init");

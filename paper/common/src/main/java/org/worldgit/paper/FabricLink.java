@@ -83,7 +83,7 @@ final class FabricLink implements PluginMessageListener, Listener {
         var s = sessions.get(id);
         if (s == null || s.ready || !player.isOnline()) return;
         try {
-          player.sendPluginMessage(plugin, Protocol.HELLO, Protocol.encode(new Protocol.Hello(Protocol.VERSION, s.nonce, java.util.stream.Stream.concat(Protocol.CAPABILITIES.stream(),java.util.stream.Stream.of("revision-preview",MergeProtocol.CAPABILITY)).distinct().toList(), palette)));
+          player.sendPluginMessage(plugin, Protocol.HELLO, Protocol.encode(new Protocol.Hello(Protocol.VERSION, s.nonce, java.util.stream.Stream.concat(Protocol.CAPABILITIES.stream(),java.util.stream.Stream.of("revision-preview",MergeProtocol.CAPABILITY,MergeProtocol.SELECT_CAPABILITY)).distinct().toList(), palette)));
         } catch (IOException ex) {
           plugin.getLogger().log(Level.WARNING, "無法編碼 hello", ex);
         }

@@ -36,7 +36,8 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
     });
     int paperPort = Integer.getInteger("wgtest.paperPort", 0);
     if (paperPort != 0) {
-      PaperClientGameTest.run(ctx, paperPort);
+      if (Boolean.getBoolean("wgtest.paperPhase3")) PaperPhase3ClientGameTest.run(ctx,paperPort);
+      else PaperClientGameTest.run(ctx, paperPort);
       return;
     }
     if(Boolean.getBoolean("wgtest.phase2")) { Phase2ClientGameTest.run(ctx); return; }

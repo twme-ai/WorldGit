@@ -244,7 +244,7 @@ fabric.apply.phase.partial: "PARTIAL"
 fabric.apply.phase.failed: "Failed"
 
 # Paper／Folia Phase 3 合併
-paper.merge.usage: '/wg merge <branch|rev>|--continue|--abort; resolve <#|all> ours|theirs|base|manual; conflicts [page|preview # ours|theirs|base]; tool; revert|cherry-pick <rev>'
+paper.merge.usage: '/wg merge <branch|rev>|--continue|--abort; resolve <#|all> ours|theirs|base|manual; conflicts [page|preview # ours|theirs|base]; tool; revert|cherry-pick <rev> | /wg conflict-select #|all ours|theirs|base|manual'
 paper.merge.progress: 'Merging: <count> conflicts remaining'
 paper.merge.status: 'MERGING: <count> conflicts remaining. /wg conflicts; resolve then merge --continue, or merge --abort.'
 paper.merge.hint: 'Conflict #<id>: <choice> (<status>); tool: right-click to cycle, sneak-right-click to resolve'
@@ -270,8 +270,12 @@ paper.merge.next: 'Next page'
 paper.merge.teleport-failed: 'Teleport failed. Please retry.'
 
 # Fabric Phase 3
-fabric.help.phase3: "/wg merge rev [--no-commit] | merge --abort|--continue | resolve id|all [--ours|--theirs|--base|--manual] | revert rev | cherry-pick rev | conflicts"
+fabric.help.phase3: "/wg merge rev [--no-commit] | merge --abort|--continue | conflict-select id ours|theirs|base | resolve id|all [--ours|--theirs|--base|--manual] | revert rev | cherry-pick rev | conflicts"
 fabric.merge.status: "MERGING: <remaining>/<total> unresolved regions."
 fabric.merge.result: "<state>: <remaining> unresolved regions."
 fabric.merge.empty: "No conflict regions."
 fabric.merge.row: "! #<id> <dimension> <bounds> (<count> blocks) ours: <ours>; theirs: <theirs>; choice: <choice>; resolved: <resolved>; redstone: <redstone>"
+
+fabric.merge.select-unsupported: "Server does not support Set blocks (conflict-select-v1). Resolve remains available."
+
+paper.merge.unknown-region: 'Unknown conflict region #<id>.'

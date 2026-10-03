@@ -101,6 +101,8 @@ def run(platform, version):
             time.sleep(4)
             s.cmd('wg debug freeze on',r'WGFREEZE frozen');s.cmd('gamerule natural_health_regeneration false');s.cmd('kill @e[type=!player]')
             variant('oak','oak',0)
+            out=cmd('wg conflict-select 1 ours',r'No merge is in progress|沒有 MERGING',True)
+            check('非 MERGING conflict-select 被擋',state() is None,output=out)
             s.cmd('wg init',r'init 完成|失敗',900);branch('base');branch('B')
             builds(bots[0],2,'gold_block')
             s.cmd('setblock 4 65 6 chest');s.cmd('data merge block 4 65 6 {Items:[{Slot:0b,id:"minecraft:diamond",count:4}]}')
@@ -122,6 +124,19 @@ def run(platform, version):
             variant('birch','birch',9);commit('theirs');branch('theirs-original');theirs=git('rev-parse','HEAD');cmd('wg switch ours-work',r'已切換到|Switched|錯誤|Error|PARTIAL')
             cmd('wg merge theirs-original');v,regions=wait_state('OURS',False)
             result['regions']=regions;save();check('門／柵欄／紅石跨 chunk 衝突',len(regions)==1 and regions[0]['blockCount']==4 and regions[0]['redstone'] and regions[0]['bounds']=={'minX':15,'minY':64,'minZ':2,'maxX':17,'maxY':65,'maxZ':2},regions=regions)
+            out=cmd('wg conflict-select 999 ours',r'找不到衝突區域|Unknown conflict region',True)
+            check('conflict-select 未知區域不改狀態',state()['dimensions']['minecraft:overworld']['report']['regions'][0]['choice']=='OURS',output=out)
+            for invalid in ('0 ours','-1 base','1 invalid','1 ours extra'):
+                out=cmd('wg conflict-select '+invalid,r'/wg merge',True)
+                check('conflict-select 非法參數 '+invalid,'conflict-select' in out)
+            for choice,rev in [('theirs','theirs-original'),('base','base'),('ours','ours-original')]:
+                cmd('wg conflict-select #1 '+choice)
+                selected=state()['dimensions']['minecraft:overworld']['report']['regions'][0]
+                check('conflict-select '+choice+' 保持 unresolved',selected['choice']==choice.upper() and not selected['resolved'])
+                sample(bots[0],0,0,revision=rev);sample(bots[0],1,0,revision=rev)
+            cmd('wg conflict-select all manual')
+            check('conflict-select manual 保持 unresolved',all(not r['resolved'] and r['choice']=='MANUAL' for d in state()['dimensions'].values() for r in d['report']['regions']))
+            cmd('wg conflict-select all ours')
             out=cmd('wg status',r'MERGING|錯誤|Error');check('status 顯示 MERGING','MERGING' in out)
             out=cmd('wg switch base --force',r'MERGING|錯誤|Error',True);check('MERGING force switch 被擋','MERGING' in out and git('rev-parse','HEAD')==ours)
             out=cmd('wg commit -m blocked',r'衝突區域未解決|unresolved|錯誤|Error',True);check('unresolved commit 被擋',git('rev-parse','HEAD')==ours)

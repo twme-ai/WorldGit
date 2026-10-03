@@ -39,12 +39,42 @@ final class Debug {
       case "freeze" -> freeze(sender,args);
       case "protection" -> protection(sender,args);
       case "fill" -> fill(sender, args);
+      case "fixture-container" -> fixtureContainer(sender,args);
+      case "fixture-clean-items" -> fixtureCleanItems(sender);
       case "merge-tool" -> mergeTool(sender,args);
       case "merge-gui" -> mergeGui(sender,args);
       case "release" -> release(sender);
       case "probe" -> probe(sender, args);
       case "measurements" -> plugin.repo().measurements().forEach(m -> sender.sendMessage(Component.text(m.toString())));
       default -> throw new IllegalArgumentException("未知的 debug 子指令");
+    }
+  }
+
+  /** Folia 的 vanilla /data、全域 /kill 不可用；驗收 fixture 走真正 owner。 */
+  private void fixtureContainer(CommandSender sender,String[] args) {
+    if(args.length!=5) throw new IllegalArgumentException("debug fixture-container x y z material");
+    int x=Integer.parseInt(args[1]),y=Integer.parseInt(args[2]),z=Integer.parseInt(args[3]);
+    var material=Objects.requireNonNull(Material.matchMaterial(args[4]));
+    var world=Bukkit.getWorlds().getFirst();
+    plugin.platform().region(world,x>>4,z>>4,()->{
+      try {
+        var container=(org.bukkit.block.Container)world.getBlockAt(x,y,z).getState();
+        container.getSnapshotInventory().clear();
+        container.getSnapshotInventory().setItem(0,new org.bukkit.inventory.ItemStack(material,4));
+        if(!container.update(true,false)) throw new IllegalStateException("container update failed");
+        sender.sendMessage(Component.text("WGCONTAINER done"));
+      } catch(RuntimeException e) { sender.sendMessage(Messages.error(e.toString())); }
+    });
+  }
+  private void fixtureCleanItems(CommandSender sender) {
+    var world=Bukkit.getWorlds().getFirst();
+    var remaining=new AtomicInteger(2);
+    for(int cx=0;cx<=1;cx++) {
+      final int chunk=cx;
+      plugin.platform().region(world,chunk,0,()->{
+        for(var entity:world.getChunkAt(chunk,0).getEntities()) if(entity instanceof org.bukkit.entity.Item) entity.remove();
+        if(remaining.decrementAndGet()==0) sender.sendMessage(Component.text("WGITEMS done"));
+      });
     }
   }
 

@@ -1,4 +1,4 @@
-# WorldGit Fabric（Phase 2）
+# WorldGit Fabric（Phase 3）
 
 同一套模組提供單人世界／Fabric 專用伺服器的存檔點，以及 Paper 玩家客戶端的 diff 描邊和鬼影。世界與 bare repo 格式直接共用 core，離線 `wgit` 可讀相同歷史；不需要轉換。
 
@@ -75,6 +75,8 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 /wg resolve <id|all> [--ours|--theirs|--base|--manual]
 /wg revert <commit> | /wg cherry-pick <commit>
 /wg conflicts [--show] [--teleport <id>]
+/wg conflict-preview <id> ours|theirs|base
+/wg conflict-select <id> ours|theirs|base
 ```
 
 僅單人世界的整合伺服器可執行寫入（與 Phase 2 相同）。要求工作區乾淨；不同位置的修改零介入合併，成功時直接建立兩個 parent 的 merge commit。有衝突時進入 MERGING：無衝突部分與每個衝突區域的 ours 一起寫入，`/wg status` 顯示剩餘區域，自動 commit 暫停。切換或解決區域時**維持快照儲存的方塊 state**，不觸發 `updateShape`／鄰居更新（決定 #46）；交界提示只列出供檢查。全部解決後執行 `/wg merge --continue`（或 `/wg commit -m …`）；`/wg merge --abort` 逐格回到合併前。
@@ -88,7 +90,7 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 未解決區域的紫色外框常駐顯示，已解決改暗灰，全部解決後消失。紅石區域標示「請測試電路」，交界提示（滑過按鈕）列出可能受影響的鄰格。
 
-連 Paper 時，客戶端握手宣告 `merge-regions-v1`，由 Paper 推送 `worldgit:conflicts` 並以 `worldgit:conflict_preview` 回應疊圖請求；寫入按鈕只用 Paper 支援的 `wg resolve <id> <choice>`。舊伺服器（沒有此能力）時畫面顯示不支援。協定見 [protocol README](../protocol/README.md)，驗收見 [進度 13](../docs/13-phase3-progress.md) 的 Fabric 章節。
+連 Paper／Folia 時，客戶端握手宣告 `merge-regions-v1`，由伺服器推送 `worldgit:conflicts` 並以 `worldgit:conflict_preview` 回應疊圖請求；hello 同時公告 `conflict-select-v1` 時啟用 Set blocks，送 `wg conflict-select <id> <choice>`；Resolve 送 `wg resolve <id> <choice>`。舊 Paper 沒有 select 能力時 Set blocks 停用，滑過顯示原因，Ghost／Resolve 仍可使用；沒有 `merge-regions-v1` 時畫面顯示不支援合併。協定見 [protocol README](../protocol/README.md)，真客戶端驗收見 [進度 13](../docs/13-phase3-progress.md#fabric--paper-實機對接)。
 
 驗收（兩版各約 11–17 分鐘）：
 
@@ -174,3 +176,14 @@ python3 fabric/tools/accept-paper.py 26.2
 `merge-state.bin.updates` 須與基底一起讀取／保存，當機恢復仍用 abort。區域外其他 chunk 的 manual 編輯在 continue 捕捉；其交界提示於 continue 完整重算。全域 IO queue 積壓與 UUID 定位仍可能增加延遲；大型自然世界及第三方忽略鎖的寫入不在本次效能保證內。
 
 `WG_PHASE3=1 JAVA_TOOL_OPTIONS=-Dworldgit.profile=true ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh <版本> --record` 會保留 UI 命令→完成的逐次延遲與 core 分段計時（result.json），同時執行原 Phase 3 客戶端驗收。根因與兩版數字見 [docs/13 區域切換延遲](../docs/13-phase3-progress.md#區域切換延遲)。
+
+## Fabric ↔ Paper／Folia Phase 3 實機對接
+
+```bash
+python3 fabric/tools/accept-paper-phase3.py paper 1.21.11
+python3 fabric/tools/accept-paper-phase3.py paper 26.2
+python3 fabric/tools/accept-paper-phase3.py folia 1.21.11
+python3 fabric/tools/accept-paper-phase3.py folia 26.2
+```
+
+自行取 bench.lock，不加外層 flock。先建置 plugin 與 CLI fat jar；腳本凍結 jar、複製 server 與乾淨平坦 fixture，伺服器 port 25701–25704，客戶端 TCP 入口 25711–25714，透過 Xvfb／llvmpipe 啟動真 Fabric client。客戶端點擊 Ghost／Set blocks／Resolve／Teleport，與伺服器 durable 清單、候選 BE 與完整 section state 比對；200 區域清單必須實際分片且重連後相同，continue 清空。最後停止 client／Xvfb／server、完整離線 verify，刪除 server/world 副本。結果、control 檢查點、原始 log、四張截圖在 `.work/fabric-acceptance/pair-*/`；結果與精選截圖見 [docs/13](../docs/13-phase3-progress.md#fabric--paper-實機對接)。

@@ -243,7 +243,7 @@ fabric.apply.phase.partial: "PARTIAL（部分套用）"
 fabric.apply.phase.failed: "失敗"
 
 # Paper／Folia Phase 3 合併
-paper.merge.usage: '/wg merge <branch|rev>|--continue|--abort；resolve <#|all> ours|theirs|base|manual；conflicts [頁|preview # ours|theirs|base]；tool；revert|cherry-pick <rev>'
+paper.merge.usage: '/wg merge <branch|rev>|--continue|--abort；resolve <#|all> ours|theirs|base|manual；conflicts [頁|preview # ours|theirs|base]；tool；revert|cherry-pick <rev> | /wg conflict-select #|all ours|theirs|base|manual'
 paper.merge.progress: '合併中：剩 <count> 個衝突'
 paper.merge.status: 'MERGING：剩 <count> 個衝突；/wg conflicts 查看，resolve 後 merge --continue，或 merge --abort。'
 paper.merge.hint: '衝突 #<id>：<choice>（<status>）；合併工具右鍵切換，Shift+右鍵解決'
@@ -269,8 +269,12 @@ paper.merge.next: '下一頁'
 paper.merge.teleport-failed: '傳送失敗，請重試。'
 
 # Fabric Phase 3
-fabric.help.phase3: "/wg merge 分支 [--no-commit] | merge --abort|--continue | resolve 區域|all [--ours|--theirs|--base|--manual] | revert 提交 | cherry-pick 提交 | conflicts"
+fabric.help.phase3: "/wg merge 分支 [--no-commit] | merge --abort|--continue | conflict-select 區域 ours|theirs|base | resolve 區域|all [--ours|--theirs|--base|--manual] | revert 提交 | cherry-pick 提交 | conflicts"
 fabric.merge.status: "MERGING：<remaining>/<total> 個區域尚未解決。"
 fabric.merge.result: "<state>：<remaining> 個區域尚未解決。"
 fabric.merge.empty: "沒有衝突區域。"
 fabric.merge.row: "! #<id> <dimension> <bounds>（<count> 格）ours：<ours>；theirs：<theirs>；選擇：<choice>；已解決：<resolved>；紅石：<redstone>"
+
+fabric.merge.select-unsupported: "伺服器未支援切換方塊（conflict-select-v1）；仍可使用 Resolve。"
+
+paper.merge.unknown-region: '找不到衝突區域 #<id>。'

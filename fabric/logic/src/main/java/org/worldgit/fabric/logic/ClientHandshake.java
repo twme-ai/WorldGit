@@ -18,6 +18,12 @@ public final class ClientHandshake {
             Protocol.VERSION, server.nonce(), capabilities(), config.resolve(server.palette())));
   }
 
+  public static boolean canSelect(Protocol.Hello server) {
+    return server.version() == Protocol.VERSION
+        && server.capabilities().contains(MergeProtocol.CAPABILITY)
+        && server.capabilities().contains(MergeProtocol.SELECT_CAPABILITY);
+  }
+
   public static List<String> capabilities() {
     var result = new ArrayList<>(Protocol.CAPABILITIES);
     result.add(MergeProtocol.CAPABILITY);

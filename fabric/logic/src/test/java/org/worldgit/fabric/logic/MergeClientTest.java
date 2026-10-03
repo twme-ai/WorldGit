@@ -55,6 +55,14 @@ class MergeClientTest {
     assertTrue(hello.capabilities().contains(MergeProtocol.CAPABILITY));
     assertFalse(Protocol.CAPABILITIES.contains(MergeProtocol.CAPABILITY));
   }
+  @Test void setBlocksRequiresBothServerCapabilitiesAndCurrentProtocol() {
+    for(var caps:List.of(List.<String>of(),List.of(MergeProtocol.CAPABILITY),List.of(MergeProtocol.SELECT_CAPABILITY)))
+      assertFalse(ClientHandshake.canSelect(new Protocol.Hello(2,42,caps,DiffPalette.DEFAULT)));
+    var caps=List.of(MergeProtocol.CAPABILITY,MergeProtocol.SELECT_CAPABILITY);
+    assertTrue(ClientHandshake.canSelect(new Protocol.Hello(2,42,caps,DiffPalette.DEFAULT)));
+    assertFalse(ClientHandshake.canSelect(new Protocol.Hello(1,42,caps,DiffPalette.DEFAULT)));
+    assertFalse(Protocol.CAPABILITIES.contains(MergeProtocol.SELECT_CAPABILITY));
+  }
   @Test void commandsRejectAmbiguousOrDestructiveArguments() {
     assertTrue(MergeArgs.parse("merge","--abort").abort());
     assertTrue(MergeArgs.parse("merge","--continue").resume());

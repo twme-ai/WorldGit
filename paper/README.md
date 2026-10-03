@@ -26,6 +26,7 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 | `/wg reset --hard` | 全範圍還原 HEAD，保留 HEAD 指標 | `worldgit.command.reset`（op） |
 | `/wg cancel` | 停止派發，等待在途清理，留下 PARTIAL 供完整重套 | `worldgit.command.cancel`（op） |
 | `/wg merge <branch\|rev>` / `--continue` / `--abort` | 線上三方合併（noCommit）：無衝突直接寫入並提交；有衝突進入 MERGING（預設 ours）。`--abort` 逐格還原合併前世界 | `worldgit.command.merge`（op） |
+| `/wg conflict-select <#\|all> ours\|theirs\|base\|manual` | 原地切換精確區域 atoms，維持 unresolved；manual 保留現況 | `worldgit.command.resolve`（op，與 resolve 共用） |
 | `/wg resolve <#\|all> ours\|theirs\|base\|manual` | 切換並標記區域已解決；manual 以世界目前內容為準 | `worldgit.command.resolve`（op） |
 | `/wg conflicts [頁]` | 衝突清單 GUI（玩家）或文字清單（主控台）；點擊傳送。`conflicts preview <#> ours\|theirs\|base` 對 Fabric 客戶端送預覽 | `worldgit.command.conflicts`（op） |
 | `/wg tool` | 取得合併工具（命名的指南針）：站進衝突區域，右鍵 ours→theirs→base 循環，Shift+右鍵標記已解決 | `worldgit.command.tool`、使用時另需 `worldgit.command.resolve`（op） |
@@ -73,7 +74,7 @@ FAWE bulk 路徑用 `IBatchProcessor` 記錄 chunk 與 actor，純 WorldEdit 用
 - **工具與 GUI**：合併工具右鍵／Shift+右鍵（250 ms 防連點，操作中或世界被鎖時忽略）；GUI 是 54 格箱子介面（每頁 45 區域），每區顯示座標、格數、雙方作者、目前版本／狀態、紅石警示與交界提示數，點擊用 `teleportAsync` 傳到區域上方（Folia 安全）。
 - **玩家保護**：切換前註冊 operation 保護（窒息／摔落／溺水，結束後再延 10 秒），並沿用 Phase 2 的「實體 UUID 移除→生成」barrier，避免殘影與重複實體。
 - **MERGING 期間**：一般 commit／switch／reset／stash／自動 commit 都被擋下並提示 `merge --continue`／`--abort`；`/wg status` 顯示 MERGING。
-- **Fabric**：握手宣告 `merge-regions-v1`，對支援的客戶端送 `worldgit:conflicts`（狀態變更時更新）與 `worldgit:conflict_preview`（`/wg conflicts preview` 或客戶端請求）。
+- **Fabric**：握手宣告 `merge-regions-v1` 與 `conflict-select-v1`（允許 Fabric Set blocks），對支援的客戶端送 `worldgit:conflicts`（狀態變更時更新）與 `worldgit:conflict_preview`（`/wg conflicts preview` 或客戶端請求）。
 - **驗收**：`python3 paper/tools/acceptance.py <paper|folia> <1.21.11|26.2> phase3`（port 25701–25704，自帶 bench.lock），證據放 `.work/paper-phase3/`。結果見 [docs/13](../docs/13-phase3-progress.md)「Paper／Folia」。
 
 ## 重現驗收與量測
@@ -123,7 +124,7 @@ Paper／Folia 的 1.21.11／26.2 四平台 Phase 2 驗收已通過，涵蓋原�
 
 ## 局部區域切換（2026-10-02）
 
-合併工具與 `/wg resolve` 使用共用 core 的局部 source／chunk journal。一般方塊區域只讀取與保存受影響 chunk，owner 使用 Moonrise `NewChunkHolder.save(false)` 同步排入 terrain／entity／POI；保持 Starlight 完成回呼與 IO barrier，再驗證整個受影響 chunk，最後保存 MERGING 增量。精確 atoms mask 不重寫同 section 的其他 BE，也不觸發鄰居更新。merge 開始、continue／commit、abort 仍走完整世界驗證。
+合併工具、`/wg conflict-select` 與 `/wg resolve` 使用共用 core 的局部 source／chunk journal。一般方塊區域只讀取與保存受影響 chunk，owner 使用 Moonrise `NewChunkHolder.save(false)` 同步排入 terrain／entity／POI；保持 Starlight 完成回呼與 IO barrier，再驗證整個受影響 chunk，最後保存 MERGING 增量。精確 atoms mask 不重寫同 section 的其他 BE，也不觸發鄰居更新。merge 開始、continue／commit、abort 仍走完整世界驗證。
 
 短暫 tick freeze 保留以隔離 vanilla tick；一般區域的編輯鎖涵蓋指定 chunk，跨 chunk 互動檢查真正目標，活塞／多格放置／爆炸／肥料檢查全部影響位置；容器／發射器／第三方 world-level 協調仍採保守屏障。UUID storage 定位期間保守鎖全組，並納入 root／巢狀乘客 UUID 的所有牽涉 chunk，包含拆離或改騎另一載具的位置。IO barrier 仍等待平台既有 queue，其他 IO 積壓可能增加耗時。`merge-state.bin.updates` 與基底必須一起保存／讀取；伺服器重啟仍能恢復選擇。合併切換留下 PARTIAL 時使用 `/wg merge --abort`，不套用 Phase 2 的 switch 恢復入口。
 

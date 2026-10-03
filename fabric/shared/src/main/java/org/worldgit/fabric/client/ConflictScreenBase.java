@@ -69,7 +69,8 @@ abstract class ConflictScreenBase extends Screen {
     label(12,controls+30,labelWidth,t("apply"),1);
     for(int i=0;i<3;i++) {
       var choice=Choice.values()[i];
-      button(12+labelWidth+i*each,controls+24,each-2,t(choice.name().toLowerCase(Locale.ROOT)),()->rt.applyConflict(choice,false),active && rt.singleplayer());
+      var set=button(12+labelWidth+i*each,controls+24,each-2,t(choice.name().toLowerCase(Locale.ROOT)),()->rt.applyConflict(choice,false),active && rt.selectCapable());
+      if(!rt.selectCapable()) set.setTooltip(Tooltip.create(rt.text(org.worldgit.fabric.logic.Msg.of(org.worldgit.fabric.logic.MessageKeys.MERGE_SELECT_UNSUPPORTED))));
     }
     int quarter=group/4;
     for(int i=0;i<4;i++) {

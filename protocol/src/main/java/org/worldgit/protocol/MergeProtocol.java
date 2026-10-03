@@ -19,7 +19,8 @@ public final class MergeProtocol {
       FRAGMENT = 27_800;
   public static final String REGIONS = "worldgit:conflicts",
       PREVIEW = "worldgit:conflict_preview",
-      CAPABILITY = "merge-regions-v1";
+      CAPABILITY = "merge-regions-v1",
+      SELECT_CAPABILITY = "conflict-select-v1";
 
   public enum Type {
     REGIONS,

@@ -98,7 +98,8 @@ final class MergeUi implements Listener {
     Choice choice=switch(r.choice()) { case OURS->Choice.THEIRS; case THEIRS->Choice.BASE; default->Choice.OURS; };
     plugin.repo().regionOperation("conflict #"+r.id(),ops->{
       // queued tool actions must still refer to the same durable operation
-      if(!Objects.equals(ops.core().merging().operation(),s.operation())) throw new IOException("合併工作已變更");
+      var current=ops.core().merging();
+      if(current==null || !Objects.equals(current.operation(),s.operation())) throw new IOException("合併工作已變更");
       return resolve ? ops.core().markResolved(r.id(),false,false) : ops.core().selectRegion(r.id(),choice,false,false);
     }).whenComplete((result,error)->feedback(p,result,error));
   }

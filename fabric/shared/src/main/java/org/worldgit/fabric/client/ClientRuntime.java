@@ -45,11 +45,13 @@ public final class ClientRuntime {
   private DiffPalette serverPalette;
   private boolean handshaken;
   private boolean mergeCapable;
+  private boolean selectCapable;
   private final ClientConflicts conflicts = new ClientConflicts();
   private final Map<DimensionId,List<PreviewScene>> conflictBounds = new HashMap<>();
   private PreviewScene conflictGhost;
   public ClientConflicts conflicts() { return conflicts; }
   public boolean mergeCapable() { return mergeCapable; }
+  public boolean selectCapable() { return handshaken && mergeCapable && (singleplayer() || selectCapable); }
   public boolean singleplayer() { return Minecraft.getInstance().getSingleplayerServer()!=null; }
   public void command(String command) {
     var connection = Minecraft.getInstance().getConnection();
@@ -70,6 +72,7 @@ public final class ClientRuntime {
   }
   public void applyConflict(Choice choice, boolean resolve) {
     var key=conflicts.selected(); if(key==null || !mergeCapable) return;
+    if(!resolve && !selectCapable()) return;
     command(resolve ? "wg resolve "+key.region()+ (singleplayer() ? " --" : " ")+choice.name().toLowerCase(Locale.ROOT)
         : "wg conflict-select "+key.region()+" "+choice.name().toLowerCase(Locale.ROOT));
   }
@@ -91,6 +94,8 @@ public final class ClientRuntime {
   public void onMerge(String channel, byte[] bytes) {
     try {
       if(!handshaken || !mergeCapable) throw new IOException("尚未握手／沒有 merge capability");
+      var part=MergeProtocol.decode(bytes);
+      LOG.info("WORLDGIT MERGE_PART channel={} id={} sequence={} parts={} bytes={}",channel,part.preview(),part.sequence(),part.parts(),bytes.length);
       var done=conflicts.accept(channel,bytes,System.currentTimeMillis());
       if(done.isEmpty()) return;
       var c=done.get();
@@ -187,6 +192,7 @@ public final class ClientRuntime {
       ClientPlayNetworking.send(Net.HELLO.of(Protocol.encode(reply.get())));
       handshaken = true;
       mergeCapable = hello.capabilities().contains(MergeProtocol.CAPABILITY);
+      selectCapable = ClientHandshake.canSelect(hello);
       LOG.info("WORLDGIT CLIENT_HANDSHAKE_OK nonce={} capabilities={} palette={}", hello.nonce(), ClientHandshake.capabilities(), config.palette());
       restyle();
     } catch (IOException | RuntimeException e) {
@@ -231,9 +237,10 @@ public final class ClientRuntime {
   void onDisconnect() {
     clear();
     previews.reset();
-    conflicts.reset(); mergeCapable=false;
+    conflicts.reset(); mergeCapable=false; selectCapable=false;
     handshaken = false;
     serverPalette = null;
+    LOG.info("WORLDGIT CLIENT_SESSION_RESET");
   }
 
   // ---- 繪製 ----------------------------------------------------------------

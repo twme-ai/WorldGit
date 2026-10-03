@@ -73,7 +73,7 @@ final class Messages {
   static Component info(String text) { return prefix().append(Component.text(text, NamedTextColor.GRAY)); }
   static Component ok(String text) { return prefix().append(Component.text(text, NamedTextColor.GREEN)); }
   static Component warn(String text) { return prefix().append(Component.text(text, NamedTextColor.GOLD)); }
-  static Component error(String text) { return prefix().append(Component.text(text, NamedTextColor.RED)); }
+  static Component error(String text) { return line("common.error", "message", text); }
   static Component errorKey(String key, Object... args) { return line(key, args); }
   static Component permission(String sub) { return line("paper.error.permission", "sub", sub); }
   static Component debugPermission() { return line("paper.error.debug-permission"); }

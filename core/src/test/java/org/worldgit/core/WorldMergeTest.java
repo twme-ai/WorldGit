@@ -165,6 +165,12 @@ class WorldMergeTest {
       assertTrue(ops.selectRegion(id, Choice.OURS, true, false).success());
       assertTrue(ops.verify("A", null, Scope.all(), true).success());
       assertEquals(0, ops.merging().remaining());
+      // Set blocks reopens a resolved region; manual keeps the current live contents.
+      assertTrue(ops.selectRegion(id, Choice.MANUAL, false, false).success());
+      assertEquals(1, ops.merging().remaining());
+      assertFalse(ops.merging().regions().getFirst().resolved());
+      assertEquals(Choice.MANUAL, ops.merging().regions().getFirst().choice());
+      assertTrue(ops.verify("A", null, Scope.all(), true).success());
       assertTrue(ops.abortMerge(false).success());
       assertNull(ops.merging());
       assertTrue(ops.verify("A", null, Scope.all(), true).success());

@@ -9,7 +9,7 @@ softdepend: [FastAsyncWorldEdit, WorldEdit]
 commands:
   wg:
     description: WorldGit — 世界版本控制
-    usage: /wg <init|status|commit|log|diff|clear|reload|restore|switch|branch|stash|reset|cancel|merge|resolve|conflicts|tool|revert|cherry-pick|help>
+    usage: /wg <init|status|commit|log|diff|clear|reload|restore|switch|branch|stash|reset|cancel|merge|resolve|conflict-select|conflicts|tool|revert|cherry-pick|help>
     aliases: [worldgit]
 permissions:
   worldgit.admin:
@@ -86,7 +86,7 @@ permissions:
     description: /wg merge
     default: op
   worldgit.command.resolve:
-    description: /wg resolve
+    description: /wg resolve、/wg conflict-select（切換但不標 resolved）
     default: op
   worldgit.command.conflicts:
     description: /wg conflicts

@@ -2,25 +2,29 @@
 
 Minecraft 世界的 git 式版本控制。世界是 working tree，每個維度是獨立 git repo；以正規化 section 儲存快照，共用歷史給 CLI、Paper/Folia、Fabric 與 Hub。
 
-Phase 0 已完成；本次提供 Phase 1 的 JVM 基礎與離線 CLI。**Paper、Fabric、Hub 尚未建立**；restore、switch、merge、遠端傳輸屬於後續階段。[實作與驗收紀錄](docs/11-phase1-progress.md) 列出實際結果及限制。
+目前已完成 Phase 3：共用三方合併與 CLI、Paper／Folia 線上合併、Fabric 單人合併與衝突 UI、Hub 唯讀衝突檢視。Fabric 客戶端可連 Paper／Folia 使用 Ghost、Set blocks 與 Resolve；Set blocks 依伺服器能力公告啟用。各平台結果與限制見 [Phase 3 紀錄](docs/13-phase3-progress.md)，遠端協作與 PR 留待 Phase 4。
 
 | 模組 | 責任 | Java |
 |---|---|---|
-| [core](core/README.md) | Anvil/NBT、正規化、JGit、維度 repo、commit/status/log/diff、YAML 與 `.wgignore` | 21 |
+| [core](core/README.md) | Anvil/NBT、正規化、JGit、維度 repo、快照／套用／三方合併、YAML 與 `.wgignore` | 21 |
 | platform-api | `LiveWorld`、dirty generation、離線來源、session lock、Phase 2 apply/lock 介面 | 21 |
-| protocol | 協定 v2、hello/diff/status/clear、色票、≤ 28,000 bytes 分包與重組 | 21 |
-| [cli](cli/README.md) | `wgit init/status/commit/log/diff`、JSON、終端色彩、fat jar | 21 |
+| [protocol](protocol/README.md) | 協定 v2、衝突清單／預覽與可選能力、色票、≤ 28,000 bytes 分包與重組 | 21 |
+| [cli](cli/README.md) | 離線快照、復原／切換、合併／解決衝突、JSON、終端色彩、fat jar | 21 |
+| [Paper／Folia](paper/README.md) | 1.21.11／26.2 插件、線上合併、區域工具與 GUI | 21／25 |
+| [Fabric](fabric/README.md) | 兩版單人操作、客戶端鬼影與衝突清單、Paper／Folia 對接 | 21／25 |
+| [Hub](hub/README.md) | 歷史、3D diff 與唯讀合併預覽 | 25 |
 
-根 Gradle 只納入上述模組；未來 paper、fabric（Loom）、hub 可新增各自的 Gradle project 與 toolchain。core 不引用任何 Minecraft 類別，Hub 可用 Java 25 依賴 Java 21 的 core。
+根 Gradle 納入上述模組，各平台使用自己的 project 與 toolchain。core 不引用任何 Minecraft 類別，Java 25 平台可依賴 Java 21 的 core。
 
 ## 建置與使用
 
-需要 JDK 21。Wrapper 固定 Gradle 9.6.1 並驗證 distribution SHA-256；依賴版本在 Gradle 慣例的 `gradle/libs.versions.toml`，WorldGit 設定全部是 YAML。
+Gradle 以 JDK 21 執行，完整建置另需 JDK 25 toolchain。Wrapper 固定 Gradle 9.6.1 並驗證 distribution SHA-256；依賴版本在 Gradle 慣例的 `gradle/libs.versions.toml`，WorldGit 設定全部是 YAML。
 
 ```sh
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 export GRADLE_USER_HOME="$PWD/.work/gradle-home"
-./gradlew --no-daemon --max-workers=1 build
+mkdir -p "$GRADLE_USER_HOME"
+flock .work/bench.lock ./gradlew --no-daemon --configure-on-demand --max-workers=1 build
 ./wgit --world /srv/minecraft/world init --template creative
 ./wgit --world /srv/minecraft/world status
 ./wgit --world /srv/minecraft/world commit -m '城堡完成'

@@ -1,6 +1,6 @@
 # Phase 3 任務 1：core 三方合併與離線 CLI
 
-日期：2026-10-02。此任務提供 core／protocol／CLI 基礎，Paper、Fabric、Hub 尚未實作 Phase 3 的命令或 UI；既有平台繼續使用相容的 Phase 2 API。決定見 [09 #43–#49](09-roadmap-open-questions.md)。
+日期：2026-10-02。本節記錄最初的 core／protocol／CLI 基礎；後續 Paper、Fabric、Hub 的 Phase 3 實作、區域切換修正與真客戶端對接分別記錄在下方。決定見 [09 #43–#49](09-roadmap-open-questions.md)。
 
 ## 完成項目
 
@@ -123,7 +123,7 @@ Hub 必須先處理 snapshot 配對、DataVersion／DataPacks、`IgnoreRuleMerge
 
 ## 未完成事項與限制
 
-- Paper／Folia 的線上 merge／region 切換工具／GUI、Fabric UI／疊圖／單人命令、Hub 合併／PR／衝突檢視待各平台任務；此次沒有實作這些功能，也沒有玩家在線／TPS／Folia 驗收。
+- Paper／Folia 的線上合併、區域工具／GUI、Fabric UI／疊圖／單人命令及 Hub 唯讀衝突檢視已由後續平台任務完成；玩家在線、Folia 與真客戶端驗收見下方各章。Hub 寫入合併與 PR 留待 Phase 4。
 - 多維度參與 repo 與實體世界目錄須先存在；不自動建立來源新增的維度。跨維度 UUID 移動協調未新增（本次維度內 UUID 全域比較沿用 Phase 1 語意）。
 - 有 area ignore 時 ticks／structures 沿用 Phase 2 保守限制；未追蹤 biome sample 不能當空 biome 寫入。跨 DataVersion／DataPacks 的可靠遷移仍未完成。
 - MERGING 不提供並行多工作區／remote 鎖；全組 refs CAS 與回滾沿用 Phase 2，程序在多 repo refs 更新間強制中止仍需操作員恢復原 HEAD 後 abort。不是跨 repo 資料庫交易。
@@ -166,10 +166,10 @@ Hub 必須先處理 snapshot 配對、DataVersion／DataPacks、`IgnoreRuleMerge
 
 ### 限制與未完成
 
-- 與真 Paper 伺服器的實機對接：Paper 端任務同時進行，此任務只做到模擬封包與指令格式對齊（`wg resolve <id> <choice>`、`wg conflict-preview <id> <choice>` 與 Paper 的指令一致）；沒有跑 Paper 實機客戶端驗收，也沒有 Paper 連線的 UI 截圖。
-- 合併寫入只支援單人世界；專用 Fabric 伺服器無合併指令。Paper 沒有 `conflict-select`，因此連 Paper 時只有「Resolve」按鈕可寫入。
+- 真 Paper／Folia 對接與畫面證據已追加獨立驗收流程，見下方「Fabric ↔ Paper 實機對接」。
+- Fabric 自有合併寫入仍只支援單人世界；專用 Fabric 伺服器無合併指令。Paper／Folia 已新增 `conflict-select`，支援者可在遠端 UI 使用 Set blocks；舊版依能力公告停用並顯示原因。
 - 作者欄位是 commit 身分（單人世界自動／手動提交都是 `WorldGit Server`），不是逐格 blame。
-- 疊圖沿用 Phase 2 的鬼影管線：固定光照、無透明面排序、不畫 block entity renderer；超大區域依既有 LOD 退成外框。未做 Sodium／Iris／硬體 GPU 驗收，也沒有大量區域（數百區）的 UI 與效能測試，清單分頁為每頁依視窗高度。
+- 疊圖沿用 Phase 2 的鬼影管線：固定光照、無透明面排序、不畫 block entity renderer；超大區域依既有 LOD 退成外框。未做 Sodium／Iris／硬體 GPU 驗收，200 區域的傳輸、分頁與重連納入追加驗收，但沒有量測大量區域的真 GPU 效能；清單分頁為每頁依視窗高度。
 - 交界提示（updateShapes）以區域包圍盒外擴 1 格歸屬；只在選擇會改變 theirs 內容時才非空，預設 ours 時為 0。僅供檢查，不自動處理（#46）。
 - 清單畫面為原版元件的簡單分頁表，沒有拖曳、搜尋或 3D 內縮圖；傳送一律落在區域最小 x／z、最高 y+2。
 
@@ -226,7 +226,7 @@ Hub 必須先處理 snapshot 配對、DataVersion／DataPacks、`IgnoreRuleMerge
 - 初輪一次區域切換約 20–27 s（見上）；追加任務已新增局部 LiveAccess 並修正，後續量測見「區域切換延遲」。
 - 工具對「手動」(manual) 區域沒有循環選項（右鍵只在 ours／theirs／base），manual 只能用 `/wg resolve <#> manual`；Shift+右鍵標記的是目前所見版本。
 - 無逐格 blame；作者是來源 commit 身分摘要。外框最多受 `show.display-max-entities` 限制（超過的區域省略並不顯示）。
-- Fabric 客戶端的真實畫面（非 bot）由 Fabric 任務驗收；此處只驗證 payload 與解碼。沒有截圖。
+- 此處初輪只驗證 bot payload；追加的真 Fabric 客戶端與截圖見「Fabric ↔ Paper 實機對接」。
 - Phase 3 初輪因 fabric／hub 由並行任務修改，僅跑 `:core:test :protocol:test :i18n:test :paper:common:test :paper:plugin:build` 綠燈。追加任務已完成完整 build，194 個單元測試全綠，見下方「區域切換延遲」。
 
 ## 區域切換延遲
@@ -321,3 +321,69 @@ flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home ./gradlew --no-dae
 乘客範圍回歸的第一次 build 失敗（`.work/region-build-passenger-final.log`）：fixture 僅改 Health，被正規化忽略，沒有建立衝突，取第一個 region 時得到 `NoSuchElementException`。已改用 NoAI 實體的位置差異；失敗輪不列為通過。
 
 收尾檢查：伺服器、bot、客戶端與 Xvfb 均已關閉，25701–25714 無監聽程序，bench.lock 已釋放。自本輪開始後新建／修改的中間產物上界為 882,103,924 bytes（0.822 GiB），低於 4 GB；計算包含本次覆寫的既有檔案，不包含工作前約 15 GB 的舊 `.work` 證據，詳見 `.work/region-latency/disk-usage.json`。本次要求的驗收與 build 均完成，特殊完整回退路徑與 IO 積壓的限制如上。
+
+## Fabric ↔ Paper 實機對接
+
+日期：2026-10-02，接續 a12d648／cf10727；決定 #66–#70。新增 `fabric/tools/accept-paper-phase3.py <paper|folia> <1.21.11|26.2>`（自行取 bench.lock），以 Xvfb／llvmpipe 執行真正 Fabric client GameTest，連線到真正 Paper／Folia。後端 port 25701–25704，客戶端入口 25711–25714 是只轉送 TCP bytes 的本機 relay，不產生或改寫 Minecraft 封包。jar 凍結在證據目錄，例外與 SIGTERM 也走 finally，結束後關閉 client／Xvfb／relay／server，確認兩個 port 關閉並刪除 server／world 副本。
+
+### 實作與流程
+
+- Paper／Folia `/wg conflict-select <#|all> ours|theirs|base|manual` 與 resolve 共用權限、解析、補全與 MiniMessage。以 `RepoService.regionOperation` 呼叫 `selectRegion(...,false,false)`，沿用局部 capture／verify、精確 atoms、IO barrier 與增量 WAL（#62–#65）；manual 保留活世界。選擇已解決區域會恢復 unresolved。沒有鄰居更新（#46）。
+- hello 加可選 `conflict-select-v1`，Fabric 遠端 Set blocks 同時確認 merge／select 能力；UI 與執行入口都檢查。舊 Paper 缺少能力時停用，tooltip 用 MiniMessage 顯示原因，Ghost／Resolve 保持可用。預設 v2 能力與合併 envelope v1 不變。
+- Fabric networking DISCONNECT 回呼只記錄 handler，在客戶端 tick 才清理 GPU 網格與能力／清單／assembler；JOIN 先清除舊狀態。以 handler 身分忽略晚到的舊連線事件，並偵測世界退出，避免背景執行緒直接修改渲染資源或清掉新連線。
+- 真客戶端握手後，伺服器建立跨 chunk 的門／柵欄／repeater／箱子衝突：1 區、5 格，bounds (15,64,2)..(18,65,2)。客戶端解碼清單的 id／bounds／格數／choice／resolved／紅石／作者與 durable MergeState 一致。
+- 真滑鼠點擊三種 Ghost，received cells 的座標、完整 state 與 canonical BE bytes 等於固定候選快照；兩個完整 section 的 8192 格 client／server hashes 在預覽前後相同。
+- 點擊 Set blocks theirs：client／server 完整 section hash 等於 theirs；durable 與即時清單仍 unresolved。再點擊 Resolve ours，確認選擇與 resolved、客戶端清單及完整 section 同步更新。點擊傳送到區域，再以 client 命令 continue，durable／client 清單清空。
+- 另以既存 chunk 的 200 個分散 atoms 建立合併；檢查完整清單與真正多包傳輸、分頁按鈕、斷線後能力與清單 reset、重新握手後同樣的 200 區域清單。全部 manual resolve，再 continue，清單清空並完成離線 verify。
+
+fixture 取合成平坦世界的副本，使用範圍內既存 chunk，不探索隨機地形，因此沒有 Phase 1 的 vault BE 底噪。setblock 拆門／容器可能產生原版 item，腳本在建立每個候選快照前，透過 owner 的 debug fixture 入口清除掉落物並填入容器內容；不修改正式追蹤／正規化規則。清單與 BE 的唯讀候選對照工具為 `fabric/tools/InteropEvidence.java`；客戶端按鈕由共用 GameTest 操作，畫面入口以兩版 GameTestScreens 轉接。
+
+### 結果與證據
+
+真客戶端對接四組全部通過，各 **17 項檢查**，client／server exit=0、server problem=0，後端與入口 port 均已關閉，最後 `verify HEAD` 為 COMPLETE（0 差異）。四組使用同一份 plugin SHA-256：`a11466a9751507e5404ce588745d5c01caa5af5379fd41ba7693ae529b737f65`。
+
+| Fabric client ↔ server | 真客戶端對接 | 結果證據 |
+|---|---|---|
+| paper-1.21.11 | PASS，17 項 | `.work/fabric-acceptance/pair-paper-1.21.11-20261002-180715/result.json` |
+| paper-26.2 | PASS，17 項 | `.work/fabric-acceptance/pair-paper-26.2-20261002-181343/result.json` |
+| folia-1.21.11 | PASS，17 項 | `.work/fabric-acceptance/pair-folia-1.21.11-20261002-182054/result.json` |
+| folia-26.2 | PASS，17 項 | `.work/fabric-acceptance/pair-folia-26.2-20261002-182939/result.json` |
+
+初始 200 區域清單實際由 **27,846／17,485 bytes** 兩個 payload 傳輸；manual resolve 後第二包為 17,885 bytes，各包均低於 28,000 bytes。每輪保存 `commands.log`、`client.log`、伺服器 console log、control 檢查點、唯讀候選對照、`verify.json` 與凍結 jar；完整比對來自資料與世界 hashes，截圖僅作畫面存證。
+
+共 16 張原始 854×480 截圖已保存至 [`fabric/docs/screenshots/paper-phase3/`](../fabric/docs/screenshots/paper-phase3/README.md)，每組有衝突清單、Ghost theirs、Set blocks 後仍 unresolved、200 區域分頁四張。
+
+四平台伺服器 phase3 回歸全部通過，各 **90 項檢查**，0 failure、server problem_lines=0，最終完整 verify=0、實體無重複；同一份 plugin jar SHA-256 如上。新增檢查涵蓋非 MERGING／未知區域／非法參數拒絕、ours／theirs／base 的完整 section 比對、manual 與 unresolved 語意；既有工具／重啟／abort／patch／1,000 chunk／200 區域回歸均保留。
+
+| 伺服器 phase3 回歸 | 結果 | 證據 |
+|---|---|---|
+| paper-1.21.11 | PASS，90 項 | `.work/paper-phase3/paper-1.21.11-1790959735/results.json` |
+| paper-26.2 | PASS，90 項 | `.work/paper-phase3/paper-26.2-1790966201/results.json` |
+| folia-1.21.11 | PASS，90 項 | `.work/paper-phase3/folia-1.21.11-1790967714/results.json` |
+| folia-26.2 | PASS，90 項 | `.work/paper-phase3/folia-26.2-1790969135/results.json` |
+
+Fabric 單人 Phase 3 兩版均 `success=true`，最終各 2 個 parent、衝突清單與 CLI 相同、離線 verify=0；包含 Ghost 不寫入、abort、精確區域選擇與 resolve、continue 清空。
+
+| Fabric 單人回歸 | 結果 | 證據 |
+|---|---|---|
+| 1.21.11 | PASS | `.work/fabric-acceptance/phase3-1.21.11-20261002-195500/result.json` |
+| 26.2 | PASS | `.work/fabric-acceptance/phase3-26.2-20261002-200209/result.json` |
+
+完整 `./gradlew --no-daemon --configure-on-demand --max-workers=1 build` 通過：**BUILD SUCCESSFUL in 32s**，77 tasks（15 executed、62 up-to-date），log `.work/interop-completion-final-build.log`。單元 suite **199 tests、0 failure／error／skip**：core 80、CLI 3、protocol 7、platform-api 8、Fabric logic 40、Paper common 22、Hub 36、i18n 3。新增／延伸回歸涵蓋共用指令解析與權限、capability、manual 將已解決區域恢復 unresolved、背景斷線及晚到舊 handler。
+
+最後建置的 plugin SHA-256 為 `e3c2c3833433ccfada07c8648dcb9fbf04ee58216903bc01d2ddd1bc056578b5`。與四組對接／四平台回歸使用的凍結 jar 逐項比對，唯一內容差異是 `org/worldgit/i18n/lang/zh_tw.yml` 的 Fabric help 補上 conflict-select；所有程式、英文訊息與其他資源完全相同，最終 i18n suite 通過。比對證據 `.work/interop-plugin-content-comparison.json`，沒有把不同 SHA 當成相同 jar。
+
+結果彙整 `.work/interop-final-summary.json`、佇列 `.work/interop-completion-suite.json`。收尾 `.work/interop-cleanup.json`：25701–25714 無監聽、bench.lock 已釋放、無 X11 監聽 socket，Paper／Folia 執行用的 server/world 副本已移除，client／bot／Xvfb／server 已結束；Fabric GameTest 產物與失敗輪證據保留供離線比對。新建／修改中間產物以 2026-10-02 15:37 UTC 為起點計算，觀察峰值 **1,394,501,032 bytes（1.299 GiB）**，低於 4 GB；最終用量與計算範圍見 `.work/interop-disk-current.json`，不把既有舊 `.work` 證據算入本輪。未 commit／push，未修改 experiments/。
+
+### 失敗紀錄與限制
+
+- 接續驗收佇列在前三組真客戶端對接已完整通過後，以 exit 143 終止於 Folia 26.2 啟動階段；該輪沒有完整結果，不列為通過。確認所有測試 port 關閉、bench.lock 釋放後，只續跑未完成項目；保留 `.work/interop-completion-suite-interrupted.json` 與 `.work/fabric-acceptance/pair-folia-26.2-20261002-182750/result.json`。
+- 接續時 Paper 1.21.11 背景回歸已完整通過；Paper 26.2 背景回歸停在 79 項、未記錄正常結束，不能列為通過。原始 `.work/paper-phase3/paper-26.2-1790961283/results.json` 與 `.work/interop-interruptions.json` 保留中斷證據，後續以完整重跑結果為準。
+- 客戶端 tick 清理修正後，Paper 1.21.11 已跑到真正重連、200 區域全部解決與 continue 清空，但原版斷線 API 留在多人清單，GameTest 收尾要求 TitleScreen，程序因此非零退出。測試補上回標題畫面並重跑；`.work/fabric-acceptance/pair-paper-1.21.11-20261002-175904/result.json` 不列為完整通過。
+- Folia 1.21.11 首輪的 vanilla `/data merge` 未執行，箱子內容相同，只得到 4 格衝突；改用 owner 的 Bukkit Container snapshot inventory 更新並等待完成。
+- 重連首輪在 `level=null` 時就檢查清除狀態；改成等待 reset 後，Paper 26.2 仍在 30 秒逾時。檢查兩版 Minecraft 實作確認 `disconnect(screen,false)` 只清理畫面／listener，沒有先關閉 TCP；GameTest 改用原版離開伺服器按鈕的 `disconnectFromWorld(DEFAULT_QUIT_MESSAGE)`，由真正斷線事件清除能力、清單及預覽，並保留 reset 的逾時驗證。正常 TCP 斷線後仍發現原本直接在 networking 回呼清理 GPU／狀態不可靠；已改由客戶端 tick 處理 handler 事件，加入晚到舊事件不清除新連線的回歸。失敗輪 `.work/fabric-acceptance/pair-paper-26.2-20261002-172840/result.json` 已通過 200 區域解碼，但不列為完整通過。
+
+- 第一輪 Paper 1.21.11 在已通過 Ghost／Set blocks 後，GameTest 以無參數 translation key 找不到帶參數的 Resolve 元件。改成與 Set blocks 相同的真滑鼠點擊；截圖另等待重建並重新選取區域，避免存到暫時清空的畫面。失敗：`.work/fabric-acceptance/pair-paper-1.21.11-20261002-155424/result.json`。
+- 後續 Paper 兩版在 continue／傳送後準備 200 區域時，正確被 dirty 檢查擋下。唯讀 diff 確認只有兩個 oak_door item 被玩家撿走（方塊、biome、metadata 皆無差異），來源是 fixture 拆門時的 vanilla 鄰居更新；已在變體建立後清除掉落物。`.work/interop-dirty-diff26.json` 與 `.work/interop-dirty-live26.json` 保留定位證據。這些輪不算通過。
+- 26.2 將 Minecraft 的畫面入口移到 `gui.screen()`，共用 GameTest 最初編譯失敗，已加薄轉接；i18n 新增鍵最初未登記 MessageKeys，測試失敗後已修正。Paper preview 在非 MERGING／queued tool 在合併結束後的空值也已補檢查；Paper 一般錯誤統一使用 `common.error` MiniMessage，便於使用者與驗收識別。
+- Ghost 完整接收 BE，但仍不繪製特殊 BE renderer；未增加 entity／biome 模型。200 區域測的是實際分片、清單與重連正確性，不宣稱任意世界／區域數的 FPS 或 TPS。舊 Paper 的 select 能力判斷由單元測試驗證，沒有另啟一台舊版插件伺服器。Sodium／Iris／硬體 GPU 等既有限制保持。

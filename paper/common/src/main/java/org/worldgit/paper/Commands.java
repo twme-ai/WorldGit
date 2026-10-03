@@ -23,7 +23,7 @@ import org.worldgit.protocol.Protocol;
  * 結果以聊天訊息送回（Player 走自己的 entity scheduler，Folia 安全）。權限節點見 plugin.yml。
  */
 final class Commands implements CommandExecutor, TabCompleter {
-  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "tool", "conflicts", "conflict-preview", "revert", "cherry-pick", "help");
+  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "tool", "conflicts", "conflict-preview", "conflict-select", "revert", "cherry-pick", "help");
   private final WorldGitPlugin plugin;
   private final Debug debug;
 
@@ -49,9 +49,11 @@ final class Commands implements CommandExecutor, TabCompleter {
     else send.run();
   }
 
+  static String permission(String sub) { return sub.equals("conflict-select") ? "resolve" : sub; }
+
   private boolean allowed(CommandSender sender, String sub) {
-    if (sender.hasPermission("worldgit.command." + sub) || sender.hasPermission("worldgit.admin")) return true;
-    reply(sender, Messages.permission(sub));
+    if (sender.hasPermission("worldgit.command." + permission(sub)) || sender.hasPermission("worldgit.admin")) return true;
+    reply(sender, Messages.permission(permission(sub)));
     return false;
   }
 
@@ -86,7 +88,7 @@ final class Commands implements CommandExecutor, TabCompleter {
     var rest = Arrays.copyOfRange(args, 1, args.length);
     try {
       switch (sub) {
-        case "merge", "resolve", "revert", "cherry-pick" -> merge(sender,sub,rest);
+        case "merge", "resolve", "conflict-select", "revert", "cherry-pick" -> merge(sender,sub,rest);
         case "tool" -> { if(rest.length!=0) throw bad("paper.merge.usage"); if(!(sender instanceof Player p)) throw bad("paper.error.player-only"); plugin.merges().tool(p); }
         case "conflicts", "conflict-preview" -> conflicts(sender,sub,rest);
         case "init" -> init(sender, rest);
@@ -135,6 +137,7 @@ final class Commands implements CommandExecutor, TabCompleter {
 
   private <T> void fail(CommandSender sender, Throwable error) {
     Throwable root = error instanceof java.util.concurrent.CompletionException && error.getCause() != null ? error.getCause() : error;
+    if(root instanceof UserError user) { reply(sender,Messages.line(user.key,user.args)); return; }
     reply(sender, Messages.error(root.getMessage() == null ? root.toString() : root.getMessage()));
     if (!(root instanceof IOException)) plugin.getLogger().log(Level.WARNING, "WorldGit 指令失敗", root);
   }
@@ -453,12 +456,15 @@ final class Commands implements CommandExecutor, TabCompleter {
   }
 
   private void merge(CommandSender sender,String sub,String[] args) {
-    if(sub.equals("resolve")) {
-      if(args.length!=2) throw bad("paper.merge.usage");
-      int id=args[0].equals("all") ? 0 : Integer.parseInt(args[0].replaceFirst("^#",""));
-      if(id<0 || (id==0 && !args[0].equals("all"))) throw bad("paper.merge.usage");
-      var choice=MergeReport.Choice.valueOf(args[1].toUpperCase(Locale.ROOT));
-      plugin.repo().regionOperation("resolve",ops->choice==MergeReport.Choice.MANUAL ? ops.core().markResolved(id,true,false) : ops.core().selectRegion(id,choice,true,false))
+    if(sub.equals("resolve") || sub.equals("conflict-select")) {
+      RegionCommand selection;
+      try { selection=RegionCommand.parse(args); } catch(IllegalArgumentException error) { throw bad("paper.merge.usage"); }
+      var state=plugin.merges().state();
+      if(state==null) throw bad("paper.merge.none");
+      if(selection.id()!=0 && state.regions().stream().noneMatch(r->r.id()==selection.id()))
+        throw bad("paper.merge.unknown-region","id",selection.id());
+      boolean resolved=sub.equals("resolve");
+      plugin.repo().regionOperation(sub,ops->ops.core().selectRegion(selection.id(),selection.choice(),resolved,false))
           .whenComplete((result,error)->plugin.merges().feedback(sender,result,error)); return;
     }
     if(args.length!=1) throw bad("paper.merge.usage");
@@ -490,7 +496,9 @@ final class Commands implements CommandExecutor, TabCompleter {
       plugin.repo().submit(()->{
         var mapping=WorldMapper.map();
         try(var ops=new PaperOperations(plugin,mapping,new ApplyQueue(plugin),true)) {
-          var region=ops.core().merging().regions().stream().filter(r->r.id()==id).findFirst().orElseThrow(()->new IOException("找不到衝突區域 #"+id));
+          var state=ops.core().merging();
+          if(state==null) throw bad("paper.merge.none");
+          var region=state.regions().stream().filter(r->r.id()==id).findFirst().orElseThrow(()->bad("paper.merge.unknown-region","id",id));
           var cells=ops.core().regionPreview(id,choice);
           plugin.fabric().sendConflictPreview(p,region.dimension(),id,choice,cells); return null;
         }
@@ -507,8 +515,9 @@ final class Commands implements CommandExecutor, TabCompleter {
 
   @Override
   public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-    if (args.length == 1) return SUBS.stream().filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)) && sender.hasPermission("worldgit.command." + s)).toList();
+    if (args.length == 1) return SUBS.stream().filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)) && (sender.hasPermission("worldgit.command." + permission(s)) || sender.hasPermission("worldgit.admin"))).toList();
     String sub = args[0].toLowerCase(Locale.ROOT);
+    if(!sender.hasPermission("worldgit.command."+permission(sub)) && !sender.hasPermission("worldgit.admin")) return List.of();
     String last = args[args.length - 1];
     List<String> options =
         switch (sub) {
@@ -522,7 +531,8 @@ final class Commands implements CommandExecutor, TabCompleter {
           case "stash" -> List.of("push","pop","list","drop");
           case "reset" -> List.of("--hard");
           case "merge" -> List.of("main","HEAD","--abort","--continue");
-          case "resolve", "conflict-preview" -> List.of("all","ours","theirs","base","manual");
+          case "resolve", "conflict-select" -> RegionCommand.suggestions(args, plugin.merges().state());
+          case "conflict-preview" -> args.length==3 ? List.of("ours","theirs","base") : RegionCommand.ids(plugin.merges().state(),false);
           case "conflicts" -> List.of("preview");
           case "revert", "cherry-pick" -> List.of("HEAD");
           default -> List.of();
