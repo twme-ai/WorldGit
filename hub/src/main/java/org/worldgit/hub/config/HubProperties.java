@@ -64,8 +64,13 @@ public record HubProperties(
     }
   }
 
-  public record Auth(Integer attempts, Integer failures, Long windowSeconds, Long lockSeconds, Integer maxKeys) {
+  public record Auth(Integer attempts, Integer failures, Long windowSeconds, Long lockSeconds, Integer maxKeys, Integer successfulRequests) {
+    public Auth(Integer attempts, Integer failures, Long windowSeconds, Long lockSeconds, Integer maxKeys) {
+      this(attempts, failures, windowSeconds, lockSeconds, maxKeys, null);
+    }
     public Auth {
+      if (successfulRequests == null) successfulRequests = 6000;
+      if (successfulRequests < 100) throw new IllegalArgumentException("成功認證限流至少 100 次／視窗");
       if (attempts == null) attempts = 30;
       if (failures == null) failures = 5;
       if (windowSeconds == null) windowSeconds = 60L;

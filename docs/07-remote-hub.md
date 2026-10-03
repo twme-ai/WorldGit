@@ -27,9 +27,10 @@
 | Commit 列表 | 每個 commit 附變動區域縮圖、作者、+/-/~ 統計；auto commit 折疊 |
 | 實體檢視 | 生物也會出現在 3D 檢視中（使用簡化模型或圖示標記），diff 中標出新增/移除/移動 |
 | Commit / Diff 檢視 | 3D 檢視器（全新撰寫，見 [10](10-web-frontend.md)），新增/移除/修改上色，地圖上標出變動 chunk |
-| Pull Request | diff、座標釘選留言（「這裡的屋頂可以再高兩格」→ 留言帶 x,y,z，遊戲內可看到）、衝突解決（見 [06](06-diff-merge.md)）、合併按鈕 |
+| Pull Request | diff、座標釘選留言（「這裡的屋頂可以再高兩格」→ 留言帶維度與 x,y,z；目前網頁標記／遊戲 REST 已有，遊戲呈現待平台任務）、衝突解決（見 [06](06-diff-merge.md)）、合併按鈕 |
 | Release | tag 對應的世界 zip 下載（由 Hub 從物件組出 region 檔） |
-| 權限 | 誰可以 push 到哪個分支；受保護分支（main 只能經 PR） |
+| 權限 | owner/admin/write/read、個人／團隊授權、PAT scope；受保護分支可選 main PR-only／審核數 |
+| 帳號／通知 | 本機＋可選 OAuth、組織／團隊、最小信箱驗證註冊；PR 通知與有簽章 webhook |
 
 ## 4. 部署方式：自架與公開服務都要（已決定，2026-09-30）
 
@@ -38,8 +39,8 @@
 | | 自架版 | 公開服務 |
 |---|---|---|
 | 對象 | 想把資料留在自己手上的伺服器、團隊 | 單人玩家、小團隊、不想架設的人 |
-| 形式 | 單一容器映像（Docker／Podman 皆可，見 §4.1；或直接跑 jar），內建資料庫預設用 SQLite、repo 存本機磁碟 | 同一個 image，改用 PostgreSQL + 物件儲存（S3 相容），可水平擴充 |
-| 帳號 | 本機帳號，可選 OAuth | OAuth 登入（GitHub、Discord、Microsoft 帳號…） |
+| 形式 | 單一容器映像（Docker／Podman 皆可，見 §4.1；或直接跑 jar），內建資料庫預設用 SQLite、repo 存本機磁碟 | 同一個 image，已可換 PostgreSQL；S3 與水平擴充為規劃，尚未實作 |
+| 帳號 | 本機帳號，可選 OAuth | 本機／驗證註冊後明確連結 OAuth（GitHub、Discord、Microsoft） |
 | 額外需求 | — | 容量配額、速率限制、濫用檢舉、公開/私人 repo、帳單（若有） |
 | Minecraft 端設定 | `/wg remote add origin https://hub.example.com/team/world` | 同樣語法，指向公開服務網址 |
 
@@ -56,6 +57,8 @@ Hub 以 **OCI 容器映像**發佈，**Docker 與 Podman 都要能直接部署**
 
 **Phase 1 實作狀態（2026-10-01）**：`hub/Containerfile`（node 建前端 → Gradle 建 jar → `eclipse-temurin:25-jre`，非 root uid 10001，資料在 `/data`，映像約 400 MB）、`hub/compose.yaml`、`hub/deploy/` 的 Quadlet 範例與 `hub/scripts/container-smoke.sh` 已完成。已用 Podman 4.9.3（root 模式）驗證 `podman build`、`podman run` 的 push → API／網頁讀取冒煙測試，以及 `podman-compose up`（healthcheck 變 healthy）。其後（同日）又驗證 Quadlet 由 systemd 啟動（rootful 與 rootless）與 PostgreSQL 後端，細節見 [11 的部署驗證](11-phase1-progress.md)。**尚未驗證**：Docker 引擎實跑（語法只用兩者共通部分）、arm64 映像。podman 建置要用 `--format docker` 才保留 HEALTHCHECK。建置 context 必須是 repo 根目錄（`podman build -f hub/Containerfile .`）；`.dockerignore` 排除 paper／fabric 等其他模組。CI 的 `hub-image` job 已加入冒煙測試（docker；SQLite 與 PostgreSQL），尚未在 GitHub 上實跑。
 
+**Phase 4 驗收狀態（2026-10-03）**：jar／SQLite／PostgreSQL 與完整協作端到端已通過；容器映像建置與 SQLite／PostgreSQL 冒煙已由主對話以 Podman 驗證通過（Codex 沙盒禁止 `uid_map` 無法執行）；指令與證據見 [14 Hub](14-phase4-progress.md#hub)。
+
 設計上的影響：
 - 儲存層與帳號層都要做成可替換的介面（本機/S3、SQLite/PostgreSQL、本機帳號/OAuth）。
 - 從第一版就要支援**多租戶**（使用者、組織、repo 權限），自架版只是「只有一個組織」的特例。
@@ -63,9 +66,9 @@ Hub 以 **OCI 容器映像**發佈，**Docker 與 Podman 都要能直接部署**
 
 ### 4.2 上線前必做（worldgit.org，決定 #23）
 
-安全修補與實測見 [Hub 安全審查](../hub/docs/security-review-2026-10-01.md)。公開部署必須使用 TLS 反向代理、開啟 `worldgit.hub.security.hsts`，只有代理確實覆寫 X-Forwarded-For 時才能設定可信代理 IP；配置 owner 配額、解析預算與認證限流，檢查磁碟餘裕與 secrets 權限。現有配額／限流以單 Hub 實例為界；水平擴充前必須實作共享狀態。Git 未帶認證一律 challenge，公開 clone 使用明確的 anonymous／空密碼；REST 私人與不存在一律 404。
+安全修補與實測見 [Phase 4 安全審查](../hub/docs/security-review-phase4-2026-10-03.md) 與 [Phase 1 紀錄](../hub/docs/security-review-2026-10-01.md)。公開部署必須使用 TLS 反向代理、secure session cookie、正確 public-url、有限 idle/write timeout，開啟 `worldgit.hub.security.hsts`，只有代理確實覆寫 X-Forwarded-For 時才能設定可信代理 IP；配置 owner 配額、解析預算與認證限流，檢查磁碟餘裕與 secrets 權限。現有配額／限流以單 Hub 實例為界；水平擴充前必須實作共享狀態。Git 未帶認證一律 challenge，公開 clone 使用明確的 anonymous／空密碼；REST 私人與不存在一律 404。
 
-**政策項目仍需部署者完成，本次未實作自助註冊或 bootstrap 政策變更**：開放自助註冊前決定信箱驗證、註冊限流、保留字與冒充名稱處理、濫用檢舉政策。正式環境須以 secret 提供 bootstrap 密碼，避免使用印在 log 的隨機密碼；上線時更換並妥善保存管理員密碼，建立具到期日 PAT、撤銷不再使用的 bootstrap token，停止在一般操作中使用 bootstrap 憑證。既有永不過期 PAT 也應檢視並重建；新 PAT 已有預設期限與最後使用時間。
+**Phase 4 已提供預設關閉的最小自助註冊**：啟用時需配置 SMTP 與 `collaboration.registration.public-url`，驗證信 1 小時、token 雜湊與一次兌換；每 IP 3 次/小時，驗證前不建立可登入帳號。公開服務仍需決定保留字／冒充名稱處理、信箱重寄／恢復、濫用檢舉與跨 IP／多實例治理政策。OAuth 先建立並驗證本機帳號，再明確連結，不以第三方 email 自動認領既有帳號。bootstrap 政策未變更。正式環境須以 secret 提供 bootstrap 密碼，避免使用印在 log 的隨機密碼；上線時更換並妥善保存管理員密碼，建立具到期日 PAT、撤銷不再使用的 bootstrap token，停止在一般操作中使用 bootstrap 憑證。既有永不過期 PAT 也應檢視並重建；新 PAT 已有預設期限與最後使用時間。
 
 ## 5. 伺服器 ↔ Hub 的整合
 
@@ -97,6 +100,16 @@ credentials:
 
 token 不寫 remotes.yml／git config／trees，不接受 URL 內秘密，禁止 HTTP redirect 轉送 Authorization；錯誤遮罩原 token、Authorization 與 URL userinfo，parser 不附秘密原文。平台自行保管設定及權限；不要把 credentials 檔放進世界 datapacks。公開 Hub clone 用明確 anonymous Basic，與既有 GitAuthFilter 一致。
 
-伺服器流程是：背景 executor `WorldRemotes.fetch` → `trackingHeads` → 在既有 live coordinator 取得 dry-run `WorldOperations.pull` 預覽 → 玩家/管理員明確執行套用 → 再次鎖編輯、flush、檢查 expectedHeads、applyAll/verify/HEAD barrier。fetch 自己完全不開 session.lock、不套用世界；preview/套用由 caller 以 `WorldOperations.live` 完成，不可對活世界建立離線 WorldOperations。遠端通知與 preview 不得自動觸發 apply。實際平台指令、PR/帳號/受保護分支 HTTP 層是接續任務。
+伺服器流程是：背景 executor `WorldRemotes.fetch` → `trackingHeads` → 在既有 live coordinator 取得 dry-run `WorldOperations.pull` 預覽 → 玩家/管理員明確執行套用 → 再次鎖編輯、flush、檢查 expectedHeads、applyAll/verify/HEAD barrier。fetch 自己完全不開 session.lock、不套用世界；preview/套用由 caller 以 `WorldOperations.live` 完成，不可對活世界建立離線 WorldOperations。遠端通知與 preview 不得自動觸發 apply。實際平台指令是接續任務；Hub 的 PR／帳號／受保護分支 HTTP 層已完成，見下節。
 
-跨維度 PARTIAL、安全重試、有界 packs、clone/export、裸合併與真平台驗收詳見 [14](14-phase4-progress.md)。分批 protocol 會產生多次 HTTP 認證；現有 Hub 預設 attempts=30/window=60s 可能回 429，client 會持久化 PARTIAL 而不自動無限重試。本機密集驗收只在 loopback 臨時 Hub 提高 attempts=10000，正式預設沒有改；Hub 接續任務應評估成功 PAT 請求與認證失敗的限流政策。
+跨維度 PARTIAL、安全重試、有界 packs、clone/export、裸合併與真平台驗收詳見 [14](14-phase4-progress.md)。分批 protocol 會產生多次 HTTP 認證。Phase 4 Hub 已把成功 PAT 與失敗認證分開：成功不消耗失敗額度，另限每 IP／使用者 6000 次/60 秒；錯誤憑證仍 30 次/60 秒、5 次失敗鎖 300 秒。一次多維度傳輸使用預設即可完成，不需提高 attempts；真正超額仍回 429，client 持久化 PARTIAL 供安全重試。
+
+## 7. Phase 4 Hub 協作（2026-10-03）
+
+本機帳號與三種可選 OAuth、組織／團隊、個人／團隊世界授權、PAT scope、受保護分支、PR／審核／3D 衝突選擇、座標留言、release ZIP、通知與 webhook 已實作。API／YAML 範例見 [Hub README](../hub/README.md)，安全邊界見 [Phase 4 安全審查](../hub/docs/security-review-phase4-2026-10-03.md)，實測與限制見 [14 Hub](14-phase4-progress.md#hub)。
+
+受保護分支由管理者自行設定（預設沒有規則），可設 `main` PR-only／需要審核。合併使用 core 裸 repo API、所有維度共享 snapshot，維持 #46 快照 state，不執行鄰居更新。PR／release 完整性檢查拒絕缺少維度或 group；PR 額外檢查 publication 與全部分支 tips 一致。普通歷史／compare reader 仍維持既有行為。
+
+ZIP 固定建立 release 時的 tag commit map；逐 region 暫存後串流，預設 512 MiB／300 秒／2 個並行，不保存 ZIP 快取，私人世界每次下載重新授權。downloads.limits 解析額度獨立且有限，預設輸入／解壓各 512 MiB、2000 萬 nodes；超額或磁碟錯誤中止，暫存與下載許可必定釋放。單 region 套用與阻塞的客戶端輸出沒有硬截止期限，反向代理仍須配置 idle/write timeout。實際持有 owner 鎖直到串流完成，同 owner 推送／合併期間下載可回 503。
+
+給 Paper／Fabric：以 PAT 呼叫 `POST/GET …/pulls`、`GET …/pulls/{id}`、`GET …/comments?pinned=true&dimension=…`、`GET …/releases`；REST 路徑、分頁與 JSON 範例見 README。webhook payload 有 `world` 與 `data.target`／`data.commits`（PR merged），或 `data.dimension/ref/old/new`（Git push）；Git push 是逐維度事件，尚不代表全世界發布完成。接收方驗 `X-WorldGit-Signature-256`、按 `X-WorldGit-Delivery` 去重，背景 fetch 驗證 publication 後才提示「main 有新版本」，玩家明確 `/wg pull` 再走 live coordinator。此次沒有新增 Paper／Fabric 的遊戲內指令或自動套用。

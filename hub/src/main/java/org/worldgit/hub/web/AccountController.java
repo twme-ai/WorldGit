@@ -25,11 +25,23 @@ public class AccountController {
   Map<String, Object> login(HttpServletRequest req, @RequestBody Login body) {
     User u = throttle.authenticate(body.username(), req, false, () -> accounts.authenticatePassword(body.username(), body.password()))
         .orElseThrow(() -> new ApiError.Unauthorized("帳號或密碼錯誤"));
+    throttle.successful(u.id(), req);
+    req.getSession(); req.changeSessionId();
+    req.getSession().removeAttribute("worldgit.oauth.link");
+    req.getSession().setAttribute(org.worldgit.hub.account.RequestUser.SESSION_USER, u.id());
     return Map.of("token", accounts.createToken(u, "web session", true), "user", userJson(u));
+  }
+
+  @PostMapping("/auth/logout")
+  Map<String,Object> logout(HttpServletRequest req) {
+    if (req.getSession(false) != null) req.getSession(false).invalidate();
+    return Map.of("ok",true);
   }
 
   @GetMapping("/me")
   Map<String, Object> me(HttpServletRequest req) {
+    Object csrf = req.getAttribute(org.springframework.security.web.csrf.CsrfToken.class.getName());
+    if (csrf instanceof org.springframework.security.web.csrf.CsrfToken t) t.getToken();
     User u = access.optionalUser(req);
     return u == null ? Map.of("user", Map.of()) : Map.of("user", userJson(u));
   }
@@ -42,17 +54,19 @@ public class AccountController {
 
   @PostMapping("/users")
   Map<String, Object> createUser(HttpServletRequest req, @RequestBody NewUser body) {
+    access.scope(req,"admin");
     User actor = access.requireUser(req);
     if (!actor.admin()) throw new SecurityException("只有管理員可以建立帳號");
     return userJson(accounts.createUser(body.username(), body.password(), Boolean.TRUE.equals(body.admin())));
   }
 
-  record NewToken(String name, java.time.Instant expiresAt) {}
+  record NewToken(String name, java.time.Instant expiresAt, String scope) {}
 
   @PostMapping("/tokens")
   Map<String, Object> createToken(HttpServletRequest req, @RequestBody(required = false) NewToken body) {
+    access.scope(req,"admin");
     User u = access.requireUser(req);
-    return Map.of("token", accounts.createToken(u, body == null ? null : body.name(), false, body == null ? null : body.expiresAt()));
+    return Map.of("token", accounts.createToken(u, body == null ? null : body.name(), false, body == null ? null : body.expiresAt(), body == null ? "admin" : body.scope()));
   }
 
   @GetMapping("/tokens")
@@ -62,6 +76,7 @@ public class AccountController {
 
   @DeleteMapping("/tokens/{id}")
   Map<String, Object> deleteToken(HttpServletRequest req, @PathVariable String id) {
+    access.scope(req,"admin");
     return Map.of("deleted", accounts.deleteToken(access.requireUser(req), id));
   }
 
@@ -69,6 +84,7 @@ public class AccountController {
 
   @PostMapping("/orgs")
   Map<String, Object> createOrg(HttpServletRequest req, @RequestBody NewOrg body) {
+    access.scope(req,"admin");
     accounts.createOrganization(access.requireUser(req), body.slug(), body.displayName());
     return Map.of("slug", body.slug());
   }
@@ -77,7 +93,8 @@ public class AccountController {
 
   @PutMapping("/orgs/{slug}/members/{username}")
   Map<String, Object> member(HttpServletRequest req, @PathVariable String slug, @PathVariable String username, @RequestBody Member body) {
-    accounts.setMember(access.requireUser(req), slug, username, Role.valueOf(body.role().toUpperCase(Locale.ROOT)));
+    access.scope(req,"admin");
+    accounts.setMember(access.requireUser(req), slug, username, Role.parse(body.role()));
     return Map.of("ok", true);
   }
 }

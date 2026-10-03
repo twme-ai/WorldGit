@@ -16,7 +16,7 @@ import org.worldgit.hub.account.Models.*;
 import org.worldgit.hub.config.HubProperties;
 import org.worldgit.hub.storage.NameRules;
 
-/** Phase 1 的本機帳號 + token。權限規則只有 owner/writer/reader 三級；OAuth 與細部權限留到 Phase 4。 */
+/** 本機帳號、PAT 與租戶授權。角色和 token scope 分別檢查。 */
 @Service
 public class AccountService implements ApplicationRunner {
   private static final Logger log = LoggerFactory.getLogger(AccountService.class);
@@ -53,9 +53,10 @@ public class AccountService implements ApplicationRunner {
 
   // ---- 使用者 ----
 
+  @org.springframework.transaction.annotation.Transactional
   public User createUser(String username, String password, boolean admin) {
     if (!NameRules.validSlug(username)) throw new IllegalArgumentException("使用者名稱無效（小寫英數、-、_，2–40 字）");
-    if (password == null || password.length() < 8) throw new IllegalArgumentException("密碼至少 8 個字元");
+    if (password == null || password.length() < 8 || password.getBytes(StandardCharsets.UTF_8).length > 72) throw new IllegalArgumentException("密碼至少 8 個字元");
     String ownerId = UUID.randomUUID().toString(), userId = UUID.randomUUID().toString();
     long now = Instant.now().toEpochMilli();
     try {
@@ -103,8 +104,11 @@ public class AccountService implements ApplicationRunner {
   }
 
   private void insertToken(String userId, String name, String kind, String raw, Long expires) {
-    db.sql("INSERT INTO tokens(id, user_id, name, kind, token_hash, created_at, expires_at) VALUES (?,?,?,?,?,?,?)")
-        .params(UUID.randomUUID().toString(), userId, name, kind, sha256(raw), Instant.now().toEpochMilli(), expires)
+    insertToken(userId, name, kind, raw, expires, "admin");
+  }
+  private void insertToken(String userId, String name, String kind, String raw, Long expires, String scope) {
+    db.sql("INSERT INTO tokens(id, user_id, name, kind, token_hash, created_at, expires_at, scope) VALUES (?,?,?,?,?,?,?,?)")
+        .params(UUID.randomUUID().toString(), userId, name, kind, sha256(raw), Instant.now().toEpochMilli(), expires, scope)
         .update();
   }
 
@@ -114,6 +118,13 @@ public class AccountService implements ApplicationRunner {
   }
 
   public String createToken(User user, String name, boolean session, Instant requestedExpiry) {
+    return createToken(user, name, session, requestedExpiry, "admin");
+  }
+
+  public String createToken(User user, String name, boolean session, Instant requestedExpiry, String scope) {
+    if (scope == null) scope = "admin";
+    if (!Set.of("read", "write", "admin").contains(scope)) throw new IllegalArgumentException("scope 無效");
+    if (name != null && name.length() > 100) throw new IllegalArgumentException("名稱最多 100 字");
     String raw = (session ? "wgs_" : "wgt_") + randomToken(32);
     Instant now = Instant.now();
     Instant expiry = session ? now.plusSeconds(14L * 24 * 3600)
@@ -121,24 +132,30 @@ public class AccountService implements ApplicationRunner {
     if (!expiry.isAfter(now) || expiry.isAfter(now.plusSeconds(3650L * 86400)))
       throw new IllegalArgumentException("token 到期日必須在未來且不超過十年");
     Long expires = expiry.toEpochMilli();
-    insertToken(user.id(), name == null || name.isBlank() ? "token" : name, session ? "SESSION" : "PAT", raw, expires);
+    insertToken(user.id(), name == null || name.isBlank() ? "token" : name, session ? "SESSION" : "PAT", raw, expires, scope);
     return raw;
   }
 
-  public Optional<User> authenticateToken(String raw) {
-    if (raw == null || raw.isBlank()) return Optional.empty();
+  public record Credential(User user, String scope, String kind) {}
+  public Optional<Credential> credential(String raw) {
+    if (raw == null || raw.isBlank() || raw.length() > 4096) return Optional.empty();
     long now = Instant.now().toEpochMilli();
-    var user = db.sql("SELECT u.id, u.owner_id, u.username, u.is_admin FROM tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = ? AND (t.expires_at IS NULL OR t.expires_at > ?)")
+    var value = db.sql("SELECT u.id, u.owner_id, u.username, u.is_admin, t.scope, t.kind FROM tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = ? AND (t.expires_at IS NULL OR t.expires_at > ?)")
         .params(sha256(raw), now)
-        .query((rs, n) -> new User(rs.getString(1), rs.getString(2), rs.getString(3), rs.getInt(4) != 0))
+        .query((rs, n) -> new Credential(new User(rs.getString(1), rs.getString(2), rs.getString(3), rs.getInt(4) != 0), rs.getString(5), rs.getString(6)))
         .optional();
-    if (user.isPresent())
-      db.sql("UPDATE tokens SET last_used_at = ? WHERE token_hash = ?").params(now, sha256(raw)).update();
-    return user;
+    if (value.isPresent()) db.sql("UPDATE tokens SET last_used_at = ? WHERE token_hash = ?").params(now, sha256(raw)).update();
+    return value;
+  }
+  public Optional<User> authenticateToken(String raw) { return credential(raw).map(Credential::user); }
+
+  public Optional<User> userById(String id) {
+    return db.sql("SELECT id, owner_id, username, is_admin FROM users WHERE id = ?").param(id)
+        .query((rs,n) -> new User(rs.getString(1),rs.getString(2),rs.getString(3),rs.getInt(4)!=0)).optional();
   }
 
   public List<Map<String, Object>> listTokens(User user) {
-    return db.sql("SELECT id, name, kind, created_at, expires_at, last_used_at FROM tokens WHERE user_id = ? ORDER BY created_at")
+    return db.sql("SELECT id, name, kind, created_at, expires_at, last_used_at, scope FROM tokens WHERE user_id = ? ORDER BY created_at")
         .param(user.id())
         .query(
             (rs, n) -> {
@@ -149,6 +166,7 @@ public class AccountService implements ApplicationRunner {
               m.put("createdAt", rs.getLong(4));
               m.put("expiresAt", rs.getObject(5));
               m.put("lastUsedAt", rs.getObject(6));
+              m.put("scope", rs.getString(7));
               return (Map<String, Object>) m;
             })
         .list();
@@ -160,6 +178,7 @@ public class AccountService implements ApplicationRunner {
 
   // ---- 組織 ----
 
+  @org.springframework.transaction.annotation.Transactional
   public void createOrganization(User creator, String slug, String display) {
     if (!NameRules.validSlug(slug)) throw new IllegalArgumentException("組織名稱無效");
     String id = UUID.randomUUID().toString();
@@ -173,17 +192,26 @@ public class AccountService implements ApplicationRunner {
     db.sql("INSERT INTO memberships(owner_id, user_id, role) VALUES (?,?,?)").params(id, creator.id(), "OWNER").update();
   }
 
+  @org.springframework.transaction.annotation.Transactional
   public void setMember(User actor, String ownerSlug, String username, Role role) {
+    // 第一個 SQL 就取得組織寫入鎖，持有到 transaction commit；SQLite／PostgreSQL
+    // 都序列化成員異動，避免兩位 owner 同時移除自己而跳過最後 owner 檢查。
+    db.sql("UPDATE owners SET display_name = display_name WHERE slug = ?").param(ownerSlug).update();
     String ownerId = db.sql("SELECT id FROM owners WHERE slug = ?").param(ownerSlug).query(String.class).optional()
         .orElseThrow(() -> new NoSuchElementException("找不到 " + ownerSlug));
     if (!roleOnOwner(actor, ownerId).atLeast(Role.OWNER)) throw new SecurityException("需要 owner 權限");
+    if (db.sql("SELECT kind FROM owners WHERE id = ?").param(ownerId).query(String.class).single().equals("USER"))
+      throw new IllegalArgumentException("個人命名空間不能設定組織成員");
     User target = findUser(username).orElseThrow(() -> new NoSuchElementException("找不到使用者 " + username));
+    if (roleOnOwner(target, ownerId) == Role.OWNER && role != Role.OWNER &&
+        db.sql("SELECT COUNT(*) FROM memberships WHERE owner_id = ? AND role = 'OWNER'").param(ownerId).query(Long.class).single() <= 1)
+      throw new IllegalArgumentException("不能移除最後一位 owner");
     db.sql("DELETE FROM memberships WHERE owner_id = ? AND user_id = ?").params(ownerId, target.id()).update();
     if (role != Role.NONE)
       db.sql("INSERT INTO memberships(owner_id, user_id, role) VALUES (?,?,?)").params(ownerId, target.id(), role.name()).update();
   }
 
-  private Role roleOnOwner(User user, String ownerId) {
+  public Role roleOnOwner(User user, String ownerId) {
     if (user == null) return Role.NONE;
     if (user.admin()) return Role.OWNER;
     return db.sql("SELECT role FROM memberships WHERE owner_id = ? AND user_id = ?")
@@ -218,6 +246,11 @@ public class AccountService implements ApplicationRunner {
 
   public Role roleOn(User user, WorldRow world) {
     Role r = roleOnOwner(user, world.ownerId());
+    if (user != null) {
+      var grants = db.sql("SELECT role FROM world_grants WHERE world_id = ? AND user_id = ? UNION ALL SELECT g.role FROM team_grants g JOIN team_members m ON m.team_id = g.team_id JOIN teams t ON t.id = g.team_id JOIN memberships om ON om.owner_id = t.owner_id AND om.user_id = m.user_id WHERE g.world_id = ? AND m.user_id = ?")
+          .params(world.id(), user.id(), world.id(), user.id()).query(String.class).list();
+      for (String grant : grants) { Role candidate = Role.parse(grant); if (candidate.atLeast(r)) r = candidate; }
+    }
     if (r == Role.NONE && world.isPublic()) return Role.READER;
     return r;
   }
@@ -249,6 +282,25 @@ public class AccountService implements ApplicationRunner {
   public void deleteWorld(WorldRow w) {
     db.sql("DELETE FROM push_events WHERE world_id = ?").param(w.id()).update();
     db.sql("DELETE FROM worlds WHERE id = ?").param(w.id()).update();
+  }
+
+  @org.springframework.transaction.annotation.Transactional
+  public void grant(WorldRow w, User actor, String username, Role role) {
+    if (!roleOn(actor, w).atLeast(Role.ADMIN)) throw new SecurityException("需要 admin 權限");
+    if (role == Role.OWNER || !roleOn(actor,w).atLeast(role)) throw new IllegalArgumentException("不能授予 owner 或高於自身的角色");
+    User target = findUser(username).orElseThrow(() -> new NoSuchElementException("找不到使用者"));
+    db.sql("DELETE FROM world_grants WHERE world_id = ? AND user_id = ?").params(w.id(),target.id()).update();
+    if (role != Role.NONE) db.sql("INSERT INTO world_grants(world_id,user_id,role) VALUES (?,?,?)").params(w.id(),target.id(),role.name()).update();
+  }
+
+  @org.springframework.transaction.annotation.Transactional
+  public void visibility(WorldRow w, boolean isPublic) {
+    db.sql("UPDATE worlds SET visibility = ? WHERE id = ?").params(isPublic ? "PUBLIC" : "PRIVATE",w.id()).update();
+  }
+
+  public List<Map<String,Object>> grants(WorldRow w) {
+    return db.sql("SELECT u.username,g.role FROM world_grants g JOIN users u ON u.id = g.user_id WHERE g.world_id = ? ORDER BY u.username")
+      .param(w.id()).query((rs,n) -> Map.<String,Object>of("username",rs.getString(1),"role",Role.parse(rs.getString(2)).api())).list();
   }
 
   // ---- push 事件 ----

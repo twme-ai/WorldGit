@@ -20,8 +20,8 @@ import org.worldgit.hub.storage.OwnerQuota;
 @Configuration
 public class GitConfiguration {
   @Bean
-  public FilterRegistrationBean<GitAuthFilter> gitAuthFilter(AccountService accounts, RequestUser users, HubProperties props, OwnerQuota quota, RepoStorage storage) {
-    var bean = new FilterRegistrationBean<>(new GitAuthFilter(accounts, users, props.autoCreateWorlds(), quota, storage));
+  public FilterRegistrationBean<GitAuthFilter> gitAuthFilter(AccountService accounts, RequestUser users, HubProperties props, OwnerQuota quota, RepoStorage storage, org.worldgit.hub.collaboration.PullRequests prs) {
+    var bean = new FilterRegistrationBean<>(new GitAuthFilter(accounts, users, props.autoCreateWorlds(), quota, storage, prs));
     bean.addUrlPatterns("/git/*");
     bean.setOrder(1);
     return bean;
@@ -29,10 +29,10 @@ public class GitConfiguration {
 
   @Bean
   public ServletRegistrationBean<GitServlet> gitServlet(
-      RepoStorage storage, RepoCache cache, AccountService accounts, Maintenance maintenance, HubProperties props, OwnerQuota quota) {
+      RepoStorage storage, RepoCache cache, AccountService accounts, Maintenance maintenance, HubProperties props, OwnerQuota quota, org.worldgit.hub.collaboration.BranchPolicy policy, org.worldgit.hub.collaboration.EventService events, org.worldgit.hub.collaboration.WorldGroups groups) {
     GitServlet servlet = new GitServlet();
     servlet.setRepositoryResolver(new HubRepositoryResolver(storage, cache, accounts, props.autoCreateWorlds()));
-    servlet.setReceivePackFactory(receivePackFactory(accounts, maintenance, props, quota));
+    servlet.setReceivePackFactory(receivePackFactory(accounts, maintenance, props, quota, policy, events, groups));
     var bean = new ServletRegistrationBean<>(servlet, "/git/*");
     bean.setName("git");
     bean.setLoadOnStartup(1);
@@ -40,23 +40,23 @@ public class GitConfiguration {
   }
 
   private static ReceivePackFactory<HttpServletRequest> receivePackFactory(
-      AccountService accounts, Maintenance maintenance, HubProperties props, OwnerQuota quota) {
+      AccountService accounts, Maintenance maintenance, HubProperties props, OwnerQuota quota, org.worldgit.hub.collaboration.BranchPolicy policy, org.worldgit.hub.collaboration.EventService events, org.worldgit.hub.collaboration.WorldGroups groups) {
     return (req, repo) -> {
       RepoRef ref = (RepoRef) req.getAttribute(GitAuthFilter.ATTR_REF);
       User user = (User) req.getAttribute(GitAuthFilter.ATTR_USER);
       if (ref == null) throw new IllegalStateException("缺少 repo 資訊");
       String worldId = accounts.findWorld(ref.owner(), ref.world()).map(w -> w.id()).orElseThrow();
       ReceivePack rp = new ReceivePack(repo);
-      rp.setAllowNonFastForwards(false); // main 只能快轉；改寫歷史留給日後的權限模型
-      rp.setAllowDeletes(false);
+      rp.setAllowNonFastForwards(true); // 角色與受保護分支在 preReceive 檢查
+      rp.setAllowDeletes(true);
       rp.setCheckReceivedObjects(true);
       try {
         rp.setMaxPackSizeLimit(Math.max(1, Math.min(props.git().maxPackBytes(), quota.remaining(ref.owner()))));
       } catch (java.io.IOException e) { throw new org.eclipse.jgit.transport.resolver.ServiceNotEnabledException(e.getMessage()); }
       rp.setMaxObjectSizeLimit(32L << 20);
       rp.setAllowPushOptions(true);
-      rp.setPreReceiveHook(new PushHooks.Pre(ref, accounts, worldId, user, quota));
-      rp.setPostReceiveHook(new PushHooks.Post(ref, accounts, worldId, user, maintenance, req));
+      rp.setPreReceiveHook(new PushHooks.Pre(ref, accounts, worldId, user, quota, policy, groups));
+      rp.setPostReceiveHook(new PushHooks.Post(ref, accounts, worldId, user, maintenance, req, events));
       return rp;
     };
   }

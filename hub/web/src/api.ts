@@ -59,13 +59,9 @@ export interface Palettes {
 }
 export interface Me { id?: string; username?: string; admin?: boolean }
 
-const TOKEN_KEY = 'worldgit.token'
-export function getToken(): string | null {
-  try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
-}
-export function setToken(t: string | null) {
-  try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY) } catch { /* 私密視窗等情況沒有 localStorage */ }
-}
+/** 清除 Phase 1 的瀏覽器 token；網頁使用 HttpOnly session。 */
+export function setToken(_t: string | null) { try { localStorage.removeItem('worldgit.token') } catch { /* 無 storage */ } }
+setToken(null)
 
 export class ApiError extends Error {
   constructor(readonly status: number, message: string) { super(message) }
@@ -73,8 +69,8 @@ export class ApiError extends Error {
 
 async function request(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
-  const token = getToken()
-  if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`)
+  const csrf = document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN='))?.slice(11)
+  if (csrf && !['GET', 'HEAD', 'OPTIONS'].includes(init.method ?? 'GET')) headers.set('X-XSRF-TOKEN', decodeURIComponent(csrf))
   const res = await fetch(path, { ...init, headers })
   if (!res.ok) {
     let msg = `HTTP ${res.status}`
@@ -104,8 +100,8 @@ export const api = {
   commit: (o: string, w: string, dimRepo: string, rev: string) => getJson<CommitDetail>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}`),
   tiles: (o: string, w: string, dimRepo: string, rev: string) => getJson<TileRef[]>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}/tiles`),
   palettes: () => getJson<Palettes>('/api/v1/diff-palettes'),
-  tokens: () => getJson<{ id: string; name: string; kind: string; createdAt: number; expiresAt: number | null; lastUsedAt: number | null }[]>('/api/v1/tokens'),
-  createToken: (name: string, expiresAt?: string) => sendJson<{ token: string }>('/api/v1/tokens', 'POST', { name, expiresAt }),
+  tokens: () => getJson<{ id: string; name: string; kind: string; createdAt: number; expiresAt: number | null; lastUsedAt: number | null; scope: string }[]>('/api/v1/tokens'),
+  createToken: (name: string, expiresAt?: string, scope = 'read') => sendJson<{ token: string }>('/api/v1/tokens', 'POST', { name, expiresAt, scope }),
   deleteToken: (id: string) => sendJson<{ deleted: boolean }>(`/api/v1/tokens/${id}`, 'DELETE'),
   createWorld: (name: string, displayName: string, isPublic: boolean) => sendJson<WorldInfo>('/api/v1/worlds', 'POST', { name, displayName, isPublic }),
 }

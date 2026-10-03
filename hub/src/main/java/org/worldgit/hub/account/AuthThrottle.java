@@ -8,7 +8,7 @@ import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 import org.worldgit.hub.config.HubProperties;
 
-/** 認證前先保留嘗試次數；IP、帳號及其組合皆有限流，狀態有容量上限且不驅逐有效鎖定。 */
+/** 失敗認證按 IP／帳號／組合計數；成功另有高額度，不消耗或清除失敗額度。 */
 @Component
 public class AuthThrottle {
   public static final class Limited extends RuntimeException {
@@ -25,6 +25,7 @@ public class AuthThrottle {
   private final Set<String> proxies;
   private final Clock clock;
   private final Map<String, State> states = new HashMap<>();
+  private final Map<String, State> successes = new HashMap<>();
 
   @org.springframework.beans.factory.annotation.Autowired
   public AuthThrottle(HubProperties props) { this(props, Clock.systemUTC()); }
@@ -75,36 +76,49 @@ public class AuthThrottle {
     return List.of("ip:" + ip, "account:" + name, "pair:" + name + ":" + ip);
   }
 
-  private synchronized void reserve(List<String> keys, boolean count) {
+  private synchronized void checkFailures(List<String> keys) {
     long now = clock.millis(), window = settings.windowSeconds() * 1000;
     states.entrySet().removeIf(e -> now >= e.getValue().lockedUntil && now - e.getValue().start >= window);
+    for (String key : keys) {
+      State s = states.get(key);
+      if (s == null) continue;
+      if (now < s.lockedUntil) throw new Limited((s.lockedUntil - now + 999) / 1000);
+      if (s.attempts >= settings.attempts()) throw new Limited((s.start + window - now + 999) / 1000);
+    }
+  }
+
+  private synchronized void failure(List<String> keys) {
+    checkFailures(keys);
+    long now = clock.millis();
     long missing = keys.stream().filter(k -> !states.containsKey(k)).count();
     if (states.size() + missing > settings.maxKeys()) throw new Limited(settings.windowSeconds());
     for (String k : keys) {
       State s = states.computeIfAbsent(k, ignored -> new State(now));
-      if (now < s.lockedUntil) throw new Limited((s.lockedUntil - now + 999) / 1000);
-      if (s.attempts >= settings.attempts()) throw new Limited((s.start + window - now + 999) / 1000);
-    }
-    if (count) for (String k : keys) states.get(k).attempts++;
-  }
-
-  private synchronized void finish(List<String> keys, boolean success, boolean counted) {
-    long now = clock.millis();
-    for (String k : keys) {
-      State s = states.get(k);
-      if (s == null) continue;
-      if (success) { s.failures = 0; continue; }
-      if (!counted) s.attempts++;
+      s.attempts++;
       if (++s.failures >= settings.failures()) s.lockedUntil = now + settings.lockSeconds() * 1000;
     }
+  }
+
+  public synchronized void successful(String identity, HttpServletRequest request) {
+    long now = clock.millis(), window = settings.windowSeconds() * 1000;
+    successes.entrySet().removeIf(e -> now - e.getValue().start >= window);
+    var keys = List.of("ip:" + sourceIp(request), "user:" + identity);
+    long missing = keys.stream().filter(k -> !successes.containsKey(k)).count();
+    if (successes.size() + missing > settings.maxKeys()) throw new Limited(settings.windowSeconds());
+    for (String key : keys) {
+      State s = successes.computeIfAbsent(key, ignored -> new State(now));
+      if (s.attempts >= settings.successfulRequests()) throw new Limited((s.start + window - now + 999) / 1000);
+    }
+    keys.forEach(k -> successes.get(k).attempts++);
   }
 
   public <T> Optional<T> authenticate(String account, HttpServletRequest request, boolean cheapToken,
       Supplier<Optional<T>> check) {
     var keys = keys(account, request);
-    reserve(keys, !cheapToken);
+    // PAT 雜湊查詢便宜，成功憑證不會被其他人的失敗 IP 鎖擋住。
+    if (!cheapToken) checkFailures(keys);
     var result = check.get();
-    finish(keys, result.isPresent(), !cheapToken);
+    if (result.isEmpty()) failure(keys);
     return result;
   }
 }

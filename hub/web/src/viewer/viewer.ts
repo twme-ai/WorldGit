@@ -97,6 +97,9 @@ export class Viewer {
   private radius: number
   private focusDone = false
   private viewTimer = 0
+  private commentPins: { id: string; bounds: [number, number, number, number, number, number] }[] = []
+  onPin: (id: string) => void = () => {}
+  setCommentPins(pins: { id: string; bounds: [number, number, number, number, number, number] }[]) { this.commentPins = pins; this.rebuildLines() }
   private conflictBoxes: { bounds: [number, number, number, number, number, number]; selected: boolean }[] = []
 
   constructor(readonly cfg: ViewerConfig) {
@@ -502,6 +505,7 @@ export class Viewer {
       void palette
       addBox(lines, c[0] * 16, y, c[1] * 16, c[0] * 16 + 16, y + 20, c[1] * 16 + 16, col(kind))
     }
+    for (const pin of this.commentPins) { const b = pin.bounds; addBox(lines, b[0], b[1], b[2], b[3]+1, b[4]+1, b[5]+1, [1, 0.8, 0.2, 1]); addBox(lines, b[0]+0.25, b[1]+1, b[2]+0.25, b[0]+0.75, b[1]+2, b[2]+0.75, [1, 0.8, 0.2, 1]) }
     for (const box of this.conflictBoxes) {
       const b = box.bounds
       addBox(lines, b[0] - 0.03, b[1] - 0.03, b[2] - 0.03, b[3] + 1.03, b[4] + 1.03, b[5] + 1.03, col('conflict'))
@@ -521,6 +525,17 @@ export class Viewer {
     const r = this.cfg.canvas.getBoundingClientRect()
     const nx = (e.clientX - r.left) / r.width, ny = (e.clientY - r.top) / r.height
     const { o, d } = this.camera.ray(nx, ny, r.width / r.height)
+    let nearest = 400, pinned: string | null = null
+    for (const pin of this.commentPins) {
+      const b = pin.bounds, lo = [b[0]+0.25, b[1]+1, b[2]+0.25], hi = [b[0]+0.75, b[1]+2, b[2]+0.75]
+      let near = 0, far = 400
+      for (let i = 0; i < 3; i++) {
+        if (Math.abs(d[i]) < 1e-10) { if (o[i] < lo[i] || o[i] > hi[i]) far = -1 }
+        else { const a = (lo[i]-o[i])/d[i], z = (hi[i]-o[i])/d[i]; near = Math.max(near, Math.min(a,z)); far = Math.min(far, Math.max(a,z)) }
+      }
+      if (near <= far && near < nearest) { nearest = near; pinned = pin.id }
+    }
+    if (pinned) { this.onPin(pinned); return }
     const hit = this.raycast(o, d, 400)
     this.selected = hit
     this.rebuildLines()

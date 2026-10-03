@@ -24,6 +24,7 @@ class BranchCompareTest extends AbstractBranchTest {
     r.add("worldgit.hub.data-dir", () -> data.toString());
     r.add("worldgit.hub.bootstrap.admin-token", () -> TOKEN);
     r.add("worldgit.hub.bootstrap.admin-password", () -> "test-password-1");
+    HubTestDatabase.configure(r);
   }
 
   String base() { return "/api/v1/worlds/admin/" + WORLD; }

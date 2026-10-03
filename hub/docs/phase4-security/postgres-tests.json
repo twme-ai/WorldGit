@@ -1,0 +1,189 @@
+{
+  "date": "2026-10-03",
+  "database": "PostgreSQL 16 test-only on 127.0.0.1:55432",
+  "log": ".work/phase4-hub-pg-complete.log",
+  "xmlDirectory": ".work/phase4-hub-pg-complete-results",
+  "totals": {
+    "tests": 58,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "name": "org.worldgit.hub.BranchBudgetTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "compareExceedingDecodeBudgetIsRejectedWith413()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.BranchCompareTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "branchCapAndJsonByteCapFailExplicitly()",
+        "branchesMergeAcrossDimensionsAndCountBySnapshot()",
+        "compareSectionListCapPreservesBlockTotals()",
+        "compareAcceptsCommitIdsIncludingOffDefaultBranch()",
+        "compareChunkListCapPreservesExactTotalsAndBounds()",
+        "baseBranchAndDefaultHeadChangesAreObserved()",
+        "invalidAndUnknownRevisions()",
+        "snapshotsCanBeFilteredByBranch()",
+        "privateWorldsAreInvisibleWithoutPermission()",
+        "compareBranchesGivesPerDimensionStats()",
+        "snapshotCountsSubtractWorldUnionsAndDeclaredMissingReposAreVisible()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.CollaborationTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "cookieSessionCsrfOriginAndGitCannotUseSession()",
+        "successfulPatTrafficDoesNotConsumeFailureBudget()",
+        "webhookSignsRetriesRejectsRedirectAndHidesSecret()",
+        "protectedBranchesRejectDirectForceDeleteAndAllowApprovedPr()",
+        "competingMergeOnlyPublishesOnceAndCrashFinalizeReconciles()",
+        "roleAndScopeMatrixOnGitAndRest()",
+        "rejectsBlobAndTreeTagsClearly()",
+        "webhookDoesNotDrainUnboundedResponseBody()",
+        "coordinateCommentsRepliesIdorAndDeletion()",
+        "choicesAndReviewsInvalidateOnAnyDimensionTipAndMergeLeaseRace()",
+        "actualGitWriteReadAndUnprotectedForceDeleteMatrix()",
+        "releaseZipPinsTagHasPermissionsBudgetAndConcurrentDownloadLimit()",
+        "cleanMergeLifecycleAndClosedState()",
+        "protectedPublicationCannotClaimDifferentOtherDimension()",
+        "concurrentOwnerRemovalKeepsOneOwner()",
+        "teamGrantRequiresCurrentOrgMembershipAndLastOwnerIsProtected()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.HubIntegrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "visibilityMatrixAndUniformGitChallenge()",
+        "pushThenReadBackThroughApi()",
+        "quotaRejectsPushAcrossWorldsWithoutUpdatingRef()",
+        "patExpiresAndRecordsLastUse()",
+        "healthAndPalettes()",
+        "rejectsNonWorldGitCommit()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.MergePreviewBudgetTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "exhaustedBudgetIs413AndNothingIsCached()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.MergePreviewTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "boundedCacheAndTipChangesInvalidate()",
+        "coreRegionsMatchAndStateSelectionIsExactAndReadOnly()",
+        "authBeforeWarmCacheAndInvalidChoices()",
+        "hashUsesGroupRefsIncludingUnchangedDimension()",
+        "incompatibleVersionsRulesAndPacksHaveExplicitReasons()",
+        "zeroConflictMultiDimensionAndMissingSourcePreservesOurs()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.NameRulesTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "slugs()",
+        "dimensionDirectoryRoundTrip()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.OAuthRegistrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "registrationRequiresSingleUseMailVerificationAndLimitsRequests()",
+        "mockLoginLinkUnlinkAllProvidersAndInvalidState()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.SecretsMigrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "secretFileOverridesPlainValueAndStripsOnlyTrailingNewlines()",
+        "legacyTokenSchemaUpgradesIdempotentlyAndPreservesData()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.SecurityBoundaryTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "accountAndIpLockExpiresAndRejectsBeforeCrypto()",
+        "successfulAuthenticationDoesNotConsumeFailuresAndFailuresStillLock()",
+        "quotaIncludesAllWorldsAndCleansOnlyNewPackFiles()",
+        "windowCannotOverflowOrLoopAtMaxInt()",
+        "forwardedIpOnlyUsesTrustedProxyAndRightmostUntrustedHop()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.WebhookBoundaryTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "hmacHasKnownDigestAndChangesWithPayload()",
+        "allowlistIsExactAndDnsIsPinned()",
+        "specialAddressesAreRejectedIncludingAlternateAndIpv6Encodings()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.data.WireLimitTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "utfLengthCannotWrapItsUnsignedShort()",
+        "rejectsBeforeWritingPastResponseCap()"
+      ]
+    },
+    {
+      "name": "org.worldgit.hub.web.ApiErrorTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "testCases": [
+        "downloadBudgetErrorIsJsonEvenWithZipContentType()"
+      ]
+    }
+  ]
+}

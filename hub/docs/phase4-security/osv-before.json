@@ -1,0 +1,379 @@
+{
+  "date": "2026-10-03",
+  "source": "https://api.osv.dev/v1/querybatch",
+  "packages": [
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "at.yawk.lz4:lz4-java"
+      },
+      "version": "1.11.4",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "ch.qos.logback:logback-classic"
+      },
+      "version": "1.5.34",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "ch.qos.logback:logback-core"
+      },
+      "version": "1.5.34",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.fasterxml.jackson.core:jackson-annotations"
+      },
+      "version": "2.21",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.fasterxml.jackson.core:jackson-core"
+      },
+      "version": "2.21.7",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.fasterxml.jackson.core:jackson-databind"
+      },
+      "version": "2.21.7",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"
+      },
+      "version": "2.21.7",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+      },
+      "version": "2.21.7",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.fasterxml.jackson.module:jackson-module-parameter-names"
+      },
+      "version": "2.21.7",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.github.stephenc.jcip:jcip-annotations"
+      },
+      "version": "1.0-1",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.google.code.gson:gson"
+      },
+      "version": "2.13.1",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.googlecode.javaewah:JavaEWAH"
+      },
+      "version": "1.2.3",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.nimbusds:content-type"
+      },
+      "version": "2.2",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.nimbusds:lang-tag"
+      },
+      "version": "1.7",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.nimbusds:nimbus-jose-jwt"
+      },
+      "version": "9.37.4",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.nimbusds:oauth2-oidc-sdk"
+      },
+      "version": "9.43.6",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "com.zaxxer:HikariCP"
+      },
+      "version": "6.3.3",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "commons-codec:commons-codec"
+      },
+      "version": "1.18.0",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "jakarta.activation:jakarta.activation-api"
+      },
+      "version": "2.1.4",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "jakarta.annotation:jakarta.annotation-api"
+      },
+      "version": "2.1.1",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "jakarta.mail:jakarta.mail-api"
+      },
+      "version": "2.1.5",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "net.minidev:accessors-smart"
+      },
+      "version": "2.5.2",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "net.minidev:json-smart"
+      },
+      "version": "2.5.2",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.apache.httpcomponents.client5:httpclient5"
+      },
+      "version": "5.5.2",
+      "vulns": [
+        {
+          "id": "GHSA-hjcp-jmpx-g3qm",
+          "modified": "2026-09-10T03:50:12.358752Z"
+        }
+      ]
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.apache.httpcomponents.core5:httpcore5"
+      },
+      "version": "5.3.6",
+      "vulns": [
+        {
+          "id": "GHSA-hf6x-8p5f-cgmf",
+          "modified": "2026-09-10T03:50:52.486045Z"
+        }
+      ]
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.apache.httpcomponents.core5:httpcore5-h2"
+      },
+      "version": "5.3.6",
+      "vulns": [
+        {
+          "id": "GHSA-v3jc-474w-2wm6",
+          "modified": "2026-09-10T03:51:12.247227Z"
+        }
+      ]
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.apache.logging.log4j:log4j-api"
+      },
+      "version": "2.24.3",
+      "vulns": [
+        {
+          "id": "GHSA-qv9r-c865-cp47",
+          "modified": "2026-09-10T03:50:52.972700Z"
+        }
+      ]
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.apache.logging.log4j:log4j-to-slf4j"
+      },
+      "version": "2.24.3",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.angus:angus-activation"
+      },
+      "version": "2.0.3",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.angus:angus-core"
+      },
+      "version": "2.0.5",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.angus:angus-mail"
+      },
+      "version": "2.0.5",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.angus:imap"
+      },
+      "version": "2.0.5",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.angus:jakarta.mail"
+      },
+      "version": "2.0.5",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.angus:logging-mailhandler"
+      },
+      "version": "2.0.5",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.angus:pop3"
+      },
+      "version": "2.0.5",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.angus:smtp"
+      },
+      "version": "2.0.5",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.jgit:org.eclipse.jgit"
+      },
+      "version": "7.3.0.202506031305-r",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.eclipse.jgit:org.eclipse.jgit.http.server"
+      },
+      "version": "7.3.0.202506031305-r",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.hdrhistogram:HdrHistogram"
+      },
+      "version": "2.2.2",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.latencyutils:LatencyUtils"
+      },
+      "version": "2.0.3",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.slf4j:jul-to-slf4j"
+      },
+      "version": "2.0.18",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.slf4j:slf4j-api"
+      },
+      "version": "2.0.18",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.xerial:sqlite-jdbc"
+      },
+      "version": "3.50.3.0",
+      "vulns": []
+    },
+    {
+      "package": {
+        "ecosystem": "Maven",
+        "name": "org.yaml:snakeyaml"
+      },
+      "version": "2.4",
+      "vulns": []
+    }
+  ],
+  "coverage": "BOOT-INF/lib jars with embedded Maven pom.properties; jars without metadata are not covered"
+}

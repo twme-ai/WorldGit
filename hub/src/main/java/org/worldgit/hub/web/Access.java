@@ -25,6 +25,11 @@ public class Access {
     return r.user();
   }
 
+  public void scope(HttpServletRequest req, String needed) {
+    var r = users.resolve(req);
+    if (!r.permits(needed)) throw new SecurityException("PAT 需要 " + needed + " scope");
+  }
+
   public User optionalUser(HttpServletRequest req) {
     var r = users.resolve(req);
     if (r.invalid()) throw new ApiError.Unauthorized("憑證無效或已過期");
@@ -39,6 +44,7 @@ public class Access {
       throw new ApiError.NotFound("找不到世界 " + owner + "/" + slug);
     }
     if (!role.atLeast(needed)) throw new SecurityException("權限不足（需要 " + needed + "）");
+    scope(req, needed.atLeast(Role.ADMIN) ? "admin" : needed.atLeast(Role.WRITER) ? "write" : "read");
     return w;
   }
 

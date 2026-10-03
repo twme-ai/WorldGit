@@ -185,7 +185,19 @@ class RemoteTest {
   @Test
   void cloneBothVersionsTagsZipAndPartialDimensions() throws Exception {
     for (String version : List.of("1.21.11", "26.2")) {
-      var a = init("a" + version, version);
+      Path source = temp.resolve("a" + version);
+      TestWorlds.copy(TestWorlds.fixture(version), source);
+      var empty = new DimensionId("test:empty");
+      var sourceLayout = WorldLayout.discover(source);
+      Path sourceWorld = sourceLayout.world();
+      int dataVersion = sourceLayout.dataVersion();
+      Files.createDirectories(
+          WorldAssembler.dimensionPath(sourceWorld, empty, dataVersion).resolve("region"));
+      var a = WorldLayout.discover(source);
+      assertTrue(
+          new WorldRepositories(a)
+              .init(null, "creative", WorldGitConfig.Track.ALL, author)
+              .success());
       var remote = remote(a, "remote" + version);
       try (var g = new RepositoryGroup(a.repositoryRoot(), new WorldRepositories(a).tracked())) {
         g.tag("v1", null, "release", author, false, false);
@@ -205,6 +217,28 @@ class RemoteTest {
           while ((e = zip.getNextEntry()) != null) names.add(e.getName());
         }
         assertTrue(names.contains("level.dat"));
+        String emptyRegion =
+            sourceWorld
+                    .relativize(
+                        WorldAssembler.dimensionPath(sourceWorld, empty, dataVersion)
+                            .resolve("region"))
+                    .toString()
+                    .replace(java.io.File.separatorChar, '/')
+                + "/";
+        assertTrue(names.contains(emptyRegion), "ZIP 不可遺失空維度：" + names + "，期待 " + emptyRegion);
+        Path exported = temp.resolve("exported" + version);
+        try (var zip = new ZipInputStream(new ByteArrayInputStream(out.toByteArray()))) {
+          java.util.zip.ZipEntry entry;
+          while ((entry = zip.getNextEntry()) != null) {
+            Path target = exported.resolve(entry.getName());
+            if (entry.isDirectory()) Files.createDirectories(target);
+            else {
+              Files.createDirectories(target.getParent());
+              Files.copy(zip, target);
+            }
+          }
+        }
+        assertEquals(a.dimensions().keySet(), WorldLayout.discover(exported).dimensions().keySet());
         assertTrue(
             names.stream()
                 .noneMatch(
@@ -217,6 +251,13 @@ class RemoteTest {
             () ->
                 new WorldAssembler(new WorldAssembler.Budget(1, Duration.ofMinutes(1)))
                     .zip(group, "HEAD", new ByteArrayOutputStream(), temp));
+        var timedOut =
+            assertThrows(
+                IOException.class,
+                () ->
+                    new WorldAssembler(new WorldAssembler.Budget(1L << 30, Duration.ofNanos(1)))
+                        .zip(group, "HEAD", new ByteArrayOutputStream(), temp));
+        assertTrue(timedOut.getMessage().contains("時間預算"));
       }
       var partial =
           WorldClone.cloneWorld(

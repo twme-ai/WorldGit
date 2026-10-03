@@ -44,11 +44,14 @@ class SecurityBoundaryTest {
     assertEquals("ok", throttle.authenticate("alice", req, false, () -> Optional.of("ok")).orElseThrow());
   }
 
-  @Test void rateLimitCountsSuccessfulBasicAndDoesNotThrottleValidBearerAssets() {
+  @Test void successfulAuthenticationDoesNotConsumeFailuresAndFailuresStillLock() {
     var throttle = new AuthThrottle(props(List.of()));
     var req = new MockHttpServletRequest(); req.setRemoteAddr("192.0.2.1");
     for (int i = 0; i < 3; i++) throttle.authenticate("alice", req, false, () -> Optional.of("ok"));
+    assertTrue(throttle.authenticate("bob", req, false, Optional::empty).isEmpty());
+    assertTrue(throttle.authenticate("bob", req, false, Optional::empty).isEmpty());
     assertThrows(AuthThrottle.Limited.class, () -> throttle.authenticate("bob", req, false, Optional::empty));
+    assertTrue(throttle.authenticate("bearer", req, true, () -> Optional.of("valid-pat")).isPresent());
     req.setRemoteAddr("192.0.2.2");
     for (int i = 0; i < 100; i++) assertTrue(throttle.authenticate("bearer", req, true, () -> Optional.of("ok")).isPresent());
   }

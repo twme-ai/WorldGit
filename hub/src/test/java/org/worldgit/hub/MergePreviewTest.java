@@ -20,6 +20,7 @@ class MergePreviewTest extends AbstractBranchTest {
     prepareDirs(); r.add("server.address",()->"127.0.0.1"); r.add("server.port",()->"18099");r.add("worldgit.hub.auth.attempts",()->"100000");
     r.add("worldgit.hub.data-dir",()->data.toString()); r.add("worldgit.hub.bootstrap.admin-token",()->TOKEN);
     r.add("worldgit.hub.bootstrap.admin-password",()->"test-password-1");
+    HubTestDatabase.configure(r);
   }
   @BeforeAll void extraFixture() throws Exception {
     // inherited buildWorld 已提供 Phase 2 場景，另建立 Phase 3 分支與 group refs。

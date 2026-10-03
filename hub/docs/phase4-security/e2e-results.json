@@ -1,0 +1,635 @@
+{
+  "date": "2026-10-03",
+  "rawResults": ".work/phase4-hub-e2e-complete/results.json",
+  "log": ".work/phase4-hub-e2e-complete.log",
+  "frozenArtifactHashes": {
+    "wgit.jar": "3504307a2b98c10eab945a4632afc4c324ed5932bc7241045d17248a71583e52",
+    "acceptance-tools.jar": "e62a075192f0bbcfd64a2bcb586521bef2b58061ac067c075cc2d690af4bf206",
+    "hub.jar": "750b57484134bda7cac859805fa53b3d67e36257c2ea099c8798d4e3626eec23"
+  },
+  "frozenAtUtc": "2026-10-03T12:22:17Z",
+  "completedAtUtc": "2026-10-03T12:41:39Z",
+  "artifactScope": "端到端使用凍結 jar；其後的 webhook response close／組織撤權安全修正由最後兩種資料庫測試與完整 build 覆蓋。此 hash 不代表最後重新建置的 jar。",
+  "versions": {
+    "1.21.11": {
+      "headsMatch": true,
+      "baselineUnchanged": true,
+      "pulls": {
+        "clean_pull": {
+          "state": "COMPLETE",
+          "remaining": 0,
+          "fastForward": true,
+          "commits": {
+            "minecraft:overworld": "91c1a1997b9b754c7c42ca56cb8b6972083eb5d6",
+            "minecraft:the_end": "10002a011b84578e8e85730a5d88a52048223aa1",
+            "minecraft:the_nether": "4b38e7fdaa6d3a507d39894585624115debd92d4"
+          }
+        },
+        "conflict_pull": {
+          "state": "COMPLETE",
+          "remaining": 0,
+          "fastForward": true,
+          "commits": {
+            "minecraft:overworld": "b03c09a2bcff16ca9e4c33a66f5c33cdb3401047",
+            "minecraft:the_end": "72274f7e38a741c8757a40049f02fcc1a55dcc49",
+            "minecraft:the_nether": "353db85adf67b116843455e225a6cb08a55ee93d"
+          }
+        }
+      },
+      "browser": {
+        "first_pr": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "coordinate pin, camera focus, XSS text",
+            "cookie login, no localStorage token",
+            "review gate and browser merge"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "1.21.11-first-pr.jpg",
+            "1.21.11-first-merged.jpg"
+          ],
+          "pr": {
+            "id": "190d903a-0e31-4567-9646-1ee82d094468",
+            "number": 1,
+            "authorId": "21391d58-91ab-40da-a350-14a34ab306fe",
+            "author": "builder-a",
+            "source": "topic-a",
+            "target": "main",
+            "title": "A initial building",
+            "description": "由真 CLI 雙 clone 分支建立，經網頁審核與合併。",
+            "status": "merged",
+            "fingerprint": "05ad3732617d8a261ada23c3bc23a3c8759f6f41",
+            "selectionsInvalidated": false,
+            "createdAt": 1791030289731,
+            "updatedAt": 1791030300765,
+            "snapshot": "658bf1f8-3198-44c6-94fc-67288f5a9bd3",
+            "commits": {
+              "minecraft:overworld": "df32e549eeb024e30046895300d601acc1d91ac8",
+              "minecraft:the_end": "38112cb3f3a9453423400b5cc933c85131ab0975",
+              "minecraft:the_nether": "1e6854e026a606d971b617ca55cdd17ea992cd2a"
+            }
+          },
+          "choices": {}
+        },
+        "clean_pr": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "coordinate pin, camera focus, XSS text",
+            "cookie login, no localStorage token",
+            "review gate and browser merge"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "1.21.11-clean-pr.jpg",
+            "1.21.11-clean-merged.jpg"
+          ],
+          "pr": {
+            "id": "8a91f8e3-ddb7-4856-999f-e4df1e7ce081",
+            "number": 2,
+            "authorId": "dc9c4977-4a3b-44f0-bc5a-6aa848fc9841",
+            "author": "builder-b",
+            "source": "topic-b",
+            "target": "main",
+            "title": "B disjoint building",
+            "description": "由真 CLI 雙 clone 分支建立，經網頁審核與合併。",
+            "status": "merged",
+            "fingerprint": "960d8d47dd41137ec8cfa089d0355a862dba2952",
+            "selectionsInvalidated": false,
+            "createdAt": 1791030307830,
+            "updatedAt": 1791030315552,
+            "snapshot": "fedf93f8-cc05-4c0a-823e-9377a2692c01",
+            "commits": {
+              "minecraft:overworld": "91c1a1997b9b754c7c42ca56cb8b6972083eb5d6",
+              "minecraft:the_end": "10002a011b84578e8e85730a5d88a52048223aa1",
+              "minecraft:the_nether": "4b38e7fdaa6d3a507d39894585624115debd92d4"
+            }
+          },
+          "choices": {}
+        },
+        "conflict_first": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "coordinate pin, camera focus, XSS text",
+            "cookie login, no localStorage token",
+            "review gate and browser merge"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "1.21.11-conflict-first-pr.jpg",
+            "1.21.11-conflict-first-merged.jpg"
+          ],
+          "pr": {
+            "id": "086daff9-9cdf-4b2a-836e-223fface3cb1",
+            "number": 3,
+            "authorId": "21391d58-91ab-40da-a350-14a34ab306fe",
+            "author": "builder-a",
+            "source": "conflict-a",
+            "target": "main",
+            "title": "A roof proposal",
+            "description": "由真 CLI 雙 clone 分支建立，經網頁審核與合併。",
+            "status": "merged",
+            "fingerprint": "b3d4d06fc6e176125edabbbdc62d58723e842486",
+            "selectionsInvalidated": false,
+            "createdAt": 1791030490592,
+            "updatedAt": 1791030498293,
+            "snapshot": "5cc27d80-d103-487d-97aa-fadf359e3f6a",
+            "commits": {
+              "minecraft:overworld": "f4bf9a1986ce58f2af4005f0398010a4df55ed5f",
+              "minecraft:the_end": "5220d5d302656a145812ed6d8beaad85a1a05296",
+              "minecraft:the_nether": "a005fa84659053dae78c30084158c5a263bcc457"
+            }
+          },
+          "choices": {}
+        },
+        "conflict_pr": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "conflict choices saved on PR",
+            "choices persisted after reload",
+            "coordinate pin, camera focus, XSS text",
+            "cookie login, no localStorage token",
+            "review gate and browser merge"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "1.21.11-conflict-pr.jpg",
+            "1.21.11-conflict-merged.jpg"
+          ],
+          "pr": {
+            "id": "d57f93b2-71f5-4eff-a448-9885089ac70c",
+            "number": 4,
+            "authorId": "dc9c4977-4a3b-44f0-bc5a-6aa848fc9841",
+            "author": "builder-b",
+            "source": "conflict-b",
+            "target": "main",
+            "title": "B roof conflict resolved",
+            "description": "由真 CLI 雙 clone 分支建立，經網頁審核與合併。",
+            "status": "merged",
+            "fingerprint": "dde474061b6c97a4f799c66b593661bc64629515",
+            "selectionsInvalidated": false,
+            "createdAt": 1791030503846,
+            "updatedAt": 1791030530490,
+            "snapshot": "268cdff1-1ec5-4dd7-833b-fce8218df6f3",
+            "commits": {
+              "minecraft:overworld": "b03c09a2bcff16ca9e4c33a66f5c33cdb3401047",
+              "minecraft:the_end": "72274f7e38a741c8757a40049f02fcc1a55dcc49",
+              "minecraft:the_nether": "353db85adf67b116843455e225a6cb08a55ee93d"
+            }
+          },
+          "choices": {
+            "1": "theirs"
+          }
+        },
+        "release": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "browser release and streamed ZIP download"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "1.21.11-release-release.jpg"
+          ],
+          "zipBytes": 79118
+        }
+      },
+      "paper": {
+        "clean_paper": {
+          "errors": 0,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          },
+          "lightPoiEntities": "isLightOn=0 blockLightSections=1 skyLightSections=5 starlight=10\nduplicateUUIDs=0 controlledEntityCount=1\npoi=[minecraft:librarian[4, 65, 4]]\n"
+        },
+        "conflict_paper": {
+          "errors": 0,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          },
+          "lightPoiEntities": "isLightOn=0 blockLightSections=1 skyLightSections=5 starlight=10\nduplicateUUIDs=0 controlledEntityCount=1\npoi=[minecraft:librarian[4, 65, 4]]\n"
+        },
+        "release_paper": {
+          "errors": 0,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          },
+          "lightPoiEntities": "isLightOn=0 blockLightSections=1 skyLightSections=5 starlight=10\nduplicateUUIDs=0 controlledEntityCount=1\npoi=[minecraft:librarian[4, 65, 4]]\n"
+        }
+      }
+    },
+    "26.2": {
+      "headsMatch": true,
+      "baselineUnchanged": true,
+      "pulls": {
+        "clean_pull": {
+          "state": "COMPLETE",
+          "remaining": 0,
+          "fastForward": true,
+          "commits": {
+            "minecraft:overworld": "0bc799b341b97b57a7004aec81d2618d8565e894",
+            "minecraft:the_end": "123d53a484e7295c4df07220466ef45a28e1fb26",
+            "minecraft:the_nether": "9a87fa041d5916321c747c8247b2cd663f51f90e"
+          }
+        },
+        "conflict_pull": {
+          "state": "COMPLETE",
+          "remaining": 0,
+          "fastForward": true,
+          "commits": {
+            "minecraft:overworld": "3c958357bdbd2b6b516a87adf99b2f7898864916",
+            "minecraft:the_end": "32e545c1fe59d92004236b642a9856b473cdbcdd",
+            "minecraft:the_nether": "642f51946fec7df3631c805fe6efcb5fd7b4a1be"
+          }
+        }
+      },
+      "browser": {
+        "first_pr": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "coordinate pin, camera focus, XSS text",
+            "cookie login, no localStorage token",
+            "review gate and browser merge"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "26.2-first-pr.jpg",
+            "26.2-first-merged.jpg"
+          ],
+          "pr": {
+            "id": "55837f76-d6b7-4804-8c99-8e3c99a76cc4",
+            "number": 1,
+            "authorId": "21391d58-91ab-40da-a350-14a34ab306fe",
+            "author": "builder-a",
+            "source": "topic-a",
+            "target": "main",
+            "title": "A initial building",
+            "description": "由真 CLI 雙 clone 分支建立，經網頁審核與合併。",
+            "status": "merged",
+            "fingerprint": "ae55022a7c9b1cf350ab9e45f74b662e07e136fc",
+            "selectionsInvalidated": false,
+            "createdAt": 1791030840733,
+            "updatedAt": 1791030851097,
+            "snapshot": "158255d6-d3eb-4d74-ad2d-f3f5d88193a1",
+            "commits": {
+              "minecraft:overworld": "07d85b3b0ac618bedda923f6aae9f6d1397cb96f",
+              "minecraft:the_end": "a1e49f34ee330deb7f84a5b9b454302d084eccd8",
+              "minecraft:the_nether": "db58307c50df721963c8a78e7881abb40d454ebb"
+            }
+          },
+          "choices": {}
+        },
+        "clean_pr": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "coordinate pin, camera focus, XSS text",
+            "cookie login, no localStorage token",
+            "review gate and browser merge"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "26.2-clean-pr.jpg",
+            "26.2-clean-merged.jpg"
+          ],
+          "pr": {
+            "id": "28e15f16-8268-4ee4-9a06-e3adf3c7f59c",
+            "number": 2,
+            "authorId": "dc9c4977-4a3b-44f0-bc5a-6aa848fc9841",
+            "author": "builder-b",
+            "source": "topic-b",
+            "target": "main",
+            "title": "B disjoint building",
+            "description": "由真 CLI 雙 clone 分支建立，經網頁審核與合併。",
+            "status": "merged",
+            "fingerprint": "d44118271ade03c306cb81a4117012d08789c174",
+            "selectionsInvalidated": false,
+            "createdAt": 1791030855207,
+            "updatedAt": 1791030865453,
+            "snapshot": "090197bb-0333-4449-883d-3a25f23c3b74",
+            "commits": {
+              "minecraft:overworld": "0bc799b341b97b57a7004aec81d2618d8565e894",
+              "minecraft:the_end": "123d53a484e7295c4df07220466ef45a28e1fb26",
+              "minecraft:the_nether": "9a87fa041d5916321c747c8247b2cd663f51f90e"
+            }
+          },
+          "choices": {}
+        },
+        "conflict_first": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "coordinate pin, camera focus, XSS text",
+            "cookie login, no localStorage token",
+            "review gate and browser merge"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "26.2-conflict-first-pr.jpg",
+            "26.2-conflict-first-merged.jpg"
+          ],
+          "pr": {
+            "id": "63afc5c7-c706-492e-897b-e3e0d63dab72",
+            "number": 3,
+            "authorId": "21391d58-91ab-40da-a350-14a34ab306fe",
+            "author": "builder-a",
+            "source": "conflict-a",
+            "target": "main",
+            "title": "A roof proposal",
+            "description": "由真 CLI 雙 clone 分支建立，經網頁審核與合併。",
+            "status": "merged",
+            "fingerprint": "7550c8269ec305e0e546fc347e721e23f7ec32b0",
+            "selectionsInvalidated": false,
+            "createdAt": 1791031063099,
+            "updatedAt": 1791031074171,
+            "snapshot": "e7cfd60c-35e2-4eb3-9a24-dee822687a8a",
+            "commits": {
+              "minecraft:overworld": "898d6913561b7633b9daa80911e595242db88922",
+              "minecraft:the_end": "aac81cb6bbacbdec93b6e44208b51f044fb70919",
+              "minecraft:the_nether": "170f466602083d05dce804e51717b34f1c59e9e1"
+            }
+          },
+          "choices": {}
+        },
+        "conflict_pr": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "conflict choices saved on PR",
+            "choices persisted after reload",
+            "coordinate pin, camera focus, XSS text",
+            "cookie login, no localStorage token",
+            "review gate and browser merge"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "26.2-conflict-pr.jpg",
+            "26.2-conflict-merged.jpg"
+          ],
+          "pr": {
+            "id": "131138aa-e48d-4c4e-827b-9b29f152e73b",
+            "number": 4,
+            "authorId": "dc9c4977-4a3b-44f0-bc5a-6aa848fc9841",
+            "author": "builder-b",
+            "source": "conflict-b",
+            "target": "main",
+            "title": "B roof conflict resolved",
+            "description": "由真 CLI 雙 clone 分支建立，經網頁審核與合併。",
+            "status": "merged",
+            "fingerprint": "d3ffb24a870fb09f9ae778dffe6fed06fa9edfdc",
+            "selectionsInvalidated": false,
+            "createdAt": 1791031077429,
+            "updatedAt": 1791031102947,
+            "snapshot": "466a6c89-194f-456d-9458-ce46f680cb6a",
+            "commits": {
+              "minecraft:overworld": "3c958357bdbd2b6b516a87adf99b2f7898864916",
+              "minecraft:the_end": "32e545c1fe59d92004236b642a9856b473cdbcdd",
+              "minecraft:the_nether": "642f51946fec7df3631c805fe6efcb5fd7b4a1be"
+            }
+          },
+          "choices": {
+            "1": "theirs"
+          }
+        },
+        "release": {
+          "assertions": [
+            "cookie login, no localStorage token",
+            "browser release and streamed ZIP download"
+          ],
+          "errors": [],
+          "violations": [],
+          "screenshots": [
+            "26.2-release-release.jpg"
+          ],
+          "zipBytes": 88876
+        }
+      },
+      "paper": {
+        "clean_paper": {
+          "errors": 0,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 1,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 1,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          },
+          "lightPoiEntities": "isLightOn=0 blockLightSections=1 skyLightSections=5 starlight=10\nduplicateUUIDs=0 controlledEntityCount=1\npoi=[minecraft:librarian[4, 65, 4]]\n"
+        },
+        "conflict_paper": {
+          "errors": 0,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 1,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 1,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          },
+          "lightPoiEntities": "isLightOn=0 blockLightSections=1 skyLightSections=5 starlight=10\nduplicateUUIDs=0 controlledEntityCount=1\npoi=[minecraft:librarian[4, 65, 4]]\n"
+        },
+        "release_paper": {
+          "errors": 0,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 1,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 1,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          },
+          "lightPoiEntities": "isLightOn=0 blockLightSections=1 skyLightSections=5 starlight=10\nduplicateUUIDs=0 controlledEntityCount=1\npoi=[minecraft:librarian[4, 65, 4]]\n"
+        }
+      }
+    }
+  }
+}

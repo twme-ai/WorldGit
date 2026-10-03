@@ -3,6 +3,12 @@
 server:
   address: 0.0.0.0          # 容器內綁全部介面；本機直接執行請用 --server.address=127.0.0.1
   port: 8080
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        same-site: lax
   forward-headers-strategy: none # 來源 IP 由 Hub 的可信代理清單判斷
   compression:
     enabled: true
@@ -64,6 +70,7 @@ worldgit:
       objects: 100000
       work: 50000000
     auth:
+      successful-requests: 6000 # IP 與使用者／60 秒，成功不消耗失敗額度
       attempts: 30
       failures: 5
       window-seconds: 60
@@ -71,6 +78,26 @@ worldgit:
       max-keys: 10000
     tokens:
       pat-days: 90
+    collaboration:
+      registration:
+        enabled: false
+        public-url: http://localhost:8080
+        from: worldgit@localhost
+      oauth: {} # github／discord／microsoft：enabled、client-id、client-secret；全部預設停用
+      downloads:
+        max-bytes: 536870912
+        max-seconds: 300
+        concurrency: 2
+        limits:
+          decoded-bytes: 536870912
+          read-bytes: 536870912
+          nodes: 20000000
+          objects: 1000000
+          work: 200000000
+      webhooks:
+        allowed-hosts: [] # 明確 hostname／IP 例外；不支援萬用字元
+        attempts: 5
+        retry-seconds: 30
     assets:
       source-dir: ""              # 已解開的 client jar 目錄（<id>/assets、<id>/data）；空白＝從 Mojang 下載
     minecraft-versions:

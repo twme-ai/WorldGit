@@ -13,7 +13,12 @@ import org.worldgit.hub.account.Models.User;
  */
 @Component
 public class RequestUser {
-  public record Result(User user, boolean credentialsPresent, boolean anonymous) {
+  public static final String SESSION_USER = "worldgit.user";
+  public record Result(User user, boolean credentialsPresent, boolean anonymous, String scope, String kind) {
+    public Result(User user, boolean credentialsPresent, boolean anonymous) { this(user,credentialsPresent,anonymous,"admin","PASSWORD"); }
+    public boolean permits(String needed) {
+      return switch (needed) { case "read" -> true; case "write" -> !scope.equals("read"); case "admin" -> scope.equals("admin"); default -> false; };
+    }
     public boolean invalid() {
       return user == null && credentialsPresent && !anonymous;
     }
@@ -46,9 +51,18 @@ public class RequestUser {
       throttle.authenticate("invalid-header", req, false, Optional::empty);
       return new Result(null, true, false);
     }
-    if (h == null || h.isBlank()) return new Result(null, false, true);
-    if (h.regionMatches(true, 0, "Bearer ", 0, 7))
-      return new Result(throttle.authenticate("bearer", req, true, () -> accounts.authenticateToken(h.substring(7).trim())).orElse(null), true, false);
+    if (h == null || h.isBlank()) {
+      var session = req.getSession(false);
+      Object id = session == null ? null : session.getAttribute(SESSION_USER);
+      User user = id instanceof String s ? accounts.userById(s).orElse(null) : null;
+      if (user != null) throttle.successful(user.id(), req);
+      return new Result(user, user != null, user == null, "admin", "SESSION");
+    }
+    if (h.regionMatches(true, 0, "Bearer ", 0, 7)) {
+      var c = throttle.authenticate("bearer", req, true, () -> accounts.credential(h.substring(7).trim())).orElse(null);
+      if (c != null) throttle.successful(c.user().id(), req);
+      return c == null ? new Result(null,true,false) : new Result(c.user(),true,false,c.scope(),c.kind());
+    }
     if (h.regionMatches(true, 0, "Basic ", 0, 6)) {
       String decoded;
       try {
@@ -62,12 +76,16 @@ public class RequestUser {
       String secret = colon < 0 ? "" : decoded.substring(colon + 1);
       // 明確選擇匿名讀取；對所有 world 的授權規則相同，絕不提供寫入權。
       if (req.getRequestURI().startsWith("/git/") && name.equals("anonymous") && secret.isEmpty()) return new Result(null, true, true);
-      var result = throttle.authenticate(name, req, false, () -> {
-        Optional<User> byToken = accounts.authenticateToken(secret);
-        return byToken.isPresent() ? byToken : accounts.authenticatePassword(name, secret);
-      });
+      var pat = accounts.credential(secret);
+      if (pat.isPresent()) {
+        var c = pat.get(); throttle.successful(c.user().id(),req);
+        return new Result(c.user(),true,false,c.scope(),c.kind());
+      }
+      var result = throttle.authenticate(name, req, false, () -> accounts.authenticatePassword(name, secret));
+      result.ifPresent(u -> throttle.successful(u.id(),req));
       return new Result(result.orElse(null), true, false);
     }
+    throttle.authenticate("invalid-header",req,false,Optional::empty);
     return new Result(null, true, false);
   }
 }

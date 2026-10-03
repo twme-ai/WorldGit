@@ -61,6 +61,7 @@ class HubIntegrationTest {
     r.add("worldgit.hub.data-dir", () -> data.toString());
     r.add("worldgit.hub.bootstrap.admin-token", () -> TOKEN);
     r.add("worldgit.hub.bootstrap.admin-password", () -> "test-password-1");
+    HubTestDatabase.configure(r);
   }
 
   @LocalServerPort int port;

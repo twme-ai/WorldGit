@@ -69,7 +69,7 @@ public class HistoryService {
     this.json = json;
   }
 
-  static CommitInfo info(RefStore.Commit c) {
+  public static CommitInfo info(RefStore.Commit c) {
     CommitMetadata m = c.metadata();
     var co = m.contributions().stream().map(x -> x.author().name()).distinct().toList();
     return new CommitInfo(

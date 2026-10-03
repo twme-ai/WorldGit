@@ -146,3 +146,15 @@ diff 中實體以 UUID 對應：新增（綠）、移除（紅）、移動（箭
 
 - 渲染正確性：以固定場景（各種方塊類型的測試世界）在遊戲內截圖，與網頁渲染做比對
 - 效能目標（Phase 0 量測後確定）：例如框選 16×16 chunk 範圍時，首次載入到可操作的時間、幀率、記憶體用量
+
+## 11. Phase 4 協作頁（2026-10-03）
+
+`/{owner}/{world}/pulls` 列表可按 open/merged/closed 篩選與分頁，建立同世界來源→目標 PR；詳情 `/pulls/{id}` 顯示來源 commits（最多 200，另標截斷）、作者／描述／審核數／可合併狀態。3D 與衝突區域沿用 Phase 3 merge-preview，ours/theirs/base/manual 選擇保存到 PR；manual 僅表示未選完，不能在 Hub 上直接編輯方塊。tip 改變清除選擇與審核並提示重新檢查；選擇改變清除審核。核准／要求修改與合併再送 fingerprint，lease 不符回 409，全部符合才呼叫 core 產生整合提交。
+
+留言支援一般文字、回覆、作者／管理者編輯刪除、維度與整數座標／範圍；可點 3D 方塊填座標，也可手動輸入。3D 標記及留言按鈕會聚焦指定 bounds，跨維度切換；`textContent`／DOM text 輸出，惡意 HTML 只顯示文字。座標留言與世界釘選列表 API 可供遊戲端使用。
+
+`/releases` 建立 tag release、`/releases/{id}` 顯示說明與受權限檢查的串流 ZIP 下載；`/settings` 管理世界授權、可見性、分支保護與 webhook／投遞紀錄；全站 `/settings` 是 PAT／OAuth 連結（組織／團隊管理走 REST），`/notifications` 顯示事件並標已讀。表單依後端角色與 scope 授權，前端按鈕不作為安全邊界。fork／squash／rebase、一般 compare 的並排與時間軸仍未提供。
+
+瀏覽器本機與 OAuth 登入使用 HttpOnly、SameSite=Lax 的 JSESSIONID，每次登入換 session id；前端不保存 bearer/PAT 到 localStorage，寫入送 X-XSRF-TOKEN。Playwright 可重跑流程在 `hub/web/scripts/phase4-acceptance.mjs`，完整 Hub／CLI／Paper 編排在 `hub/scripts/phase4-acceptance.sh`；涵蓋登入、PR 建立／跨帳號審核、衝突選擇重載、座標聚焦、XSS 文字、合併、release 下載與 CSP。
+
+最後結果：1.21.11／26.2 共 10 次瀏覽器流程全部通過，CSP violation 與 JS／console error 皆 0；lint、26 項前端測試及 build 通過。原始 18 張截圖在 `.work/phase4-hub-e2e-complete/screenshots/`，9 張精選在 `hub/docs/screenshots/phase4/`；結果見 [e2e-results.json](../hub/docs/phase4-security/e2e-results.json) 與 [14 Hub](14-phase4-progress.md#hub)。繁中字型只用於驗收主機，未打包進 Hub。容器映像建置與冒煙已由主對話以 Podman 驗證通過。

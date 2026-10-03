@@ -50,6 +50,7 @@ public class WorldController {
 
   @PostMapping("/worlds")
   Map<String, Object> create(HttpServletRequest req, @RequestBody NewWorld body) {
+    access.scope(req,"write");
     User u = access.requireUser(req);
     String owner = body.owner() == null || body.owner().isBlank() ? u.username() : body.owner();
     return worldJson(accounts.createWorld(u, owner, body.name(), body.displayName(), body.description(), Boolean.TRUE.equals(body.isPublic()))
@@ -63,7 +64,7 @@ public class WorldController {
     m.put("dimensions", history.dimensions(w));
     var page = history.snapshots(w, 1, null, true);
     m.put("latest", page.snapshots().isEmpty() ? null : page.snapshots().get(0));
-    m.put("role", accounts.roleOn(access.optionalUser(req), w).name().toLowerCase(Locale.ROOT));
+    m.put("role", accounts.roleOn(access.optionalUser(req), w).api());
     return m;
   }
 

@@ -1,4 +1,4 @@
-# 14 — Phase 4 遠端協作：core／CLI 進度
+# 14 — Phase 4 遠端協作：core／CLI／Hub 進度
 
 日期：2026-10-03。範圍是 Phase 4 任務 1，基於 main `6f84654`；未 commit／push WorldGit 自身，也未修改 experiments。本文件記錄 core／CLI 的完成範圍與後續 Hub／Paper／Fabric 接線契約。新決定見 [09](09-roadmap-open-questions.md) #75–#82。
 
@@ -167,3 +167,79 @@ flock .work/bench.lock ./gradlew build --no-daemon --configure-on-demand --max-w
 - SSH、region sparse/partial、manifest 認證、GitHub/Gitea 真實服務、WAN/斷線任意時點 fuzz、受保護分支實際 PR REST 流程未測/未實作。core force-with-lease 已測，但 Hub 現有非 FF 政策仍可拒絕；保護政策不在此次改動範圍。
 - modified-only 平台持久蒐集與「真正新自然地形生成後」實機測試未接；core sparse clone 的完整 seed/worldgen 及收到新 chunk 的 FF 驗證已測。資料包的外部模組/資源包、玩家進度不隨 ZIP 還原。
 - ZIP 是串流壓縮輸出，仍需有界 Anvil 暫存，不是完全無磁碟串流；一個 region 套用/阻塞 caller stream 沒有硬 deadline。pack stages 需保留，會增加 refs/小型合成 objects 與 HTTP requests；自架 Hub 限流目前需要部署者評估。
+
+## Hub
+
+日期：2026-10-03。Phase 4 任務 2 接續既有未 commit 的工作樹；主要在 hub/，core 補向後相容的 merge 額外 trailers、ZIP 固定 commit map overload 與保留空維度目錄。Paper／Fabric／experiments 未改動，WorldGit 自身未 commit／push。新決定 #83–#91 見 docs/09；API／設定詳見 [Hub README](../hub/README.md)，審查見 [Phase 4 安全紀錄](../hub/docs/security-review-phase4-2026-10-03.md)。本章更新較上方「任務 1」歷史記錄晚；上方的 Hub 未完成／限流問題以本章最新狀態為準。
+
+### 完成項目
+
+- 本機帳號、三種可選 OAuth2 client、明確連結／解除、mock provider state/PKCE 測試；預設關閉自助註冊，啟用後 SMTP 信箱驗證／一次兌換與 IP 限流。
+- owner/admin/write/read、組織／成員／團隊、個人與同組織團隊授權、公開／私人世界、PAT read/write/admin／到期／最後使用；REST 與 Git 雙重 scope／角色檢查。
+- 認證限流只扣失敗：成功 Basic/Bearer PAT 另走預設 6000 次/60 秒 IP／使用者額度；完整傳輸不提高 attempts，錯誤認證仍被鎖。
+- 世界可選受保護分支：禁止 force/delete、PR-only／審核數，owner/admin 沒有 bypass；保護 publication 不能宣告與任一維度 head 不符的內容；blob/tree tag 明確拒絕。
+- 同世界 PR 建立／列表篩選／詳情／編輯／closed、commit 列表／3D diff、持久區域選擇與全維度 tip fingerprint、approve/request-changes、審核 gate、最後 lease、core snapshot/HUB/trailers/journal/publication 合併。合併競爭與 DB finalize 恢復，事件／通知與 outbox。
+- 一般留言／回覆／編刪／座標或範圍釘選、3D 標記聚焦、世界／PR／維度留言 REST，XSS 當純文字。
+- tag release 固定全維度 commits、core 串流 ZIP／暫存／時間／解析預算／並行許可、private,no-store、沒有 ZIP 快取。
+- 每世界 webhook 設定、HMAC-SHA256、重試／持久投遞紀錄、精確 allowlist／預設 SSRF 拒絕／DNS socket pinning／禁止 redirect。
+- 瀏覽器 HttpOnly session＋CSRF、不保存 token 到 localStorage；前端安全 lint、Playwright 流程與自持 bench.lock 的 CLI／Paper 腳本；協作 JSON 錯誤／分頁／大小預算。
+
+### 給 Paper／Fabric 接手的 REST 與 webhook
+
+所有端點以 `/api/v1` 起頭，世界為 `/worlds/{owner}/{world}`。建議 PAT Bearer，scope 與角色同時檢查；私人不可讀／不存在／跨世界子 id 一律 404。列表 `{items,offset,limit,hasMore}`，limit 1–100／預設 50，offset 0–10000。
+
+| 遊戲功能 | REST |
+|---|---|
+| 建立／列表／查看 PR | POST/GET `…/pulls`；GET `…/pulls/{id}`。建立 body=source,target,title,description；詳情含 pr、preview、choices、reviews、mergeability、commit 列表 |
+| 座標留言 | GET `…/comments?pinned=true&pr={id}&dimension=minecraft:overworld`；filters 可省略；pin 含 dimension,x,y,z 與可選 maxX/Y/Z |
+| 留言／回覆 | POST `…/pulls/{id}/comments`：body,parentId,pin；PATCH/DELETE `…/comments/{id}`；讀世界的登入者可留言，PAT 需 write，編刪限作者或 admin |
+| 合併／審核 | POST `…/pulls/{id}/reviews`：fingerprint,decision；PUT `…/pulls/{id}/choices`：fingerprint,choices；POST `…/pulls/{id}/merge`：fingerprint；舊 tip 回 409 |
+| releases | GET `…/releases`、`…/releases/{id}`、`…/releases/{id}/zip`；ZIP 由 reader 授權，建立需 writer |
+| webhook 管理 | GET/POST `…/webhooks`、PUT/DELETE `…/webhooks/{id}`、GET `…/webhooks/{id}/deliveries`，admin 角色＋admin scope |
+
+webhook 原始 UTF-8 JSON body：`id,event,at,world:{owner,name},data`。`X-WorldGit-Signature-256=sha256=<hex>`，以 secret HMAC-SHA256 並 constant-time 驗證；`X-WorldGit-Delivery` 穩定 UUID，按 id 去重，`X-WorldGit-Attempt` 從 1 起，同 delivery body 不變。2xx 成功，其餘最多 5 次退避；預設 30/60/120/240 秒，60 秒 worker lease；管理列表不回 secret。
+
+`pr.merged` 的 data 有 pr,number,target,snapshot,commits；`push` 的 data 有 dimension,ref,old,new，逐維度事件不能當成完整 publication。收通知→背景 fetch 驗全組 publication→提示「main 有新版本」→玩家明確 pull 才走 live coordinator，不得自動 apply。只有 PR merge 發 pr.merged，沒有經 Git receive 所以不另發 push。此次不提供 Paper／Fabric 的遊戲內 remote 或 PR 指令。
+
+### 驗收與證據
+
+第四輪已讀取前輪背景程序全部結束後的結果，保留最新實作與測試，沒有重複啟動已通過的驗收。最後執行結果與原始 log／來源檔案 SHA-256 整理於 [acceptance.json](../hub/docs/phase4-security/acceptance.json)。以下時間均為 2026-10-03 UTC。
+
+| 驗收 | 實際結果與證據 |
+|---|---|
+| SQLite 後端 | 13 suites／58 tests，失敗、錯誤、略過皆 0；12:49 完成。`.work/phase4-hub-sqlite-complete.log`／`-sqlite-complete-results/`；可攜摘要 [sqlite-tests.json](../hub/docs/phase4-security/sqlite-tests.json) |
+| PostgreSQL 16 後端 | 測試容器 127.0.0.1:55432、每 context 獨立 schema；13 suites／58 tests，失敗、錯誤、略過皆 0；12:43 完成。`.work/phase4-hub-pg-complete.log`／`-pg-complete-results/`；摘要 [postgres-tests.json](../hub/docs/phase4-security/postgres-tests.json)，不含連線秘密 |
+| 完整 `./gradlew build` | 12:47 的 build 成功（4 分 50 秒），12:49 最後 build 成功（19 秒）；最後 XML 共 237 tests，失敗、錯誤、略過皆 0，含 core 95／Hub 58／Paper common 22／Fabric logic 40。`.work/phase4-hub-build-verified.log`、`-build-complete.log`；兩版平台編譯亦通過 |
+| hub-web | lint／26 tests／build 通過；12:43 完成。`.work/phase4-hub-web-{lint,test,build}-verified.log` |
+| CLI／網頁 PR／Paper | 1.21.11 與 26.2 各完成雙使用者（owner／write）、真三維度 clone/edit/push、受保護 main 的審核與網頁合併、無衝突／衝突區域選擇後 pull、全維度 heads 與 PR 結果相同。每版 clean／conflict／release 各開真 Paper，6 次離線 verify 均 COMPLETE、已追蹤內容差異 0、伺服器 errors 0；baseline 原件未變 |
+| Playwright／release ZIP | 兩版共 10 次瀏覽器流程，登入、建立 PR、跨帳號審核、衝突選擇保存／重載、座標聚焦、HTML 注入當純文字、合併、release 下載通過；CSP violation 0、JS／console error 0。ZIP 解壓後直接開 Paper；保留空維度、沒有玩家／session／歷史 |
+| 供應鏈 | 實際 jar 70 個 Maven 座標的 OSV 版本命中 0（WorldGit 自身 2 個 jar 無 advisory coordinate），npm 生產／開發依賴 audit 皆 0；證據 [osv-packaged.json](../hub/docs/phase4-security/osv-packaged.json)、[npm-audit.json](../hub/docs/phase4-security/npm-audit.json) |
+| 容器映像／冒煙 | 通過。Codex 沙盒因 `cannot write uid_map` 無法建置；主對話於 2026-10-03 17:00 UTC 補驗：`podman build --format docker -f hub/Containerfile .` 成功，`hub/scripts/container-smoke.sh`（SQLite）與 `DB=postgres`（postgres:16-alpine）冒煙皆通過（log：`.work/claude-p4hub-smoke-{sqlite,pg}.log`）；主對話另以目前 jar 重跑完整端到端（`.work/phase4-hub-claude/`，兩版 PASS、10 次瀏覽器流程 error 0）。 |
+
+端到端於 12:22 凍結 jar、12:41 完成；完整原始結果、CLI／Hub／Paper logs、18 張原始截圖與 artifact hashes 在 `.work/phase4-hub-e2e-complete/`，成功 log 為 `.work/phase4-hub-e2e-complete.log`。可攜結果見 [e2e-results.json](../hub/docs/phase4-security/e2e-results.json)。此後完成的 webhook response close 與組織 owner 並行撤權安全修正由上述最後 SQLite／PostgreSQL 全套回歸及 build 覆蓋；端到端 frozen hash 不代表最後重新建置的 jar。第四輪只補文件與證據，不再改動執行程式。
+
+Paper 26.2 在 Nether／End 各新生成 1 個未追蹤 chunk，verify 報告 `untrackedKept=1`；依 #29 保留，其他已追蹤方塊／實體／metadata 差異皆 0。沒有從驗證中排除 DragonFight 或其他已追蹤欄位。本次使用受控平坦場景、凍結 tick 與固定 gamerules，不能代表大型自然世界或線上玩家負載。
+
+精選截圖在 `hub/docs/screenshots/phase4/`：兩版 `*-clean-pr.jpg`、`*-conflict-pr.jpg`、`*-conflict-merged.jpg`、`*-release.jpg`，另保留 `1.21.11-merged.jpg`；共 9 張。端到端 finally 已關閉 Hub／瀏覽器／Paper，刪除大型世界、server、jar、hub-data 與含秘密的暫存設定；本輪未留下修改檔案的背景程序。測試 PostgreSQL 由主對話管理，未停止。
+
+### 失敗與修正
+
+| 執行／發現 | 處理 |
+|---|---|
+| 前兩輪編譯／啟動：歷史摘要非 public、Spring bean 同名、PR trailer 命名不合 core 規範 | 公開向後相容入口、修正 filter bean 名稱、使用 WorldGit-Merge-PR；保留原 log |
+| e2e-r1/r3 release 下載：一般 API 100 萬 NBT nodes 阻擋完整世界，ZIP content type 令錯誤 Map 變 500 | downloads.limits 獨立有限解析預算、未串流錯誤回 JSON 413 並保留安全標頭，補 scope／converter 回歸 |
+| SQLite-r3：新增回歸仍期待 null Content-Type，但修補已清楚設 JSON | 改斷言 JSON 與無下載檔名，再重跑整個 suite |
+| e2e-r4 ZIP 成功後驗收腳本把 init 回應當作有 state 欄位 | 依實際 snapshot/dimensions/value/error 檢查，沒有放寬 Paper verify |
+| e2e-r5／final：release ZIP 缺空維度目錄，Paper 把終界當新世界並重建 DragonFight.Gateways | ZIP 加入 deterministic directory entries，兩格式回歸確認解壓維度完整；保留逐欄位診斷與完整 Paper verify，沒有忽略 DragonFight |
+| 安全複查：兩位組織 owner 同時撤掉自己可繞過 COUNT 檢查 | transaction 首個 SQL 取得 owners 寫入鎖，在鎖後驗授權與最後 owner；新增雙 HTTP 並行撤權回歸 |
+| 依賴 OSV 命中 HTTP Client/Core 與 Log4j API 的 4 筆版本 advisory | 加入修復版 strict constraints／BOM 並重驗實際打包版本，原始掃描與公告留存 |
+| Webhook review：HTTP client GRACEFUL close 可能排空無界 response body | status 後 IMMEDIATE 丟棄連線；新增持續 body 測試驗 3 秒內成功且對端斷線 |
+| 容器 build 與 smoke：cannot write uid_map, operation not permitted | 沙盒禁止 UID namespace，沒有提升權限／停止既有測試 PG；保留真失敗 log；改由主對話在沙盒外建置與冒煙，通過 |
+
+### 未完成事項與實際界線
+
+- fork PR、squash／rebase、Hub manual 方塊編輯、S3／多實例共享鎖／配額／session／限流未提供；原有一般 compare／歷史 reader 尚未全面檢查 publication，PR／merge／release 檢查完整 snapshot，PR 另檢查 publication。
+- 公開註冊的保留字／冒充／檢舉、重寄／帳號恢復、跨 IP 治理與 bootstrap 政策仍需完成；OAuth 未知 subject 須先建立本機帳號再明確連結，不依第三方 email 自動建／合併。
+- ZIP 不是無磁碟串流；單 region 套用／阻塞 socket、webhook DNS lookup 沒有硬 deadline，部署需 proxy timeout。ZIP 與單 owner 寫入共鎖，慢下載可阻擋該 owner；沒有公平隊列。
+- webhook secret 需明文保存在 DB 以計簽章；events/notifications/deliveries 沒有自動 retention／dead-letter 管理。遊戲端驗簽／去重／fetch 提示與明確 pull 由下一個平台任務接。
+- 真第三方 OAuth／TLS 公開部署、Docker 引擎／arm64／GitHub CI 實跑、任意時點 kill/fuzz 未驗證。容器映像建置與冒煙已由主對話在 Podman 驗證（Docker 引擎未測）。

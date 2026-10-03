@@ -142,6 +142,13 @@ public final class BareWorldMerge implements AutoCloseable {
       String message,
       boolean dryRun)
       throws IOException {
+    return merge(expected, choices, distance, author, message, dryRun, Map.of());
+  }
+
+  /** Hub 可附加關聯 trailer（例如 WorldGit-Merge-PR），既有入口完全相容。 */
+  public Result merge(Preview expected, Map<Integer, MergeReport.Choice> choices, int distance,
+      CommitMetadata.Identity author, String message, boolean dryRun, Map<String, String> trailers)
+      throws IOException {
     if (distance != expected.distance()) throw new IOException("合併區域距離已改變；請重新 preview");
     var fresh = preview(expected.oursBranch(), expected.theirsBranch(), distance);
     for (var e : expected.dimensions().entrySet()) {
@@ -233,19 +240,11 @@ public final class BareWorldMerge implements AutoCloseable {
       var parents = new ArrayList<String>();
       parents.add(c.ours());
       if (!c.ours().equals(c.theirs())) parents.add(c.theirs());
-      String id =
-          repo.refs()
-              .createCommit(
-                  e.getValue(),
-                  parents,
-                  m,
-                  Map.of(
-                      "WorldGit-Merge-Source",
-                      fresh.theirsBranch(),
-                      "WorldGit-Merge-Ours",
-                      c.ours(),
-                      "WorldGit-Merge-Theirs",
-                      c.theirs()));
+      var extra = new TreeMap<String, String>(trailers);
+      extra.put("WorldGit-Merge-Source", fresh.theirsBranch());
+      extra.put("WorldGit-Merge-Ours", c.ours());
+      extra.put("WorldGit-Merge-Theirs", c.theirs());
+      String id = repo.refs().createCommit(e.getValue(), parents, m, extra);
       commits.put(e.getKey(), id);
       change(changes, e.getKey(), "refs/heads/" + fresh.oursBranch(), c.ours(), id);
       change(changes, e.getKey(), "refs/worldgit/groups/" + snapshot, null, id);

@@ -237,10 +237,20 @@ public final class WorldAssembler {
   /** 暫存 Anvil 檔，ZIP 逐檔串流至 caller output；不關閉 caller stream。沒有 repo/player/session.lock。 */
   public Result zip(RepositoryGroup group, String revision, OutputStream output, Path tempRoot)
       throws IOException {
+    return zip(group, group.resolve(revision), output, tempRoot);
+  }
+
+  /** 以已授權並固定的全維度 commit map 匯出，不重新解析可能移動的 tag。 */
+  public Result zip(
+      RepositoryGroup group,
+      Map<DimensionId, RefStore.Commit> commits,
+      OutputStream output,
+      Path tempRoot)
+      throws IOException {
     Files.createDirectories(tempRoot);
     Path temp = Files.createTempDirectory(tempRoot, "release-");
     try {
-      var result = assemble(group, group.resolve(revision), temp, null);
+      var result = assemble(group, commits, temp, null);
       var zip =
           new ZipOutputStream(
               new FilterOutputStream(output) {
@@ -271,19 +281,23 @@ public final class WorldAssembler {
               });
       try {
         try (var files = Files.walk(temp)) {
-          for (Path path : files.filter(Files::isRegularFile).sorted().toList()) {
+          for (Path path : files.filter(p -> !p.equals(temp)).sorted().toList()) {
             check(0);
             String name = temp.relativize(path).toString().replace(java.io.File.separatorChar, '/');
             if (name.equals("session.lock")) continue;
+            // 空維度也必須保留；遊戲需辨識它並沿用 level.dat 的生成／終界設定。
+            if (Files.isDirectory(path)) name += "/";
             var entry = new ZipEntry(name);
             entry.setTime(0);
             zip.putNextEntry(entry);
-            try (var in = Files.newInputStream(path)) {
-              byte[] buffer = new byte[65536];
-              int n;
-              while ((n = in.read(buffer)) != -1) {
-                check(0);
-                zip.write(buffer, 0, n);
+            if (Files.isRegularFile(path)) {
+              try (var in = Files.newInputStream(path)) {
+                byte[] buffer = new byte[65536];
+                int n;
+                while ((n = in.read(buffer)) != -1) {
+                  check(0);
+                  zip.write(buffer, 0, n);
+                }
               }
             }
             zip.closeEntry();

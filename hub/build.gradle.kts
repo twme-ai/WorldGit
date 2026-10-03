@@ -17,14 +17,21 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.security:spring-security-crypto")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+    implementation("org.apache.httpcomponents.client5:httpclient5")
     implementation(libs.jgit)
     implementation("org.eclipse.jgit:org.eclipse.jgit.http.server:$jgitVersion")
     implementation(libs.zstd)
+    implementation("org.yaml:snakeyaml")
     implementation("org.xerial:sqlite-jdbc:3.50.3.0")
     // 安全修補：用修復版 BOM 對齊整個 Tomcat／Jackson 家族，避免 Boot BOM 回退。
     implementation(enforcedPlatform("com.fasterxml.jackson:jackson-bom:2.21.7"))
+    implementation(enforcedPlatform("org.apache.logging.log4j:log4j-bom:2.25.5"))
     constraints {
+        implementation("org.apache.httpcomponents.client5:httpclient5") { version { strictly("5.6.3") } }
+        implementation("org.apache.httpcomponents.core5:httpcore5") { version { strictly("5.4.3") } }
+        implementation("org.apache.httpcomponents.core5:httpcore5-h2") { version { strictly("5.4.3") } }
         implementation("org.apache.tomcat.embed:tomcat-embed-core") { version { strictly("10.1.60") } }
         implementation("org.apache.tomcat.embed:tomcat-embed-el") { version { strictly("10.1.60") } }
         implementation("org.apache.tomcat.embed:tomcat-embed-websocket") { version { strictly("10.1.60") } }
@@ -72,4 +79,13 @@ tasks.register<JavaExec>("mergeFixture") {
     mainClass.set("org.worldgit.hub.tools.MergeFixture")
     args(providers.gradleProperty("target").getOrElse(".work/merge-fixture"))
     dependsOn(tasks.testClasses)
+}
+
+// SQLite／PostgreSQL 切換必須重新測試；外部 PostgreSQL 狀態不可沿用 task cache。
+val testDatabaseKind = providers.environmentVariable("WORLDGIT_TEST_POSTGRES_URL")
+    .map { if (it.isBlank()) "sqlite" else "postgres" }.orElse("sqlite")
+tasks.test {
+    inputs.property("testDatabaseKind", testDatabaseKind)
+    outputs.upToDateWhen { testDatabaseKind.get() == "sqlite" }
+    outputs.doNotCacheIf("PostgreSQL 測試資料庫是外部狀態") { testDatabaseKind.get() == "postgres" }
 }

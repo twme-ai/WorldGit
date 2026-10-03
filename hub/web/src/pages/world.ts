@@ -17,6 +17,7 @@ export async function worldPage(root: HTMLElement, owner: string, world: string)
     root.append(h('p', { class: 'empty' }, e instanceof ApiError && e.status === 401 ? h('span', {}, '這是私人世界，請先 ', link('/login', '登入'), '。') : String(e instanceof ApiError ? e.message : e)))
     return dispose
   }
+  root.append(h('nav', { class: 'row' }, link(`/${owner}/${world}/pulls`, 'Pull Requests', 'btn'), link(`/${owner}/${world}/releases`, 'Releases', 'btn'), ['admin', 'owner'].includes((info as { role?: string }).role ?? '') ? link(`/${owner}/${world}/settings`, '權限與 webhook', 'btn') : null))
   const palette = await activePalette()
   const dims: DimensionState[] = info.dimensions ?? []
   let selected = dims.find((d) => d.id === 'minecraft:overworld' && d.head) ?? dims.find((d) => d.head) ?? dims[0]

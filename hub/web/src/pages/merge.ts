@@ -1,25 +1,32 @@
 import { dimLabel, getJson } from '../api.ts'
 import { encodeChoices, mergePath, parseMergeSpec, previewCommit, readChoices, selectionSummary, sortedRegions, type Choice, type MergeDimension, type MergeReport, type MergeSummary, type MergeView, type Region } from '../merge.ts'
 import { activePalette, loadPalettes, paletteChoice, setPaletteChoice } from '../palette.ts'
-import { fmtNum, h, link } from '../ui.ts'
+import { fmtNum, h, link, toast } from '../ui.ts'
 import { Viewer, type ViewState } from '../viewer/viewer.ts'
 import { renderLegend, renderPick, segmented } from './shared.ts'
 
-export async function mergePage(root: HTMLElement, owner: string, world: string, spec: string): Promise<() => void> {
+export interface PullPreview {
+  report: MergeReport
+  choices: Record<number, Choice>
+  onChoices: (choices: Record<number, Choice>) => Promise<void>
+  onPick: (p: { x: number; y: number; z: number } | null, dimension: string) => void
+  onViewer: (viewer: Viewer, dimension: string) => void
+}
+export async function mergePage(root: HTMLElement, owner: string, world: string, spec: string, pull?: PullPreview): Promise<() => void> {
   let viewer: Viewer | null = null, disposed = false, generation = 0
   const dispose = () => { disposed = true; generation++; viewer?.dispose(); viewer = null; if (window.__worldgit) window.__worldgit.viewer = null }
-  const loading = h('p', { class: 'empty' }, '計算唯讀合併預覽…'); root.append(loading)
+  const loading = h('p', { class: 'empty' }, '計算合併預覽…'); root.append(loading)
   const pair = parseMergeSpec(spec)
   if (!pair) { loading.textContent = '網址需為 ours...theirs。'; return dispose }
   const endpoint = `/api/v1/worlds/${owner}/${world}/merge-preview`
   const source = new URLSearchParams({ ours: pair.a, theirs: pair.b })
   try {
-    const report = await getJson<MergeReport>(`${endpoint}?${source}`)
+    const report = pull?.report ?? await getJson<MergeReport>(`${endpoint}?${source}`)
     const palettes = await loadPalettes(); let palette = await activePalette()
     if (disposed) return dispose
     const params = new URLSearchParams(location.search)
-    const choices = readChoices(params.get('choices'), params.get('tips'), report)
-    let mode: MergeView = ['auto', 'ours', 'theirs', 'base', 'selected'].includes(params.get('view') ?? '') ? params.get('view') as MergeView : 'auto'
+    const choices = pull ? new Map<number, Choice>(Object.entries(pull.choices).map(([id, value]) => [Number(id), value])) : readChoices(params.get('choices'), params.get('tips'), report)
+    let mode: MergeView = pull ? 'selected' : ['auto', 'ours', 'theirs', 'base', 'selected'].includes(params.get('view') ?? '') ? params.get('view') as MergeView : 'auto'
     let dim = report.dimensions.find(d => d.dimension === params.get('dim')) ?? report.dimensions.find(d => d.dimension === 'minecraft:overworld') ?? report.dimensions[0]
     let selected = report.regions.find(r => r.id === Number(params.get('region'))) ?? report.regions.find(r => r.dimension === dim?.dimension)
     let filter = params.get('filter') ?? '', sort = params.get('sort') ?? 'id'
@@ -33,9 +40,9 @@ export async function mergePage(root: HTMLElement, owner: string, world: string,
     const rules = h('details', { class: 'card merge-rules' }, h('summary', {}, `規則差異（${report.ruleDifferences.length}）`))
     for (const r of report.ruleDifferences) rules.append(h('h3', {}, dimLabel(r.dimension.value)),
       h('div', { class: 'cols' }, ...(['base', 'ours', 'theirs', 'merged'] as const).map(c => h('div', {}, h('b', {}, c), h('pre', {}, r[c] ?? '規則衝突，無合併結果')))))
-    const stale = params.has('choices') && params.get('tips') !== report.fingerprint
+    const stale = !pull && params.has('choices') && params.get('tips') !== report.fingerprint
     root.replaceChildren(h('div', {}, h('div', { class: 'crumbs' }, link('/', '世界'), ' / ', link(`/${owner}/${world}`, `${owner}/${world}`), ' / ', link(`/${owner}/${world}/branches`, '分支'), ' / 合併預覽'),
-      h('h1', {}, `${pair.a} ← ${pair.b}`), h('p', { class: 'notice' }, '唯讀預覽：選擇只保存在此網址，可複製分享。Phase 4 才會在網頁產生 merge commit。'),
+      h('h1', {}, `${pair.a} ← ${pair.b}`), h('p', { class: 'notice' }, pull ? '區域選擇儲存在此 PR；來源或目標 tip 變動後選擇與審核作廢。' : '唯讀預覽：選擇保存在此網址。要發布結果，請建立 Pull Request。'),
       h('p', { class: 'merge-report' }, report.canMerge ? report.zeroIntervention ? `可零介入合併 · 自動合併 ${fmtNum(report.automaticallyMergedSections)} sections` : `${report.regions.length} 個衝突區域 · 自動合併 ${fmtNum(report.automaticallyMergedSections)} sections` : '無法合併，請先處理下列原因。'),
       ...report.problems.map(p => h('p', { class: 'notice' }, `${dimLabel(p.dimension)} · ${p.reason}`)),
       stale ? h('p', { class: 'notice' }, '來源 tip 已變動，舊選擇已清除，請重新檢查。') : null,
@@ -50,7 +57,7 @@ export async function mergePage(root: HTMLElement, owner: string, world: string,
       selection.textContent = `選擇摘要：ours ${count.ours} · theirs ${count.theirs} · base ${count.base} · 待遊戲內處理 ${count.manual}。待處理區域暫顯示 ours，尚未解決。`
     }
     const save = () => {
-      if (disposed) return
+      if (disposed || pull) return
       const q = new URLSearchParams({ tips: report.fingerprint, view: mode, sort })
       if (dim) q.set('dim', dim.dimension)
       if (selected) q.set('region', String(selected.id))
@@ -75,8 +82,12 @@ export async function mergePage(root: HTMLElement, owner: string, world: string,
         h('p', { class: 'small' }, r.bounds ? `(${r.bounds.minX}, ${r.bounds.minY}, ${r.bounds.minZ}) ～ (${r.bounds.maxX}, ${r.bounds.maxY}, ${r.bounds.maxZ})` : '設定／metadata（無空間位置）'),
         h('p', { class: 'small muted' }, `ours：${r.oursAuthors.join('、')}\ntheirs：${r.theirsAuthors.join('、')}`),
         h('p', { class: 'small muted' }, `${Object.entries(r.kinds).map(([k, v]) => `${k} ${v}`).join(' · ')} · 交界提示 ${r.boundaryHints}${r.redstone ? ' · 含紅石，建議測試' : ''}`),
-        h('label', {}, '區域選擇', h('select', { 'aria-label': `區域 ${r.id} 選擇`, onChange: (e: Event) => {
-          choices.set(r.id, (e.target as HTMLSelectElement).value as Choice); mode = 'selected'; updateSelection(); show(); save()
+        h('label', {}, '區域選擇', h('select', { 'aria-label': `區域 ${r.id} 選擇`, onChange: async (e: Event) => {
+          const select = e.target as HTMLSelectElement, previous = choices.get(r.id)
+          select.disabled = true; choices.set(r.id, select.value as Choice)
+          try { if (pull) await pull.onChoices(Object.fromEntries(choices)); mode = 'selected'; updateSelection(); show(); save() }
+          catch (error) { if (previous) choices.set(r.id, previous); else choices.delete(r.id); select.value = previous ?? 'manual'; toast(String(error), 'error') }
+          finally { select.disabled = false }
         } }, ...[['manual', '待遊戲內處理'], ['ours', 'ours'], ['theirs', 'theirs'], ['base', 'base']].map(([v, label]) => h('option', { value: v, selected: (choices.get(r.id) ?? 'manual') === v }, label)))))))
       if (!rows.length) list.append(h('p', { class: 'empty' }, report.regions.length ? '此維度沒有衝突區域。' : '沒有衝突，可零介入合併。'))
     }
@@ -102,7 +113,8 @@ export async function mergePage(root: HTMLElement, owner: string, world: string,
         detail: { commit: previewCommit(d), parent: d.base, initial: false, added: 0, removed: 0, modified: 0, chunkCount: 1, sectionCount: 0, entitiesAdded: 0, entitiesRemoved: 0, entitiesModified: 0,
           entityChanges: [], changedChunks: [[d.bounds[0], d.bounds[1], 0, 0, 0, 0]], bounds: d.bounds, metadataChanges: [], mcVersion: d.mcVersion } })
       window.__worldgit = { viewer }; boxes()
-      viewer.onPick = p => renderPick(pick, p)
+      viewer.onPick = p => { renderPick(pick, p); pull?.onPick(p, d.dimension) }
+      pull?.onViewer(viewer, d.dimension)
       viewer.onStats = s => { hud.textContent = `${s.ready ? '就緒' : '載入中…'} · ${dimLabel(d.dimension)} · ${mode}\nchunks ${s.chunks} · sections ${s.sectionsMeshed} · GPU ${s.gpuMB.toFixed(1)} MB` }
       viewer.onViewChange = v => { camera = v; save() }
       viewer.onError = message => { if (current === generation && !disposed) hud.textContent = message }

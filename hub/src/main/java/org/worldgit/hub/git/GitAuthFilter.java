@@ -22,14 +22,16 @@ public class GitAuthFilter extends OncePerRequestFilter {
   private final boolean autoCreate;
   private final OwnerQuota quota;
   private final RepoStorage storage;
+  private final org.worldgit.hub.collaboration.PullRequests prs;
   static final String ATTR_ACCEPTED = GitAuthFilter.class.getName() + ".accepted";
 
-  public GitAuthFilter(AccountService accounts, RequestUser requestUser, boolean autoCreate, OwnerQuota quota, RepoStorage storage) {
+  public GitAuthFilter(AccountService accounts, RequestUser requestUser, boolean autoCreate, OwnerQuota quota, RepoStorage storage, org.worldgit.hub.collaboration.PullRequests prs) {
     this.accounts = accounts;
     this.requestUser = requestUser;
     this.autoCreate = autoCreate;
     this.quota = quota;
     this.storage = storage;
+    this.prs = prs;
   }
 
   static boolean isPush(HttpServletRequest req) {
@@ -61,6 +63,7 @@ public class GitAuthFilter extends OncePerRequestFilter {
       return;
     }
     User user = auth.user();
+    if (auth.kind().equals("SESSION")) { challenge(res); return; }
     boolean push = isPush(req);
     var world = accounts.findWorld(ref.owner(), ref.world());
     if (world.isEmpty()) {
@@ -85,6 +88,9 @@ public class GitAuthFilter extends OncePerRequestFilter {
         return;
       }
     }
+    if (!auth.permits(push ? "write" : "read")) {
+      reject(res,403,"PAT scope 不足，需要 write"); return;
+    }
     req.setAttribute(ATTR_REF, ref);
     req.setAttribute(ATTR_USER, user);
     if (!push) { chain.doFilter(req, res); return; }
@@ -97,6 +103,7 @@ public class GitAuthFilter extends OncePerRequestFilter {
     }
     var repoPath = storage.repoPath(ref.owner(), ref.world(), ref.dimension());
     try {
+      if(world.isPresent()) prs.reconcile(world.get());
       long remaining = quota.remaining(ref.owner());
       if (remaining == 0 || !storage.exists(ref.owner(), ref.world(), ref.dimension()) && remaining < 4096) {
         reject(res, 413, quota.message()); return;
