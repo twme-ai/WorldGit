@@ -167,7 +167,7 @@ Hub 必須先處理 snapshot 配對、DataVersion／DataPacks、`IgnoreRuleMerge
 ### 限制與未完成
 
 - 真 Paper／Folia 對接與畫面證據已追加獨立驗收流程，見下方「Fabric ↔ Paper 實機對接」。
-- Fabric 自有合併寫入仍只支援單人世界；專用 Fabric 伺服器無合併指令。Paper／Folia 已新增 `conflict-select`，支援者可在遠端 UI 使用 Set blocks；舊版依能力公告停用並顯示原因。
+- 本節初輪僅支援單人；追加任務已開放專用 Fabric 伺服器寫入，見下方「Fabric 專用伺服器」。Paper／Folia 已新增 `conflict-select`，支援者可在遠端 UI 使用 Set blocks；舊版依能力公告停用並顯示原因。
 - 作者欄位是 commit 身分（單人世界自動／手動提交都是 `WorldGit Server`），不是逐格 blame。
 - 疊圖沿用 Phase 2 的鬼影管線：固定光照、無透明面排序、不畫 block entity renderer；超大區域依既有 LOD 退成外框。未做 Sodium／Iris／硬體 GPU 驗收，200 區域的傳輸、分頁與重連納入追加驗收，但沒有量測大量區域的真 GPU 效能；清單分頁為每頁依視窗高度。
 - 交界提示（updateShapes）以區域包圍盒外擴 1 格歸屬；只在選擇會改變 theirs 內容時才非空，預設 ours 時為 0。僅供檢查，不自動處理（#46）。
@@ -387,3 +387,56 @@ Fabric 單人 Phase 3 兩版均 `success=true`，最終各 2 個 parent、衝突
 - 後續 Paper 兩版在 continue／傳送後準備 200 區域時，正確被 dirty 檢查擋下。唯讀 diff 確認只有兩個 oak_door item 被玩家撿走（方塊、biome、metadata 皆無差異），來源是 fixture 拆門時的 vanilla 鄰居更新；已在變體建立後清除掉落物。`.work/interop-dirty-diff26.json` 與 `.work/interop-dirty-live26.json` 保留定位證據。這些輪不算通過。
 - 26.2 將 Minecraft 的畫面入口移到 `gui.screen()`，共用 GameTest 最初編譯失敗，已加薄轉接；i18n 新增鍵最初未登記 MessageKeys，測試失敗後已修正。Paper preview 在非 MERGING／queued tool 在合併結束後的空值也已補檢查；Paper 一般錯誤統一使用 `common.error` MiniMessage，便於使用者與驗收識別。
 - Ghost 完整接收 BE，但仍不繪製特殊 BE renderer；未增加 entity／biome 模型。200 區域測的是實際分片、清單與重連正確性，不宣稱任意世界／區域數的 FPS 或 TPS。舊 Paper 的 select 能力判斷由單元測試驗證，沒有另啟一台舊版插件伺服器。Sodium／Iris／硬體 GPU 等既有限制保持。
+
+## Fabric 專用伺服器
+
+日期：2026-10-03。接續 cf10727／aa9c770，決定 #71–#74；不 commit／push、不修改 experiments/。
+
+已移除 WgCommands／ServerRuntime 的單人寫入限制；專用伺服器沿用 core live coordinator、精確 atoms、局部 capture／verify、MERGING WAL 與 #46 快照 state。新增 Paper resolve 位置參數、select all／manual、console 局部 restore、有／無玩家 ApplyBudget、批量動作與 console 指令屏障、握手後 durable 清單推送、MERGING 恢復／bossbar 與完成廣播。玩家保護沿用操作全程＋10 秒，登出清理 viewer／bossbar，#60 自動 commit 跳過維持。
+
+新增 `fabric/tools/accept-dedicated.py` 與獨立 fixture mod；真正 Fabric Loader 專用伺服器＋Xvfb／llvmpipe 客戶端，第二位能力 viewer 用實際 Minecraft TCP 連線驗證清單同步。完整 section hashes、固定候選 state／BE 與 durable MergeState 對照，包含 switch／stash／reset／console box restore、乾淨 merge／兩 parent、Ghost／Set blocks／Resolve／continue、abort、patch、MERGING 重啟、批量鎖與玩家傷害、1,000 chunk merge tick probe、區域切換及截圖。
+
+兩版完整專用伺服器驗收均通過，各 44 項檢查；兩版 Fabric 單人 Phase 2／Phase 3，以及 Paper／Folia 四組 Phase 3 回歸也全部完成並通過。
+
+| Fabric 專用伺服器 | 檢查／離線 verify | 1,000 chunk merge | 平均 TPS／p99／最大 tick 間隔 | 區域切換中位數／最慢 | 結果證據 |
+|---|---|---|---|---|---|
+| 1.21.11 | PASS，44 項；COMPLETE，0 差異 | 169.91 秒，2 parent | 20.00／54.65 ms／1,693.27 ms | 0.701／0.801 秒 | `.work/fabric-acceptance/dedicated-fabric-1.21.11-20261003-013318/result.json` |
+| 26.2 | PASS，44 項；COMPLETE，0 差異 | 165.89 秒，2 parent | 20.00／54.30 ms／1,610.13 ms | 0.702／0.811 秒 | `.work/fabric-acceptance/dedicated-fabric-26.2-20261003-020439/result.json` |
+
+兩版 client／server exit=0、server exception=0，25701／25711 與 25702／25712 均已關閉。正式模組 SHA-256：1.21.11 `7fdd5340da6deb76a3b4feacd064773f40636f170cc65273139edde41a298561`；26.2 `7d531da20ece5f91d8c27bc40860ddc02d8cc11ce5e647c58da36f3f71f74a52`。八張原始截圖另保存至 [`fabric/docs/screenshots/dedicated/`](../fabric/docs/screenshots/dedicated/README.md)。
+
+區域延遲量測 6 次 ours／theirs／base，使用 monotonic clock，包含 console 驅動等待完成訊息及 0.3 秒輸出收集；完整 section state 均與快照相同。1,000 chunk 使用兩個分支在各 chunk 不同位置的修改，真正套用及建立 merge commit，玩家在線；tick probe 記錄伺服器主迴圈。驗收使用受控平坦世界及 WorldGit 套用期間的世界 tick freeze，不能推論大型自然世界的生物／紅石吞吐量。fixture 建立／大量載入期間的原版「Can't keep up」警告保留在 raw log，不列為合併期間的量測。
+
+完整 build 第一次通過：`BUILD SUCCESSFUL in 18s`，77 tasks（6 executed、71 up-to-date），log `.work/fabric-dedicated-regression-build.log`。全部實機回歸後，05:03 UTC 的最後 `./gradlew --no-daemon --configure-on-demand --max-workers=1 build` 也通過：`BUILD SUCCESSFUL in 15s`，77 tasks（1 executed、76 up-to-date），log `.work/fabric-dedicated-regression-final-build.log`。兩次均持有 bench.lock，使用 `GRADLE_USER_HOME=.work/gradle-home`。單元測試共 199 tests，0 failure／error／skip；模組彙整 `.work/fabric-dedicated-unit-summary.json`。
+
+| 既有回歸 | 結果 | 證據 |
+|---|---|---|
+| Fabric 單人 Phase 2，1.21.11 | PASS；preview 與 CLI 相同、檢查點離線 verify=0 | `.work/fabric-acceptance/phase2-1.21.11-20261003-024727/result.json` |
+| Fabric 單人 Phase 2，26.2 | PASS；preview 與 CLI 相同、檢查點離線 verify=0 | `.work/fabric-acceptance/phase2-26.2-20261003-030209/result.json` |
+| Fabric 單人 Phase 3，1.21.11 | PASS；最後 2 parent、CLI 清單一致、離線 verify=0 | `.work/fabric-acceptance/phase3-1.21.11-20261003-030944/result.json` |
+| Fabric 單人 Phase 3，26.2 | PASS；最後 2 parent、CLI 清單一致、離線 verify=0 | `.work/fabric-acceptance/phase3-26.2-20261003-031726/result.json` |
+| Paper Phase 3，1.21.11 | PASS，90 項；最終完整 verify=0、實體無重複 | `.work/paper-phase3/paper-1.21.11-1790997467/results.json` |
+| Paper Phase 3，26.2 | PASS，90 項；最終完整 verify=0、實體無重複 | `.work/paper-phase3/paper-26.2-1790999376/results.json` |
+| Folia Phase 3，1.21.11 | PASS，90 項；最終完整 verify=0、實體無重複 | `.work/paper-phase3/folia-1.21.11-1791000925/results.json` |
+| Folia Phase 3，26.2 | PASS，90 項；最終完整 verify=0、實體無重複 | `.work/paper-phase3/folia-26.2-1791002486/results.json` |
+
+四組 Paper／Folia 回歸 server problem_lines=0，使用同一份 plugin SHA-256 `206a7c52aa17ada2cac67decc10c339b0fae4647f78afed0684b4e703b643dec`。本輪量測如下，單次、玩家在線、受控平坦世界與 frozen tick；Folia probe 只代表出生點 owner。
+
+| 回歸平台 | 1,000 chunk merge（秒） | TPS／p99／最大 tick 間隔（ms） | 小區域中位數／最慢（秒） | 200 區域單區中位數／最慢（秒） |
+|---|---:|---|---|---|
+| Paper 1.21.11 | 167.79 | 19.86／60.1／1,464.5 | 0.956／4.535 | 0.701／0.701 |
+| Paper 26.2 | 152.62 | 19.98／54.7／453.8 | 0.803／1.707 | 0.701／0.710 |
+| Folia 1.21.11 | 129.46 | 19.97／53.0／423.5 | 0.855／1.806 | 0.601／0.701 |
+| Folia 26.2 | 116.00 | 19.96／54.7／414.5 | 0.801／1.605 | 0.651／0.702 |
+
+區域切換每組各 6 次，中位數均 ≤2 秒；Paper 1.21.11 有一次 4.535 秒的樣本，沒有把中位數目標當作所有操作的延遲上限。兩版 Fabric 單人 Phase 3 的最後提交各有 2 個 parent、CLI 清單一致，各檢查點離線 verify=0。專用伺服器正式 jar 的 SHA-256 與接續時工作樹的 build 產物相同，沒有為補文件重跑已完成的實機驗收。
+
+上一輪於 04:06 UTC 因用量限制停止主對話，回歸佇列繼續執行：Paper 26.2 於 04:15:25、Folia 1.21.11 於 04:41:25、Folia 26.2 於 05:03:41 正常完成，再完成最後 build。接續時依 result.json、逐項檢查及佇列 exit=0 確認通過。佇列紀錄 `.work/fabric-dedicated-regressions.json`，接續核對彙整 `.work/fabric-dedicated-completion-summary.json`。
+
+首次 1.21.11 完整驗收已通過 Phase 2，但批量鎖測試遇到 Minecraft 指令錯誤後逾時；該輪列為失敗，證據 `.work/fabric-acceptance/dedicated-fabric-1.21.11-20261003-011716/result.json`。獨立重現確認 Mixin 不允許從 Minecraft 注入程式呼叫 mixin package 內的一般 helper（`IllegalClassLoadError`）；已移到公開的 `org.worldgit.fabric.EditGuard`。修正後真專用伺服器的直接寫入／鎖外寫入／活塞／爆炸／肥料／console 屏障及 tick stepping 恢復全部通過，log `.work/dedicated-guard-1.21.11-1790991082/server-013146.log`。這個快速檢查只作修正證據，完整驗收仍以後續 result.json 為準。
+
+26.2 第一輪在啟動前因 `Overworld settings missing` 退出，沒有任何驗收檢查；證據 `.work/fabric-acceptance/dedicated-fabric-26.2-20261003-020131/result.json`。Paper 平坦 fixture 的生成設定／規則位於維度目錄，vanilla 26.2 需要世界根目錄的 shared saved-data。驗收驅動只在測試副本補入既有 Fabric baseline 的根目錄生成設定，以及平坦 fixture 的安靜規則；不修改原始 fixture 或正式套用／追蹤規則。
+
+預先啟動、等待專用伺服器結果的回歸佇列以 exit 143 結束，尚未執行任何回歸工作；已保存 `.work/fabric-dedicated-regression-wait-interrupted.json`，並在兩版專用伺服器正常完成後重新啟動。未把等待程序退出視為回歸通過。
+
+收尾核對：八張精選 PNG 與驗收原始 framebuffer 的 SHA-256 相同，合計 924,747 bytes；正式 Fabric jar 不含 DedicatedServerFixture 或 GameTest 類別。本輪使用的專用伺服器及 Paper／Folia Phase 3 server/world 副本均已移除，25701–25714 已關閉，bench.lock 可取得，無執行中的 server／client／bot／Xvfb。新建或修改的中間產物以 2026-10-03 00:00 UTC 起的 ctime 計算，收尾觀察上界 782,499,926 bytes（0.729 GiB），低於 4 GB；包含保留的失敗證據、build 及快取變更，不含工作前既有的其他任務資料，詳見 `.work/fabric-dedicated-disk-final.json`。`git diff --check` 通過，未 commit／push、未修改 experiments/。本次要求的驗收已完成；線上 chunk 刪除、未接上的 metadata、第三方直接寫入及 GPU 等既有限制仍見 Fabric README。

@@ -156,7 +156,7 @@ public final class MessageKeys {
   public static final String STASH_EMPTY=def("fabric.stash.empty");
   public static final String STASH_DROPPED=def("fabric.stash.dropped","index");
   public static final String ERROR_PHASE2_ARGS=def("fabric.error.phase2-args","usage");
-  public static final String ERROR_SINGLEPLAYER=def("fabric.error.singleplayer");
+  public static final String APPLY_FINISHED=def("fabric.apply.finished","target");
   public static final String ERROR_DIRTY=def("fabric.error.dirty");
   public static final String ERROR_PARTIAL=def("fabric.error.partial");
   private static final Map<org.worldgit.platform.ApplyProgress.Phase,String> PHASES=new EnumMap<>(org.worldgit.platform.ApplyProgress.Phase.class);

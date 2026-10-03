@@ -230,7 +230,6 @@ fabric.stash.row: "<gray>stash@{<index>} <id> <time> <message></gray>"
 fabric.stash.empty: "<gray>No stashes.</gray>"
 fabric.stash.dropped: "<green>Dropped stash@{<index>}.</green>"
 fabric.error.phase2-args: "<red>Usage: <usage></red>"
-fabric.error.singleplayer: "<red>World switching commands currently require a singleplayer world.</red>"
 fabric.error.dirty: "<red>Uncommitted changes. Use commit, stash push, switch --stash or --force.</red>"
 fabric.error.partial: "<red>World is PARTIAL. Recover with a full switch --force or reset --hard.</red>"
 fabric.apply.dry-run: "dry run"
@@ -279,3 +278,5 @@ fabric.merge.row: "! #<id> <dimension> <bounds> (<count> blocks) ours: <ours>; t
 fabric.merge.select-unsupported: "Server does not support Set blocks (conflict-select-v1). Resolve remains available."
 
 paper.merge.unknown-region: 'Unknown conflict region #<id>.'
+
+fabric.apply.finished: "<green>Completed <target>.</green>"

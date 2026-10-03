@@ -3,8 +3,9 @@
   "id": "worldgit-gametest",
   "version": "1.0.0",
   "name": "WorldGit client game tests",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
+    "main": ["org.worldgit.fabric.DedicatedServerFixture"],
     "fabric-client-gametest": ["org.worldgit.fabric.gametest.WorldGitClientGameTest"]
   },
   "depends": { "worldgit": "*", "fabric-api": "*" }

@@ -68,10 +68,12 @@ class MergeClientTest {
     assertTrue(MergeArgs.parse("merge","--continue").resume());
     assertEquals(Choice.THEIRS,MergeArgs.parse("resolve","all --theirs").choice());
     assertEquals(Choice.MANUAL,MergeArgs.parse("resolve","1").choice());
+    assertEquals(Choice.THEIRS,MergeArgs.parse("resolve","all theirs").choice());
+    assertEquals(1,MergeArgs.parse("resolve","#1 manual").region());
     assertEquals(Choice.OURS,MergeArgs.parse("merge","topic --strategy-option ours --distance 0").strategy());
     for(var invalid:List.of("--abort --continue","topic --abort","topic --distance 17","topic --ours"))
       assertThrows(IllegalArgumentException.class,()->MergeArgs.parse("merge",invalid),invalid);
-    for(var invalid:List.of("0 --ours","-1 --theirs","1 --ours --base","1 --continue"))
+    for(var invalid:List.of("0 --ours","-1 --theirs","1 --ours --base","1 --continue","1 theirs --ours","1 nope","1 ours theirs"))
       assertThrows(IllegalArgumentException.class,()->MergeArgs.parse("resolve",invalid),invalid);
     assertThrows(IllegalArgumentException.class,()->MergeArgs.parse("revert","--abort"));
   }

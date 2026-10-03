@@ -110,7 +110,7 @@ public record ServerConfig(
       track: all
 
       # 需要的 op 等級（0-4）。單人世界的擁有者一律允許。
-      permission-level: 2        # init / commit / clear
+      permission-level: 2        # init / commit / restore / switch / stash / reset / merge / resolve / cancel
       read-permission-level: 0   # status / log / diff
 
       auto-commit:

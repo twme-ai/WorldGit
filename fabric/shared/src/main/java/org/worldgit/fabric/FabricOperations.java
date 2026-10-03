@@ -74,7 +74,7 @@ final class FabricOperations implements WorldOperations.LiveAccess {
         });
     }
     @Override public void applyAll(Collection<ApplyPlan> plans) throws IOException {
-        var budget=ApplyBudget.WITH_PLAYERS;
+        var budget=runtime.onServer(()->runtime.server().getPlayerList().getPlayers().isEmpty() ? ApplyBudget.DEFAULT : ApplyBudget.WITH_PLAYERS);
         var batches=new ArrayList<ApplyPlan>();
         var ids=new TreeSet<UUID>();
         var unique=new HashSet<UUID>();

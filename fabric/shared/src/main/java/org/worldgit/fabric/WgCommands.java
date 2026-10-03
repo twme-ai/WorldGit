@@ -43,7 +43,7 @@ public final class WgCommands {
     }
 
     /** 單人世界的擁有者即使沒開作弊也允許（整合伺服器的 op 等級是 0）。 */
-    private static Predicate<CommandSourceStack> allowed(int level) {
+    static Predicate<CommandSourceStack> allowed(int level) {
         var check = Commands.hasPermission(check(level));
         return source -> {
             if (check.test(source)) return true;
@@ -369,9 +369,13 @@ public final class WgCommands {
         if(result.error()!=null) lines.add(Msg.of(MessageKeys.COMMON_ERROR,"message",result.error()));
         return lines;
     }
+    private static List<Msg> operationResult(ServerRuntime rt,String locale,String command,List<String> positions,WorldOperations.Result result) {
+        if(!rt.server().isSingleplayer() && result.success() && result.state()!=WorldOperations.State.DRY_RUN)
+            rt.broadcast(Msg.prefixed(MessageKeys.APPLY_FINISHED,"target",command+" "+String.join(" ",positions)));
+        return resultLines(rt,locale,result);
+    }
     private static int operation(CommandContext<CommandSourceStack> ctx,String command,String text) {
         var rt=runtime(ctx);
-        if(!rt.server().isSingleplayer()) { Texts.failure(ctx.getSource(),rt,Msg.of(MessageKeys.ERROR_SINGLEPLAYER)); return 0; }
         try {
             var flags=switch(command) { case "restore"->Set.of("--dry-run"); case "switch"->Set.of("--stash","--force","--dry-run"); case "reset"->Set.of("--hard","--force","--dry-run"); default->Set.<String>of(); };
             var values=command.equals("restore") ? Map.of("--chunks",1,"--box",6) : Map.<String,Integer>of();
@@ -382,18 +386,19 @@ public final class WgCommands {
                 case "restore" -> {
                     if(positions.size()!=1) throw new IllegalArgumentException();
                     var player=ctx.getSource().getPlayer();
-                    if(!values.isEmpty() && !args.values().isEmpty() && player==null) throw new IllegalArgumentException();
-                    var scope=args.scope(player==null ? 0 : (player.chunkPosition().getMinBlockX()>>4),player==null ? 0 : (player.chunkPosition().getMinBlockZ()>>4));
-                    var dimension=scope.kind()==Scope.Kind.ALL ? null : ServerRuntime.dimensionId((ServerLevel)player.level());
-                    future=rt.live(ops->ops.restore(positions.getFirst(),dimension,scope,args.flag("--dry-run"),false)).thenApply(result->resultLines(rt,locale,result));
+                    var level=ctx.getSource().getLevel();
+                    var center=player==null ? ctx.getSource().getPosition() : player.position();
+                    var scope=args.scope(net.minecraft.util.Mth.floor(center.x)>>4,net.minecraft.util.Mth.floor(center.z)>>4);
+                    var dimension=scope.kind()==Scope.Kind.ALL ? null : ServerRuntime.dimensionId(level);
+                    future=rt.live(ops->ops.restore(positions.getFirst(),dimension,scope,args.flag("--dry-run"),false)).thenApply(result->operationResult(rt,locale,command,positions,result));
                 }
                 case "switch" -> {
                     if(positions.size()!=1) throw new IllegalArgumentException();
-                    future=rt.live(ops->ops.switchTo(positions.getFirst(),args.flag("--stash"),args.flag("--force"),args.flag("--dry-run"),false)).thenApply(result->resultLines(rt,locale,result));
+                    future=rt.live(ops->ops.switchTo(positions.getFirst(),args.flag("--stash"),args.flag("--force"),args.flag("--dry-run"),false)).thenApply(result->operationResult(rt,locale,command,positions,result));
                 }
                 case "reset" -> {
                     if(!args.flag("--hard") || positions.size()>1) throw new IllegalArgumentException();
-                    future=rt.live(ops->ops.resetHard(positions.isEmpty() ? null : positions.getFirst(),args.flag("--force"),args.flag("--dry-run"))).thenApply(result->resultLines(rt,locale,result));
+                    future=rt.live(ops->ops.resetHard(positions.isEmpty() ? null : positions.getFirst(),args.flag("--force"),args.flag("--dry-run"))).thenApply(result->operationResult(rt,locale,command,positions,result));
                 }
                 case "branch" -> {
                     if(positions.isEmpty() || positions.equals(List.of("list"))) future=rt.live(ops->ops.branches().stream().map(b->Msg.of(MessageKeys.BRANCH_ROW,"current",b.current() ? "*" : " ","name",b.name(),"commits",b.commits())).toList());
@@ -419,7 +424,7 @@ public final class WgCommands {
                             yield lines.isEmpty() ? List.of(Msg.of(MessageKeys.STASH_EMPTY)) : lines;
                         }
                         default -> throw new IllegalArgumentException();
-                    }).thenApply(value->value instanceof WorldOperations.Result result ? resultLines(rt,locale,result) : (List<Msg>)value);
+                    }).thenApply(value->value instanceof WorldOperations.Result result ? operationResult(rt,locale,command,positions,result) : (List<Msg>)value);
                 }
                 default -> throw new IllegalArgumentException();
             }
@@ -436,15 +441,14 @@ public final class WgCommands {
 
     private static int merge(CommandContext<CommandSourceStack> ctx, String command, String text) {
         var rt=runtime(ctx);
-        if(!rt.server().isSingleplayer()) { Texts.failure(ctx.getSource(),rt,Msg.of(MessageKeys.ERROR_SINGLEPLAYER)); return 0; }
         try {
             var author=identity(ctx.getSource(),rt);
             CompletableFuture<WorldOperations.MergeResult> future;
             if(command.equals("conflict-select")) {
                 var pos=OperationArgs.parse(text,Set.of(),Map.of()).positional();
                 if(pos.size()!=2) throw new IllegalArgumentException();
-                int id=Integer.parseInt(pos.getFirst()); var choice=MergeReport.Choice.valueOf(pos.get(1).toUpperCase(Locale.ROOT));
-                if(id<1 || choice==MergeReport.Choice.MANUAL) throw new IllegalArgumentException();
+                int id=pos.getFirst().equals("all") ? 0 : Integer.parseInt(pos.getFirst().replaceFirst("^#","")); var choice=MergeReport.Choice.valueOf(pos.get(1).toUpperCase(Locale.ROOT));
+                if(id<0 || id==0 && !pos.getFirst().equals("all")) throw new IllegalArgumentException();
                 future=rt.region(ops -> ops.selectRegion(id,choice,false,false));
             } else {
                 var args=MergeArgs.parse(command,text);
@@ -465,7 +469,11 @@ public final class WgCommands {
                     return result;
                 });
             }
-            deliver(ctx,rt,future,WgCommands::mergeLines); return 1;
+            deliver(ctx,rt,future,result->{
+                if(!rt.server().isSingleplayer() && result.success() && !result.state().equals("DRY_RUN"))
+                    rt.broadcast(Msg.prefixed(MessageKeys.MERGE_RESULT,"state",result.state(),"remaining",result.merging()==null ? 0 : result.merging().remaining()));
+                return mergeLines(result);
+            }); return 1;
         } catch(IllegalArgumentException ex) { Texts.failure(ctx.getSource(),rt,Msg.of(MessageKeys.ERROR_PHASE2_ARGS,"usage","/wg "+command+" <rev|id> [--ours|--theirs|--base|--manual|--abort|--continue]")); return 0; }
     }
 

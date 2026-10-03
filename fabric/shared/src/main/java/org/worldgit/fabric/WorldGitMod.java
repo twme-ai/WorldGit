@@ -55,6 +55,9 @@ public final class WorldGitMod implements ModInitializer {
             if(entity instanceof ServerPlayer player) {
                 var rt=runtime(player.level().getServer());
                 if(rt!=null && rt.protects(player,damage)) return false;
+            } else if(entity.level() instanceof ServerLevel level) {
+                var rt=runtime(level.getServer());
+                if(rt!=null && !rt.internalMutation() && rt.editsLocked(ServerRuntime.dimensionId(level),ServerRuntime.corePos(entity.chunkPosition()))) return false;
             }
             return true;
         });
@@ -72,6 +75,7 @@ public final class WorldGitMod implements ModInitializer {
                 RUNTIMES.put(server, new ServerRuntime(server, config, MessageCatalog.withOverrides(configDir.resolve("worldgit").resolve("lang")))));
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             ServerRuntime.LOG.info("WorldGit {} 已啟動（{}）", Platform.MINECRAFT, server.isDedicatedServer() ? "專用伺服器" : "整合伺服器");
+            RUNTIMES.get(server).started();
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             var rt = RUNTIMES.get(server);

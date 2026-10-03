@@ -1,6 +1,6 @@
 # WorldGit Fabric（Phase 3）
 
-同一套模組提供單人世界／Fabric 專用伺服器的存檔點，以及 Paper 玩家客戶端的 diff 描邊和鬼影。世界與 bare repo 格式直接共用 core，離線 `wgit` 可讀相同歷史；不需要轉換。
+同一套模組提供單人世界／Fabric 專用伺服器的存檔點、復原、切換與合併，以及 Paper／Folia 玩家客戶端的 diff 描邊和鬼影。世界與 bare repo 格式直接共用 core，離線 `wgit` 可讀相同歷史；不需要轉換。
 
 ## 安裝與建置
 
@@ -49,7 +49,7 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 /wg reload
 ```
 
-`status --show` 畫 section／chunk 外框，`diff --show`／`preview` 畫逐格外框與半透明方塊模型。顯示與 clear 需玩家執行；console 可用 init/status/commit/log。指令詳細選項及權限見 `WgCommands`；預設讀取權限等級 0、寫入等級 2，單人世界擁有者可操作。
+`status --show` 畫 section／chunk 外框，`diff --show`／`preview` 畫逐格外框與半透明方塊模型。顯示與 clear 需玩家執行；console 可執行讀取、寫入與合併命令。指令詳細選項及權限見 `WgCommands`；預設讀取權限等級 0、寫入等級 2，單人世界擁有者可操作。
 
 每個維度一個 repo，路徑為世界資料夾旁的 `.worldgit/<世界名稱>/<維度目錄>/`，例如 `.worldgit/My World/minecraft.overworld/`。主世界保存 world-meta 與維度清單。init 只建立磁碟上存在且尚未初始化的維度；第一次進入新維度後可再 init。
 
@@ -61,36 +61,36 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 `preview` 只顯示「目前世界 → 目標 commit」的差異；新增／修改顯示目標模型、移除顯示目前模型，沿用綠／紅／黃與實線／鬼影／虛線。`--radius` 是玩家所在 chunk 的正方形半徑（0–256、含端點），未指定時比較該維度全部追蹤 chunk；超過鬼影上限改區域外框。`preview off`／`clear` 清除，連到支援此命令的 Paper／Fabric 伺服器時使用相同 v2 封包；客戶端即使連到舊伺服器也能先清掉本機預覽。
 
-寫入命令目前只供**單人世界的整合伺服器**使用；專用伺服器保留 Phase 1 操作與 revision preview。`restore` 不移動 HEAD，chunk 半徑以玩家為中心，box 包含端點並逐格裁切方塊／BE，biome 以 4×4×4 sample 起點裁切。`switch` 同步全維度同名分支，hash 為 detached HEAD；dirty 工作區需 commit、`--stash` 或 `--force`。stash pop 要求原基底及乾淨工作區，不做跨分支合併。`reset --hard` 無 revision 只丟棄未提交變動；指定 revision 會改寫歷史且要求 `--force`。
+寫入命令同時支援單人整合伺服器與 Fabric 專用伺服器，沿用寫入 op 等級（預設 2）；console 的局部 restore 使用命令來源的維度／座標。`restore` 不移動 HEAD，chunk 半徑以玩家為中心，box 包含端點並逐格裁切方塊／BE，biome 以 4×4×4 sample 起點裁切。`switch` 同步全維度同名分支，hash 為 detached HEAD；dirty 工作區需 commit、`--stash` 或 `--force`。stash pop 要求原基底及乾淨工作區，不做跨分支合併。`reset --hard` 無 revision 只丟棄未提交變動；指定 revision 會改寫歷史且要求 `--force`。
 
 套用期間顯示 bossbar，暫停世界 tick、關閉容器、攔截玩家物品／容器／實體互動及一般 LevelChunk 方塊寫入；不移動玩家、不加藥水效果。範圍內玩家（含中途進入者）在操作全程及結束後 10 秒免受摔落、窒息、溺水傷害，其他傷害照常。原本的 frozen 狀態會恢復，第三方模組若直接改 section／BE 或實體需配合 `ServerRuntime.editsLocked()`，不能繞過鎖寫入。
 
-所有套用、heightmap／光照／POI 與 chunk 更新在 server owner 執行；未載入 chunk 加 ticket 等 entity IO，不寫線上 `.mca`。使用共用 ApplyBudget（單人有玩家：4 section／5 ms／16 chunk），不可搶占的單次工作採軟時間上限；全維度 UUID 先移除再生成。完成後 flush、全組驗證才更新 HEAD，並清除舊 status／diff／preview。`cancel` 等在途清理，已寫入的世界保留 PARTIAL、HEAD 不動；用全範圍 `switch <rev> --force`／`reset --hard` 恢復，PARTIAL 阻擋新 commit／普通 switch／stash。
+所有套用、heightmap／光照／POI 與 chunk 更新在 server owner 執行；未載入 chunk 加 ticket 等 entity IO，不寫線上 `.mca`。使用共用 ApplyBudget（有玩家：4 section／5 ms／16 chunk；無玩家：8／5 ms／24 chunk），不可搶占的單次工作採軟時間上限；全維度 UUID 先移除再生成。完成後 flush、全組驗證才更新 HEAD，並清除舊 status／diff／preview。`cancel` 等在途清理，已寫入的世界保留 PARTIAL、HEAD 不動；用全範圍 `switch <rev> --force`／`reset --hard` 恢復，PARTIAL 阻擋新 commit／普通 switch／stash。
 
-## Phase 3：合併與衝突解決（單人世界）
+## Phase 3：合併與衝突解決
 
 ```text
 /wg merge <分支|commit> [--no-commit] [--strategy-option ours|theirs] [--distance 0-16]
 /wg merge --abort | --continue
-/wg resolve <id|all> [--ours|--theirs|--base|--manual]
+/wg resolve <id|all> ours|theirs|base|manual  （也接受舊 --ours 等旗標）
 /wg revert <commit> | /wg cherry-pick <commit>
 /wg conflicts [--show] [--teleport <id>]
 /wg conflict-preview <id> ours|theirs|base
-/wg conflict-select <id> ours|theirs|base
+/wg conflict-select <id|all> ours|theirs|base|manual
 ```
 
-僅單人世界的整合伺服器可執行寫入（與 Phase 2 相同）。要求工作區乾淨；不同位置的修改零介入合併，成功時直接建立兩個 parent 的 merge commit。有衝突時進入 MERGING：無衝突部分與每個衝突區域的 ours 一起寫入，`/wg status` 顯示剩餘區域，自動 commit 暫停。切換或解決區域時**維持快照儲存的方塊 state**，不觸發 `updateShape`／鄰居更新（決定 #46）；交界提示只列出供檢查。全部解決後執行 `/wg merge --continue`（或 `/wg commit -m …`）；`/wg merge --abort` 逐格回到合併前。
+單人世界與專用伺服器共用相同流程。要求工作區乾淨；不同位置的修改零介入合併，成功時直接建立兩個 parent 的 merge commit。有衝突時進入 MERGING：無衝突部分與每個衝突區域的 ours 一起寫入，`/wg status` 顯示剩餘區域，自動 commit 暫停。切換或解決區域時**維持快照儲存的方塊 state**，不觸發 `updateShape`／鄰居更新（決定 #46）；交界提示只列出供檢查。全部解決後執行 `/wg merge --continue`（或 `/wg commit -m …`）；`/wg merge --abort` 逐格回到合併前。
 
 **衝突清單畫面**：按 `G`（原版「按鍵設定 → WorldGit」可改）或 `/wg conflicts`。選取區域後：
 
 - Ghost ours／theirs／base：只在客戶端畫半透明疊圖（紫色外框＋目標模型），不改世界，關閉畫面後仍保留，可切換；`hideConflictPreview` 或解決後清除。
 - Set blocks ours／theirs／base：把世界中該區域真的換成該版本（不標解決）。
 - Resolve ours／theirs／base／manual：切換並標為已解決；manual 以目前世界為準（先自己動手改）。
-- Teleport：單人世界直接傳送到區域上方；連 Paper 送 `execute in <維度> run tp`。
+- Teleport：單人世界直接傳送到區域上方；連 Paper／Folia／Fabric 專用伺服器送 `execute in <維度> run tp`，需要對應的原版命令權限。
 
 未解決區域的紫色外框常駐顯示，已解決改暗灰，全部解決後消失。紅石區域標示「請測試電路」，交界提示（滑過按鈕）列出可能受影響的鄰格。
 
-連 Paper／Folia 時，客戶端握手宣告 `merge-regions-v1`，由伺服器推送 `worldgit:conflicts` 並以 `worldgit:conflict_preview` 回應疊圖請求；hello 同時公告 `conflict-select-v1` 時啟用 Set blocks，送 `wg conflict-select <id> <choice>`；Resolve 送 `wg resolve <id> <choice>`。舊 Paper 沒有 select 能力時 Set blocks 停用，滑過顯示原因，Ghost／Resolve 仍可使用；沒有 `merge-regions-v1` 時畫面顯示不支援合併。協定見 [protocol README](../protocol/README.md)，真客戶端驗收見 [進度 13](../docs/13-phase3-progress.md#fabric--paper-實機對接)。
+連 Paper／Folia／Fabric 專用伺服器時，客戶端握手宣告 `merge-regions-v1`，由伺服器推送 `worldgit:conflicts` 並以 `worldgit:conflict_preview` 回應疊圖請求；hello 同時公告 `conflict-select-v1` 時啟用 Set blocks，送 `wg conflict-select <id> <choice>`；Resolve 送 `wg resolve <id> <choice>`。舊 Paper 沒有 select 能力時 Set blocks 停用，滑過顯示原因，Ghost／Resolve 仍可使用；沒有 `merge-regions-v1` 時畫面顯示不支援合併。協定見 [protocol README](../protocol/README.md)，真客戶端驗收見 [Paper／Folia 對接進度](../docs/13-phase3-progress.md#fabric--paper-實機對接)與 [Fabric 專用伺服器進度](../docs/13-phase3-progress.md#fabric-專用伺服器)。
 
 驗收（兩版各約 11–17 分鐘）：
 
@@ -161,15 +161,15 @@ python3 fabric/tools/accept-paper.py 1.21.11
 python3 fabric/tools/accept-paper.py 26.2
 ```
 
-以上三個驗收腳本都自行取得 `bench.lock`，不要再包外層 flock。並行開發時可用 `GRADLE_ROOT`（gametest）或 `--gradle-root`（Paper）指定同步過共用模組的私有建置根。專用 Fabric 伺服器兩版的已完成驗收沿用交接紀錄；此次增加 mixin 的載入檢查另記於進度。
+以上驗收腳本都自行取得 `bench.lock`，不要再包外層 flock。並行開發時可用 `GRADLE_ROOT`（gametest）或 `--gradle-root`（Paper）指定同步過共用模組的私有建置根。Fabric 專用伺服器的寫入與合併驗收見下方章節。
 
 ## 目前限制
 
-線上不刪除 chunk：stash 若需刪除 HEAD 沒有的新增 chunk，預檢會拒絕，須關閉世界後使用 CLI stash；一般 switch 預設保留這些 chunk 並標 untracked。線上 metadata 目前只接出生點、1.21.11 的 gamerules／難度／邊界等 level.dat 設定，地圖／scoreboard／26.2 各維度 saved-data、世界生成等變動會在任何寫入前拒絕，須離線還原。跨 DataVersion、規則不同仍明確拒絕；沒有 DataFixer；單人合併流程見上方 Phase 3 章節。legacy `ChunkPatch` 套用入口仍拒絕，正式 Phase 2 使用 ApplyPlan。
+線上不刪除 chunk：stash 若需刪除 HEAD 沒有的新增 chunk，預檢會拒絕，須關閉世界後使用 CLI stash；一般 switch 預設保留這些 chunk 並標 untracked。線上 metadata 目前只接出生點、1.21.11 的 gamerules／難度／邊界等 level.dat 設定，地圖／scoreboard／26.2 各維度 saved-data、世界生成等變動會在任何寫入前拒絕，須離線還原。跨 DataVersion、規則不同仍明確拒絕；沒有 DataFixer；合併流程見上方 Phase 3 章節。legacy `ChunkPatch` 套用入口仍拒絕，正式 Phase 2 使用 ApplyPlan。
 
 尚無準星「舊→新」UI、實體／biome 模型、流體或特殊 block entity renderer、Mod Menu 畫面、資源包重載後模型快取重建、Sodium／Iris 或硬體 GPU 驗收。鬼影使用固定光照與 quad 順序，沒有透明面排序／內部面消除；既有大量格數驗收是 3,072 格、6 sections，不能據此宣稱 100,000 格效能。Phase 2 使用受控平坦世界及凍結 tick，不是大型自然生物世界的 TPS 量測。
 
-## 單人世界局部區域切換（2026-10-02）
+## 局部區域切換（2026-10-02）
 
 `conflict-select`／`resolve` 經共用 core 的局部 source、精確 atoms mask、完整受影響 chunk 驗證及增量 MERGING journal。Fabric 在 server owner 以 vanilla ChunkMap serializer、entity storage 與 POI flush 只排入指定 chunk，三種 storage 分別保存（terrain 卸載不代表 entity／POI 已卸載），保留光照／chunk 封包／IO barrier；不寫使用中的 `.mca`。一般區域的 LevelChunk 寫入鎖限受影響 chunk；短暫 tick freeze 及容器／指令屏障保留，防止 vanilla 或跨位置編輯穿越操作。continue／commit 再全組 capture／驗證，abort 保留完整恢復。
 
@@ -187,3 +187,20 @@ python3 fabric/tools/accept-paper-phase3.py folia 26.2
 ```
 
 自行取 bench.lock，不加外層 flock。先建置 plugin 與 CLI fat jar；腳本凍結 jar、複製 server 與乾淨平坦 fixture，伺服器 port 25701–25704，客戶端 TCP 入口 25711–25714，透過 Xvfb／llvmpipe 啟動真 Fabric client。客戶端點擊 Ghost／Set blocks／Resolve／Teleport，與伺服器 durable 清單、候選 BE 與完整 section state 比對；200 區域清單必須實際分片且重連後相同，continue 清空。最後停止 client／Xvfb／server、完整離線 verify，刪除 server/world 副本。結果、control 檢查點、原始 log、四張截圖在 `.work/fabric-acceptance/pair-*/`；結果與精選截圖見 [docs/13](../docs/13-phase3-progress.md#fabric--paper-實機對接)。
+
+## Fabric 專用伺服器寫入與合併
+
+專用伺服器使用相同 live coordinator，不直接改寫使用中的 Anvil 檔。套用期間有全組／局部 chunk 編輯鎖、vanilla tick freeze、玩家保護與 bossbar；完成驗證後廣播 MiniMessage。活塞、爆炸與肥料的批量變更在受鎖維度開始前整體攔截，避免部分寫入；玩家容器／互動與操作期間非 WorldGit 命令採保守屏障。MERGING 閒置時可手動編輯，manual resolve 以目前世界為準。
+
+連線的 Fabric 客戶端可使用清單、Ghost、Set blocks、Resolve 與傳送。伺服器公告 merge／select 能力，握手後推送持久化清單；多位檢視者在選擇／解決後同步更新。重啟恢復 MERGING；登出、定時與關機的自動 commit 均依 #60 跳過，手動 commit 等同 continue。
+
+```bash
+python3 fabric/tools/accept-dedicated.py 1.21.11
+python3 fabric/tools/accept-dedicated.py 26.2
+```
+
+腳本自行取得 bench.lock，不套外層 flock；使用伺服器 25701／25702、client TCP 入口 25711／25712、真 Fabric client／Xvfb 與第二個協定 viewer。涵蓋 Phase 2／Phase 3、重啟、批量編輯鎖與玩家保護、1,000 chunk merge 的 TPS、6 次區域切換延遲及真正 framebuffer 截圖。fixture 是另外打包的測試 mod，正式 jar 不含測試指令。原始結果與失敗保存在 `.work/fabric-acceptance/dedicated-*/`；完成後清除 server 副本並確認 port 關閉。實測結果見 [Fabric 專用伺服器進度](../docs/13-phase3-progress.md#fabric-專用伺服器)。
+
+2026-10-03 兩版各 44 項通過、最終離線 verify=0；區域切換中位數為 0.701／0.702 秒，1,000 chunk 合併平均 TPS 約 20，最大 tick 間隔約 1.6–1.7 秒。兩版單人 Phase 2／Phase 3 與四組 Paper／Folia Phase 3 回歸全過，最後完整 build 通過（199 個單元測試，0 failure／error／skip）。八張原始畫面見 [專用伺服器截圖](docs/screenshots/dedicated/README.md)。量測使用受控平坦世界與凍結世界 tick，實際範圍及限制見進度報告。
+
+沿用 Phase 1 的本機驗收環境：`.work/fabric-srv/<版本>/` 需有 Fabric Launcher、libraries、versions 與 fabric-api.jar；平坦 fixture 沿用 `.work/paper-delivery/fixtures/acceptance-flat-<版本>/`，缺少時由既有 `.work/worlds/<版本>/baseline/` 產生副本。26.2 另需已驗收 Fabric baseline 的 `world/data/minecraft/world_gen_settings.dat`；只複製到測試副本的根目錄，規則使用平坦 fixture 的安靜設定，以適配 Paper／vanilla saved-data 路徑差異。腳本自行建置並凍結正式模組、fixture 與 CLI，不載入既有伺服器的世界或 repo。

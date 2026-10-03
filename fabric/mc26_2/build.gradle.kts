@@ -59,6 +59,11 @@ afterEvaluate {
         java.srcDir("../gametest/src/main/java")
         resources.srcDir("../gametest/src/main/resources")
     }
+    val dedicatedFixture = tasks.register<Jar>("dedicatedFixtureJar") {
+        dependsOn("gametestClasses")
+        from(sourceSets.named("gametest").get().output)
+        archiveClassifier.set("dedicated-fixture")
+    }
     val tmp = rootProject.projectDir.resolve(".work/fabric-tmp").apply { mkdirs() }
     loom.runs.named("clientGameTest") {
         val suffix = if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else if (providers.gradleProperty("wgtestPhase2").isPresent) "-phase2" else if (providers.gradleProperty("wgtestPhase3").isPresent) "-phase3" else ""
@@ -68,6 +73,7 @@ afterEvaluate {
             vmArgs("-Dwgtest.paperPort=$port", "-Dwgtest.paperReady=${providers.gradleProperty("wgtestPaperReady").get()}")
         }
         if (providers.gradleProperty("wgtestPaperPhase3").isPresent) vmArgs("-Dwgtest.paperPhase3=true")
+        if (providers.gradleProperty("wgtestDedicated").isPresent) vmArgs("-Dwgtest.dedicated=true")
         if (providers.gradleProperty("wgtestPhase2").isPresent) vmArgs("-Dwgtest.phase2=true")
         if (providers.gradleProperty("wgtestPhase3").isPresent) vmArgs("-Dwgtest.phase3=true")
         vmArgs(listOf(

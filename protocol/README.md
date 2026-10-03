@@ -32,8 +32,10 @@ core 的 `WorldOperations.regionPreview`／`MergeEngine.preview` 提供中性 Pr
 
 ## conflict-select 能力（2026-10-02）
 
-Paper／Folia 在 v2 hello 額外宣告 `conflict-select-v1`，表示支援原版命令 `wg conflict-select <id|all> ours|theirs|base|manual`：只選擇／寫入區域，`resolved=false`；manual 保留世界現況。此能力是伺服器公告，客戶端不需回傳；預設 `Protocol.CAPABILITIES` 保持不變。遠端 Fabric UI 必須同時看到 `merge-regions-v1` 與 `conflict-select-v1` 才啟用 Set blocks。舊伺服器只有前者仍可 Ghost／Resolve，Set blocks 停用並顯示原因。
+Paper／Folia 與 Fabric 專用伺服器在 v2 hello 額外宣告 `conflict-select-v1`，表示支援原版命令 `wg conflict-select <id|all> ours|theirs|base|manual`：只選擇／寫入區域，`resolved=false`；manual 保留世界現況。此能力是伺服器公告，客戶端不需回傳；預設 `Protocol.CAPABILITIES` 保持不變。遠端 Fabric UI 必須同時看到 `merge-regions-v1` 與 `conflict-select-v1` 才啟用 Set blocks。舊伺服器只有前者仍可 Ghost／Resolve，Set blocks 停用並顯示原因。
 
-Ghost 請求 `wg conflict-preview <id> ours|theirs|base`；Paper／Folia Resolve 請求 `wg resolve <id|all> ours|theirs|base|manual`。三者都用既有原版命令封包，回應清單／預覽仍用既有合併 channel 與 envelope。Fabric 單人的 resolve 旗標語法保持相容，由客戶端依連線種類產生。斷線時能力、assembler、清單與 id floor 全部 reset，重連以新的 nonce 握手後由伺服器重新送目前維度清單。
+Ghost 請求 `wg conflict-preview <id> ours|theirs|base`；Paper／Folia／Fabric 專用伺服器 Resolve 請求 `wg resolve <id|all> ours|theirs|base|manual`。三者都用既有原版命令封包，回應清單／預覽仍用既有合併 channel 與 envelope。Fabric 單人的 resolve 旗標語法保持相容，由客戶端依連線種類產生。斷線時能力、assembler、清單與 id floor 全部 reset，重連以新的 nonce 握手後，Paper／Folia 重新送目前維度清單，Fabric 重新送 MERGING 追蹤維度的清單。
 
 Fabric adapter 以 handler 身分記錄斷線，在客戶端 tick 清理模型與握手狀態；JOIN 先清除上一段連線，晚到的舊 handler 事件不影響新握手。這讓 GPU 釋放與分包 reset 都在客戶端執行緒完成。
+
+Fabric 專用伺服器（2026-10-03）在成功握手後讀取 durable MERGING 清單並推送，選擇／解決後對所有有讀取權限及 merge-regions-v1 能力的連線同步更新；重啟後同樣恢復。維持既有 envelope 與 clear floor，不增加預設 Protocol.CAPABILITIES。

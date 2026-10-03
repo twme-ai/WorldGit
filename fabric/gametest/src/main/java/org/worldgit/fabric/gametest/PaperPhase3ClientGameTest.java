@@ -27,6 +27,10 @@ final class PaperPhase3ClientGameTest {
     log("handshake=true merge=true select=true");
     var expected=read(ctx,"ready.json");
     awaitList(ctx,expected);
+    if(Boolean.getBoolean("wgtest.dedicated")) {
+      log("restart_ready"); disconnect(ctx);read(ctx,"restarted.json");connect(ctx,port);awaitList(ctx,expected);
+      log("restart_restored");read(ctx,"restart-checked.json");
+    }
     var row=ctx.<ClientConflicts.Region,RuntimeException>computeOnClient(c->ClientRuntime.get().conflicts().regions().getFirst());
     check(expected.getAsJsonArray("regions").size()==1,"one region");
     var key=row.key();
@@ -64,7 +68,7 @@ final class PaperPhase3ClientGameTest {
     var b=row.info().bounds();
     ctx.waitFor(c->Math.abs(c.player.getX()-(b.minX()+.5))<.1 && Math.abs(c.player.getZ()-(b.minZ()+.5))<.1,600);
     log("teleport=true");
-    command(ctx,"wg merge --continue");
+    command(ctx,Boolean.getBoolean("wgtest.dedicated") ? "wg commit -m dedicated resolved" : "wg merge --continue");
     ctx.waitFor(c->ClientRuntime.get().conflicts().regions().isEmpty(),12000);
     check(before.equals(hashes(ctx)),"continue changed resolved world");
     log("small_done list-empty=true");
@@ -146,7 +150,7 @@ final class PaperPhase3ClientGameTest {
   }
   private static <T extends Comparable<T>> String property(BlockState s,net.minecraft.world.level.block.state.properties.Property<T> p) { return p.getName(s.getValue(p)); }
   private static JsonObject read(ClientGameTestContext ctx,String name) {
-    var path=directory.resolve(name);ctx.waitFor(c->Files.isRegularFile(path),24000);
+    var path=directory.resolve(name);ctx.waitFor(c->Files.isRegularFile(path),Boolean.getBoolean("wgtest.dedicated") ? 120000 : 24000);
     try { return JsonParser.parseString(Files.readString(path)).getAsJsonObject(); } catch(Exception e) { throw new AssertionError(e); }
   }
   private static void write(String name,JsonElement data) {

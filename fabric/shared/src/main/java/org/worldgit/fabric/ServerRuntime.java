@@ -61,6 +61,31 @@ public final class ServerRuntime {
     private final AutoCommitPolicy policy;
     private volatile boolean closed;
     private volatile boolean autoRunning;
+    private volatile MergeState mergeState;
+
+    /** 啟動後讀取 durable 狀態；MERGING 不會因重啟變成一般 commit。 */
+    void started() {
+        runRepo(()->{
+            var path=repositoryRoot().resolve("apply-state.yml");
+            var journal=org.worldgit.core.service.OperationState.read(path);
+            if("APPLYING".equals(journal.get("state"))) {
+                var partial=new LinkedHashMap<String,Object>(journal);
+                partial.put("state","PARTIAL");
+                org.worldgit.core.service.OperationState.write(path,partial);
+                LOG.warn("WORLDGIT PARTIAL；合併用 /wg merge --abort，其他操作用 switch --force／reset --hard 恢復");
+            }
+            mergeState=MergeState.read(repositoryRoot().resolve("merge-state.bin"));
+            return null;
+        }).exceptionally(e->{LOG.warn("WORLDGIT 讀取恢復狀態失敗",e);return null;});
+    }
+
+    void broadcast(Msg message) {
+        postToServer(()->{
+            Texts.send(server.createCommandSourceStack(),this,List.of(message));
+            for(var player:server.getPlayerList().getPlayers())
+                Texts.send(player.createCommandSourceStack(),this,List.of(message));
+        });
+    }
 
     ServerRuntime(MinecraftServer server, ServerConfig config, MessageCatalog catalog) {
         this.server = server;
@@ -285,11 +310,16 @@ public final class ServerRuntime {
     }
     private volatile int editLocks;
     private boolean mutation, wasFrozen;
+    private int wasStepping;
     public boolean editsLocked() { return editLocks>0; }
     private volatile Map<DimensionId,Set<ChunkPos>> regionEditChunks;
     public boolean editsLocked(DimensionId dimension,ChunkPos chunk) {
         var scope=regionEditChunks;
         return editLocks>0 && (scope==null || scope.getOrDefault(dimension,Set.of()).contains(chunk));
+    }
+    public boolean editsLocked(DimensionId dimension) {
+        var scope=regionEditChunks;
+        return editLocks>0 && (scope==null || scope.containsKey(dimension));
     }
     AutoCloseable lockChunks(Map<DimensionId,Set<ChunkPos>> chunks) {
         var lock=lockWorld();
@@ -305,12 +335,17 @@ public final class ServerRuntime {
     AutoCloseable lockWorld() {
         onServer(()->{
             if(editLocks++==0) {
-                wasFrozen=server.tickRateManager().isFrozen(); server.tickRateManager().setFrozen(true);
+                var ticks=server.tickRateManager();
+                wasFrozen=ticks.isFrozen(); wasStepping=ticks.frozenTicksToRun();
+                ticks.setFrozenTicksToRun(0); ticks.setFrozen(true);
                 for(var player:server.getPlayerList().getPlayers()) player.closeContainer();
             }
             return null;
         });
-        return ()->onServer(()->{ if(--editLocks==0) server.tickRateManager().setFrozen(wasFrozen); return null; });
+        return ()->onServer(()->{ if(--editLocks==0) {
+            var ticks=server.tickRateManager();ticks.setFrozen(wasFrozen);
+            if(wasFrozen && wasStepping>0) ticks.stepGameIfPaused(wasStepping);
+        } return null; });
     }
     private volatile UUID operation;
     private final AtomicBoolean cancel=new AtomicBoolean();
@@ -344,10 +379,9 @@ public final class ServerRuntime {
             : source.is(net.minecraft.world.damagesource.DamageTypes.DROWN) ? PlayerProtection.Damage.DROWNING : null;
         if(cause==null) return false;
         var dimension=dimensionId((ServerLevel)player.level());
-        for(var group:protection.values()) {
-            var guard=group.get(dimension);
-            if(guard==null || guard.expires()<System.nanoTime() || !guard.protection().causes().contains(cause)) continue;
-            if(guard.protection().chunks().contains(corePos(player.chunkPosition()))) guard.seen().add(player.getUUID());
+        for(var group:protection.values()) for(var guard:group.values()) {
+            if(guard.expires()<System.nanoTime() || !guard.protection().causes().contains(cause)) continue;
+            if(guard.dimension().equals(dimension) && guard.protection().chunks().contains(corePos(player.chunkPosition()))) guard.seen().add(player.getUUID());
             if(guard.seen().contains(player.getUUID())) return true;
         }
         return false;
@@ -373,7 +407,6 @@ public final class ServerRuntime {
     public <T> CompletableFuture<T> live(LiveAction<T> action) { return live(action,false); }
     public <T> CompletableFuture<T> region(LiveAction<T> action) { return live(action,true); }
     private <T> CompletableFuture<T> live(LiveAction<T> action,boolean region) {
-        if(!server.isSingleplayer()) return CompletableFuture.failedFuture(new IOException("世界切換指令目前只支援單人世界"));
         synchronized(this) {
             if(operation!=null) return CompletableFuture.failedFuture(new IOException("已有套用作業；可用 /wg cancel 取消"));
             operation=UUID.randomUUID(); cancel.set(false); lastProgress=null;
@@ -392,6 +425,7 @@ public final class ServerRuntime {
                     for(var player:server.getPlayerList().getPlayers()) clearPreview(player); return null;
                 });
                 if(result instanceof WorldOperations.MergeResult m && !m.state().equals("DRY_RUN")) try(var notification=org.worldgit.core.service.OperationTimings.stage("notification")) { onServer(()->{
+                    mergeState=m.merging();
                     for(var player:server.getPlayerList().getPlayers()) {
                         clearPreview(player); sendConflicts(player,m.merging());
                     }
@@ -440,7 +474,7 @@ public final class ServerRuntime {
 
     /** 呼叫於 server owner；只有宣告能力的玩家收到新的 channel。 */
     public void sendConflicts(ServerPlayer player, MergeState state) {
-        if (!handshake.supports(player.getUUID(), MergeProtocol.CAPABILITY)) return;
+        if (!handshake.supports(player.getUUID(), MergeProtocol.CAPABILITY) || !WgCommands.allowed(config.readPermissionLevel()).test(player.createCommandSourceStack())) return;
         try {
             if (state == null) {
                 sendPreview(player, MergeProtocol.regions(previewIds.getAndIncrement(), dimensionId((ServerLevel)player.level()), List.of()));
@@ -544,13 +578,21 @@ public final class ServerRuntime {
     void playerLeft(ServerPlayer player) {
         handshake.leave(player.getUUID());
         outbound.remove(player.getUUID());
+        var bar=bars.remove(player.getUUID()); if(bar!=null) bar.removeAllPlayers();
+        var mergeBar=mergeBars.remove(player.getUUID()); if(mergeBar!=null) mergeBar.removeAllPlayers();
+        for(var group:protection.values()) for(var guard:group.values()) guard.seen().remove(player.getUUID());
     }
 
     void onHello(ServerPlayer player, byte[] bytes) {
         try {
             if (!(Protocol.decode(bytes) instanceof Protocol.Hello hello)) throw new IOException("不是 hello");
-            if (handshake.reply(player.getUUID(), hello))
+            if (handshake.reply(player.getUUID(), hello)) {
                 LOG.info("WORLDGIT HANDSHAKE_OK player={} capabilities={} palette={}", player.nameAndId().name(), hello.capabilities(), hello.palette().equals(DiffPalette.COLORBLIND) ? "colorblind" : "default");
+                // repo queue 排在進行中的操作之後，避免晚到的握手發布舊清單。
+                merging().thenAccept(state->postToServer(()->{
+                    if(server.getPlayerList().getPlayer(player.getUUID())==player && handshake.ready(player.getUUID())) sendConflicts(player,state);
+                }));
+            }
             else LOG.warn("WORLDGIT HANDSHAKE_REJECTED player={} reason={}", player.nameAndId().name(), handshake.reason(player.getUUID()));
         } catch (IOException | RuntimeException e) {
             LOG.warn("WORLDGIT HANDSHAKE_INVALID player={} error={}", player.nameAndId().name(), e.toString());
@@ -559,6 +601,7 @@ public final class ServerRuntime {
 
     /** 把預覽封包排入玩家的送出佇列（每 tick 最多 packets-per-tick 個，避免尖峰）。 */
     public void sendPreview(ServerPlayer player, List<byte[]> packets) {
+        if(server.getPlayerList().getPlayer(player.getUUID())!=player) return;
         outbound.computeIfAbsent(player.getUUID(), k -> new ConcurrentLinkedDeque<>()).addAll(packets);
     }
 
@@ -572,11 +615,25 @@ public final class ServerRuntime {
         }
     }
 
-    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview", MergeProtocol.CAPABILITY};
+    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview", MergeProtocol.CAPABILITY,MergeProtocol.SELECT_CAPABILITY};
+
+    private final Map<UUID,net.minecraft.server.level.ServerBossEvent> mergeBars=new HashMap<>();
+    private void mergeProgress() {
+        var state=mergeState;
+        for(var player:server.getPlayerList().getPlayers()) {
+            if(!server.isSingleplayer() && state!=null && WgCommands.allowed(config.readPermissionLevel()).test(player.createCommandSourceStack())) {
+                var bar=mergeBars.computeIfAbsent(player.getUUID(),id->{var b=Platform.bossbar(); b.setColor(net.minecraft.world.BossEvent.BossBarColor.PURPLE);b.addPlayer(player);return b;});
+                bar.setName(Texts.component(this,Texts.locale(this,player),Msg.of(MessageKeys.MERGE_STATUS,"remaining",state.remaining(),"total",state.regions().size())));
+                bar.setProgress(state.regions().isEmpty() ? 1f : 1f-(float)state.remaining()/state.regions().size());
+                bar.setVisible(!operationActive());
+            } else { var bar=mergeBars.remove(player.getUUID()); if(bar!=null) bar.removeAllPlayers(); }
+        }
+    }
 
     void tick() {
         drainServerTasks();
         drainTickTasks(false);
+        if(server.getTickCount()%10==0) mergeProgress();
         for(var group:protection.values()) for(var guard:group.values()) remember(guard);
         protection.values().forEach(group->group.values().removeIf(guard->guard.expires()<System.nanoTime()));
         protection.values().removeIf(Map::isEmpty);
@@ -698,6 +755,9 @@ public final class ServerRuntime {
     }
 
     void shutdown() {
+        for(var bar:bars.values()) bar.removeAllPlayers();bars.clear();
+        for(var bar:mergeBars.values()) bar.removeAllPlayers();mergeBars.clear();
+        outbound.clear();protection.clear();
         closed = true;
         repo.shutdown();
         try {

@@ -19,8 +19,13 @@ public record MergeArgs(String revision, boolean abort, boolean resume, boolean 
     }
     boolean resolve=command.equals("resolve");
     if(resolve) {
+      // 遠端 Fabric UI 與 Paper 使用位置參數；舊單人旗標語法保持相容。
+      if(pos.size()==2 && choice==null) {
+        choice=Choice.valueOf(pos.get(1).toUpperCase(Locale.ROOT));
+        pos=pos.subList(0,1);
+      }
       if(pos.size()!=1 || abort || resume || args.flag("--no-commit") || !args.values().isEmpty()) throw new IllegalArgumentException();
-      int id=pos.getFirst().equals("all") ? 0 : Integer.parseInt(pos.getFirst());
+      int id=pos.getFirst().equals("all") ? 0 : Integer.parseInt(pos.getFirst().replaceFirst("^#",""));
       if(id<0 || id==0 && !pos.getFirst().equals("all")) throw new IllegalArgumentException();
       return new MergeArgs(null,false,false,false,args.flag("--dry-run"),1,null,id,choice==null ? Choice.MANUAL : choice);
     }

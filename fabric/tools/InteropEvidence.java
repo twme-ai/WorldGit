@@ -34,6 +34,16 @@ class InteropEvidence {
     }
     rows.sort(Comparator.comparingInt(MergeProtocol.RegionInfo::id));
     out.put("regions",rows); out.put("previews",previews);
+    var heads=new TreeMap<String,Object>();
+    for(var dimension:WorldLayout.discover(Path.of(args[0])).dimensions().keySet()) {
+      var directory=root.resolve(dimension.directoryName());
+      if(!Files.exists(directory.resolve("HEAD"))) continue;
+      try(var store=new JGitStore(directory,false)) {
+        var commit=store.readCommit(store.head());
+        heads.put(dimension.value(),Map.of("id",commit.id(),"parents",commit.parents()));
+      }
+    }
+    out.put("heads",heads);
     System.out.println(new ObjectMapper().writeValueAsString(out));
   }
 }
