@@ -1,0 +1,994 @@
+# 15 — WorldGit 使用手冊
+
+本手冊依「你是誰」與「你用哪個平台」整理 WorldGit 的實際用法，內容以 2026-10-04（Phase 4 完成，main `089e76b`）的實作為準。設計理由見 [09 決定表](09-roadmap-open-questions.md)，各平台細節與驗收見各模組 README 與 [11](11-phase1-progress.md)–[14](14-phase4-progress.md) 進度報告。
+
+---
+
+## 目錄
+
+1. [WorldGit 是什麼](#1-worldgit-是什麼)
+2. [我該看哪一節](#2-我該看哪一節)
+3. [安裝與取得](#3-安裝與取得)
+4. [所有人都要知道的共通規則](#4-所有人都要知道的共通規則)
+5. [單人玩家（Fabric 客戶端）](#5-單人玩家fabric-客戶端)
+6. [伺服器管理員：Paper／Folia](#6-伺服器管理員paperfolia)
+7. [伺服器管理員：Fabric 專用伺服器](#7-伺服器管理員fabric-專用伺服器)
+8. [伺服器上的玩家／建築者](#8-伺服器上的玩家建築者)
+9. [CLI 使用者（離線、備份、腳本）](#9-cli-使用者離線備份腳本)
+10. [Hub 網頁使用者（協作者、審核者）](#10-hub-網頁使用者協作者審核者)
+11. [Hub 架站者](#11-hub-架站者)
+12. [完整工作流程範例](#12-完整工作流程範例)
+13. [疑難排解](#13-疑難排解)
+14. [已知限制](#14-已知限制)
+15. [四端指令對照表](#15-四端指令對照表)
+
+---
+
+## 1. WorldGit 是什麼
+
+WorldGit 把 Minecraft 世界當成 git 的工作區（working tree）：
+
+| git 概念 | WorldGit 中的意義 |
+|---|---|
+| repo | **每個維度一個 git repo**（主世界、地獄、終界、資料包維度各一個）；主世界 repo 另存 level.dat 等世界層級資料 |
+| commit（存檔點） | 一次快照。所有維度共用同一個 snapshot UUID，網頁與 log 會把同一次存檔合併成一列 |
+| working tree | 正在玩的世界本身 |
+| branch | 同名分支同時存在於所有維度，例如 `main`、`castle-v2` |
+| diff | 方塊、方塊實體（箱子內容等）、實體、生態域、世界設定的差異；綠＝新增、紅＝移除、黃＝修改、紫＝衝突 |
+| merge | 方塊級三方合併；不同位置的修改自動合併，同位置不同修改成為「衝突區域」，可逐區選 ours／theirs／base |
+| remote／push／pull | 推送到 WorldGit Hub（或一般 git 主機），與他人協作 |
+| PR | 在 Hub 網頁上審核、用 3D 檢視比對、選衝突區域後合併 |
+
+**四個端點共用同一份歷史格式**，可以互相交替使用：
+
+| 端點 | 用途 |
+|---|---|
+| **Fabric 模組** | 單人世界、Fabric 專用伺服器；客戶端可畫 diff 鬼影、衝突清單畫面、座標留言 |
+| **Paper／Folia 插件** | 多人伺服器的線上存檔點、復原、切換、合併、遠端協作 |
+| **CLI（`wgit`）** | 世界關閉時的離線操作、備份、腳本、clone 世界 |
+| **Hub** | 自架網頁：歷史瀏覽、3D diff、PR、審核、release 下載、webhook |
+
+同一個世界可以在 Paper 上 commit、關服後用 CLI 檢查、push 到 Hub、別人 clone 下來用 Fabric 單人開啟，歷史完全相同。
+
+支援的 Minecraft 版本：**1.21.11（Java 21）與 26.2（Java 25）**。
+
+---
+
+## 2. 我該看哪一節
+
+| 你是… | 主要平台 | 先讀 | 再讀 |
+|---|---|---|---|
+| 自己玩單人、想要存檔點／試驗分支 | Fabric 客戶端 | [§5](#5-單人玩家fabric-客戶端) | [§4](#4-所有人都要知道的共通規則)、[§12.1](#121-單人存檔點與試驗分支) |
+| 經營 Paper／Folia 伺服器 | Paper 插件 | [§6](#6-伺服器管理員paperfolia) | [§12.2](#122-伺服器事故回滾)、[§12.3](#123-團隊建造與-pr) |
+| 經營 Fabric 專用伺服器 | Fabric 模組（伺服端） | [§7](#7-伺服器管理員fabric-專用伺服器) | [§6](#6-伺服器管理員paperfolia)（觀念相同） |
+| 在伺服器上建築的玩家 | 原版或 Fabric 客戶端 | [§8](#8-伺服器上的玩家建築者) | [§10](#10-hub-網頁使用者協作者審核者) |
+| 想做備份、腳本、CI，或下載別人的世界 | CLI | [§9](#9-cli-使用者離線備份腳本) | [§12.4](#124-發布地圖-release) |
+| 在網頁上審核 PR、留言 | Hub 網頁 | [§10](#10-hub-網頁使用者協作者審核者) | [§12.3](#123-團隊建造與-pr) |
+| 架設 Hub 給團隊或社群用 | Hub 伺服器 | [§11](#11-hub-架站者) | [§10](#10-hub-網頁使用者協作者審核者) |
+
+---
+
+## 3. 安裝與取得
+
+目前沒有發行版下載，請從原始碼建置。需要 JDK 21（建置與 1.21.11）與 JDK 25（26.2 與 Hub），Hub 前端另需 Node 22+。
+
+```sh
+git clone https://github.com/twme-ai/WorldGit.git
+cd WorldGit
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export GRADLE_USER_HOME="$PWD/.work/gradle-home"
+./gradlew --no-daemon --configure-on-demand --max-workers=1 build
+```
+
+| 產物 | 路徑 | 放到哪裡 |
+|---|---|---|
+| CLI | `cli/build/libs/wgit.jar`（或 repo 根目錄的 `./wgit` 啟動腳本） | 任意位置，`java -jar wgit.jar …` |
+| Paper／Folia 插件（兩版共用一個 jar） | `paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar` | 伺服器 `plugins/` |
+| Fabric 1.21.11 | `fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar` | 客戶端或伺服器 `mods/` |
+| Fabric 26.2 | `fabric/mc26_2/build/libs/worldgit-fabric-26.2-0.1.0-SNAPSHOT.jar` | 客戶端或伺服器 `mods/` |
+| Hub | `hub/build/libs/worldgit-hub.jar`，或 `hub/Containerfile` 建容器 | 見 [§11](#11-hub-架站者) |
+
+Fabric 需要的環境：
+
+| Minecraft | Java | Fabric Loader | Fabric API |
+|---|---|---|---|
+| 1.21.11 | 21 | 0.19.5 | 0.141.6+1.21.11 |
+| 26.2 | 25 | 0.19.5 | 0.161.0+26.2 |
+
+WorldGit 的 Fabric jar 已內嵌 core、JGit、Jackson、Adventure 等依賴，只需另裝 Fabric API。客戶端與專用伺服器用同一個 jar。
+
+---
+
+## 4. 所有人都要知道的共通規則
+
+### 4.1 世界資料存在哪裡
+
+| 情況 | repo 位置 |
+|---|---|
+| Paper／Folia、Fabric 專用伺服器、CLI 對伺服器世界 | 世界資料夾**旁邊**：`<伺服器>/.worldgit/<世界名>/<namespace>.<維度>/`，例如 `.worldgit/world/minecraft.overworld/` |
+| Fabric 新建的單人存檔、`wgit clone` 下來的世界 | 世界資料夾**裡面**：`<存檔>/.worldgit/<維度>/`（世界資料夾可整包搬移） |
+
+每個 repo 都是標準 bare git repo，可用原生 `git log` 唯讀檢視。相關設定檔：
+
+| 檔案 | 用途 | 會被 push 嗎 |
+|---|---|---|
+| `<repo>/.wgignore` | 該維度忽略規則（類似 .gitignore） | 會 |
+| `<repo>/worldgit-repo.yml` | `track: all` 或 `track: modified-only` | 會 |
+| `.worldgit/<世界>/worldgit.yml` | 本機設定：`palette`（色票）、`entity-tolerance`（實體位置容許距離） | 不會 |
+| `.worldgit/<世界>/remotes.yml` | remote 名稱與 URL（不含任何密碼） | 不會 |
+
+### 4.2 「乾淨的工作區」
+
+切換分支、stash pop、merge、pull 都要求工作區乾淨（自上次 commit 後沒有未提交的改動，含 untracked 新 chunk）。不乾淨時：
+
+- 先 `commit` 存起來，或
+- `stash push` 暫存，或
+- 對 switch 使用 `--stash`（自動暫存）／`--force`（丟棄改動）。
+
+### 4.3 合併狀態 MERGING
+
+合併有衝突時，世界進入 **MERGING**：
+
+- 無衝突的部分已經寫進世界；每個衝突區域暫時顯示 **ours**（你目前分支的版本）。
+- 一般 commit、switch、stash、reset 與自動 commit 都會被擋下。
+- 逐區選擇 ours／theirs／base／manual（manual＝以你自己手動修改後的現況為準）。
+- 全部解決後 `merge --continue`（或 `commit -m`）產生合併提交；反悔用 `merge --abort` 逐格回到合併前。
+- 伺服器重啟後 MERGING 狀態會恢復。
+
+**方塊狀態保持快照原樣**：切換區域時不會觸發鄰居更新，柵欄連接、紅石狀態與快照逐格相同。交界處可能需要人工檢查，畫面會列出「交界提示」；紅石區域會提示「請測試電路」。
+
+### 4.4 PARTIAL（套用中斷）
+
+線上套用被取消、伺服器崩潰或關閉時，世界可能停在部分套用的 **PARTIAL** 狀態，此時禁止 commit。恢復方式：
+
+- 一般切換／還原中斷：`switch <目標> --force` 或 `reset --hard` 重新完整套用。
+- 合併切換中斷：`merge --abort`。
+
+### 4.5 線上與離線的分工
+
+伺服器運行中，**插件／模組**負責所有操作；**CLI 只在世界關閉時使用**（偵測到 `session.lock` 被伺服器持有會拒絕）。
+
+線上套用有兩類保守限制，遇到時請關服用 CLI 處理：
+
+- 不刪除 chunk（目標版本沒有的 chunk 會保留並標為 untracked）。
+- 地圖、記分板、世界生成等世界層級設定有差異時，線上會拒絕套用。
+
+### 4.6 安全與憑證
+
+- **PAT（個人存取權杖）**是在 Hub 網頁建立的 token，CLI、插件、模組都用它 push／pull。
+- **永遠不要把 PAT 寫進 URL、remote 設定、config.yml 或世界資料夾。** 只放環境變數或權限 600 的 credentials 檔。
+- 遠端通知（webhook／定時 fetch）**只會提示「有新版本」，永遠不會自動套用**；必須有人明確執行 pull 並確認。
+
+---
+
+## 5. 單人玩家（Fabric 客戶端）
+
+### 5.1 安裝
+
+1. 安裝對應版本的 Fabric Loader 與 Fabric API。
+2. 把 WorldGit Fabric jar 放進 `.minecraft/mods/`。
+3. 進入單人世界。單人世界的擁有者不需開作弊即可使用所有指令。
+
+### 5.2 第一次使用
+
+```text
+/wg init                       # 建立 repo 與第一個完整快照（預設 creative 範本，全部追蹤）
+/wg init --template survival   # 生存世界：排除暫態資料、非 persistent 生物等
+```
+
+`init` 只建立已存在的維度；第一次進入地獄或終界後，再執行一次 `/wg init` 即可加入。
+
+### 5.3 日常：存檔點、歷史、差異
+
+```text
+/wg status                     # 目前世界相對 HEAD 改了什麼
+/wg status --show              # 在世界中畫出改動的 section／chunk 外框
+/wg commit -m 蓋好城門         # 建立存檔點；沒有改動不會產生 commit
+/wg log                        # 最近的存檔點（可加數量 1–50）
+/wg diff                       # HEAD → 目前世界
+/wg diff HEAD~1 HEAD --blocks  # 兩個版本間的逐格明細
+/wg diff --show                # 在世界中畫出逐格鬼影
+/wg preview <版本> --radius 8  # 預覽「目前世界 → 某版本」會變成怎樣（不改世界）
+/wg preview off                # 關閉預覽（或 /wg clear）
+```
+
+鬼影的意義：新增＝綠色實線＋目標方塊、移除＝紅色半透明原方塊、修改＝黃色虛線＋淡色目標方塊、衝突＝紫色閃爍。
+
+**自動 commit**：定時、離開世界、關閉遊戲時會自動建立存檔點（可在 `config/worldgit-server.yml` 調整）。
+
+### 5.4 復原與試驗分支
+
+```text
+/wg restore HEAD~1 --chunks 2               # 把玩家周圍半徑 2 chunk 還原到上一版（HEAD 不動）
+/wg restore HEAD~3 --box 0 60 0 31 80 31    # 只還原一個方塊範圍（含端點）
+/wg restore HEAD~1 --chunks 2 --dry-run     # 先看會改多少，不動世界
+
+/wg branch create 實驗塔                    # 建立分支
+/wg switch 實驗塔                           # 切換（世界原地變成該分支內容）
+/wg switch main --stash                     # 有未提交改動時先自動暫存再切
+/wg branch list
+/wg branch delete 實驗塔
+
+/wg stash push 還沒想好的屋頂
+/wg stash list
+/wg stash pop                               # 要求原基底與乾淨工作區
+/wg reset --hard                            # 丟棄所有未提交改動
+/wg cancel                                  # 中止進行中的套用（留下 PARTIAL，見 §4.4）
+```
+
+套用期間會顯示 bossbar、暫停世界 tick、攔截編輯；你和範圍內的玩家在操作中與結束後 10 秒不受摔落、窒息、溺水傷害。
+
+### 5.5 合併與衝突畫面
+
+```text
+/wg merge 實驗塔                     # 不同位置的改動自動合併，直接產生合併提交
+/wg merge 實驗塔 --no-commit         # 合併後停在 MERGING，先檢查再提交
+/wg merge 實驗塔 --strategy-option theirs   # 衝突一律選對方（無衝突部分照常合併）
+```
+
+有衝突時按 **`G`**（可在「按鍵設定 → WorldGit」修改）或輸入 `/wg conflicts` 開啟**衝突清單畫面**，選取一個區域後可以：
+
+| 按鈕 | 作用 |
+|---|---|
+| Ghost ours／theirs／base | 只在你的畫面疊上半透明預覽，不改世界 |
+| Set blocks ours／theirs／base | 真的把世界中這區換成該版本（還不算解決） |
+| Resolve ours／theirs／base／manual | 換成該版本並標記已解決；manual＝保留你手動修改後的現況 |
+| Teleport | 傳送到區域上方 |
+
+未解決的區域在世界中有紫色外框，解決後變灰。全部解決後：
+
+```text
+/wg merge --continue      # 產生合併提交
+/wg merge --abort         # 或放棄合併，回到合併前
+```
+
+也可以用指令操作：`/wg resolve <編號|all> ours|theirs|base|manual`、`/wg conflict-select <編號|all> …`（只切換不標解決）、`/wg revert <commit>`、`/wg cherry-pick <commit>`。
+
+### 5.6 客戶端顯示設定
+
+```text
+/wgc palette auto|default|colorblind   # 色票（auto＝跟隨伺服器）
+/wgc seethrough true|false             # 鬼影穿牆
+/wgc status                            # 握手狀態
+/wgc clear                             # 清除本機所有鬼影
+/wgc reload
+```
+
+細部設定在 `config/worldgit-client.yml`（明細距離、最大距離、每幀建置量、留言顯示上限等）。
+
+### 5.7 把單人世界放上 Hub、或下載別人的世界
+
+上傳（需要先在 Hub 建立 PAT，見 [§10.2](#102-建立-pat)）：
+
+1. 設定 PAT：環境變數 `WGIT_TOKEN`，或在 Fabric config 目錄建立 `config/credentials.yml`（權限 600）：
+
+   ```yaml
+   credentials:
+     https://hub.example.com:
+       mode: bearer
+       token: YOUR_PAT
+   ```
+
+2. 遊戲內：
+
+   ```text
+   /wg remote add origin https://hub.example.com/alice/my-world
+   /wg push
+   ```
+
+每個存檔有自己的 remote 設定；PAT 存在使用者層級，不會跟著存檔或 clone 移動。
+
+下載別人的世界直接開玩：
+
+```sh
+java -jar wgit.jar clone https://hub.example.com/alice/castle ~/.minecraft/saves/castle
+```
+
+clone 出來的資料夾就是完整的單人世界（光照與 POI 由遊戲重建），放進 `saves/` 就能直接開啟，裡面也已經有 `.worldgit/` 與 remote 設定，之後可在遊戲內 `/wg pull`。
+
+單人世界的 pull、PR 與座標留言用法與伺服器相同，見 [§8.3](#83-遠端協作指令)。單人世界**永遠不開 webhook port**；可在 `config/worldgit-server.yml` 開啟定時 fetch 提示新版本。
+
+---
+
+## 6. 伺服器管理員：Paper／Folia
+
+### 6.1 安裝
+
+1. 把 `worldgit-paper-0.1.0-SNAPSHOT.jar` 放進 `plugins/`（1.21.11 與 26.2、Paper 與 Folia 共用同一個 jar；版本不符會明確停用插件）。
+2. 啟動伺服器，在遊戲或主控台執行 `/wg init`（生存服建議 `/wg init --template survival`）。
+3. 依需要調整 `plugins/WorldGit/config.yml`。
+
+### 6.2 權限
+
+所有寫入類指令預設僅 op。`worldgit.admin` 包含全部指令與 `worldgit.notify`（接收通知）。
+
+| 權限 | 指令 | 預設 |
+|---|---|---|
+| `worldgit.command.init`／`status`／`commit` | `/wg init`、`/wg status`、`/wg commit` | op |
+| `worldgit.command.log` | `/wg log` | 所有人 |
+| `worldgit.command.diff` | `/wg diff` | op |
+| `worldgit.command.clear` | `/wg clear` | 所有人 |
+| `worldgit.command.reload` | `/wg reload` | op |
+| `worldgit.command.restore`／`switch`／`branch`／`stash`／`reset`／`cancel` | Phase 2 復原與切換 | op |
+| `worldgit.command.merge`／`resolve`／`conflicts`／`tool`／`revert`／`cherry-pick` | Phase 3 合併（`conflict-select` 與 `resolve` 共用權限） | op |
+| `worldgit.command.remote`／`fetch`／`push`／`pull`／`pr`／`comment` | Phase 4 遠端協作 | op |
+| `worldgit.debug` | `/wg debug`（開發用，預設只有主控台） | false |
+
+### 6.3 設定檔重點（`plugins/WorldGit/config.yml`）
+
+| 區段 | 說明 |
+|---|---|
+| `auto-commit.interval-minutes` | 定時自動 commit，預設 15 分鐘；小變動最晚 30 分鐘合併寫入 |
+| `auto-commit.min-changed-sections` | 生存服可調高，避免自然變化（作物、水流）頻繁產生 commit |
+| `dirty-poll-interval-ticks` 等 | 掃描頻率、每 tick 複製量、timeout |
+| `show.*` | 無模組玩家的 BlockDisplay 描邊上限與顯示秒數 |
+| `language` | 主控台語言（預設 zh_tw）；玩家依客戶端語言顯示 |
+| `remote.*` | 遠端協作，見 [§6.7](#67-遠端協作與-hub) |
+
+訊息可在 `plugins/WorldGit/lang/zh_tw.yml`、`en_us.yml` 覆寫個別鍵，`/wg reload` 生效。
+
+**自動 commit 的觸發**：定時、玩家登出（提交的是**整個世界**目前的改動，不只該玩家）、伺服器關閉。Paper 在關閉流程內提交；Folia 在所有世界存檔完成後以離線路徑提交，結果寫在 `plugins/WorldGit/shutdown-commit.log`。kill -9 或崩潰不會有關閉前 commit。
+
+**作者歸屬**：玩家放置／破壞、WorldEdit 操作會以 chunk 為單位記錄作者，commit 帶 `Co-authored-by`。
+
+### 6.4 WorldEdit／FAWE
+
+WorldEdit 為選用依賴，會自動記錄操作的 chunk 與作者。使用 FAWE 時請在 FAWE 的 `config.yml` 加入：
+
+```yaml
+extent:
+  allowed-plugins:
+    - org.worldgit.paper
+```
+
+`/wg restore … --selection` 可直接使用你的 WorldEdit cuboid 選區。
+
+### 6.5 日常操作
+
+```text
+/wg status [--full] [--show]
+/wg commit -m 活動場地完成
+/wg log 20
+/wg diff --show --radius 6          # 玩家附近明細；hover 看前後狀態、點擊填入傳送指令
+/wg restore HEAD~1 --selection      # 用 WorldEdit 選區還原
+/wg restore HEAD~2 --chunks 3 --dry-run
+/wg switch event-map --stash
+/wg branch event-map
+/wg stash push|pop|list|drop
+/wg reset --hard
+/wg cancel
+```
+
+沒裝 Fabric 模組的玩家看 `--show` 時，會用只有自己看得到的發光 BlockDisplay 描邊代替鬼影，`show.display-seconds`（預設 60 秒）後自動消失。
+
+**線上套用的保護**：操作期間全伺服器 tick freeze（玩家仍可移動）、攔截玩家編輯／活塞／爆炸／流體／紅石／WorldEdit；範圍內玩家受保護不受摔落、窒息、溺水傷害。只有全部驗證成功才廣播「已切換到 X」。直接改 NMS 的第三方插件需自行呼叫 `WorldGitPlugin.isEditLocked(world)` 配合。
+
+量測參考：1,000 chunk 切換，Paper 約 48 秒、Folia 約 34–37 秒，TPS 維持約 19.6–20。
+
+### 6.6 線上合併
+
+```text
+/wg merge castle-v2
+/wg conflicts               # 54 格箱子 GUI：每區座標、格數、雙方作者、紅石警示；點擊傳送
+/wg tool                    # 合併工具（指南針）：站進區域右鍵循環 ours→theirs→base，Shift+右鍵標記解決
+/wg conflict-select 3 theirs
+/wg resolve all ours
+/wg merge --continue
+/wg merge --abort
+/wg revert <commit>
+/wg cherry-pick <commit>
+```
+
+MERGING 期間有權限的玩家會看到紫色 bossbar「合併中：剩 N 個衝突」、衝突區域的發光外框，走進區域時動作列顯示編號與目前版本。Fabric 客戶端玩家可使用完整的衝突清單畫面（[§5.5](#55-合併與衝突畫面)）。
+
+### 6.7 遠端協作與 Hub
+
+**步驟 1：設定 PAT**（擇一）
+
+- 環境變數 `WGIT_TOKEN`（以 Bearer 使用），或
+- `plugins/WorldGit/credentials.yml`，權限必須恰為 600、不可是 symlink：
+
+  ```yaml
+  credentials:
+    https://hub.example.com:
+      mode: bearer
+      token: YOUR_PAT
+  ```
+
+**步驟 2：設定 remote**
+
+```text
+/wg remote add origin https://hub.example.com/myteam/survival
+```
+
+或在 `config.yml` 設 `remote.hub-url`，遠端操作會自動補上預設 remote。
+
+```yaml
+remote:
+  hub-url: ""                  # 空白則用 /wg remote add
+  default-name: origin
+  token-environment: WGIT_TOKEN
+  credentials-file: credentials.yml
+  timeout-seconds: 30
+  fetch-interval-seconds: 0    # 0 關閉；啟用至少 60 秒，只 fetch＋提示
+```
+
+**步驟 3：日常**
+
+```text
+/wg push                      # 只能 fast-forward；被拒時會提示先 pull
+/wg fetch
+/wg pull                      # 顯示預覽：FF／三方合併、衝突區域數、受影響 chunk、估計時間；不改世界
+/wg pull confirm <代碼>       # 120 秒內、同一位執行者確認後才套用
+/wg pr create 新增碼頭 --source dock --target main
+/wg pr list
+/wg pr view 3                 # 狀態、可否合併、審核數、可點擊的 Hub 連結
+```
+
+- pull 確認時會重新 fetch；若遠端在預覽後又變了，會拒絕並要求重新 pull。
+- 衝突會進入 MERGING，用 [§6.6](#66-線上合併) 的方式解決，完成後 `/wg push`。
+- **PR 的合併與核准只在 Hub 網頁進行**（需要 3D 檢視與衝突選擇）。
+- `/wg push` 只推送已 commit 的歷史，不會自動建立 commit；pull 前工作區必須乾淨。
+
+**步驟 4（選用）：接收 Hub 通知**
+
+webhook 接收器預設關閉。啟用：
+
+```yaml
+remote:
+  webhook:
+    enabled: true
+    bind: 127.0.0.1
+    port: 25731
+    path: /worldgit/webhook
+    secret-environment: WGIT_WEBHOOK_SECRET
+    secret-file: webhook.secret      # 32–4096 字元，權限 600
+    max-body-bytes: 65536
+    requests-per-minute: 60
+```
+
+然後在 Hub 世界設定頁新增 webhook：URL 指向上述位址、填同一個 secret（Hub 要求 32–256 字元，插件接受 32–4096，請取兩者交集）、事件勾 `push` 與 `pr.merged`。Hub 預設拒絕內網與 loopback 位址，自架在同一台機器時要在 Hub 設定精確的 `allowed-hosts`（[§11.4](#114-webhook-與-ssrf)）。對外公開時請放在 TLS 反向代理後面。
+
+收到通知後插件會在背景 fetch、確認完整發布，然後提示有 pull 權限的線上玩家與主控台「遠端有新版本，`/wg pull` 檢視」。**永遠不會自動套用**。無法對外開 port 的伺服器可改用 `fetch-interval-seconds` 定時 fetch。
+
+**座標留言**
+
+```text
+/wg comments                    # 列出世界的釘選留言
+/wg comments 3 --here           # PR #3 中與你目前 chunk 相交的留言
+/wg comment 3 這裡的牆要加高 --here   # 以 PAT 帳號身分留言，帶你目前的維度與座標
+/wg comments show 3             # 在世界中顯示留言文字（只有你看得到）
+/wg comments hide
+```
+
+留言以 TextDisplay 顯示，只對請求者可見、不存檔、不會被 WorldGit 快照捕捉；範圍釘選以粒子外框顯示。最多 64 則、只顯示已載入 chunk；離線、換維度、hide 時清除。
+
+### 6.8 事故處理速查
+
+| 狀況 | 做法 |
+|---|---|
+| 有人炸了出生點 | `/wg diff --show` 確認範圍 → `/wg restore HEAD --box …` 或 `--selection` 局部還原 |
+| 需要回到昨天的整個世界 | `/wg log` 找版本 → `/wg branch backup-now`（先保留現況）→ `/wg switch <commit> --force` |
+| 套用到一半當機（PARTIAL） | `/wg switch <目標> --force` 或 `/wg reset --hard` |
+| 合併中途當機 | 重啟後 MERGING 自動恢復；或 `/wg merge --abort` |
+| 線上拒絕（要刪 chunk／世界設定不同） | 關服 → CLI `wgit restore`／`switch`（[§9](#9-cli-使用者離線備份腳本)）→ 開服 |
+
+---
+
+## 7. 伺服器管理員：Fabric 專用伺服器
+
+Fabric 專用伺服器與 Paper 插件**功能對等**：存檔點、復原、切換、合併、遠端協作都可使用，觀念與 [§6](#6-伺服器管理員paperfolia) 相同。差異如下。
+
+### 7.1 安裝與權限
+
+- 伺服器與玩家客戶端使用同一個 WorldGit Fabric jar；伺服器需 Fabric API。
+- 權限以 op 等級控制：**讀取類預設等級 0**（status、log、diff、remote list、fetch、pr list/view、comments），**寫入類預設等級 2**；主控台可執行全部指令。可在 `config/worldgit-server.yml` 調整。
+
+### 7.2 設定檔
+
+| 檔案 | 內容 |
+|---|---|
+| `config/worldgit-server.yml` | 語言、預設範本、指令權限、自動 commit、伺服器身分、預覽上限、`remote` 區段 |
+| `config/worldgit-client.yml` | 客戶端顯示（伺服器上不需要） |
+| `config/credentials.yml` | PAT（權限 600） |
+| `config/worldgit/lang/<locale>.yml` | 訊息覆寫 |
+
+remote 區段：
+
+```yaml
+remote:
+  hub-url: ''
+  default-name: origin
+  token-environment: WGIT_TOKEN
+  credentials-file: credentials.yml
+  timeout-seconds: 30
+  fetch-interval-seconds: 0
+  webhook:
+    enabled: false
+    bind: 127.0.0.1
+    port: 25761
+    secret-environment: WGIT_WEBHOOK_SECRET
+    secret-file: webhook.secret
+```
+
+憑證與通知設定變更需重啟伺服器。
+
+### 7.3 指令差異
+
+- 指令與 Paper 幾乎相同；Fabric 多了 `/wg preview <版本> [--radius r]`、`/wg info`、`/wg conflict-preview`，合併工具用客戶端的衝突清單畫面（`G` 鍵）取代 Paper 的指南針與箱子 GUI。
+- 主控台執行局部 restore 時以指令來源的維度與座標為準。
+- 自動 commit 在玩家登出、定時與關機時觸發；MERGING 期間全部跳過。
+
+### 7.4 玩家客戶端
+
+- 裝了 WorldGit Fabric 模組的玩家：可使用衝突清單畫面（Ghost／Set blocks／Resolve／傳送，多位玩家同步）、diff 鬼影、**客戶端渲染的座標留言**（左上 HUD＋世界內線框，伺服器不產生任何實體）。
+- 原版客戶端：可使用聊天指令；`/wg comments show` 會說明需要 WorldGit Fabric 模組，但 `/wg comments` 文字清單仍可用。
+
+量測參考：1,000 chunk 合併期間平均 TPS 約 20；單一衝突區域切換中位數約 0.7 秒。
+
+---
+
+## 8. 伺服器上的玩家／建築者
+
+你能做什麼取決於伺服器給你的權限，以下是常見情境。
+
+### 8.1 查看與預覽
+
+```text
+/wg log                         # 通常所有人可用
+/wg diff --show                 # 看附近改了什麼（需權限）
+/wg clear                       # 清除自己的預覽
+```
+
+- **沒有模組**：預覽以只有你看得到的發光方塊描邊顯示；聊天訊息中的座標可點擊。
+- **裝 Fabric 模組**（連 Paper／Folia／Fabric 伺服器都可）：看到完整的鬼影、衝突清單畫面（`G`）、留言 HUD。Fabric 模組只需裝在你的客戶端，伺服器裝 WorldGit 插件或模組即可。
+
+### 8.2 合併期間
+
+看到紫色 bossbar「合併中：剩 N 個衝突」時，世界正在合併。衝突區域有發光外框；若你有 resolve 權限，可以用 `/wg tool`（Paper）、`G` 鍵畫面（Fabric 客戶端）或 `/wg resolve` 協助選版本。若選 **manual**，先自己動手把區域改好再標記解決。
+
+### 8.3 遠端協作指令
+
+需要伺服器授予對應權限，並由伺服器（或單人世界的你）設定 PAT：
+
+| 指令 | 作用 |
+|---|---|
+| `/wg fetch` | 下載 Hub 上的新版本（不改世界） |
+| `/wg pull` → `/wg pull confirm <代碼>` | 預覽並確認套用遠端更新 |
+| `/wg push` | 推送已提交的歷史 |
+| `/wg pr create <標題> [--source 分支] [--target main]` | 從遊戲內開 PR |
+| `/wg pr list`／`/wg pr view <#>` | 看 PR 狀態、點連結到網頁 |
+| `/wg comment <#> <內容> --here` | 在你站的位置留言 |
+| `/wg comments show [#]`／`hide` | 顯示／隱藏座標留言 |
+
+留言內容一律當純文字顯示，不會解析顏色或點擊指令。
+
+---
+
+## 9. CLI 使用者（離線、備份、腳本）
+
+CLI 在**世界關閉時**操作世界資料夾，也能完全不碰世界地處理 remote、tag 與 export。
+
+```sh
+alias wgit='java -jar /path/to/wgit.jar'
+wgit --world /srv/minecraft/world status   # --world 可指定世界或含 world/ 的伺服器資料夾；預設目前目錄
+```
+
+### 9.1 共通選項
+
+| 選項 | 說明 |
+|---|---|
+| `--world <路徑>` | 世界資料夾或伺服器資料夾 |
+| `--dimension minecraft:the_nether` | 只操作某維度（restore／verify／diff 等適用；switch／merge 等全維度操作會拒絕） |
+| `--format=json` | 結構化輸出、無 ANSI，適合腳本 |
+| `--color=auto\|always\|never` | 色彩；`NO_COLOR` 存在時停用 |
+| `--dry-run` | 套用類指令只預估、不改世界 |
+
+作者預設為 OS 使用者，可用 `GIT_AUTHOR_NAME`／`GIT_AUTHOR_EMAIL` 指定。exit code：0 成功；部分維度失敗 1；`verify` 有差異 1。
+
+### 9.2 快照
+
+```sh
+wgit init --template creative|survival [--track all|modified-only]
+wgit status [--full]
+wgit commit -m '完成第一層'
+wgit log -n 10
+wgit diff                       # HEAD → 世界
+wgit diff HEAD~1                # HEAD~1 → 世界
+wgit diff HEAD~1 HEAD --blocks [--format=json]
+```
+
+### 9.3 復原與切換
+
+```sh
+wgit branch before-edit
+wgit restore HEAD~1 --chunks 0,0,3 --dry-run            # chunk x,z,半徑
+wgit restore before-edit --box 0,60,0,31,80,31 --dimension minecraft:overworld
+wgit restore HEAD~1 --chunks 0,0,3 --delete-untracked   # 也刪掉目標沒有的 chunk
+wgit switch before-edit --stash
+wgit stash push -m '暫存'; wgit stash list; wgit stash pop 0
+wgit reset --hard                    # 還原到 HEAD
+wgit reset --hard HEAD~2 --force     # 改寫分支指標（不要對已 push 的歷史使用）
+wgit verify HEAD                     # 全量比對世界與版本，一致 exit 0
+```
+
+CLI 可以刪除 chunk、還原世界層級設定（地圖、記分板等），是處理線上拒絕情況的工具。玩家資料、時鐘、天氣不還原。
+
+### 9.4 合併
+
+```sh
+wgit merge castle-v2 [--no-commit] [--strategy-option=theirs] [--distance=1]
+wgit conflicts --format=json
+wgit resolve 1 --theirs
+wgit resolve all --manual
+wgit merge --continue
+wgit merge --abort
+wgit revert HEAD~2
+wgit cherry-pick feature
+```
+
+離線合併同樣保持方塊原狀，報告會列出需要開服後檢查的交界格。
+
+### 9.5 遠端、clone、tag、export
+
+```sh
+wgit remote add origin https://hub.example.com/alice/castle
+wgit remote set-url origin 'https://git.example/team/castle-{dimension}.git'   # 一般 git 主機：每維度一個 repo 的 URL 樣板
+wgit remote add backup manifest+file:///srv/worlds/castle.yml                  # 或世界清單檔
+wgit remote list --format=json
+wgit fetch origin
+wgit status                         # 顯示 ahead／behind（依最近一次 fetch）
+wgit push origin main --tags
+wgit push --force-with-lease        # 只在確定時使用；Hub 受保護分支仍會拒絕
+wgit pull origin main [--ff-only]   # 衝突進入 MERGING，用 resolve／merge --continue
+wgit clone https://hub.example.com/alice/castle castle [--branch main]
+wgit clone https://hub.example.com/alice/castle nether-only --dimension minecraft:the_nether
+wgit tag v1 HEAD -m '城堡完成'; wgit tag -l; wgit tag -d v1
+wgit export v1 castle.zip --max-bytes 2147483648 --max-seconds 900
+```
+
+**憑證**（優先順序）：
+
+1. 環境變數 `WGIT_TOKEN`，搭配 `WGIT_AUTH=basic|bearer`、可選 `WGIT_USERNAME`。
+2. `~/.config/worldgit/credentials.yml`（或 `WGIT_CREDENTIALS_FILE`），權限 600：
+
+   ```yaml
+   credentials:
+     https://hub.example.com:
+       mode: bearer
+       token: YOUR_PAT
+   ```
+
+3. 都沒有時以匿名身分存取（公開世界可 clone，私人世界會被拒）。
+
+注意事項：
+
+- 支援 HTTP(S) 與 file，**尚無 SSH**。
+- `remote`／`fetch`／`push`／`tag`／`export` 不碰世界，伺服器運行中也能用；`pull` 與世界操作要求世界關閉。
+- `pull --dry-run` 仍會真的 fetch，只是不套用到世界。
+- 只 clone 部分維度的世界不能 push 整個世界。
+- `export` 產出的 ZIP 是發布用副本，不含 `.worldgit`、玩家資料與 session.lock。
+
+### 9.6 忽略規則與設定
+
+編輯 `.worldgit/<世界>/<維度>/.wgignore` 後，`status` 會提示將被移除追蹤的內容，下一次 commit 生效。常用：
+
+```text
+field worldgit:map *          # 不追蹤地圖
+field worldgit:scoreboard *   # 不追蹤記分板
+```
+
+完整 selector 語法見 [core README](../core/README.md)。本機設定 `.worldgit/<世界>/worldgit.yml`：
+
+```yaml
+palette: colorblind
+entity-tolerance: 2
+```
+
+### 9.7 腳本與備份範例
+
+```sh
+# 每晚關服後備份並推送
+systemctl stop minecraft
+wgit --world /srv/mc commit -m "nightly $(date +%F)" --format=json
+wgit --world /srv/mc push origin main
+systemctl start minecraft
+
+# CI：確認世界與 main 一致
+wgit --world ./world verify main --format=json || echo "世界與 main 不一致"
+```
+
+---
+
+## 10. Hub 網頁使用者（協作者、審核者）
+
+### 10.1 登入
+
+- 管理員建立帳號，或（若站方開放）自助註冊並完成信箱驗證。
+- 若站方啟用 GitHub／Discord／Microsoft 登入：先用本機帳號登入，在**設定**頁連結第三方帳號，之後可直接用第三方登入。
+
+### 10.2 建立 PAT
+
+右上角進入**設定**（`/settings`）→「存取 token」→「建立 token」，輸入名稱。**token 只顯示一次，請立即複製**。
+
+- PAT 用於 git push／pull、CLI、伺服器插件與模組。
+- 使用 git 時帳號欄任意、密碼欄填 token，或用 `Authorization: Bearer`。
+- PAT 預設 90 天到期；scope 分 read／write／admin（透過 API 建立時可指定），實際權限仍取決於你在世界的角色。
+
+### 10.3 世界與權限
+
+- 首頁「新增世界」建立世界（小寫英數、`-`、`_`），或由站方開啟「push 到不存在的世界時自動建立」。
+- 世界可設為公開（匿名可 clone）或私人（無權限者一律看到 404）。
+- 角色：**owner／admin／write／read**，可授予個人或同組織的團隊；有多重授權時取最高者。
+- 世界的**設定頁**（`/{owner}/{world}/settings`）：成員權限、可見性、受保護分支、webhook。
+
+### 10.4 瀏覽世界
+
+| 頁面 | 內容 |
+|---|---|
+| 世界首頁 | 維度分頁、俯視地圖、變動 chunk 疊圖、clone／push 指令 |
+| commits | 依存檔點合併的歷史（自動 commit 折疊） |
+| 單一 commit | 3D 檢視與上色 diff，可切一般／色盲色票 |
+| branches | 各分支 head、作者、相對 main 的 ahead／behind |
+| compare | 任意兩個版本的 3D 比較，網址可分享鏡頭位置 |
+
+### 10.5 Pull Request 流程
+
+1. **開 PR**：在 Pull Requests 頁建立（來源分支 → 目標分支，同一世界），或從遊戲內 `/wg pr create`、CLI push 分支後在網頁開。
+2. **檢視**：PR 頁有來源 commit 列表、3D diff、可合併狀態：
+
+   | 狀態 | 意義 |
+   |---|---|
+   | ff／clean | 可直接合併 |
+   | conflicts | 有衝突區域尚未選擇 |
+   | needs-review | 受保護分支要求的核准數未達 |
+   | changes-requested | 有人要求修改 |
+   | unmergeable | 無法合併（例如版本不一致） |
+
+3. **衝突選擇**：在 PR 頁逐區選 ours／theirs／base，3D 檢視可切換「依目前選擇的合併結果」。選擇存在 PR 上；**任一分支 tip 改變，舊選擇與審核全部作廢**，頁面會提示重新選擇。
+4. **審核**：Approve 或 Request changes。作者不能審核自己的 PR；選擇改變也會清除審核。
+5. **座標留言**：在 3D 檢視點擊方塊釘選座標（或手動輸入，可選範圍），也可一般留言與回覆。點擊留言的座標會在 3D 中跳到該位置。遊戲內的玩家可用 `/wg comments show` 看到這些留言。
+6. **合併**：按「合併 PR」。Hub 再檢查一次 tip 未變與權限，產生全維度一致的合併提交，並觸發 `pr.merged` webhook。只支援 merge commit（不支援 squash／rebase／fork PR）。
+7. **伺服器取得結果**：伺服器收到通知後提示管理員 `/wg pull`，確認後世界內容即與 Hub 一致。
+
+### 10.6 受保護分支
+
+在世界設定頁設定（例如 `main`）：
+
+- 禁止 force push 與刪除；
+- 「只能經 PR 合併」：直接 push 會被拒；
+- 需要的核准數（0–10）。
+
+owner／admin 也不能繞過。
+
+### 10.7 Release
+
+在 Releases 頁對某個 tag 建立 release（標題、說明）。release 頁提供**世界 ZIP 下載**：解壓後即是可直接開啟的單人世界（不含 repo、玩家資料）。私人世界需要讀取權限。
+
+### 10.8 通知
+
+右上角「通知」顯示與你相關的 PR 開啟、審核、合併事件。
+
+---
+
+## 11. Hub 架站者
+
+### 11.1 本機快速啟動
+
+```sh
+export GRADLE_USER_HOME=$PWD/.work/gradle-home
+./gradlew --configure-on-demand :hub:webBuild :hub:bootJar
+WORLDGIT_HUB_DATA_DIR=./hub-data \
+WORLDGIT_HUB_BOOTSTRAP_ADMIN_TOKEN=dev-token \
+  java -jar hub/build/libs/worldgit-hub.jar --server.address=127.0.0.1 --server.port=8091
+```
+
+瀏覽器開 `http://127.0.0.1:8091/`，以 `admin` 登入；密碼設在 `WORLDGIT_HUB_BOOTSTRAP_ADMIN_PASSWORD`，留空則隨機產生並印在 log。
+
+首次開啟 commit 3D 檢視時，Hub 會依世界版本從 Mojang 下載 client jar（SHA-1 驗證）產生貼圖，之後快取在資料目錄；離線環境可設 `worldgit.hub.assets.source-dir` 指向已解開的 client jar。
+
+### 11.2 容器部署（Docker／Podman）
+
+```sh
+podman build --format docker -f hub/Containerfile -t localhost/worldgit-hub:latest .
+WORLDGIT_ADMIN_PASSWORD_FILE=/安全路徑/admin-password \
+WORLDGIT_ADMIN_TOKEN_FILE=/安全路徑/admin-token \
+  podman compose -f hub/compose.yaml up -d --build
+hub/scripts/container-smoke.sh            # 冒煙測試；DB=postgres 測 PostgreSQL
+```
+
+- 建置 context 必須是 repo 根目錄；podman 要加 `--format docker`，否則 HEALTHCHECK 會遺失。
+- 容器以 uid 10001 執行，資料在 `/data`，埠 8080；secret 檔要讓 uid 10001 可讀（`chown 10001:10001 檔案 && chmod 400 檔案`，rootless 用 `podman unshare chown`）。
+- `compose.yaml` 預設只綁 `127.0.0.1:8091`，對外請放在 TLS 反向代理後。
+- systemd：`hub/deploy/` 有 Podman Quadlet 範例。
+- 目前只實測 amd64。
+
+### 11.3 重要設定
+
+`application.yml` 中的項目都可用環境變數覆寫。
+
+| 設定 | 環境變數 | 說明 |
+|---|---|---|
+| `worldgit.hub.data-dir` | `WORLDGIT_HUB_DATA_DIR` | 資料根目錄 |
+| `worldgit.hub.bootstrap.admin-password(-file)`／`admin-token(-file)` | `WORLDGIT_HUB_BOOTSTRAP_ADMIN_*` | 首次啟動的管理員 |
+| `worldgit.hub.auto-create-worlds` | `WORLDGIT_HUB_AUTO_CREATE_WORLDS` | push 到不存在的世界時自動建立（私人） |
+| `spring.datasource.*` | `SPRING_DATASOURCE_URL` 等 | 預設 SQLite；改 `jdbc:postgresql://…` 並設 driver `org.postgresql.Driver` 切換 PostgreSQL |
+| `worldgit.hub.git.owner-quota-bytes` | — | 每個 owner 的磁碟配額，預設 10 GiB |
+| `worldgit.hub.git.max-pack-bytes` | — | 單次收包上限 95 MB |
+| `worldgit.hub.auth.*` | — | 認證失敗限流（30 次／60 秒、5 次失敗鎖 300 秒）；成功的 PAT 請求另有 6000 次／60 秒額度 |
+| `worldgit.hub.tokens.pat-days` | — | 新 PAT 預設期限（90 天） |
+| `worldgit.hub.security.hsts` | — | 只在 TLS 反向代理後設 true |
+| `worldgit.hub.security.trusted-proxies` | — | 可信代理的精確 IP，代理必須覆寫 X-Forwarded-For |
+| `worldgit.hub.collaboration.merge-lock-timeout` | — | PR 合併等待鎖的上限，預設 10s |
+| `worldgit.hub.collaboration.downloads.*` | — | release ZIP 的大小（512 MiB）、時間（300 秒）、並行數（2） |
+
+### 11.4 Webhook 與 SSRF
+
+世界 webhook 預設只能投遞到 **HTTPS 且所有 DNS 位址都是公網** 的目標，禁止 redirect。若遊戲伺服器與 Hub 在同一台機器或內網，需設定精確的允許清單（沒有萬用字元）：
+
+```yaml
+worldgit:
+  hub:
+    collaboration:
+      webhooks:
+        allowed-hosts: [127.0.0.1]
+        attempts: 5
+        retry-seconds: 30
+```
+
+投遞失敗會以 30／60／120／240 秒退避重試最多 5 次，世界設定頁可查看投遞紀錄。
+
+### 11.5 OAuth 與自助註冊
+
+```yaml
+worldgit:
+  hub:
+    collaboration:
+      registration:
+        enabled: false                # 開啟需要 SMTP（spring.mail.*）
+        public-url: https://hub.example.org
+        from: worldgit@example.org
+      oauth:
+        github:
+          enabled: true
+          client-id: ${GITHUB_CLIENT_ID}
+          client-secret: ${GITHUB_CLIENT_SECRET}
+        discord:
+          enabled: false
+        microsoft:
+          enabled: false
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true                  # TLS 部署必設
+```
+
+第三方回呼 URL：`https://hub.example.org/login/oauth2/code/{github|discord|microsoft}`。OAuth 不會依 email 自動建立或合併帳號；使用者須先有本機帳號再連結。
+
+### 11.6 上線前檢查清單
+
+- [ ] TLS 反向代理、`cookie.secure: true`、正確 `public-url`、`hsts: true`
+- [ ] 代理設定有限的 idle／write timeout（ZIP 下載與收包沒有硬 deadline）
+- [ ] 只在代理確實覆寫 X-Forwarded-For 時設定 `trusted-proxies`
+- [ ] 配額、磁碟餘裕與備份（資料目錄＋資料庫；webhook secret 以明文存在資料庫）
+- [ ] 公開註冊需另訂保留字、冒充、檢舉與濫用治理政策（目前只有最小版本）
+- [ ] 單一 Hub 實例：配額、鎖、session、限流都在本機，不能直接水平擴充
+
+---
+
+## 12. 完整工作流程範例
+
+### 12.1 單人：存檔點與試驗分支
+
+```text
+/wg init
+/wg commit -m 基地完成
+/wg branch create 地下城實驗
+/wg switch 地下城實驗
+…盡情破壞…
+/wg commit -m 地下城版本一
+/wg switch main            # 世界回到基地完成時
+/wg merge 地下城實驗       # 喜歡的話合併回來；不同位置的改動自動合併
+```
+
+### 12.2 伺服器事故回滾
+
+1. 玩家回報出生點被炸：`/wg diff --show` 確認範圍。
+2. 局部還原：`/wg restore HEAD --box -50 50 -50 50 120 50`（HEAD 不動，只還原範圍內）。
+3. 若需要整個世界回到早上：`/wg log` 找到版本 → `/wg branch incident-now` 保留現況 → `/wg switch <commit> --force`。
+4. 事後在 Hub 或 `wgit diff` 比對 `incident-now` 與還原版本，找出被破壞的內容。
+
+### 12.3 團隊建造與 PR
+
+角色：伺服器 A（Paper，正式服）、建築者 B（家裡用單人或 CLI）、審核者 C（網頁）。
+
+1. **A 上傳**：管理員設定 PAT → `/wg remote add origin https://hub.example.com/team/city` → `/wg push`。
+2. **Hub 設定**：C 在世界設定頁把 `main` 設為受保護（只能經 PR、需要 1 個核准），並新增 webhook 指向 A。
+3. **B 建造**：
+   ```sh
+   wgit clone https://hub.example.com/team/city ~/.minecraft/saves/city
+   ```
+   用 Fabric 單人開啟 → `/wg branch create harbor` → `/wg switch harbor` → 建造 → `/wg commit -m 港口` → `/wg push origin harbor` → `/wg pr create 新港口 --source harbor`。
+4. **C 審核**：在 PR 頁看 3D diff、在需要修改的位置釘選留言；B 在遊戲內 `/wg comments show <#>` 看到留言位置，修改後再 push（舊審核作廢）。C 核准，若有衝突就逐區選擇，按「合併 PR」。
+5. **A 套用**：A 收到 webhook，線上管理員看到「遠端有新版本」→ `/wg pull` 看預覽 → `/wg pull confirm <代碼>` → 世界與 Hub 合併結果一致。
+6. **B 同步**：`/wg switch main` → `/wg pull`。
+
+### 12.4 發布地圖 release
+
+```sh
+wgit tag v1.0 HEAD -m '冒險地圖第一版'
+wgit push origin main --tags
+```
+
+在 Hub 的 Releases 頁對 `v1.0` 建立 release，玩家從 release 頁下載 ZIP，解壓到 `saves/` 即可開玩。也可以離線產生：`wgit export v1.0 adventure-v1.zip`。
+
+---
+
+## 13. 疑難排解
+
+| 訊息／狀況 | 原因與處理 |
+|---|---|
+| CLI：世界正在使用（session.lock） | 伺服器或遊戲還開著世界；關閉後再用 CLI，或改用遊戲內指令 |
+| 工作區不乾淨，拒絕 switch／merge／pull | 先 `commit`、`stash push`，或 switch 加 `--stash`／`--force` |
+| commit 被擋：PARTIAL | 上次套用中斷；`switch <目標> --force` 或 `reset --hard`（合併中斷用 `merge --abort`） |
+| commit 被擋：MERGING | 合併尚未完成；解決所有區域後 `merge --continue`，或 `merge --abort` |
+| 線上拒絕：需要刪除 chunk／世界設定不同 | 關服用 CLI 處理（[§4.5](#45-線上與離線的分工)） |
+| 拒絕：DataVersion／.wgignore／資料包清單不同 | 不同版本或規則的快照不能互相套用；先統一版本與規則 |
+| push 被拒：non-fast-forward | 遠端有你沒有的提交；先 `pull` 合併再 push |
+| push 被拒：受保護分支 | 推到其他分支並開 PR |
+| 401 | PAT 錯誤、過期或沒設定；重新建立並檢查 credentials 檔或 `WGIT_TOKEN` |
+| 404（但世界確實存在） | 你沒有該私人世界的讀取權限（Hub 不透露私人世界是否存在） |
+| 409 | PR 的分支 tip 已改變；重新載入，衝突選擇與審核需重做 |
+| 429 | 請求過多或認證失敗太多次；等待 Retry-After 秒數 |
+| 503 | Hub 暫時忙碌（推送、合併或下載進行中）；稍後重試 |
+| credentials 檔被拒 | 權限必須恰為 600、普通檔案、不可是 symlink |
+| `pull confirm` 被拒 | 超過 120 秒、不是同一位執行者，或遠端在預覽後又改變；重新 `/wg pull` |
+| 收不到 webhook 通知 | 確認接收器已啟用、port 可達、secret 一致、Hub 的 `allowed-hosts` 有包含內網位址；查 Hub 世界設定頁的投遞紀錄；或改用定時 fetch |
+| Fabric 客戶端看不到鬼影／衝突畫面 | 伺服器需裝 WorldGit；`/wgc status` 查握手狀態 |
+| 生存服自動 commit 太頻繁 | 調高 `auto-commit.min-changed-sections`；用 survival 範本 |
+| clone 後地形與原本不同 | 若使用 `modified-only`，未存的自然地形由種子重新生成；預設 `track: all` 不受影響 |
+
+---
+
+## 14. 已知限制
+
+- **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理；跨 DataVersion 不支援（沒有 DataFixer）。
+- **作者歸屬**是 chunk 粒度，沒有逐格 blame；玩家登出提交的是整個世界，沒有 per-player staging。
+- **`modified-only`** 目前只記錄設定，平台尚未自動蒐集玩家編輯集合，實際仍追蹤全部 chunk。
+- **遠端**：沒有 SSH；沒有 fork PR、squash／rebase；遊戲內不能合併或核准 PR；真實 GitHub／Gitea 未實測（URL 樣板以 JGit 與 git http-backend 驗證）。
+- **座標留言**只顯示當下已載入的 chunk，移動到新區域需重新 show。
+- **Hub**：單一實例；儲存只支援本機磁碟；遠景尚未嵌入 BlueMap；只實測 amd64、Podman；公開註冊的治理政策尚未完成。
+- **客戶端渲染**：沒有流體、特殊方塊實體、實體模型 renderer；未驗證 Sodium／Iris 與硬體 GPU。
+- 量測數字來自受控平坦世界與凍結 tick，不代表大型自然世界或大量真實玩家的負載。
+
+各項詳細原因與證據見 [14 Phase 4 進度](14-phase4-progress.md) 的「未完成事項」與各平台 README。
+
+---
+
+## 15. 四端指令對照表
+
+| 功能 | Fabric（單人／專用伺服器） | Paper／Folia | CLI | Hub 網頁 |
+|---|---|---|---|---|
+| 初始化 | `/wg init` | `/wg init` | `wgit init` | 新增世界 |
+| 狀態 | `/wg status [--show]` | `/wg status [--show]` | `wgit status` | — |
+| 存檔點 | `/wg commit -m` | `/wg commit -m` | `wgit commit -m` | — |
+| 歷史 | `/wg log` | `/wg log` | `wgit log` | commits 頁 |
+| 差異 | `/wg diff [--show]`、`/wg preview` | `/wg diff [--show]` | `wgit diff [--blocks]` | commit／compare 3D |
+| 局部還原 | `/wg restore` | `/wg restore [--selection]` | `wgit restore` | — |
+| 分支 | `/wg branch`、`/wg switch` | `/wg branch`、`/wg switch` | `wgit branch`、`wgit switch` | branches 頁 |
+| 暫存 | `/wg stash` | `/wg stash` | `wgit stash` | — |
+| 重設 | `/wg reset --hard` | `/wg reset --hard` | `wgit reset --hard` | — |
+| 驗證 | — | — | `wgit verify` | — |
+| 合併 | `/wg merge` | `/wg merge` | `wgit merge` | PR 合併按鈕 |
+| 衝突處理 | `G` 畫面、`/wg resolve`、`/wg conflict-select` | `/wg conflicts` GUI、`/wg tool`、`/wg resolve`、`/wg conflict-select` | `wgit conflicts`、`wgit resolve` | PR 區域選擇 |
+| revert／cherry-pick | `/wg revert`、`/wg cherry-pick` | 同左 | `wgit revert`、`wgit cherry-pick` | — |
+| remote | `/wg remote` | `/wg remote` | `wgit remote` | — |
+| fetch／push | `/wg fetch`、`/wg push` | `/wg fetch`、`/wg push` | `wgit fetch`、`wgit push` | — |
+| pull | `/wg pull` → `confirm` | `/wg pull` → `confirm` | `wgit pull` | — |
+| clone | （用 CLI clone 後放進 saves/） | — | `wgit clone` | clone 指令提示 |
+| tag／release | — | — | `wgit tag`、`wgit export` | Releases 頁 |
+| PR | `/wg pr create\|list\|view` | `/wg pr create\|list\|view` | — | 建立、審核、合併 |
+| 座標留言 | `/wg comment`、`/wg comments show`（客戶端 HUD） | `/wg comment`、`/wg comments show`（TextDisplay） | — | 3D 釘選留言 |
+| 取消套用 | `/wg cancel` | `/wg cancel` | — | — |
+| 客戶端設定 | `/wgc palette\|seethrough\|status\|clear` | — | — | 色票切換 |
