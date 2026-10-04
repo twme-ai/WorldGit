@@ -79,6 +79,7 @@ worldgit:
     tokens:
       pat-days: 90
     collaboration:
+      merge-lock-timeout: 10s    # PR 合併等待 owner 鎖（1ms–30s）；容忍 push 後短暫維護，決定 #105
       registration:
         enabled: false
         public-url: http://localhost:8080

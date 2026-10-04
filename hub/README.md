@@ -58,6 +58,7 @@ Phase 4 最新映像建置與冒煙（SQLite、`DB=postgres`）已於 2026-10-03
 | `worldgit.hub.auth.*` | `WORLDGIT_HUB_AUTH_*` | 只計失敗：IP／帳號／組合 30 次/60 秒、5 次鎖 300 秒；成功 Basic/Bearer PAT 不消耗失敗額度、不清除紀錄，另限每 IP／使用者 6000 次/60 秒；兩種狀態各最多 10,000 鍵 |
 | `worldgit.hub.tokens.pat-days` | `WORLDGIT_HUB_TOKENS_PAT_DAYS` | 新 PAT 預設 90 天，可指定 `expiresAt` ISO-8601（最長十年）；既有與 bootstrap token 的期限維持既有政策 |
 | `worldgit.hub.git.pack-limit-bytes` | — | push 後非同步 repack 的 pack 上限（預設 95,000,000，決定 #17） |
+| `worldgit.hub.collaboration.merge-lock-timeout` | `WORLDGIT_HUB_COLLABORATION_MERGE_LOCK_TIMEOUT` | PR 合併取得 owner 鎖的等待上限，預設 `10s`，可設 `1ms`–`30s`；逾時或中斷回 503（Retry-After: 2），中斷保留 interrupt 旗標（決定 #105） |
 | `worldgit.hub.assets.source-dir` | `WORLDGIT_HUB_ASSETS_SOURCE_DIR` | 已解開的 client jar 目錄；空白＝自 Mojang 下載 |
 | `spring.datasource.*` | `SPRING_DATASOURCE_URL` 等 | 預設 SQLite；改 `jdbc:postgresql://…` 並設 `SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver` 切換 PostgreSQL（driver 已內建；SQLite 的 pragma 已改放 URL 參數，所以切換只需改 URL、driver、帳密；2026-10-01 以 PostgreSQL 16 跑過完整 Hub 測試與容器冒煙） |
 | `server.address` / `server.port` | `SERVER_ADDRESS` / `SERVER_PORT` | jar 預設 `0.0.0.0:8080`（容器用）；本機請用 `--server.address=127.0.0.1` |
@@ -146,6 +147,7 @@ worldgit:
     auth:
       successful-requests: 6000
     collaboration:
+      merge-lock-timeout: 10s
       registration:
         enabled: false
         public-url: https://hub.example.org
@@ -213,6 +215,8 @@ PR／留言／release／webhook／投遞／通知列表回 `{items,offset,limit,
 ```
 
 建立 PR 後讀詳情取得 `pr.id` 與 `pr.fingerprint`；送 choices/reviews/merge 均必須使用這個 fingerprint。`mergeability` 為 ff/clean/conflicts/needs-review/changes-requested/unmergeable/merged/closed；任何維度 tip 改變使舊選擇與審核作廢，回 409 或詳情 `selectionsInvalidated: true`。選擇改變也清除審核。合併回傳 `status: merged`、snapshot 與全維度 commits；全部維度走 core publication，PR 與 receive-pack 共用 owner 鎖，發布後 DB finalize 中斷可 reconcile。只有 merge commit（FF 也建立整合提交），fork／squash／rebase 未提供。
+
+push 後 `Maintenance.afterPush` 會非同步持有同一把 owner 鎖檢查 repack 並呼叫 `storage.afterWrite`。PR 合併最多等候 `merge-lock-timeout`，讓短暫維護完成後繼續；取得鎖後重新檢查權限、PR 狀態與 fingerprint，逾時或中斷回 503。此設定只限制取得鎖的等待時間，合併本身的執行時間另計。ZIP 下載仍在下載許可或 owner 鎖忙時立即回 503；git receive-pack（含 info/refs）仍立即回 429，兩者都帶 Retry-After: 2。兩者在完整下載／收包期間持鎖，慢速 socket 沒有硬 deadline；維持立即拒絕可避免請求執行緒與下載許可排隊等候慢速串流（決定 #105）。
 
 ```json
 {"body":"屋頂請加高","pin":{"dimension":"minecraft:overworld","x":3,"y":65,"z":3,"maxX":8,"maxY":67,"maxZ":8}}

@@ -1,5 +1,6 @@
 package org.worldgit.hub;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 import com.fasterxml.jackson.databind.*;
 import java.io.*;
 import java.net.*;
@@ -7,6 +8,9 @@ import java.net.http.*;
 import java.nio.file.*;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.*;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.*;
@@ -22,6 +26,8 @@ import org.worldgit.core.store.*;
 import org.worldgit.hub.account.*;
 import org.worldgit.hub.account.Models.*;
 import org.worldgit.hub.collaboration.*;
+import org.worldgit.hub.config.CollaborationProperties;
+import org.worldgit.hub.history.MergePreviewService;
 import org.worldgit.hub.storage.*;
 
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.DEFINED_PORT)
@@ -119,6 +125,60 @@ class CollaborationTest {
     var f=fixture();var p=create(f,"feature","main");assertEquals("clean",prs.detail(f.world,p.id()).mergeability());assertEquals("merged",prs.merge(f.world,owner,p.id(),p.fingerprint()).status());
     var closed=create(f,"theirs","ours");prs.edit(f.world,writer,closed.id(),"edited",null,"closed");assertEquals(1,prs.list(f.world,"closed",0,1).items().size());assertThrows(org.worldgit.hub.web.ApiError.Conflict.class,()->prs.merge(f.world,owner,closed.id(),closed.fingerprint()));
     assertFalse(events.notifications(writer,0,100).items().isEmpty());accounts.grant(f.world,owner,writer.username(),Role.NONE);assertTrue(events.notifications(writer,0,100).items().stream().noneMatch(n->n.toString().contains(f.world.slug())));
+  }
+  @FunctionalInterface interface LockedAction { void run(ReentrantLock lock,CountDownLatch release)throws Exception; }
+  void withOwnerLockHeld(WorldRow w,LockedAction action)throws Exception {
+    var lock=quota.lock(w.ownerSlug());var held=new CountDownLatch(1);var release=new CountDownLatch(1);
+    try(var executor=Executors.newSingleThreadExecutor()) {
+      var holder=executor.submit(()->{lock.lock();try{held.countDown();assertTrue(release.await(20,TimeUnit.SECONDS),"持鎖測試未釋放");return null;}finally{lock.unlock();}});
+      try{assertTrue(held.await(10,TimeUnit.SECONDS));action.run(lock,release);}finally{release.countDown();}
+      holder.get(10,TimeUnit.SECONDS);
+    }
+  }
+  @Test void mergeWaitsForOwnerMaintenanceAndSucceedsAfterRelease()throws Exception {
+    var f=fixture();var p=create(f,"feature","main");
+    withOwnerLockHeld(f.world,(lock,release)->{
+      try(var executor=Executors.newSingleThreadExecutor()) {
+        var thread=new AtomicReference<Thread>();
+        var merge=executor.submit(()->{thread.set(Thread.currentThread());return prs.merge(f.world,owner,p.id(),p.fingerprint());});
+        try {
+          // 觀察真正排入鎖佇列才釋放 latch；舊版立即拒絕會在這裡確定失敗。
+          await().atMost(Duration.ofSeconds(5)).until(()->thread.get()!=null && lock.hasQueuedThread(thread.get()));
+          assertFalse(merge.isDone());release.countDown();
+          assertEquals("merged",merge.get(10,TimeUnit.SECONDS).status());
+        }finally{release.countDown();}
+      }
+    });
+    assertEquals("merged",prs.find(f.world,p.id()).status());
+  }
+  @Autowired MergePreviewService previews;
+  @Test void mergeTimesOutWhileOwnerMaintenanceKeepsLock()throws Exception {
+    var f=fixture();var p=create(f,"feature","main");var before=groups.branchTips(f.world,"main");
+    var timeout=Duration.ofMillis(100);var props=new CollaborationProperties(null,null,null,null,timeout);
+    var bounded=new PullRequests(db,accounts,groups,previews,policy,quota,repos,events,transactions,props);
+    withOwnerLockHeld(f.world,(lock,release)->{
+      long started=System.nanoTime();
+      var error=assertTimeout(Duration.ofSeconds(5),()->assertThrows(org.worldgit.hub.web.ApiError.Unavailable.class,()->bounded.merge(f.world,owner,p.id(),p.fingerprint())));
+      assertTrue(System.nanoTime()-started>=timeout.toNanos(),"不能立即拒絕，需等到設定的逾時");
+      assertTrue(error.getMessage().contains("逾時"));assertTrue(lock.isLocked());assertFalse(lock.isHeldByCurrentThread());
+    });
+    assertEquals("open",prs.find(f.world,p.id()).status());assertEquals(before,groups.branchTips(f.world,"main"));
+    assertEquals("merged",prs.merge(f.world,owner,p.id(),p.fingerprint()).status());
+  }
+  @Test void interruptedMergeRestoresInterruptAndLeavesOwnerLockUntouched()throws Exception {
+    var f=fixture();var p=create(f,"feature","main");var before=groups.branchTips(f.world,"main");
+    withOwnerLockHeld(f.world,(lock,release)->{
+      try(var executor=Executors.newSingleThreadExecutor()) {
+        var thread=new AtomicReference<Thread>();
+        var merge=executor.submit(()->{thread.set(Thread.currentThread());var error=assertThrows(org.worldgit.hub.web.ApiError.Unavailable.class,()->prs.merge(f.world,owner,p.id(),p.fingerprint()));assertTrue(error.getMessage().contains("中斷"));return Thread.currentThread().isInterrupted();});
+        try {
+          await().atMost(Duration.ofSeconds(5)).until(()->thread.get()!=null && lock.hasQueuedThread(thread.get()));
+          thread.get().interrupt();assertTrue(merge.get(10,TimeUnit.SECONDS));assertTrue(lock.isLocked());
+        }finally{release.countDown();}
+      }
+    });
+    assertEquals("open",prs.find(f.world,p.id()).status());assertEquals(before,groups.branchTips(f.world,"main"));
+    assertEquals("merged",prs.merge(f.world,owner,p.id(),p.fingerprint()).status());
   }
   @Test void choicesAndReviewsInvalidateOnAnyDimensionTipAndMergeLeaseRace()throws Exception {
     var f=fixture();var p=create(f,"theirs","ours");var d=prs.detail(f.world,p.id());var choices=new TreeMap<Integer,String>();d.preview().regions().forEach(r->choices.put(r.id(),"base"));prs.choices(f.world,writer,p.id(),p.fingerprint(),choices);prs.review(f.world,owner,p.id(),p.fingerprint(),"approve");
@@ -220,7 +280,7 @@ class CollaborationTest {
     var release=ok("POST",base(w)+"/releases",token,Map.of("tag","v1","title","Release","body","test"));String id=release.get("id").asText();assertEquals(404,request("GET",base(w)+"/releases/"+id+"/zip",null,null).statusCode());
     var download=request("GET",base(w)+"/releases/"+id+"/zip",readToken,null);assertEquals(200,download.statusCode());assertEquals("private, no-store",download.headers().firstValue("Cache-Control").orElseThrow());
     var entries=new HashSet<String>();try(var zip=new ZipInputStream(new ByteArrayInputStream(download.body()))){for(var e=zip.getNextEntry();e!=null;e=zip.getNextEntry()){entries.add(e.getName());zip.readAllBytes();}}assertTrue(entries.contains("level.dat"));assertTrue(entries.stream().anyMatch(n->n.endsWith(".mca")));assertTrue(entries.stream().noneMatch(n->n.contains(".worldgit")||n.contains("playerdata")||n.equals("session.lock")));
-    var props=new org.worldgit.hub.config.CollaborationProperties(null,null,new org.worldgit.hub.config.CollaborationProperties.Downloads(1,1,1),null);var hub=new org.worldgit.hub.config.HubProperties(data,null,null,null,null,null,null,null,null,null);
+    var props=new org.worldgit.hub.config.CollaborationProperties(null,null,new org.worldgit.hub.config.CollaborationProperties.Downloads(1,1,1),null,null);var hub=new org.worldgit.hub.config.HubProperties(data,null,null,null,null,null,null,null,null,null);
     var limited=new Releases(db,groups,repos,events,quota,props,hub,transactions);
     var failedResponse=new org.springframework.mock.web.MockHttpServletResponse();
     assertThrows(org.worldgit.core.normalize.DecodeBudget.Exceeded.class,()->limited.zip(w,id,failedResponse));
@@ -233,7 +293,7 @@ class CollaborationTest {
     }
     try(var files=Files.list(data.resolve("downloads"))){assertEquals(0,files.count());}
     var gate=new java.util.concurrent.CountDownLatch(1);var entered=new java.util.concurrent.CountDownLatch(1);
-    var concurrent=new Releases(db,groups,repos,events,quota,new org.worldgit.hub.config.CollaborationProperties(null,null,new org.worldgit.hub.config.CollaborationProperties.Downloads(536870912,300,1),null),hub,transactions);
+    var concurrent=new Releases(db,groups,repos,events,quota,new org.worldgit.hub.config.CollaborationProperties(null,null,new org.worldgit.hub.config.CollaborationProperties.Downloads(536870912,300,1),null,null),hub,transactions);
     var response=new org.springframework.mock.web.MockHttpServletResponse(){@Override public jakarta.servlet.ServletOutputStream getOutputStream(){return new jakarta.servlet.ServletOutputStream(){public boolean isReady(){return true;}public void setWriteListener(jakarta.servlet.WriteListener l){}public void write(int b)throws IOException {entered.countDown();try{if(!gate.await(10,java.util.concurrent.TimeUnit.SECONDS))throw new IOException("timeout");}catch(InterruptedException ex){throw new IOException(ex);}}};}};
     try(var executor=java.util.concurrent.Executors.newSingleThreadExecutor()){var future=executor.submit(()->{concurrent.zip(w,id,response);return true;});try{assertTrue(entered.await(10,java.util.concurrent.TimeUnit.SECONDS));assertThrows(org.worldgit.hub.web.ApiError.Unavailable.class,()->concurrent.zip(w,id,new org.springframework.mock.web.MockHttpServletResponse()));}finally{gate.countDown();}assertTrue(future.get());}
   }

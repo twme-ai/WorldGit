@@ -235,6 +235,7 @@ Paper 26.2 在 Nether／End 各新生成 1 個未追蹤 chunk，verify 報告 `u
 | 依賴 OSV 命中 HTTP Client/Core 與 Log4j API 的 4 筆版本 advisory | 加入修復版 strict constraints／BOM 並重驗實際打包版本，原始掃描與公告留存 |
 | Webhook review：HTTP client GRACEFUL close 可能排空無界 response body | status 後 IMMEDIATE 丟棄連線；新增持續 body 測試驗 3 秒內成功且對端斷線 |
 | 容器 build 與 smoke：cannot write uid_map, operation not permitted | 沙盒禁止 UID namespace，沒有提升權限／停止既有測試 PG；保留真失敗 log；改由主對話在沙盒外建置與冒煙，通過 |
+| 2026-10-04 GitHub CI run 37183638881／build：`cleanMergeLifecycleAndClosedState()` 在 fixture push 後誤拋 Unavailable；PostgreSQL job 與本機通過 | `afterPush` 短暫持有同一把 owner 鎖，merge 的立即 tryLock 造成時序競爭；依 #105 改為可設定的有界等待（預設 10s），逾時／中斷回 503 並保留 interrupt。以 latch 與實際鎖佇列確定驗證釋放後成功、逾時不發布、中斷與釋放後可重試；ZIP／receive-pack 維持立即拒絕，避免慢速串流後堆積請求。本機 SQLite 全套連跑三次，每次 13 suites／61 tests、零失敗／錯誤／略過；完整 build 通過（79 tasks，6 executed／73 up-to-date）。log：`.work/hub-merge-lock-sqlite-1-retry.log`、`-sqlite-2.log`、`-sqlite-3.log`、`-build.log`；首次缺 import 的編譯失敗保留於 `-sqlite-1.log`，補齊後重跑；本次未跑 PostgreSQL |
 
 ### 未完成事項與實際界線
 

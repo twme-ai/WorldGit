@@ -3,7 +3,7 @@ package org.worldgit.hub.collaboration;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.TimeUnit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -16,6 +16,7 @@ import org.worldgit.core.remote.*;
 import org.worldgit.core.store.*;
 import org.worldgit.hub.account.*;
 import org.worldgit.hub.account.Models.*;
+import org.worldgit.hub.config.CollaborationProperties;
 import org.worldgit.hub.git.RepoCache;
 import org.worldgit.hub.history.*;
 import org.worldgit.hub.storage.OwnerQuota;
@@ -30,8 +31,10 @@ public class PullRequests {
       String mergeability,int approvals,int requiredReviews,List<Dto.CommitInfo> commits,boolean commitsTruncated) {}
   private final JdbcClient db;private final AccountService accounts;private final WorldGroups groups;private final MergePreviewService previews;
   private final BranchPolicy policy;private final OwnerQuota quota;private final RepoCache repos;private final EventService events;private final TransactionTemplate tx;
-  public PullRequests(JdbcClient db,AccountService accounts,WorldGroups groups,MergePreviewService previews,BranchPolicy policy,OwnerQuota quota,RepoCache repos,EventService events,PlatformTransactionManager manager) {
+  private final long mergeLockTimeoutNanos;
+  public PullRequests(JdbcClient db,AccountService accounts,WorldGroups groups,MergePreviewService previews,BranchPolicy policy,OwnerQuota quota,RepoCache repos,EventService events,PlatformTransactionManager manager,CollaborationProperties props) {
     this.db=db;this.accounts=accounts;this.groups=groups;this.previews=previews;this.policy=policy;this.quota=quota;this.repos=repos;this.events=events;this.tx=new TransactionTemplate(manager);
+    this.mergeLockTimeoutNanos=props.mergeLockTimeout().toNanos();
   }
   private Pull row(java.sql.ResultSet rs,int n) throws java.sql.SQLException { return new Pull(rs.getString(1),rs.getInt(2),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8),rs.getString(9),rs.getString(10),rs.getInt(11)!=0,rs.getLong(12),rs.getLong(13),rs.getString(14),rs.getString(15)==null?Map.of():events.decode(rs.getString(15))); }
   private static final String SELECT="SELECT p.id,p.number,p.author_id,u.username,p.source_branch,p.target_branch,p.title,p.description,p.status,p.fingerprint,p.invalidated,p.created_at,p.updated_at,p.merged_snapshot,p.merge_commits FROM pull_requests p JOIN users u ON u.id=p.author_id ";
@@ -117,7 +120,11 @@ public class PullRequests {
     }finally{l.unlock();}
   }
   public Pull merge(WorldRow w,User u,String id,String fingerprint) throws IOException {
-    writer(w,u);var l=quota.lock(w.ownerSlug());if(!l.tryLock())throw new ApiError.Unavailable("世界正在推送或合併");
+    writer(w,u);var l=quota.lock(w.ownerSlug());
+    // afterPush 的短暫維護也持有此鎖；等候有上限，取得後仍重新驗權限與分支 tip。
+    try {
+      if(!l.tryLock(mergeLockTimeoutNanos,TimeUnit.NANOSECONDS))throw new ApiError.Unavailable("等待世界推送、合併或維護逾時，請稍後重試");
+    }catch(InterruptedException e){Thread.currentThread().interrupt();throw new ApiError.Unavailable("等待合併鎖時中斷，請稍後重試");}
     try {
       writer(w,u);reconcile(w);var d=detailLocked(w,id);open(d.pr());lease(d,fingerprint);
       if(!Set.of("ff","clean").contains(d.mergeability()))throw new ApiError.Conflict("尚不能合併："+d.mergeability());

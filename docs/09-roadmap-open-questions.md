@@ -109,6 +109,7 @@
 | 102 | Fabric 原版客戶端後備 | dedicated 上未宣告 comments-v1 的客戶端不提供空間留言顯示；show 明確回覆需 WorldGit Fabric 模組，仍可 comments 讀文字清單。連 Paper 的 Fabric 客戶端沿 #97 顯示 Paper TextDisplay，不要求 Paper 新能力。（2026-10-04） | [Fabric README](../fabric/README.md)、[14 Fabric](14-phase4-progress.md#fabric) |
 | 103 | 26.2 新單人世界的 clone metadata | vanilla/Fabric 新存檔的 shared saved-data 可能只有世界根目錄版本；WorldLayout 在主世界名稱缺少時提供生成設定／gamerule／邊界別名，符合既有 WorldAssembler clone 契約。只補缺少名稱，不覆蓋既有維度設定、不改寫歷史；以單元測試及真單人 push→clone→直接開世界驗證。（2026-10-04） | [14 Fabric](14-phase4-progress.md#fabric)、core WorldLayout |
 | 104 | Fabric 線上 metadata 與可攜資料包 | live 預檢與 snapshot 同樣對 DataPacks 使用 #81 portablePacks，只移除平台提供的 paper／fabric-convention-tags-v2 標記。仍比較真正資料包的增刪、Disabled 與順序，仍拒絕線上改動；不修改世界設定、不放寬 verify。（2026-10-04） | [14 Fabric](14-phase4-progress.md#fabric)、Fabric MetadataCompatibility |
+| 105 | Hub PR 合併等待短暫維護 | PR merge 與 push／非同步 afterPush 維護共用 owner 鎖；merge 改用有界、可中斷的 tryLock，`collaboration.merge-lock-timeout` 預設 10s、範圍 1ms–30s，僅限制取得鎖的等待。逾時回 503＋Retry-After: 2；中斷恢復 interrupt 並回同一狀態，未取得鎖不解鎖、不發布。取得鎖後仍重驗權限、PR 狀態與全維度 fingerprint。ZIP 下載與 git receive-pack（含 info/refs）同樣可能碰到維護，但保留立即拒絕（503／429＋Retry-After: 2）：下載／收包整段持鎖，慢速 socket 無硬 deadline，避免請求執行緒與下載許可堆積等待串流。回歸以 latch 持鎖、觀察實際鎖佇列後釋放，另驗逾時與中斷。（2026-10-04） | [Hub README](../hub/README.md)、[14 Hub](14-phase4-progress.md#hub) |
 
 ## 路線圖（四端並行）
 
