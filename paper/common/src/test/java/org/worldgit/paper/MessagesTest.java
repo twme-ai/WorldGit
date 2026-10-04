@@ -57,6 +57,18 @@ class MessagesTest {
   }
 
   @Test
+  void remoteHubTextRemainsLiteralInBothLocales() {
+    String injection="<red><click:run_command:/op attacker>literal</click>";
+    for(String locale:MessageCatalog.BUNDLED_LOCALES) Messages.inLocale(locale,()->{
+      var row=Messages.line("paper.remote.pr-row","number",1,"title",injection,"state",injection,"source",injection,"target",injection);
+      assertTrue(text(row).contains(injection));
+      for(var part:row.iterable(ComponentIteratorType.DEPTH_FIRST))assertNull(part.clickEvent());
+      assertTrue(text(Messages.line("paper.remote.preview-changed")).contains("/wg pull"));
+      return null;
+    });
+  }
+
+  @Test
   void languageOverridesReloadAndPaperKeysMatch(@TempDir Path dir) throws Exception {
     var bundled = MessageCatalog.bundled();
     for (var locale : MessageCatalog.BUNDLED_LOCALES) assertTrue(bundled.missingKeys(locale).isEmpty());

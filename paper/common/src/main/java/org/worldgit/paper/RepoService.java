@@ -94,7 +94,13 @@ public final class RepoService implements AutoCloseable {
         }
       } finally {
         for(int i=locks.size()-1;i>=0;i--) try { locks.get(i).close(); } catch(Exception e) { plugin.getLogger().warning("解除編輯鎖失敗："+e); }
-        active=null; if(!stopping) { applyUi.stop(); plugin.merges().refresh(); }
+        active=null; if(!stopping) {
+          applyUi.stop();
+          // 仍在同一 repo executor，先讀 durable MERGING 再完成 future／送出成功訊息。
+          // 若另排 refresh，polling fetch 可插隊，緊接的 conflict-select 會讀到舊 UI。
+          try { plugin.merges().refreshFromRepository(); }
+          catch(IOException e) { plugin.getLogger().warning("讀取 MERGING 失敗："+e.getMessage()); }
+        }
         if(region) plugin.getLogger().info("WGREGIONDONE "+target);
       }
     });

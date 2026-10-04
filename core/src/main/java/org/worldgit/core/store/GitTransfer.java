@@ -28,6 +28,7 @@ public final class GitTransfer implements AutoCloseable {
   private final Credentials.Secret secret;
   private final Set<Path> spools = new HashSet<>();
   private final long limit;
+  private final int timeoutSeconds;
   private final List<PackSize> sizes = new ArrayList<>();
 
   public GitTransfer(Path path, String url, Credentials.Secret secret) throws IOException {
@@ -36,6 +37,12 @@ public final class GitTransfer implements AutoCloseable {
 
   public GitTransfer(Path path, String url, Credentials.Secret secret, long limit)
       throws IOException {
+    this(path,url,secret,limit,60);
+  }
+
+  public GitTransfer(Path path,String url,Credentials.Secret secret,long limit,int timeoutSeconds) throws IOException {
+    if(timeoutSeconds<1 || timeoutSeconds>3600) throw new IllegalArgumentException("transport timeout 無效");
+    this.timeoutSeconds=timeoutSeconds;
     this.repo = new FileRepository(path.toFile());
     this.url = url;
     this.secret = secret;
@@ -67,7 +74,7 @@ public final class GitTransfer implements AutoCloseable {
   private Transport open() throws IOException {
     try {
       var t = Transport.open(repo, new URIish(url));
-      t.setTimeout(60);
+      t.setTimeout(timeoutSeconds);
       t.setTagOpt(TagOpt.NO_TAGS);
       t.setPushThin(false);
       t.setFetchThin(false);

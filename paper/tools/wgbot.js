@@ -49,7 +49,12 @@ function onPayload(channel, data) {
     if (kind === 3) received.status++; else received.diff++
   } else if (channel === 'worldgit:conflicts') { received.conflicts++; out({ev:'merge_payload',channel,bytes:data.length}) }
   else if (channel === 'worldgit:conflict_preview') { received.conflictPreview++; out({ev:'merge_payload',channel,bytes:data.length}) }
-  else if (channel === 'worldgit:clear') { received.clear++; const id=String(data.readBigInt64BE(2)); delete received.previews[id] }
+  else if (channel === 'worldgit:clear') {
+    received.clear++
+    // clear 是單調 floor：清除所有 <= id 的 preview，與真 Fabric ClientPreviews 相同。
+    const floor=data.readBigInt64BE(2)
+    for (const id of Object.keys(received.previews)) if (BigInt(id)<=floor) delete received.previews[id]
+  }
 }
 
 bot.once('login', () => {
@@ -96,7 +101,7 @@ rl.on('line', async (line) => {
     } else if (cmd === 'health') out({ev:'health_now', health:bot.health, food:bot.food})
     else if (cmd === 'pos') out({ ev: 'pos', pos: bot.entity.position, gm: bot.game.gameMode })
     else if (cmd === 'stats') out({ ev: 'stats', ready, received: { ...received, previews: Object.fromEntries(Object.entries(received.previews).map(([k, v]) => [k, { kind: v.kind, parts: v.parts, total: v.total, seen: v.seen.size }])) } })
-    else if (cmd === 'entities') out({ ev: 'entities', displays: Object.values(bot.entities).filter((e) => /display/.test(e.name || e.displayName || '')).length, names: [...new Set(Object.values(bot.entities).map((e) => e.name))] })
+    else if (cmd === 'entities') out({ ev: 'entities', displays: Object.values(bot.entities).filter((e) => /display/.test(e.name || e.displayName || '')).length, ids: Object.values(bot.entities).map((e) => e.id), names: [...new Set(Object.values(bot.entities).map((e) => e.name))] })
     else if (cmd === 'window') { const w = bot.currentWindow; out({ ev: 'window', opened: !!w, title: w && String(w.title), slots: w ? w.slots.filter((x) => x).length : 0, size: w ? w.slots.length : 0 }) }
     else if (cmd === 'click') { const w = bot.currentWindow; if (!w) throw new Error('no window'); await bot.clickWindow(+a[1], 0, 0); out({ ev: 'clicked', slot: +a[1] }) }
     else if (cmd === 'quit') { bot.quit(); setTimeout(() => process.exit(0), 300) }

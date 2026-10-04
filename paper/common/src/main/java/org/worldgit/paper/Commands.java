@@ -23,7 +23,7 @@ import org.worldgit.protocol.Protocol;
  * 結果以聊天訊息送回（Player 走自己的 entity scheduler，Folia 安全）。權限節點見 plugin.yml。
  */
 final class Commands implements CommandExecutor, TabCompleter {
-  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "tool", "conflicts", "conflict-preview", "conflict-select", "revert", "cherry-pick", "help");
+  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "tool", "conflicts", "conflict-preview", "conflict-select", "revert", "cherry-pick", "remote", "fetch", "push", "pull", "pr", "comments", "comment", "help");
   private final WorldGitPlugin plugin;
   private final Debug debug;
 
@@ -49,7 +49,7 @@ final class Commands implements CommandExecutor, TabCompleter {
     else send.run();
   }
 
-  static String permission(String sub) { return sub.equals("conflict-select") ? "resolve" : sub; }
+  static String permission(String sub) { return sub.equals("conflict-select") ? "resolve" : sub.equals("comments") ? "comment" : sub; }
 
   private boolean allowed(CommandSender sender, String sub) {
     if (sender.hasPermission("worldgit.command." + permission(sub)) || sender.hasPermission("worldgit.admin")) return true;
@@ -88,6 +88,7 @@ final class Commands implements CommandExecutor, TabCompleter {
     var rest = Arrays.copyOfRange(args, 1, args.length);
     try {
       switch (sub) {
+        case "remote", "fetch", "push", "pull", "pr", "comments", "comment" -> plugin.remote().run(sender,sub,rest);
         case "merge", "resolve", "conflict-select", "revert", "cherry-pick" -> merge(sender,sub,rest);
         case "tool" -> { if(rest.length!=0) throw bad("paper.merge.usage"); if(!(sender instanceof Player p)) throw bad("paper.error.player-only"); plugin.merges().tool(p); }
         case "conflicts", "conflict-preview" -> conflicts(sender,sub,rest);
@@ -118,7 +119,7 @@ final class Commands implements CommandExecutor, TabCompleter {
         sender,
         Messages.line("paper.help.title"), Messages.line("paper.help.init"), Messages.line("paper.help.status"),
         Messages.line("paper.help.commit"), Messages.line("paper.help.log"), Messages.line("paper.help.diff"),
-        Messages.line("paper.help.clear"), Messages.line("paper.help.reload"), Messages.line("paper.apply.help"),Messages.line("paper.merge.usage"));
+        Messages.line("paper.help.clear"), Messages.line("paper.help.reload"), Messages.line("paper.apply.help"),Messages.line("paper.merge.usage"),Messages.line("paper.remote.usage"));
   }
 
   private CommitMetadata.Identity identity(CommandSender sender) {
@@ -521,6 +522,11 @@ final class Commands implements CommandExecutor, TabCompleter {
     String last = args[args.length - 1];
     List<String> options =
         switch (sub) {
+          case "remote" -> List.of("add","remove","list","set-url");
+          case "fetch", "push", "pull" -> List.of("origin","main","--tags");
+          case "pr" -> List.of("create","list","view","--source","--target");
+          case "comments" -> List.of("show","hide","--here","--dimension");
+          case "comment" -> List.of("--here");
           case "init" -> args.length == 3 && args[1].equals("--template") ? List.of("creative", "survival") : List.of("--template");
           case "status" -> List.of("--show", "--full");
           case "diff" -> List.of("--show", "--radius");

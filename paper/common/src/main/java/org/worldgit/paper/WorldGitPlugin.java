@@ -36,6 +36,9 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   private DisplayFallback displays;
   private MergeUi merges;
   private AutoCommit autoCommit;
+  private RemoteCommands remote;
+  private CommentDisplays comments;
+  private org.worldgit.platform.remote.RemoteSettings remoteSettings;
   private OfflineShutdownCommit offlineShutdown;
   private final Attribution attribution = new Attribution();
   private final ConcurrentMap<DimensionId, DimensionState> states = new ConcurrentHashMap<>();
@@ -48,6 +51,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     saveDefaultConfig();
     try {
       settings = PluginSettings.from(getConfig());
+      remoteSettings = RemoteConfig.from(getConfig());
     } catch (IllegalArgumentException e) {
       getLogger().severe("config.yml 無效：" + e.getMessage());
       getServer().getPluginManager().disablePlugin(this);
@@ -74,6 +78,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     fabric.register();
     displays = new DisplayFallback(this);
     merges = new MergeUi(this);
+    comments = new CommentDisplays(this);
+    remote = new RemoteCommands(this,remoteSettings);
     merges.refresh();
     PluginCommand command = Objects.requireNonNull(getCommand("wg"), "plugin.yml 缺少 wg 指令");
     var commands = new Commands(this);
@@ -103,6 +109,11 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     autoCommit.start();
     platform.asyncRepeating(5, settings.pollIntervalTicks() * 50L, this::poll);
     enabledOk = true;
+    try { remote.start(); } catch(IOException e) {
+      getLogger().severe("遠端通知啟動失敗（請檢查 bind、port、secret 權限）");
+      getServer().getPluginManager().disablePlugin(this); return;
+    }
+
     getLogger().info(
         "WorldGit 已啟用：Minecraft " + bridge.minecraftVersion() + "、" + (platform.folia() ? "Folia" : "Paper")
             + "、Java " + Runtime.version().feature() + "、追蹤世界 " + states.keySet());
@@ -112,6 +123,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   public void onDisable() {
     if (!enabledOk) return;
     enabledOk = false;
+    if(remote!=null) remote.close();
+    if(comments!=null) comments.shutdown();
     boolean wasApplying=repo.applying();
     repo.shutdownApply();
     edits.shutdown();
@@ -176,6 +189,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   }
 
   MergeUi merges() { return merges; }
+  RemoteCommands remote() { return remote; }
+  CommentDisplays comments() { return comments; }
   World world(DimensionId dimension) {
     return worlds.stream().filter(w->dimension.equals(dimensionByWorld.get(w.getUID()))).findFirst().orElse(null);
   }
@@ -245,6 +260,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   @EventHandler
   public void onQuit(PlayerQuitEvent e) {
     if (displays != null) displays.clear(e.getPlayer());
+    if (remote != null) remote.quit(e.getPlayer());
     if (autoCommit != null) autoCommit.onQuit(e.getPlayer().getName());
   }
 

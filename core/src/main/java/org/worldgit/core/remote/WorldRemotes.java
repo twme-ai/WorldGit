@@ -33,9 +33,14 @@ public final class WorldRemotes implements AutoCloseable {
   private final RepositoryGroup group;
   private final Credentials credentials;
   private final Observer observer;
+  private final int timeoutSeconds;
 
   public WorldRemotes(WorldLayout layout, Credentials credentials) throws IOException {
     this(layout.repositoryRoot(), new WorldRepositories(layout).tracked(), credentials);
+  }
+
+  public WorldRemotes(WorldLayout layout,Credentials credentials,int timeoutSeconds) throws IOException {
+    this(layout.repositoryRoot(),new WorldRepositories(layout).tracked(),credentials,d->{},timeoutSeconds);
   }
 
   public WorldRemotes(Path root, Map<DimensionId, Path> paths, Credentials credentials)
@@ -46,6 +51,12 @@ public final class WorldRemotes implements AutoCloseable {
   public WorldRemotes(
       Path root, Map<DimensionId, Path> paths, Credentials credentials, Observer observer)
       throws IOException {
+    this(root,paths,credentials,observer,60);
+  }
+
+  public WorldRemotes(Path root,Map<DimensionId,Path> paths,Credentials credentials,Observer observer,int timeoutSeconds) throws IOException {
+    if(timeoutSeconds<1 || timeoutSeconds>3600)throw new IllegalArgumentException("transport timeout 無效");
+    this.timeoutSeconds=timeoutSeconds;
     group = new RepositoryGroup(root, paths);
     this.credentials = credentials;
     this.observer = observer;
@@ -81,7 +92,13 @@ public final class WorldRemotes implements AutoCloseable {
 
   private GitTransfer transport(String name, RemoteSpec remote, DimensionId id) throws IOException {
     String url = remote.expand(id);
-    return new GitTransfer(group.repos().get(id).directory(), url, credentials.resolve(name, url));
+    return new GitTransfer(group.repos().get(id).directory(), url, credentials.resolve(name, url),JGitStore.PACK_LIMIT,timeoutSeconds);
+  }
+
+  /** 供平台判斷 PR 來源是否為本機分支；不建立或切換分支。 */
+  public boolean hasBranch(String branch) throws IOException {
+    for(var r:group.repos().values()) if(!r.refs().branches().containsKey(branch)) return false;
+    return !group.repos().isEmpty();
   }
 
   public String branch() throws IOException {

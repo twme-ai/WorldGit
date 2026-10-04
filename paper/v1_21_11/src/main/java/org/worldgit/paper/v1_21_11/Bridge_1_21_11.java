@@ -250,7 +250,10 @@ public final class Bridge_1_21_11 implements NmsBridge {
       var result = new ArrayList<Nbt.Compound>();
       if (entityTag == null) return result;
       for (var tag : entityTag.getListOrEmpty("Entities"))
-        if (tag instanceof CompoundTag compound) result.add(convert(compound));
+        if (tag instanceof CompoundTag compound) {
+          var entity=convert(compound);
+          if(!org.worldgit.paper.TransientDisplays.excluded(entity)) result.add(entity);
+        }
       return result;
     }
 

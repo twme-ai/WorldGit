@@ -243,3 +243,102 @@ Paper 26.2 在 Nether／End 各新生成 1 個未追蹤 chunk，verify 報告 `u
 - ZIP 不是無磁碟串流；單 region 套用／阻塞 socket、webhook DNS lookup 沒有硬 deadline，部署需 proxy timeout。ZIP 與單 owner 寫入共鎖，慢下載可阻擋該 owner；沒有公平隊列。
 - webhook secret 需明文保存在 DB 以計簽章；events/notifications/deliveries 沒有自動 retention／dead-letter 管理。遊戲端驗簽／去重／fetch 提示與明確 pull 由下一個平台任務接。
 - 真第三方 OAuth／TLS 公開部署、Docker 引擎／arm64／GitHub CI 實跑、任意時點 kill/fuzz 未驗證。容器映像建置與冒煙已由主對話在 Podman 驗證（Docker 引擎未測）。
+
+<a id="paperfolia"></a>
+
+<a id="paper-folia"></a>
+
+## Paper／Folia
+
+日期：2026-10-03；第二輪驗收與文件於 2026-10-04 UTC 結案。基於任務 1 `5dc271c` 與任務 2 `10dd24e`；本次未 commit／push WorldGit，未修改 experiments 或 Fabric 正式原始碼。決定 #92–#97；操作說明見 [Paper README](../paper/README.md)，入口安全審查見 [Paper Phase 4 安全審查](../paper/docs/security-review-phase4-2026-10-03.md)。
+
+### 完成項目與契約
+
+- config.yml 的 remote 非秘密設定：Hub 世界 URL、預設 remote、PAT 環境變數名稱／插件資料夾 600 credentials YAML、socket／REST timeout、預設關閉的 webhook／定時 fetch。未知欄位、scalar 區段、錯誤型別與秘密欄位拒絕；不讀使用者 home、不保存 PAT 進世界，不輸出 token。
+- remote add/remove/list/set-url、fetch、push（可選 branch／tags）。新增 remote/fetch/push/pull/pr/comment 權限皆預設 op，comments 共用 comment 權限。遊戲 push 僅 FF，沒有 force；非 FF 提示先 pull。推送的是既有 commit，不自動 capture。
+- pull fetch 後經既有 live coordinator dry-run，顯示 FF／三方、衝突區域、受影響 chunk（候選計畫＋精確衝突 atoms，即使預設 ours 沒有立即改方塊）、估計套用時間；sender 綁定一次性確認碼有效 120 秒，必須親自送出 confirm。確認重新 fetch，比對完整遠端 tips／URL；group lock 內重驗 URL、本地 HEAD、乾淨工作區（含 untracked）。套用仍由 ApplyQueue／EditGuard／PlayerProtection／廣播／save／verify／HEAD barrier；保持 #46 的快照 state、不做鄰居更新。衝突沿 Phase 3 MERGING／MergeUi／select／resolve／continue／abort。
+- PR create 必要時 push 本機來源；來源只在 remote 時先 fetch 驗全組，再建立 PR。list／view 顯示狀態、mergeability、審核數與 Hub 連結；編號由有界分頁解析為 UUID。**merge／approve 只在 Hub 網頁**，審核與衝突選擇應配合 3D 檢視。PR 清單顯示前 20 列，超出提示 view／Hub。
+- comments 世界／PR／維度釘選清單；--here 過濾目前 chunk 相交釘選。comment --here 以玩家 owner thread 的維度／整數座標送出；Hub 作者是伺服器 PAT 帳號，不冒充另一位 Hub 使用者。
+- 私人 TextDisplay（最多 64）與範圍 DUST 粒子框（每秒最多 384 點、64 格距離）；只在目前維度已載入 chunk 顯示，不為遠端座標生成世界。Component.text，HTML／MiniMessage 為字面，移除 legacy 色碼、控制／雙向格式字元，作者／摘要有 Unicode 長度限制。hidden by default＋per-player showEntity、nonpersistent，兩版 capture 額外排除插件 text/block display tags；hide／離線／換維度作廢晚到的 REST 回應並在 owner 移除。
+- webhook 只接受有界 HTTP/1.1 Content-Length POST；預設 loopback／關閉，HMAC-SHA256 constant-time、delivery＋簽章 event id 持久雙重去重、時效／速率／header／body／queue／完整連線 deadline。push／pr.merged 必須符合目前預設 remote 的世界／本機分支；背景 fetch 驗全組 publication 才對 pull 權限玩家及 console 提示。定時 fetch 至少 60 秒，使用同流程；失敗有限退避，**永不自動 apply**。
+- 指令網路走 repo 背景 queue；webhook 使用有界 workers。結果、顯示實體與玩家通知回 Paper 主執行緒或 Folia entity／region／global scheduler。REST 401／403／404／409／429／逾時／不可達以固定 i18n 分類，404 不洩漏 body；JGit 認證失敗亦對應認證提示。
+
+### 給 Fabric 接手的共用模組與協定摘要
+
+共用模組是 `platform-api`，套件 `org.worldgit.platform.remote`，不依賴 Bukkit：
+
+| 類別 | 可重用入口與限制 |
+|---|---|
+| RemoteSettings | Java record 非秘密設定／Webhook 設定、驗證與保守預設；Fabric 自行接 YAML adapter |
+| PlatformCredentials | 指定環境 PAT 優先，否則平台資料夾直接子檔案 600 YAML；Secret 交 core Credentials；webhook secret 環境或 600 純文字檔。插件／模組資料夾必須普通非 symlink，不讀 home |
+| HubClient | JDK 21 HttpClient，禁止 redirect；世界 URL 推導含反向代理 prefix 的 REST／web endpoint。pulls/find/view/create/comments/comment；Pull／Detail／Pin／Comment DTO。沒有 merge／approve 方法 |
+| HubClient.Error／Failure | 不攜帶原始 body／cause／token 的分類；caller 映射自己的 i18n，所有 client 操作須在背景 executor，try-with-resources 關閉 |
+| WebhookReceiver | 有界 ServerSocket receiver；constructor 的 Predicate<Event> 只能 enqueue 通知／fetch，不能修改世界；close 停止 sockets／workers／deadline；replay YAML 需跨重啟保存 |
+| CommentText | plain／display 純文字 Unicode 摘要；Fabric 仍須用 literal Component/Text，不能再解析 MiniMessage |
+
+runtime 使用與 Hub 一致的 Jackson BOM **2.21.7**（不是 Paper 專用 library）；Fabric 正式 jar-in-jar 接線時需包含 Jackson runtime。現有 Fabric build 不會因這次新增共用類別而自動打包其所有外部依賴，下一任務必須補齊並驗 dedicated／client。核心僅新增保留舊預設的 GitTransfer／WorldRemotes timeout constructor overload，以及 hasBranch 全維度查詢，舊呼叫介面仍可用。
+
+Fabric 下一任務還要接 YAML／憑證資料夾／權限、server executor 與玩家／世界 owner thread、自己的 live coordinator、私人顯示／清理生命週期；不能把離線 Anvil apply 搬到線上。沿上方核心「線上 pull 的預覽／套用契約」傳入 fixed targets／expectedHeads，confirm 前重新驗遠端，不因通知直接 apply。
+
+本次沒有新增 `remote_status`／`comments` plugin message 或 capability。通知已是 i18n 聊天；原版客戶端與 Fabric 客戶端皆能渲染 Paper 發出的私人 TextDisplay／粒子。現有 Phase 3 diff／conflict-select／MergeUi 協定保持相容；Fabric 若下一任務需要自訂 HUD／留言 renderer，再按實際 UI 定義可選 capability，見 [protocol README](../protocol/README.md)。
+
+### 驗收、截圖與原始證據
+
+`paper/tools/phase4.py` 使用真 Hub jar＋SQLite、CLI clone 與兩個 wgbot、真 Paper／Folia live apply。PR 審核／合併與網頁釘選留言走相同 Hub REST，沒有用假 Hub 代替端到端。`--screenshots` 另啟動真 Fabric 客戶端（Xvfb），檢查收到的 TextDisplay 純文字／click event，截取 show／hide；fixture 位於 paper/tools，暫時加入 gametest source set，不納入正式 Fabric jar。Hub 8096、Paper 25721–25722、Folia 25723–25724、webhook 25731–25734；各腳本自持 bench.lock，finally 停服／停止 Hub、bot、客戶端並刪除秘密與大型複本。
+
+第二輪接續先讀取已完成的兩份背景 log：`.work/p4-paper-e2e-final-r3.log` 的四組 Phase 4 全通過；`.work/p4-paper-regressions-final.log` 的九組既有回歸有三組失敗。Paper 1.21.11 Phase 2 已有修正後完整通過的獨立紀錄，因此本輪沒有重跑它，也沒有重跑三組已通過的 interop。另兩組 Paper 26.2 失敗的真正原因是 live gamerule 與磁碟別名不同，修正後重驗；本輪另補 Folia 26.2 Phase 2／3／interop。
+
+可攜驗收摘要、原始結果／log SHA-256、凍結 jar 與最終原始碼雜湊見 [results-2026-10-03.json](../paper/docs/phase4/results-2026-10-03.json)。Phase 4 四組均各通過 20 項檢查：真玩家 remote／push／PR、通知不自動套用、FF 明確確認、遠端 tip 競爭拒絕、非 FF、三方衝突／MERGING／選擇／resolve／push、非 op 拒絕、雙玩家留言隱私、純文字真客戶端截圖、hide／換維度／離線清理、錯 PAT、不可達時 tick probe 與最終全組離線 verify。
+
+| 驗收 | Paper 1.21.11 | Paper 26.2 | Folia 1.21.11 | Folia 26.2 |
+|---|---|---|---|---|
+| Phase 4 真 Hub／live apply／留言 | 通過，webhook | 通過，webhook | 通過，webhook | 通過，定時 fetch |
+| 既有 Phase 2 完整場景 | 通過（修正 bot 後 39 項） | 通過（39 項） | 通過（39 項） | 通過（39 項） |
+| 既有 Phase 3 完整場景 | 通過（90 項） | 通過（90 項） | 通過（90 項） | 通過（90 項） |
+| 真 Fabric 客戶端 ↔ Paper／Folia | 通過（17 項） | 通過（17 項） | 通過（17 項） | 通過（17 項） |
+
+本輪選擇性的五組補驗全部成功，log：`.work/p4-paper-regressions-round2.log`，原始結果：`.work/paper-phase4/regressions-1791068547/results.json`；最後 Folia 26.2 interop 在 2026-10-04 00:15 UTC 完成。上一輪 `regressions-1791058177/results.json` 仍保留原始三組失敗，沒有改寫成成功；最終判定採上表各自最新的通過證據。真客戶端對接每平台都驗 Ghost／Set blocks／Resolve、200 區域重連與實際多包傳輸、清單清理、四張 UI 截圖與最終離線 verify。
+
+所有本任務的 Hub／server／bot／Fabric 客戶端與 Xvfb 已結束，負載鎖可重新取得，驗收 ports 全部關閉；run 世界／伺服器與秘密已刪除。本輪保存的兩版平坦 fixture 雜湊最終比對相同；保留原始結果、log、截圖與來源雜湊，移除已用完的凍結 jar。沒有留下背景驗收或子代理。
+
+既有回歸保留三維度完整 verify、逐格 client／server／快照 hash、玩家保護、光照／POI、UUID、MERGING 重啟／工具／GUI／abort／continue、乾淨與衝突 patch。各平台 Phase 2 都有三次 1000 chunk switch；Phase 3 各有一次 1000 chunk merge，以及 2864 stored chunks／200 區域世界中的六次單區切換。
+
+| 平台 | Phase 3 1000 chunk merge | tick probe TPS 估值 | 200 區域單區切換中位數／最大 |
+|---|---|---|---|
+| Paper 1.21.11 | 151.76 s | 19.98 | 0.701／0.703 s |
+| Paper 26.2 | 151.81 s | 19.99 | 0.701／0.704 s |
+| Folia 1.21.11 | 125.60 s | 19.97 | 0.601／0.701 s |
+| Folia 26.2 | 117.55 s | 19.96 | 0.701／0.701 s |
+
+tick probe 是出生點所屬 region 的間隔，Folia 不代表所有 region。Phase 4 錯 PAT／不可達的短量測中，四組 p95 都為 50.1 ms、最大 50.2–50.5 ms、沒有超過 100 ms 的間隔；這不是長時間玩家負載量測。Phase 4 換維度測試可能生成未追蹤 chunk，依 #29 保留並回報 `untrackedKept`；已追蹤內容／metadata 仍須差異 0。
+
+完整 `./gradlew build --configure-on-demand --max-workers=1 --no-daemon` 於第二輪通過，19 秒、77 tasks（6 executed／71 up-to-date），log：`.work/p4-paper-build-round2.log`。JUnit XML 共 **254 tests，failure／error／skip 都是 0**：core 95、CLI 4、Hub 58、i18n 3、platform-api 19、protocol 7、Paper common 28、Fabric logic 40；兩版 Paper／Fabric 的正式程式亦編譯成功。單元覆蓋設定型別／token 遮罩／權限、REST 分頁／302／401／403／404／409／429／慢 body deadline／4 MiB、webhook 簽章／重放／重啟／超大 body／速率／header budget／slow headers／enqueue 重試、留言淨化與晚到回應清理。
+
+Phase 4 凍結插件 jar 為 `6d1a7b59…`；第二輪只補上 PaperLiveWorld 的 26.2 gamerule 主世界別名，最終 jar 為 `636148e3…`（完整雜湊見可攜摘要）。不能把較早的 Phase 4 截圖／log 說成用最後重建的 jar 重跑；本輪修正由 Paper／Folia 26.2 完整 Phase 2／3 的 gamerule 變更、live apply、停服後全欄位 verify 與 Folia interop 覆蓋。沒有排除 gamerule／metadata，也沒有放寬 verify。
+
+精選 [八張截圖](../paper/docs/screenshots/phase4/README.md) 是四組平台各一張 show／hide，第二輪逐張人工確認文字位置、HTML／MiniMessage 字面與 hide 後消失。client 同時檢查沒有 click event；另一位玩家不可見由雙 bot 的 wire entity id 與真正 TextDisplay id 比對證明。hide 後少量粒子是已送出的短暫效果，不能當成 TextDisplay 存留。
+
+### 失敗、修正與未完成事項
+
+| 執行／發現 | 處理與證據 |
+|---|---|
+| 第一輪編譯：RemoteConfigTest lambda 捕捉重設變數；後續新增 locale 測試缺 Supplier return | 分開 invalid fixture／補 return；保留 build log，最新完整 build 通過 |
+| e2e 第一輪把 merge API 回應當成 PR detail | merge 後另 GET detail，依 REST 真契約檢查完整 commits map |
+| 早期截圖 fixture 忘記 disconnect，gametest 判定仍連線 | 明確 disconnectFromWorld 後等 level=null，再停止客戶端／process group |
+| 錯 PAT 的 JGit 回應是「Authentication is required but no CredentialsProvider…」 | 對應固定 401 i18n；新增真錯誤 PAT 與原訊息回歸。狀態解析排除 URL，避免世界名稱／port 內數字被誤認為 HTTP code |
+| deop 與 bot 指令競爭 | 先等待 console 撤權成功，再送指令；沒有放寬權限斷言 |
+| 人工檢查發現早期截圖沒有文字：camera 落下／vanilla tick freeze 阻止 Display render state | 把自動成功但畫面失敗的紀錄標成 manualVisualReview=false；截圖時暫時恢復 tick。相機改由玩家 owner 設 flight/no-gravity＋teleportAsync，畫面逐張人工確認；舊圖不作正式存證 |
+| 26.2 bot 把 TextDisplay 名稱辨識成 tnt | 不靠舊 registry 名稱計數；由真正 Bukkit TextDisplay 查 wire entity id，再比對兩位 bot 收到的 id，另用真正 26.2 客戶端檢查型別、純文字與畫面 |
+| 26.2 截圖 fixture 沿用 1.21.11 的 hideGui／setScreen，client 編譯失敗 | 改用測試輸入按 F1 與既有版本化 GameTestScreens；只修 paper/tools 驗收 fixture，不改 Fabric 正式功能。失敗證據 `.work/paper-phase4/paper-26.2-1791057034/results.json`；後續真 26.2 客戶端截圖通過 |
+| 預設 ours 沒有立即變動時，衝突預覽顯示 0 affected chunks | union 候選 chunks／entity hints／精確衝突 atoms，metadata/file 不假造 chunk；新增測試與真 1-chunk conflict 斷言 |
+| 換行／tab 轉空白可繞過字數統計 | 轉成的空白同樣計入 Unicode 上限，新增大量控制字元測試；保留 HTML／MiniMessage 字面與 emoji 邊界測試 |
+| Folia 26.2 polling：pull 已完成 MERGING，緊接 conflict-select 卻讀到舊 UI 快取 | RepoService 在同一 executor、完成 future 前讀取 durable MERGING 並發布 UI，避免 refresh 排在定時 fetch 後；不加等待來掩蓋問題。失敗證據 `.work/paper-phase4/folia-26.2-1791058176/results.json`；後續驗收讓 remote／fetch／push／pull／PR／comments 全部由真玩家送出 |
+| Paper 1.21.11 Phase 2 舊鬼影斷言失敗；實際已收到 clear | wgbot 把 clear 當成單一 id 刪除；協定／真 Fabric ClientPreviews 是清除所有 ≤ floor 的 previews。修正 bot 依契約以 BigInt 比較，不放寬斷言；保留第一輪失敗 log，重新驗整個 Phase 2 |
+| 真玩家版 Folia 26.2 已通過留言離線清理，最後錯 PAT 測試發生 BrokenPipe | 驗收腳本沿用已登出的 bot；改成重新登入，再由玩家送出 fetch／不可達測試。失敗證據 `.work/paper-phase4/folia-26.2-1791059543/results.json`；不是把已關閉 bot 改回 console 來略過玩家執行緒驗收 |
+| 既有 Paper 26.2 Phase 2 reset／Phase 3 停服 verify 出現 `game_rules.dat.nbt` 差異 | core WorldLayout 的主世界別名讀到舊磁碟值，Paper live capture 只更新有維度前綴的名稱。讓主世界兩個名稱使用同一份 live gamerule NBT，保留設定追蹤與線上 metadata 預檢；重驗完整 Phase 2／3，不以重存 commit 或忽略 metadata 繞過。原失敗 `.work/paper-phase2/paper-26.2-1791062135/results.json`、`.work/paper-phase3/paper-26.2-1791063036/results.json` |
+
+Folia 正常停服時 nonpersistent display 隨世界卸載清除；一般 hide／離線／換維度走 entity owner 移除。**第三方熱卸載插件後立即跨 region 刪除仍無保證**：onDisable 時 Folia region scheduler 可能已不可用，本次不越過 owner 限制強刪。Paper 停用可同步清除。這項 Folia 熱卸載邊界仍未完成，不能把正常停服結果當成已支援第三方熱卸載。
+
+gamerule 修正只影響後續 capture；先前在 gamerule 變更後保存的 26.2 歷史可能已有不一致的別名，讀取時仍依完整 metadata 契約驗證。本次修正不改寫既有 commit。
+
+公開 TLS／代理部署、大量並行 socket flood、磁碟故障／任意時點 kill／fuzz 未實跑；loopback、固定平坦 fixture、凍結自然 tick 的結果不能代表大型自然世界或真玩家負載。顯示僅覆蓋 show 當下已載入的 chunk，移動到新 chunk 需再次 show；沒有自訂 Fabric HUD 或無限距離留言巡覽。本次沒有遊戲 force、PR merge／approve、token 管理指令，沒有自動 apply。

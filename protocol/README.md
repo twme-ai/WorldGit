@@ -39,3 +39,9 @@ Ghost 請求 `wg conflict-preview <id> ours|theirs|base`；Paper／Folia／Fabri
 Fabric adapter 以 handler 身分記錄斷線，在客戶端 tick 清理模型與握手狀態；JOIN 先清除上一段連線，晚到的舊 handler 事件不影響新握手。這讓 GPU 釋放與分包 reset 都在客戶端執行緒完成。
 
 Fabric 專用伺服器（2026-10-03）在成功握手後讀取 durable MERGING 清單並推送，選擇／解決後對所有有讀取權限及 merge-regions-v1 能力的連線同步更新；重啟後同樣恢復。維持既有 envelope 與 clear floor，不增加預設 Protocol.CAPABILITIES。
+
+## Phase 4 Paper／Folia 遠端協作（2026-10-03）
+
+此次沒有新增 remote_status／comments channel 或 capability（決定 #97）。新版提示由 Paper/Folia 在玩家 owner 送 MiniMessage i18n 聊天；座標留言由 per-player、非持久 TextDisplay／粒子提供，原版與 Fabric 客戶端已能渲染。PR／遠端指令仍使用原版命令封包，pull 的確認由伺服器驗本地與遠端 lease。
+
+Fabric 下一任務若提供原生 UI，可重用 `platform-api` 模組的 `org.worldgit.platform.remote`：HubClient（PR／留言 DTO）、RemoteSettings、PlatformCredentials、WebhookReceiver、CommentText；需新增 wire 時再定義可選 capability、預算／清理／晚到回應規則，不預先宣告尚無 renderer 的能力。既有 protocol v2 與 Phase 3 merge envelope v1 保持相容，四組真 Fabric 客戶端對接回歸見 [docs/14 Paper／Folia](../docs/14-phase4-progress.md#paper-folia)。

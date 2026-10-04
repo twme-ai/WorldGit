@@ -99,7 +99,11 @@ final class PaperLiveWorld implements LiveWorld {
       for (var entry : WorldMapper.map().worlds().entrySet()) {
         String key = entry.getKey().directoryName() + ".game_rules.dat.nbt";
         var data = new Nbt.Compound().with("DataVersion", dataVersion()).with("data", liveGameRules(entry.getValue()));
-        metadata.put(key, Nbt.write(data));
+        byte[] encoded = Nbt.write(data);
+        metadata.put(key, encoded);
+        // WorldLayout 的 Paper 26.2 主世界別名也必須取同一份活資料；
+        // 否則 gamerule 變更後，commit 會混入磁碟上的舊別名，停服 verify 才出現差異。
+        if (entry.getKey().equals(DimensionId.OVERWORLD)) metadata.put("game_rules.dat.nbt", encoded);
       }
     }
     return metadata;

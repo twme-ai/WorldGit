@@ -48,3 +48,24 @@ server-identity:
   # 自動 commit 的 committer（玩家是 author）。
   name: WorldGit Server
   email: worldgit@server.invalid
+
+# Phase 4：秘密永不寫進 config.yml 或世界 repo。hub-url 可留空，再 /wg remote add。
+remote:
+  hub-url: ""
+  default-name: origin
+  token-environment: WGIT_TOKEN
+  # 插件資料夾直接子檔案，普通非 symlink，POSIX 權限必須恰為 600。
+  credentials-file: credentials.yml
+  timeout-seconds: 30
+  # 0 關閉；啟用至少 60 秒，只 fetch/提示，不 apply。
+  fetch-interval-seconds: 0
+  webhook:
+    enabled: false
+    bind: 127.0.0.1
+    port: 25731
+    path: /worldgit/webhook
+    secret-environment: WGIT_WEBHOOK_SECRET
+    # UTF-8 純文字 secret（32–4096 字元），權限 600；不放進世界。
+    secret-file: webhook.secret
+    max-body-bytes: 65536
+    requests-per-minute: 60

@@ -1,0 +1,4625 @@
+{
+  "task": "Phase 4 Paper/Folia",
+  "success": true,
+  "generated_at_utc": "2026-10-04T00:15:44.360256+00:00",
+  "head": "10dd24e04fd64cb48377aa16ba293fb8e93e2395",
+  "scope": "未 commit／push；Fabric 正式原始碼與 experiments 未改動。",
+  "build": {
+    "success": true,
+    "log": {
+      "path": ".work/p4-paper-build-round2.log",
+      "bytes": 9083,
+      "sha256": "2ec489b76dc498f4da759df89d47a3676fda2b88755b41862db40c7fa1e447c7"
+    },
+    "unit": {
+      "core": {
+        "tests": 95,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "cli": {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "hub": {
+        "tests": 58,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "i18n": {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "platform-api": {
+        "tests": 19,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "protocol": {
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "paper/common": {
+        "tests": 28,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "fabric/logic": {
+        "tests": 40,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "tests": 254
+  },
+  "phase4": {
+    "paper-1.21.11": {
+      "path": ".work/paper-phase4/paper-1.21.11-1791063589/results.json",
+      "bytes": 4829,
+      "sha256": "04a3e7cf42520418e1e52c4184000ba28664f684fcb3859073283378e8edf457",
+      "success": true,
+      "checks": 20,
+      "steps": [
+        {
+          "name": "game remote add/list/push all dimensions",
+          "ok": true
+        },
+        {
+          "name": "signed webhook notice without auto apply",
+          "ok": true
+        },
+        {
+          "name": "preview unchanged",
+          "ok": true
+        },
+        {
+          "name": "confirmed live FF equals Hub group",
+          "ok": true
+        },
+        {
+          "name": "stale remote preview rejected before apply",
+          "ok": true
+        },
+        {
+          "name": "non FF push rejects and suggests pull",
+          "ok": true
+        },
+        {
+          "name": "three way conflict preview",
+          "ok": true
+        },
+        {
+          "name": "pull enters MERGING",
+          "ok": true
+        },
+        {
+          "name": "conflict-select changes exact atom",
+          "ok": true
+        },
+        {
+          "name": "resolved push equals clone",
+          "ok": true
+        },
+        {
+          "name": "non op comment permission denied",
+          "ok": true
+        },
+        {
+          "name": "TextDisplay requester only",
+          "ok": true
+        },
+        {
+          "name": "real client TextDisplay literal/screenshot",
+          "ok": true
+        },
+        {
+          "name": "hide removes entities",
+          "ok": true
+        },
+        {
+          "name": "player comment records dimension and coordinates",
+          "ok": true
+        },
+        {
+          "name": "dimension change removes original world displays",
+          "ok": true
+        },
+        {
+          "name": "logout removes entities and preserves viewer privacy",
+          "ok": true
+        },
+        {
+          "name": "bad PAT safe clear failure",
+          "ok": true
+        },
+        {
+          "name": "unreachable Hub does not block ticks",
+          "ok": true
+        },
+        {
+          "name": "final offline verify zero differences",
+          "ok": true
+        }
+      ],
+      "artifacts": {
+        "hub.jar": "d579c199d9f4b27522bf014d3ed4ce56dcfe31e7ed8e8d6c7bddc4ac3b36d6c2",
+        "wgit.jar": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d",
+        "tools.jar": "f64965e546980cb592b7cf9cef8180762fefa0acd0c238b86be8276a339ac015",
+        "paper.jar": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      "ports_closed": {
+        "8096": true,
+        "25721": true,
+        "25722": true,
+        "25723": true,
+        "25724": true,
+        "25731": true,
+        "25732": true,
+        "25733": true,
+        "25734": true
+      },
+      "server_exit": 0,
+      "verification": [
+        {
+          "name": "unreachable Hub does not block ticks",
+          "ok": true,
+          "probe": "[21:48:41 INFO]: probe ticks=56 meanGapMs=49.09 p50=50.0 p95=50.1 p99=50.2 maxMs=50.2 gapsOver100ms=0 gapsOver200ms=0 tpsEstimate=20.37"
+        },
+        {
+          "name": "final offline verify zero differences",
+          "ok": true,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 26,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/paper-1.21.11-20261003-213955-console.log",
+          "bytes": 20241,
+          "sha256": "bb876e77a17d552992382d6e50d1ba2a9fed83bbd4349607b0781a6a472ccb67"
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "paper/docs/screenshots/phase4/paper-1.21.11-phase4-comments-visible.png",
+          "bytes": 45022,
+          "sha256": "b953e1d134f99bb5d0c44a7b9f64fc5d14d3e36658af36cc4a40da5c1d610e12",
+          "manualVisualReview": true
+        },
+        {
+          "path": "paper/docs/screenshots/phase4/paper-1.21.11-phase4-comments-hidden.png",
+          "bytes": 96949,
+          "sha256": "85f9edf9a27bb261352e21cdcc87f12c0f8e3bb807be4cb917990dc34248ef8a",
+          "manualVisualReview": true
+        }
+      ]
+    },
+    "paper-26.2": {
+      "path": ".work/paper-phase4/paper-26.2-1791064135/results.json",
+      "bytes": 4855,
+      "sha256": "52a4697c165f22c672d7e31541c5b5897099479516b543b890a7f3c250a026cf",
+      "success": true,
+      "checks": 20,
+      "steps": [
+        {
+          "name": "game remote add/list/push all dimensions",
+          "ok": true
+        },
+        {
+          "name": "signed webhook notice without auto apply",
+          "ok": true
+        },
+        {
+          "name": "preview unchanged",
+          "ok": true
+        },
+        {
+          "name": "confirmed live FF equals Hub group",
+          "ok": true
+        },
+        {
+          "name": "stale remote preview rejected before apply",
+          "ok": true
+        },
+        {
+          "name": "non FF push rejects and suggests pull",
+          "ok": true
+        },
+        {
+          "name": "three way conflict preview",
+          "ok": true
+        },
+        {
+          "name": "pull enters MERGING",
+          "ok": true
+        },
+        {
+          "name": "conflict-select changes exact atom",
+          "ok": true
+        },
+        {
+          "name": "resolved push equals clone",
+          "ok": true
+        },
+        {
+          "name": "non op comment permission denied",
+          "ok": true
+        },
+        {
+          "name": "TextDisplay requester only",
+          "ok": true
+        },
+        {
+          "name": "real client TextDisplay literal/screenshot",
+          "ok": true
+        },
+        {
+          "name": "hide removes entities",
+          "ok": true
+        },
+        {
+          "name": "player comment records dimension and coordinates",
+          "ok": true
+        },
+        {
+          "name": "dimension change removes original world displays",
+          "ok": true
+        },
+        {
+          "name": "logout removes entities and preserves viewer privacy",
+          "ok": true
+        },
+        {
+          "name": "bad PAT safe clear failure",
+          "ok": true
+        },
+        {
+          "name": "unreachable Hub does not block ticks",
+          "ok": true
+        },
+        {
+          "name": "final offline verify zero differences",
+          "ok": true
+        }
+      ],
+      "artifacts": {
+        "hub.jar": "d579c199d9f4b27522bf014d3ed4ce56dcfe31e7ed8e8d6c7bddc4ac3b36d6c2",
+        "wgit.jar": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d",
+        "tools.jar": "f64965e546980cb592b7cf9cef8180762fefa0acd0c238b86be8276a339ac015",
+        "paper.jar": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      "ports_closed": {
+        "8096": true,
+        "25721": true,
+        "25722": true,
+        "25723": true,
+        "25724": true,
+        "25731": true,
+        "25732": true,
+        "25733": true,
+        "25734": true
+      },
+      "server_exit": 0,
+      "verification": [
+        {
+          "name": "unreachable Hub does not block ticks",
+          "ok": true,
+          "probe": "[21:57:35 INFO]: probe ticks=52 meanGapMs=49.02 p50=50.0 p95=50.1 p99=50.3 maxMs=50.3 gapsOver100ms=0 gapsOver200ms=0 tpsEstimate=20.40"
+        },
+        {
+          "name": "final offline verify zero differences",
+          "ok": true,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 44,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/paper-26.2-20261003-214902-console.log",
+          "bytes": 20440,
+          "sha256": "b98e85c1d970c275908bc979e29cfeca81891d337dd201d65d223a4019a3507e"
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "paper/docs/screenshots/phase4/paper-26.2-phase4-comments-visible.png",
+          "bytes": 40137,
+          "sha256": "29eae497f2746c11643e89404ec34c27ef44b2efe2e905c15a34c1433c2869b8",
+          "manualVisualReview": true
+        },
+        {
+          "path": "paper/docs/screenshots/phase4/paper-26.2-phase4-comments-hidden.png",
+          "bytes": 98150,
+          "sha256": "97e786f280ca36792516e955c332c649c73c6623e98312c141cbada1a87653d7",
+          "manualVisualReview": true
+        }
+      ]
+    },
+    "folia-1.21.11": {
+      "path": ".work/paper-phase4/folia-1.21.11-1791064670/results.json",
+      "bytes": 4829,
+      "sha256": "ce1358c71aa6d05d3ccfb0e486bd6743abaead1d7de3d749cb68189233a78e4d",
+      "success": true,
+      "checks": 20,
+      "steps": [
+        {
+          "name": "game remote add/list/push all dimensions",
+          "ok": true
+        },
+        {
+          "name": "signed webhook notice without auto apply",
+          "ok": true
+        },
+        {
+          "name": "preview unchanged",
+          "ok": true
+        },
+        {
+          "name": "confirmed live FF equals Hub group",
+          "ok": true
+        },
+        {
+          "name": "stale remote preview rejected before apply",
+          "ok": true
+        },
+        {
+          "name": "non FF push rejects and suggests pull",
+          "ok": true
+        },
+        {
+          "name": "three way conflict preview",
+          "ok": true
+        },
+        {
+          "name": "pull enters MERGING",
+          "ok": true
+        },
+        {
+          "name": "conflict-select changes exact atom",
+          "ok": true
+        },
+        {
+          "name": "resolved push equals clone",
+          "ok": true
+        },
+        {
+          "name": "non op comment permission denied",
+          "ok": true
+        },
+        {
+          "name": "TextDisplay requester only",
+          "ok": true
+        },
+        {
+          "name": "real client TextDisplay literal/screenshot",
+          "ok": true
+        },
+        {
+          "name": "hide removes entities",
+          "ok": true
+        },
+        {
+          "name": "player comment records dimension and coordinates",
+          "ok": true
+        },
+        {
+          "name": "dimension change removes original world displays",
+          "ok": true
+        },
+        {
+          "name": "logout removes entities and preserves viewer privacy",
+          "ok": true
+        },
+        {
+          "name": "bad PAT safe clear failure",
+          "ok": true
+        },
+        {
+          "name": "unreachable Hub does not block ticks",
+          "ok": true
+        },
+        {
+          "name": "final offline verify zero differences",
+          "ok": true
+        }
+      ],
+      "artifacts": {
+        "hub.jar": "d579c199d9f4b27522bf014d3ed4ce56dcfe31e7ed8e8d6c7bddc4ac3b36d6c2",
+        "wgit.jar": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d",
+        "tools.jar": "f64965e546980cb592b7cf9cef8180762fefa0acd0c238b86be8276a339ac015",
+        "paper.jar": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      "ports_closed": {
+        "8096": true,
+        "25721": true,
+        "25722": true,
+        "25723": true,
+        "25724": true,
+        "25731": true,
+        "25732": true,
+        "25733": true,
+        "25734": true
+      },
+      "server_exit": 0,
+      "verification": [
+        {
+          "name": "unreachable Hub does not block ticks",
+          "ok": true,
+          "probe": "[22:07:09 INFO]: probe ticks=58 meanGapMs=48.92 p50=50.0 p95=50.1 p99=50.4 maxMs=50.4 gapsOver100ms=0 gapsOver200ms=0 tpsEstimate=20.44"
+        },
+        {
+          "name": "final offline verify zero differences",
+          "ok": true,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 24,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/folia-1.21.11-20261003-215757-console.log",
+          "bytes": 21095,
+          "sha256": "33721e502dd1adf15316469f1fbe04bea692116dd52357a6518b2e3275bad254"
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "paper/docs/screenshots/phase4/folia-1.21.11-phase4-comments-visible.png",
+          "bytes": 39210,
+          "sha256": "86a2855afea5d56a47dd7ff4904e3ef655216d8f92192cb8c14fc034d3be3539",
+          "manualVisualReview": true
+        },
+        {
+          "path": "paper/docs/screenshots/phase4/folia-1.21.11-phase4-comments-hidden.png",
+          "bytes": 97201,
+          "sha256": "d4a2d3807c3dd3c3d9924c343bde519bf0bec7bc5a15ff47709bddbbb7e80794",
+          "manualVisualReview": true
+        }
+      ]
+    },
+    "folia-26.2-polling": {
+      "path": ".work/paper-phase4/folia-26.2-1791062940/results.json",
+      "bytes": 4856,
+      "sha256": "3e19f5ea2eb99ea697ccecdbf823e1adc8c6813e066af63f0f8c1250eba637b6",
+      "success": true,
+      "checks": 20,
+      "steps": [
+        {
+          "name": "game remote add/list/push all dimensions",
+          "ok": true
+        },
+        {
+          "name": "scheduled fetch notice without auto apply",
+          "ok": true
+        },
+        {
+          "name": "preview unchanged",
+          "ok": true
+        },
+        {
+          "name": "confirmed live FF equals Hub group",
+          "ok": true
+        },
+        {
+          "name": "stale remote preview rejected before apply",
+          "ok": true
+        },
+        {
+          "name": "non FF push rejects and suggests pull",
+          "ok": true
+        },
+        {
+          "name": "three way conflict preview",
+          "ok": true
+        },
+        {
+          "name": "pull enters MERGING",
+          "ok": true
+        },
+        {
+          "name": "conflict-select changes exact atom",
+          "ok": true
+        },
+        {
+          "name": "resolved push equals clone",
+          "ok": true
+        },
+        {
+          "name": "non op comment permission denied",
+          "ok": true
+        },
+        {
+          "name": "TextDisplay requester only",
+          "ok": true
+        },
+        {
+          "name": "real client TextDisplay literal/screenshot",
+          "ok": true
+        },
+        {
+          "name": "hide removes entities",
+          "ok": true
+        },
+        {
+          "name": "player comment records dimension and coordinates",
+          "ok": true
+        },
+        {
+          "name": "dimension change removes original world displays",
+          "ok": true
+        },
+        {
+          "name": "logout removes entities and preserves viewer privacy",
+          "ok": true
+        },
+        {
+          "name": "bad PAT safe clear failure",
+          "ok": true
+        },
+        {
+          "name": "unreachable Hub does not block ticks",
+          "ok": true
+        },
+        {
+          "name": "final offline verify zero differences",
+          "ok": true
+        }
+      ],
+      "artifacts": {
+        "hub.jar": "d579c199d9f4b27522bf014d3ed4ce56dcfe31e7ed8e8d6c7bddc4ac3b36d6c2",
+        "wgit.jar": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d",
+        "tools.jar": "f64965e546980cb592b7cf9cef8180762fefa0acd0c238b86be8276a339ac015",
+        "paper.jar": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      "ports_closed": {
+        "8096": true,
+        "25721": true,
+        "25722": true,
+        "25723": true,
+        "25724": true,
+        "25731": true,
+        "25732": true,
+        "25733": true,
+        "25734": true
+      },
+      "server_exit": 0,
+      "verification": [
+        {
+          "name": "unreachable Hub does not block ticks",
+          "ok": true,
+          "probe": "[21:39:36 INFO]: probe ticks=58 meanGapMs=48.34 p50=50.0 p95=50.1 p99=50.5 maxMs=50.5 gapsOver100ms=0 gapsOver200ms=0 tpsEstimate=20.69"
+        },
+        {
+          "name": "final offline verify zero differences",
+          "ok": true,
+          "verify": {
+            "state": "COMPLETE",
+            "dimensions": {
+              "minecraft:overworld": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_end": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 0,
+                "metaFiles": 0
+              },
+              "minecraft:the_nether": {
+                "chunks": 0,
+                "sections": 0,
+                "biomeSections": 0,
+                "entityPuts": 0,
+                "entityRemoves": 0,
+                "chunkDeletes": 0,
+                "untrackedKept": 42,
+                "metaFiles": 0
+              }
+            },
+            "error": null
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/folia-26.2-20261003-213051-console.log",
+          "bytes": 21763,
+          "sha256": "b1b8e531ad5df221c87c1ae40ec2cb951d4d10a39090d364d8bfc744f2adbc5f"
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "paper/docs/screenshots/phase4/folia-26.2-phase4-comments-visible.png",
+          "bytes": 39433,
+          "sha256": "afdbe24d5909cdd9977de3dbb8b7046eba005aba09b6aabf96f4558295878c0c",
+          "manualVisualReview": true
+        },
+        {
+          "path": "paper/docs/screenshots/phase4/folia-26.2-phase4-comments-hidden.png",
+          "bytes": 94661,
+          "sha256": "e270c30c05481018fd58df6139072f151f63f30f8c73087f4c1fd87288deb665",
+          "manualVisualReview": true
+        }
+      ]
+    }
+  },
+  "regressions": {
+    "paper-1.21.11-phase2": {
+      "path": ".work/paper-phase2/paper-1.21.11-1791059636/results.json",
+      "bytes": 19753,
+      "sha256": "f2156ee95c6b24a9fc9b063ea7124b823e65aaca98e6614955729105f10d4c4c",
+      "success": true,
+      "checks": 39,
+      "steps": [
+        {
+          "name": "兩個分支內容不同",
+          "ok": true
+        },
+        {
+          "name": "套用清除 mod 舊鬼影",
+          "ok": true
+        },
+        {
+          "name": "switch B 完成",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "玩家無窒息／摔落傷害 B",
+          "ok": true
+        },
+        {
+          "name": "三種保護＋攻擊對照 B",
+          "ok": true
+        },
+        {
+          "name": "switch log 無 ERROR B",
+          "ok": true
+        },
+        {
+          "name": "switch A 完成",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "玩家無窒息／摔落傷害 A",
+          "ok": true
+        },
+        {
+          "name": "三種保護＋攻擊對照 A",
+          "ok": true
+        },
+        {
+          "name": "switch log 無 ERROR A",
+          "ok": true
+        },
+        {
+          "name": "dry-run 不寫入與 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "box 只改指定格且 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "restore 之後 commit 正常",
+          "ok": true
+        },
+        {
+          "name": "半徑只改中心 chunk 且 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "switch --stash→切回→pop",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch large",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true
+        },
+        {
+          "name": "取消留下 PARTIAL",
+          "ok": true
+        },
+        {
+          "name": "PARTIAL 阻擋 commit",
+          "ok": true
+        },
+        {
+          "name": "完整重套恢復 COMPLETE",
+          "ok": true
+        },
+        {
+          "name": "十秒後恢復原本傷害",
+          "ok": true
+        },
+        {
+          "name": "存檔後離線 verify 差異 0",
+          "ok": true
+        },
+        {
+          "name": "全維度實體 UUID 無重複無遺失",
+          "ok": true
+        },
+        {
+          "name": "存檔光照存在且光源及鄰格正確",
+          "ok": true
+        },
+        {
+          "name": "講台 POI 恢復舊位置",
+          "ok": true
+        },
+        {
+          "name": "完整 log 無 ERROR／Exception",
+          "ok": true
+        }
+      ],
+      "started": "2026-10-03 20:33:56",
+      "finished": "2026-10-03 21:08:40",
+      "benchmark": [
+        {
+          "revision": "A",
+          "wall_seconds": 47.68118252395652,
+          "probe": "[21:05:45 INFO]: probe ticks=951 meanGapMs=50.52 p50=50.0 p95=50.2 p99=53.3 maxMs=585.5 gapsOver100ms=3 gapsOver200ms=2 tpsEstimate=19.79"
+        },
+        {
+          "revision": "large",
+          "wall_seconds": 47.77164246799657,
+          "probe": "[21:06:33 INFO]: probe ticks=961 meanGapMs=50.15 p50=50.0 p95=50.1 p99=53.8 maxMs=492.6 gapsOver100ms=3 gapsOver200ms=1 tpsEstimate=19.94"
+        },
+        {
+          "revision": "A",
+          "wall_seconds": 47.773262528004125,
+          "probe": "[21:07:22 INFO]: probe ticks=960 meanGapMs=50.16 p50=50.0 p95=50.1 p99=54.6 maxMs=464.7 gapsOver100ms=3 gapsOver200ms=1 tpsEstimate=19.94"
+        }
+      ],
+      "verification": [
+        {
+          "name": "1000 chunk switch A",
+          "ok": true,
+          "wall_seconds": 47.68118252395652,
+          "probe": "[21:05:45 INFO]: probe ticks=951 meanGapMs=50.52 p50=50.0 p95=50.2 p99=53.3 maxMs=585.5 gapsOver100ms=3 gapsOver200ms=2 tpsEstimate=19.79",
+          "output": "[21:04:57 INFO]: [WorldGit] 開始套用 A…\n[21:05:27 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[21:05:44 INFO]: [WorldGit] 已切換到 A @ 2326f7e5"
+        },
+        {
+          "name": "1000 chunk switch large",
+          "ok": true,
+          "wall_seconds": 47.77164246799657,
+          "probe": "[21:06:33 INFO]: probe ticks=961 meanGapMs=50.15 p50=50.0 p95=50.1 p99=53.8 maxMs=492.6 gapsOver100ms=3 gapsOver200ms=1 tpsEstimate=19.94",
+          "output": "[21:05:45 INFO]: [WorldGit] 開始套用 large…\n[21:06:15 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[21:06:33 INFO]: [WorldGit] 已切換到 large @ 16223d3c"
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true,
+          "wall_seconds": 47.773262528004125,
+          "probe": "[21:07:22 INFO]: probe ticks=960 meanGapMs=50.16 p50=50.0 p95=50.1 p99=54.6 maxMs=464.7 gapsOver100ms=3 gapsOver200ms=1 tpsEstimate=19.94",
+          "output": "[21:06:34 INFO]: [WorldGit] 開始套用 A…\n[21:07:04 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[21:07:21 INFO]: [WorldGit] 已切換到 A @ 2326f7e5"
+        },
+        {
+          "name": "存檔後離線 verify 差異 0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "全維度實體 UUID 無重複無遺失",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        },
+        {
+          "name": "存檔光照存在且光源及鄰格正確",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        },
+        {
+          "name": "講台 POI 恢復舊位置",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/paper-1.21.11-20261003-205821-console.log",
+          "bytes": 29678,
+          "sha256": "25d72fa494bda8178a83157f31f2f75552c94f07b172ef005463b666ccfac6f2"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/p4-phase2-paper121-final-r2.log",
+        "bytes": 18373,
+        "sha256": "9cd9277d6b913097289961396605110f6065f4ccb66506d9bfde3cf91d43f856"
+      }
+    },
+    "paper-1.21.11-phase3": {
+      "path": ".work/paper-phase3/paper-1.21.11-1791059460/results.json",
+      "bytes": 36860,
+      "sha256": "e555eab664b7773ab2a13e61ef9fbac167234e6a938365b4bd90b28b13c679b6",
+      "success": true,
+      "checks": 90,
+      "steps": [
+        {
+          "name": "非 MERGING conflict-select 被擋",
+          "ok": true
+        },
+        {
+          "name": "不同位置零介入、兩 parent",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client merged-clean 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client merged-clean 2,0,4",
+          "ok": true
+        },
+        {
+          "name": "clean merge 離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "門／柵欄／紅石跨 chunk 衝突",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 未知區域不改狀態",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 0 ours",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 -1 base",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 1 invalid",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 1 ours extra",
+          "ok": true
+        },
+        {
+          "name": "conflict-select theirs 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select base 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select ours 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select manual 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "status 顯示 MERGING",
+          "ok": true
+        },
+        {
+          "name": "MERGING force switch 被擋",
+          "ok": true
+        },
+        {
+          "name": "unresolved commit 被擋",
+          "ok": true
+        },
+        {
+          "name": "區域清單／bbox 與 CLI 一致",
+          "ok": true
+        },
+        {
+          "name": "重啟 MERGING 與全體授權玩家描邊恢復",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 THEIRS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 BASE",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 OURS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 THEIRS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 BASE",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 OURS",
+          "ok": true
+        },
+        {
+          "name": "小區域切換中位數 ≤ 2 秒",
+          "ok": true
+        },
+        {
+          "name": "箱子 GUI 開啟含清單",
+          "ok": true
+        },
+        {
+          "name": "GUI 點擊傳送",
+          "ok": true
+        },
+        {
+          "name": "merge-regions-v1 清單／預覽實際傳送",
+          "ok": true
+        },
+        {
+          "name": "MergeProtocol 真 payload 收齊解碼",
+          "ok": true
+        },
+        {
+          "name": "abort HEAD／狀態恢復",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "abort 全世界離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "全部 resolve 後 commit 兩 parent",
+          "ok": true
+        },
+        {
+          "name": "manual 使用目前世界",
+          "ok": true
+        },
+        {
+          "name": "cherry-pick 乾淨直接 commit",
+          "ok": true
+        },
+        {
+          "name": "revert 乾淨直接 commit",
+          "ok": true
+        },
+        {
+          "name": "cherry-pick 衝突進 MERGING",
+          "ok": true
+        },
+        {
+          "name": "revert 衝突進 MERGING",
+          "ok": true
+        },
+        {
+          "name": "線上 1000 chunk merge、bot 在線、零衝突",
+          "ok": true
+        },
+        {
+          "name": "大世界有 200 個衝突區域",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 theirs",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 base",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 ours",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 theirs",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 base",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 ours",
+          "ok": true
+        },
+        {
+          "name": "200 區域單區切換中位數 ≤ 2 秒",
+          "ok": true
+        },
+        {
+          "name": "最終完整離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "實體無重複",
+          "ok": true
+        }
+      ],
+      "started": "2026-10-03 20:31:00",
+      "finished": "2026-10-03 20:58:12",
+      "plugin_sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e",
+      "benchmark": {
+        "wall_seconds": 151.76280868100002,
+        "probe": "[20:53:33 INFO]: probe ticks=3040 meanGapMs=50.05 p50=50.0 p95=50.1 p99=51.3 maxMs=462.7 gapsOver100ms=6 gapsOver200ms=1 tpsEstimate=19.98",
+        "output": "[20:51:02 INFO]: [WorldGit] 開始 merge bench-B…\n[20:52:24 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[20:53:33 INFO]: [WorldGit] 合併操作完成：COMPLETE；剩 0 個衝突；提交 {minecraft:overworld=75cda2dbcad614c8d1311e178be7a6495bb1a97a, minecraft:the_end=26124dd11f9808c45d809a885f952e067bcf99d5, minecraft:the_nether=9ef4e8eedfc851bdcfa83419ed621c445ccb9d9d}"
+      },
+      "region_latency": {
+        "stored_chunks": 2864,
+        "samples_seconds": [
+          1.9075324650038965,
+          0.8014491479843855,
+          0.8011105330078863,
+          0.8012031170073897,
+          0.8026167099596933,
+          0.8012804350000806
+        ],
+        "median_seconds": 0.801364791492233,
+        "max_seconds": 1.9075324650038965
+      },
+      "region_latency_200": {
+        "stored_chunks": 2864,
+        "samples_seconds": [
+          0.7010524230427109,
+          0.7010048730298877,
+          0.7009595109848306,
+          0.7030325559899211,
+          0.7024555929820053,
+          0.7009963630116545
+        ],
+        "median_seconds": 0.7010286480362993,
+        "max_seconds": 0.7030325559899211,
+        "regions": 200
+      },
+      "verification": [
+        {
+          "name": "clean merge 離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "abort 全世界離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "線上 1000 chunk merge、bot 在線、零衝突",
+          "ok": true,
+          "seconds": 151.76280868100002,
+          "probe": "[20:53:33 INFO]: probe ticks=3040 meanGapMs=50.05 p50=50.0 p95=50.1 p99=51.3 maxMs=462.7 gapsOver100ms=6 gapsOver200ms=1 tpsEstimate=19.98"
+        },
+        {
+          "name": "最終完整離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "實體無重複",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 0,
+            "skyLightSections": 2,
+            "source": -1,
+            "adjacent": -1,
+            "sun": 15,
+            "poi": []
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/paper-1.21.11-20261003-203126-console.log",
+          "bytes": 16090,
+          "sha256": "e34516855ae3196b27d8e88eeb2f4e01e1d3718c10d1128f04543f0029fb5151"
+        },
+        {
+          "path": ".work/paper-delivery/logs/paper-1.21.11-20261003-203439-console.log",
+          "bytes": 20049,
+          "sha256": "63ee706b19f880432bb99811abc5c313835aefab796c03346821ba276aad93af"
+        },
+        {
+          "path": ".work/paper-delivery/logs/paper-1.21.11-20261003-203839-console.log",
+          "bytes": 15408,
+          "sha256": "74cefc2631613037ca03d203012cc448ac8409d6d1429654ba089e6c9ca4bdc8"
+        },
+        {
+          "path": ".work/paper-delivery/logs/paper-1.21.11-20261003-204033-console.log",
+          "bytes": 27100,
+          "sha256": "fff8c617e9cd27581f7a95f08af8f3cf5d867e48050716910e93a69b692273a1"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791058177/paper-1.21.11-phase3.log",
+        "bytes": 40811,
+        "sha256": "139f283eddfb839b22524a243e04d55ccf71e1c9d55762dfbbe300bb50e214ae"
+      }
+    },
+    "paper-1.21.11-interop": {
+      "path": ".work/fabric-acceptance/pair-paper-1.21.11-20261003-205812/result.json",
+      "bytes": 4413,
+      "sha256": "2cef9e258de2bbc8f2274a8b8ad7a2a2b25dc866fa7c25a30a0a70656f2cbf2e",
+      "success": true,
+      "checks": 17,
+      "steps": [
+        {
+          "name": "server conflict bounds/count",
+          "ok": true
+        },
+        {
+          "name": "ghosts world unchanged (server full sections)",
+          "ok": true
+        },
+        {
+          "name": "Set blocks durable + client list, unresolved",
+          "ok": true
+        },
+        {
+          "name": "Set blocks full server state matches theirs",
+          "ok": true
+        },
+        {
+          "name": "Resolve durable + immediate client list",
+          "ok": true
+        },
+        {
+          "name": "continue clears durable list",
+          "ok": true
+        },
+        {
+          "name": "server 200 regions",
+          "ok": true
+        },
+        {
+          "name": "reconnect obtains same durable list",
+          "ok": true
+        },
+        {
+          "name": "200 regions actual multipart transport",
+          "ok": true
+        },
+        {
+          "name": "200 resolved durable",
+          "ok": true
+        },
+        {
+          "name": "real Fabric client completed",
+          "ok": true
+        },
+        {
+          "name": "final list empty",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-01-conflict-list",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-02-ghost-theirs",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-03-set-blocks",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-04-200-regions",
+          "ok": true
+        },
+        {
+          "name": "final offline verify",
+          "ok": true
+        }
+      ],
+      "plugin": {
+        "source": "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar",
+        "source_mtime_ns": 1791059482691564798,
+        "source_mtime_utc": "2026-10-03T20:31:22.691565+00:00",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      "port_closed": true,
+      "client_port_closed": true,
+      "server_exit": 0,
+      "client_exit": 0,
+      "verification": [
+        {
+          "name": "final offline verify",
+          "ok": true
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/paper-1.21.11-20261003-210843-console.log",
+          "bytes": 23008,
+          "sha256": "70a41bef6d306a3c5db8f000ea6311c1b082767d8af46aec2a76f79e1afeed2c"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791058177/paper-1.21.11-interop.log",
+        "bytes": 3261,
+        "sha256": "110d766713456ee2101fa93f5c042301d2a75019b2622d7360edf9bf85668813"
+      }
+    },
+    "paper-26.2-interop": {
+      "path": ".work/fabric-acceptance/pair-paper-26.2-20261003-221034/result.json",
+      "bytes": 4404,
+      "sha256": "5c46bbdc41daef86f6a93fc656634b0c907a60105182e09b458073dabd53169d",
+      "success": true,
+      "checks": 17,
+      "steps": [
+        {
+          "name": "server conflict bounds/count",
+          "ok": true
+        },
+        {
+          "name": "ghosts world unchanged (server full sections)",
+          "ok": true
+        },
+        {
+          "name": "Set blocks durable + client list, unresolved",
+          "ok": true
+        },
+        {
+          "name": "Set blocks full server state matches theirs",
+          "ok": true
+        },
+        {
+          "name": "Resolve durable + immediate client list",
+          "ok": true
+        },
+        {
+          "name": "continue clears durable list",
+          "ok": true
+        },
+        {
+          "name": "server 200 regions",
+          "ok": true
+        },
+        {
+          "name": "reconnect obtains same durable list",
+          "ok": true
+        },
+        {
+          "name": "200 regions actual multipart transport",
+          "ok": true
+        },
+        {
+          "name": "200 resolved durable",
+          "ok": true
+        },
+        {
+          "name": "real Fabric client completed",
+          "ok": true
+        },
+        {
+          "name": "final list empty",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-01-conflict-list",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-02-ghost-theirs",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-03-set-blocks",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-04-200-regions",
+          "ok": true
+        },
+        {
+          "name": "final offline verify",
+          "ok": true
+        }
+      ],
+      "plugin": {
+        "source": "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar",
+        "source_mtime_ns": 1791059482691564798,
+        "source_mtime_utc": "2026-10-03T20:31:22.691565+00:00",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      "port_closed": true,
+      "client_port_closed": true,
+      "server_exit": 0,
+      "client_exit": 0,
+      "verification": [
+        {
+          "name": "final offline verify",
+          "ok": true
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/paper-26.2-20261003-221035-console.log",
+          "bytes": 23302,
+          "sha256": "b2bf44a3f889db43c35b4b0097e5c4e807cb240417b8152958ff3c9ef79effa5"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791058177/paper-26.2-interop.log",
+        "bytes": 3068,
+        "sha256": "ba4116c48f84ea7c2992f50a1192a5eef8e24f7d35b15fc22600a58284b92bb0"
+      }
+    },
+    "folia-1.21.11-phase2": {
+      "path": ".work/paper-phase2/folia-1.21.11-1791065866/results.json",
+      "bytes": 19683,
+      "sha256": "d98615ace339d7d58cc6b37c24d94c55302587ceb4d683a2a27a2f211dd3c0e4",
+      "success": true,
+      "checks": 39,
+      "steps": [
+        {
+          "name": "兩個分支內容不同",
+          "ok": true
+        },
+        {
+          "name": "套用清除 mod 舊鬼影",
+          "ok": true
+        },
+        {
+          "name": "switch B 完成",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "玩家無窒息／摔落傷害 B",
+          "ok": true
+        },
+        {
+          "name": "三種保護＋攻擊對照 B",
+          "ok": true
+        },
+        {
+          "name": "switch log 無 ERROR B",
+          "ok": true
+        },
+        {
+          "name": "switch A 完成",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "玩家無窒息／摔落傷害 A",
+          "ok": true
+        },
+        {
+          "name": "三種保護＋攻擊對照 A",
+          "ok": true
+        },
+        {
+          "name": "switch log 無 ERROR A",
+          "ok": true
+        },
+        {
+          "name": "dry-run 不寫入與 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "box 只改指定格且 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "restore 之後 commit 正常",
+          "ok": true
+        },
+        {
+          "name": "半徑只改中心 chunk 且 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "switch --stash→切回→pop",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch large",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true
+        },
+        {
+          "name": "取消留下 PARTIAL",
+          "ok": true
+        },
+        {
+          "name": "PARTIAL 阻擋 commit",
+          "ok": true
+        },
+        {
+          "name": "完整重套恢復 COMPLETE",
+          "ok": true
+        },
+        {
+          "name": "十秒後恢復原本傷害",
+          "ok": true
+        },
+        {
+          "name": "存檔後離線 verify 差異 0",
+          "ok": true
+        },
+        {
+          "name": "全維度實體 UUID 無重複無遺失",
+          "ok": true
+        },
+        {
+          "name": "存檔光照存在且光源及鄰格正確",
+          "ok": true
+        },
+        {
+          "name": "講台 POI 恢復舊位置",
+          "ok": true
+        },
+        {
+          "name": "完整 log 無 ERROR／Exception",
+          "ok": true
+        }
+      ],
+      "started": "2026-10-03 22:17:46",
+      "finished": "2026-10-03 22:27:08",
+      "benchmark": [
+        {
+          "revision": "A",
+          "wall_seconds": 35.668715098989196,
+          "probe": "[22:24:58 INFO]: probe ticks=706 meanGapMs=51.02 p50=50.0 p95=51.3 p99=56.3 maxMs=570.9 gapsOver100ms=2 gapsOver200ms=2 tpsEstimate=19.60"
+        },
+        {
+          "revision": "large",
+          "wall_seconds": 35.263007585017476,
+          "probe": "[22:25:34 INFO]: probe ticks=708 meanGapMs=50.38 p50=50.0 p95=51.1 p99=55.1 maxMs=482.7 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.85"
+        },
+        {
+          "revision": "A",
+          "wall_seconds": 35.1831172160455,
+          "probe": "[22:26:10 INFO]: probe ticks=706 meanGapMs=50.31 p50=50.0 p95=51.0 p99=56.5 maxMs=429.5 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.88"
+        }
+      ],
+      "verification": [
+        {
+          "name": "1000 chunk switch A",
+          "ok": true,
+          "wall_seconds": 35.668715098989196,
+          "probe": "[22:24:58 INFO]: probe ticks=706 meanGapMs=51.02 p50=50.0 p95=51.3 p99=56.3 maxMs=570.9 gapsOver100ms=2 gapsOver200ms=2 tpsEstimate=19.60",
+          "output": "[22:24:22 INFO]: [WorldGit] 開始套用 A…\n[22:24:46 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[22:24:57 INFO]: [WorldGit] 已切換到 A @ 8a7b2100"
+        },
+        {
+          "name": "1000 chunk switch large",
+          "ok": true,
+          "wall_seconds": 35.263007585017476,
+          "probe": "[22:25:34 INFO]: probe ticks=708 meanGapMs=50.38 p50=50.0 p95=51.1 p99=55.1 maxMs=482.7 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.85",
+          "output": "[22:24:59 INFO]: [WorldGit] 開始套用 large…\n[22:25:22 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[22:25:34 INFO]: [WorldGit] 已切換到 large @ 4834c874"
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true,
+          "wall_seconds": 35.1831172160455,
+          "probe": "[22:26:10 INFO]: probe ticks=706 meanGapMs=50.31 p50=50.0 p95=51.0 p99=56.5 maxMs=429.5 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.88",
+          "output": "[22:25:35 INFO]: [WorldGit] 開始套用 A…\n[22:25:59 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[22:26:09 INFO]: [WorldGit] 已切換到 A @ 8a7b2100"
+        },
+        {
+          "name": "存檔後離線 verify 差異 0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "全維度實體 UUID 無重複無遺失",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        },
+        {
+          "name": "存檔光照存在且光源及鄰格正確",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        },
+        {
+          "name": "講台 POI 恢復舊位置",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/folia-1.21.11-20261003-221746-console.log",
+          "bytes": 30559,
+          "sha256": "cf87f2cc2b93e8e7b7e1ac7ce8fe7c89bffbacd4f46d09116d0796a6944c2e36"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791058177/folia-1.21.11-phase2.log",
+        "bytes": 17951,
+        "sha256": "f2369bd38006ddc3b2661a51f03afc5aff157079f5e178af2c7da59be47064fc"
+      }
+    },
+    "folia-1.21.11-phase3": {
+      "path": ".work/paper-phase3/folia-1.21.11-1791066428/results.json",
+      "bytes": 36850,
+      "sha256": "63be1056231d52e1ee1a18dd55db2dd072fa970d8a14c6b8d2d2b4d793ae2120",
+      "success": true,
+      "checks": 90,
+      "steps": [
+        {
+          "name": "非 MERGING conflict-select 被擋",
+          "ok": true
+        },
+        {
+          "name": "不同位置零介入、兩 parent",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client merged-clean 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client merged-clean 2,0,4",
+          "ok": true
+        },
+        {
+          "name": "clean merge 離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "門／柵欄／紅石跨 chunk 衝突",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 未知區域不改狀態",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 0 ours",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 -1 base",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 1 invalid",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 1 ours extra",
+          "ok": true
+        },
+        {
+          "name": "conflict-select theirs 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select base 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select ours 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select manual 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "status 顯示 MERGING",
+          "ok": true
+        },
+        {
+          "name": "MERGING force switch 被擋",
+          "ok": true
+        },
+        {
+          "name": "unresolved commit 被擋",
+          "ok": true
+        },
+        {
+          "name": "區域清單／bbox 與 CLI 一致",
+          "ok": true
+        },
+        {
+          "name": "重啟 MERGING 與全體授權玩家描邊恢復",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 THEIRS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 BASE",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 OURS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 THEIRS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 BASE",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 OURS",
+          "ok": true
+        },
+        {
+          "name": "小區域切換中位數 ≤ 2 秒",
+          "ok": true
+        },
+        {
+          "name": "箱子 GUI 開啟含清單",
+          "ok": true
+        },
+        {
+          "name": "GUI 點擊傳送",
+          "ok": true
+        },
+        {
+          "name": "merge-regions-v1 清單／預覽實際傳送",
+          "ok": true
+        },
+        {
+          "name": "MergeProtocol 真 payload 收齊解碼",
+          "ok": true
+        },
+        {
+          "name": "abort HEAD／狀態恢復",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "abort 全世界離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "全部 resolve 後 commit 兩 parent",
+          "ok": true
+        },
+        {
+          "name": "manual 使用目前世界",
+          "ok": true
+        },
+        {
+          "name": "cherry-pick 乾淨直接 commit",
+          "ok": true
+        },
+        {
+          "name": "revert 乾淨直接 commit",
+          "ok": true
+        },
+        {
+          "name": "cherry-pick 衝突進 MERGING",
+          "ok": true
+        },
+        {
+          "name": "revert 衝突進 MERGING",
+          "ok": true
+        },
+        {
+          "name": "線上 1000 chunk merge、bot 在線、零衝突",
+          "ok": true
+        },
+        {
+          "name": "大世界有 200 個衝突區域",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 theirs",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 base",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 ours",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 theirs",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 base",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 ours",
+          "ok": true
+        },
+        {
+          "name": "200 區域單區切換中位數 ≤ 2 秒",
+          "ok": true
+        },
+        {
+          "name": "最終完整離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "實體無重複",
+          "ok": true
+        }
+      ],
+      "started": "2026-10-03 22:27:08",
+      "finished": "2026-10-03 22:50:32",
+      "plugin_sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e",
+      "benchmark": {
+        "wall_seconds": 125.59574795799563,
+        "probe": "[22:47:11 INFO]: probe ticks=2515 meanGapMs=50.08 p50=50.0 p95=50.9 p99=55.2 maxMs=410.1 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.97",
+        "output": "[22:45:05 INFO]: [WorldGit] 開始 merge bench-B…\n[22:46:17 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[22:47:10 INFO]: [WorldGit] 合併操作完成：COMPLETE；剩 0 個衝突；提交 {minecraft:overworld=31cd78a0b78d9647a5c5e6f0663de1fc955df743, minecraft:the_end=7a467c97194ec1c4353a52820055faf17a6cff0c, minecraft:the_nether=beff6b6818a5a06b98f375ba08b56b9953cec0e2}"
+      },
+      "region_latency": {
+        "stored_chunks": 2864,
+        "samples_seconds": [
+          1.8091399350087158,
+          0.8026145780459046,
+          0.7013386859907769,
+          0.9011687719612382,
+          0.7030189119977877,
+          0.701106809952762
+        ],
+        "median_seconds": 0.7528167450218461,
+        "max_seconds": 1.8091399350087158
+      },
+      "region_latency_200": {
+        "stored_chunks": 2864,
+        "samples_seconds": [
+          0.700929636019282,
+          0.6008554850122891,
+          0.6009160649846308,
+          0.600883521954529,
+          0.6009273719973862,
+          0.6007860869867727
+        ],
+        "median_seconds": 0.6008997934695799,
+        "max_seconds": 0.700929636019282,
+        "regions": 200
+      },
+      "verification": [
+        {
+          "name": "clean merge 離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "abort 全世界離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "線上 1000 chunk merge、bot 在線、零衝突",
+          "ok": true,
+          "seconds": 125.59574795799563,
+          "probe": "[22:47:11 INFO]: probe ticks=2515 meanGapMs=50.08 p50=50.0 p95=50.9 p99=55.2 maxMs=410.1 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.97"
+        },
+        {
+          "name": "最終完整離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "實體無重複",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 0,
+            "skyLightSections": 2,
+            "source": -1,
+            "adjacent": -1,
+            "sun": 15,
+            "poi": []
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/folia-1.21.11-20261003-222710-console.log",
+          "bytes": 16903,
+          "sha256": "fce6989ff1d6ee4f69e536becd17bb15955e6150285408eacde375097468cf73"
+        },
+        {
+          "path": ".work/paper-delivery/logs/folia-1.21.11-20261003-222944-console.log",
+          "bytes": 20349,
+          "sha256": "7085cb2ade943415d349430a9b302ffe4cd903fac422a5e2da769d3aa04c838a"
+        },
+        {
+          "path": ".work/paper-delivery/logs/folia-1.21.11-20261003-223340-console.log",
+          "bytes": 15844,
+          "sha256": "f911edf9ea644ff3de55b75bb182e9cb2a2e65366a01add36bda8e9f9786671a"
+        },
+        {
+          "path": ".work/paper-delivery/logs/folia-1.21.11-20261003-223534-console.log",
+          "bytes": 27453,
+          "sha256": "c73f0e44e20fce68a445f11b27066c01ff7ce7d9bb9c4d6506b883b381321204"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791058177/folia-1.21.11-phase3.log",
+        "bytes": 40771,
+        "sha256": "aa245110c72e951a088230784b6f9a8695781bb7349d484b114a693c4f986d0d"
+      }
+    },
+    "folia-1.21.11-interop": {
+      "path": ".work/fabric-acceptance/pair-folia-1.21.11-20261003-225032/result.json",
+      "bytes": 4413,
+      "sha256": "8b455ac71928028e8693122b0e8e510ec991f4a853d86ef6b7ae0ac9711ba256",
+      "success": true,
+      "checks": 17,
+      "steps": [
+        {
+          "name": "server conflict bounds/count",
+          "ok": true
+        },
+        {
+          "name": "ghosts world unchanged (server full sections)",
+          "ok": true
+        },
+        {
+          "name": "Set blocks durable + client list, unresolved",
+          "ok": true
+        },
+        {
+          "name": "Set blocks full server state matches theirs",
+          "ok": true
+        },
+        {
+          "name": "Resolve durable + immediate client list",
+          "ok": true
+        },
+        {
+          "name": "continue clears durable list",
+          "ok": true
+        },
+        {
+          "name": "server 200 regions",
+          "ok": true
+        },
+        {
+          "name": "reconnect obtains same durable list",
+          "ok": true
+        },
+        {
+          "name": "200 regions actual multipart transport",
+          "ok": true
+        },
+        {
+          "name": "200 resolved durable",
+          "ok": true
+        },
+        {
+          "name": "real Fabric client completed",
+          "ok": true
+        },
+        {
+          "name": "final list empty",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-01-conflict-list",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-02-ghost-theirs",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-03-set-blocks",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-04-200-regions",
+          "ok": true
+        },
+        {
+          "name": "final offline verify",
+          "ok": true
+        }
+      ],
+      "plugin": {
+        "source": "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar",
+        "source_mtime_ns": 1791059482691564798,
+        "source_mtime_utc": "2026-10-03T20:31:22.691565+00:00",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      "port_closed": true,
+      "client_port_closed": true,
+      "server_exit": 0,
+      "client_exit": 0,
+      "verification": [
+        {
+          "name": "final offline verify",
+          "ok": true
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/folia-1.21.11-20261003-225033-console.log",
+          "bytes": 23675,
+          "sha256": "4f7164bb56e9ae9359190d96735d9b14cb6d736b71a1e321c7fa9be68ad144c0"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791058177/folia-1.21.11-interop.log",
+        "bytes": 3071,
+        "sha256": "454a04fe62ff4e48d323873ab1c37b6af47d6531b2b01828ef8026bc7dc371d9"
+      }
+    },
+    "paper-26.2-phase2": {
+      "path": ".work/paper-phase2/paper-26.2-1791068547/results.json",
+      "bytes": 19744,
+      "sha256": "a5bb9c6f577de6e5df077adb818adabaab2e5956c00e91445c1b0290598d3fb0",
+      "success": true,
+      "checks": 39,
+      "steps": [
+        {
+          "name": "兩個分支內容不同",
+          "ok": true
+        },
+        {
+          "name": "套用清除 mod 舊鬼影",
+          "ok": true
+        },
+        {
+          "name": "switch B 完成",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "玩家無窒息／摔落傷害 B",
+          "ok": true
+        },
+        {
+          "name": "三種保護＋攻擊對照 B",
+          "ok": true
+        },
+        {
+          "name": "switch log 無 ERROR B",
+          "ok": true
+        },
+        {
+          "name": "switch A 完成",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "玩家無窒息／摔落傷害 A",
+          "ok": true
+        },
+        {
+          "name": "三種保護＋攻擊對照 A",
+          "ok": true
+        },
+        {
+          "name": "switch log 無 ERROR A",
+          "ok": true
+        },
+        {
+          "name": "dry-run 不寫入與 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "box 只改指定格且 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "restore 之後 commit 正常",
+          "ok": true
+        },
+        {
+          "name": "半徑只改中心 chunk 且 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "switch --stash→切回→pop",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch large",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true
+        },
+        {
+          "name": "取消留下 PARTIAL",
+          "ok": true
+        },
+        {
+          "name": "PARTIAL 阻擋 commit",
+          "ok": true
+        },
+        {
+          "name": "完整重套恢復 COMPLETE",
+          "ok": true
+        },
+        {
+          "name": "十秒後恢復原本傷害",
+          "ok": true
+        },
+        {
+          "name": "存檔後離線 verify 差異 0",
+          "ok": true
+        },
+        {
+          "name": "全維度實體 UUID 無重複無遺失",
+          "ok": true
+        },
+        {
+          "name": "存檔光照存在且光源及鄰格正確",
+          "ok": true
+        },
+        {
+          "name": "講台 POI 恢復舊位置",
+          "ok": true
+        },
+        {
+          "name": "完整 log 無 ERROR／Exception",
+          "ok": true
+        }
+      ],
+      "started": "2026-10-03 23:02:27",
+      "finished": "2026-10-03 23:12:36",
+      "benchmark": [
+        {
+          "revision": "A",
+          "wall_seconds": 47.77550888498081,
+          "probe": "[23:09:41 INFO]: probe ticks=956 meanGapMs=50.36 p50=50.0 p95=50.2 p99=55.3 maxMs=527.0 gapsOver100ms=2 gapsOver200ms=2 tpsEstimate=19.86"
+        },
+        {
+          "revision": "large",
+          "wall_seconds": 47.88730161101557,
+          "probe": "[23:10:29 INFO]: probe ticks=964 meanGapMs=50.10 p50=50.0 p95=50.2 p99=56.0 maxMs=431.9 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.96"
+        },
+        {
+          "revision": "A",
+          "wall_seconds": 47.98273417900782,
+          "probe": "[23:11:18 INFO]: probe ticks=966 meanGapMs=50.10 p50=50.0 p95=50.1 p99=52.7 maxMs=430.4 gapsOver100ms=2 gapsOver200ms=1 tpsEstimate=19.96"
+        }
+      ],
+      "verification": [
+        {
+          "name": "1000 chunk switch A",
+          "ok": true,
+          "wall_seconds": 47.77550888498081,
+          "probe": "[23:09:41 INFO]: probe ticks=956 meanGapMs=50.36 p50=50.0 p95=50.2 p99=55.3 maxMs=527.0 gapsOver100ms=2 gapsOver200ms=2 tpsEstimate=19.86",
+          "output": "[23:08:53 INFO]: [WorldGit] 開始套用 A…\n[23:09:23 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[23:09:40 INFO]: [WorldGit] 已切換到 A @ b6b7d9c7"
+        },
+        {
+          "name": "1000 chunk switch large",
+          "ok": true,
+          "wall_seconds": 47.88730161101557,
+          "probe": "[23:10:29 INFO]: probe ticks=964 meanGapMs=50.10 p50=50.0 p95=50.2 p99=56.0 maxMs=431.9 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.96",
+          "output": "[23:09:41 INFO]: [WorldGit] 開始套用 large…\n[23:10:11 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[23:10:29 INFO]: [WorldGit] 已切換到 large @ 94345228"
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true,
+          "wall_seconds": 47.98273417900782,
+          "probe": "[23:11:18 INFO]: probe ticks=966 meanGapMs=50.10 p50=50.0 p95=50.1 p99=52.7 maxMs=430.4 gapsOver100ms=2 gapsOver200ms=1 tpsEstimate=19.96",
+          "output": "[23:10:30 INFO]: [WorldGit] 開始套用 A…\n[23:11:00 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[23:11:18 INFO]: [WorldGit] 已切換到 A @ b6b7d9c7"
+        },
+        {
+          "name": "存檔後離線 verify 差異 0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "全維度實體 UUID 無重複無遺失",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        },
+        {
+          "name": "存檔光照存在且光源及鄰格正確",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        },
+        {
+          "name": "講台 POI 恢復舊位置",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/paper-26.2-20261003-230227-console.log",
+          "bytes": 29855,
+          "sha256": "c27c4bc36e2a881d6a8ae5558e6d0b94276350bfb0324ae735e93b91d6311935"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791068547/paper-26.2-phase2.log",
+        "bytes": 17960,
+        "sha256": "01fe2d3f78c105d4f050faaac4983e6d8707776384ed9e8a784e44642100d738"
+      }
+    },
+    "paper-26.2-phase3": {
+      "path": ".work/paper-phase3/paper-26.2-1791069156/results.json",
+      "bytes": 36650,
+      "sha256": "eafb0085ed3cfe3612356928d19d9d146ccd1941ca30dc2a029fe1eae61b6b2e",
+      "success": true,
+      "checks": 90,
+      "steps": [
+        {
+          "name": "非 MERGING conflict-select 被擋",
+          "ok": true
+        },
+        {
+          "name": "不同位置零介入、兩 parent",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client merged-clean 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client merged-clean 2,0,4",
+          "ok": true
+        },
+        {
+          "name": "clean merge 離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "門／柵欄／紅石跨 chunk 衝突",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 未知區域不改狀態",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 0 ours",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 -1 base",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 1 invalid",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 1 ours extra",
+          "ok": true
+        },
+        {
+          "name": "conflict-select theirs 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select base 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select ours 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select manual 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "status 顯示 MERGING",
+          "ok": true
+        },
+        {
+          "name": "MERGING force switch 被擋",
+          "ok": true
+        },
+        {
+          "name": "unresolved commit 被擋",
+          "ok": true
+        },
+        {
+          "name": "區域清單／bbox 與 CLI 一致",
+          "ok": true
+        },
+        {
+          "name": "重啟 MERGING 與全體授權玩家描邊恢復",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 THEIRS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 BASE",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 OURS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 THEIRS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 BASE",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 OURS",
+          "ok": true
+        },
+        {
+          "name": "小區域切換中位數 ≤ 2 秒",
+          "ok": true
+        },
+        {
+          "name": "箱子 GUI 開啟含清單",
+          "ok": true
+        },
+        {
+          "name": "GUI 點擊傳送",
+          "ok": true
+        },
+        {
+          "name": "merge-regions-v1 清單／預覽實際傳送",
+          "ok": true
+        },
+        {
+          "name": "MergeProtocol 真 payload 收齊解碼",
+          "ok": true
+        },
+        {
+          "name": "abort HEAD／狀態恢復",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "abort 全世界離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "全部 resolve 後 commit 兩 parent",
+          "ok": true
+        },
+        {
+          "name": "manual 使用目前世界",
+          "ok": true
+        },
+        {
+          "name": "cherry-pick 乾淨直接 commit",
+          "ok": true
+        },
+        {
+          "name": "revert 乾淨直接 commit",
+          "ok": true
+        },
+        {
+          "name": "cherry-pick 衝突進 MERGING",
+          "ok": true
+        },
+        {
+          "name": "revert 衝突進 MERGING",
+          "ok": true
+        },
+        {
+          "name": "線上 1000 chunk merge、bot 在線、零衝突",
+          "ok": true
+        },
+        {
+          "name": "大世界有 200 個衝突區域",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 theirs",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 base",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 ours",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 theirs",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 base",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 ours",
+          "ok": true
+        },
+        {
+          "name": "200 區域單區切換中位數 ≤ 2 秒",
+          "ok": true
+        },
+        {
+          "name": "最終完整離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "實體無重複",
+          "ok": true
+        }
+      ],
+      "started": "2026-10-03 23:12:36",
+      "finished": "2026-10-03 23:37:41",
+      "plugin_sha256": "636148e3afa2d1e7b7da4a38b360e29e884e8c2a26085208b017e56de304bf90",
+      "benchmark": {
+        "wall_seconds": 151.81343178002862,
+        "probe": "[23:33:04 INFO]: probe ticks=3042 meanGapMs=50.03 p50=50.0 p95=50.2 p99=53.9 maxMs=433.1 gapsOver100ms=3 gapsOver200ms=1 tpsEstimate=19.99",
+        "output": "[23:30:32 INFO]: [WorldGit] 開始 merge bench-B…\n[23:31:54 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[23:33:03 INFO]: [WorldGit] 合併操作完成：COMPLETE；剩 0 個衝突；提交 {minecraft:overworld=2060fb0088e323a91ac8a40821a4576060c0a01a, minecraft:the_end=5b08f5ecb6de3e722b57ea8f92d6331f70d3f95e, minecraft:the_nether=9c91512b3b1a1c25d41a86ea3642c99a6c1f855e}"
+      },
+      "region_latency": {
+        "stored_chunks": 2864,
+        "samples_seconds": [
+          1.6046419100021012,
+          0.9034068339969963,
+          0.8010722920298576,
+          0.8029231620021164,
+          0.8010945020359941,
+          0.8021992860012688
+        ],
+        "median_seconds": 0.8025612240016926,
+        "max_seconds": 1.6046419100021012
+      },
+      "region_latency_200": {
+        "stored_chunks": 2864,
+        "samples_seconds": [
+          0.7035365490010008,
+          0.7010209450381808,
+          0.7009162229951471,
+          0.7010917470324785,
+          0.700957304041367,
+          0.7009273829753511
+        ],
+        "median_seconds": 0.7009891245397739,
+        "max_seconds": 0.7035365490010008,
+        "regions": 200
+      },
+      "verification": [
+        {
+          "name": "clean merge 離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "abort 全世界離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "線上 1000 chunk merge、bot 在線、零衝突",
+          "ok": true,
+          "seconds": 151.81343178002862,
+          "probe": "[23:33:04 INFO]: probe ticks=3042 meanGapMs=50.03 p50=50.0 p95=50.2 p99=53.9 maxMs=433.1 gapsOver100ms=3 gapsOver200ms=1 tpsEstimate=19.99"
+        },
+        {
+          "name": "最終完整離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "實體無重複",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 0,
+            "skyLightSections": 2,
+            "source": -1,
+            "adjacent": -1,
+            "sun": 15,
+            "poi": []
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/paper-26.2-20261003-231237-console.log",
+          "bytes": 16257,
+          "sha256": "742c9b92ff40063befde0495055c07ae039d4aa07a586ffec52faf85e72eda9a"
+        },
+        {
+          "path": ".work/paper-delivery/logs/paper-26.2-20261003-231525-console.log",
+          "bytes": 20329,
+          "sha256": "7f2517bd2976fd849cbebc54ee3ed0cbc16053f82cf65547dbdaac0af3e98073"
+        },
+        {
+          "path": ".work/paper-delivery/logs/paper-26.2-20261003-231903-console.log",
+          "bytes": 15692,
+          "sha256": "a923b50e53b24890a4a6e6811aee1a3f835a6cbf943464d866430cfb920e90fa"
+        },
+        {
+          "path": ".work/paper-delivery/logs/paper-26.2-20261003-232050-console.log",
+          "bytes": 27387,
+          "sha256": "b4918221e4327592ccd5fc7c2f264fd89578c01232ef5e0ab155896726868ffd"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791068547/paper-26.2-phase3.log",
+        "bytes": 40384,
+        "sha256": "018a0d214e2872c496a48fec933d71a00906fe30a0f7f40061d18cecc12251ca"
+      }
+    },
+    "folia-26.2-phase2": {
+      "path": ".work/paper-phase2/folia-26.2-1791070662/results.json",
+      "bytes": 19677,
+      "sha256": "d004fd07125892c44bac4077a2962a0fc5a33107dd6397401d3dde4ec5a11f98",
+      "success": true,
+      "checks": 39,
+      "steps": [
+        {
+          "name": "兩個分支內容不同",
+          "ok": true
+        },
+        {
+          "name": "套用清除 mod 舊鬼影",
+          "ok": true
+        },
+        {
+          "name": "switch B 完成",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "玩家無窒息／摔落傷害 B",
+          "ok": true
+        },
+        {
+          "name": "三種保護＋攻擊對照 B",
+          "ok": true
+        },
+        {
+          "name": "switch log 無 ERROR B",
+          "ok": true
+        },
+        {
+          "name": "switch A 完成",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state 封包一致 0,0,5",
+          "ok": true
+        },
+        {
+          "name": "玩家無窒息／摔落傷害 A",
+          "ok": true
+        },
+        {
+          "name": "三種保護＋攻擊對照 A",
+          "ok": true
+        },
+        {
+          "name": "switch log 無 ERROR A",
+          "ok": true
+        },
+        {
+          "name": "dry-run 不寫入與 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "box 只改指定格且 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "restore 之後 commit 正常",
+          "ok": true
+        },
+        {
+          "name": "半徑只改中心 chunk 且 HEAD 不動",
+          "ok": true
+        },
+        {
+          "name": "switch --stash→切回→pop",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch large",
+          "ok": true
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true
+        },
+        {
+          "name": "取消留下 PARTIAL",
+          "ok": true
+        },
+        {
+          "name": "PARTIAL 阻擋 commit",
+          "ok": true
+        },
+        {
+          "name": "完整重套恢復 COMPLETE",
+          "ok": true
+        },
+        {
+          "name": "十秒後恢復原本傷害",
+          "ok": true
+        },
+        {
+          "name": "存檔後離線 verify 差異 0",
+          "ok": true
+        },
+        {
+          "name": "全維度實體 UUID 無重複無遺失",
+          "ok": true
+        },
+        {
+          "name": "存檔光照存在且光源及鄰格正確",
+          "ok": true
+        },
+        {
+          "name": "講台 POI 恢復舊位置",
+          "ok": true
+        },
+        {
+          "name": "完整 log 無 ERROR／Exception",
+          "ok": true
+        }
+      ],
+      "started": "2026-10-03 23:37:42",
+      "finished": "2026-10-03 23:46:29",
+      "benchmark": [
+        {
+          "revision": "A",
+          "wall_seconds": 34.26606031198753,
+          "probe": "[23:44:25 INFO]: probe ticks=683 meanGapMs=50.75 p50=50.0 p95=51.1 p99=57.3 maxMs=451.8 gapsOver100ms=2 gapsOver200ms=2 tpsEstimate=19.70"
+        },
+        {
+          "revision": "large",
+          "wall_seconds": 33.76295803801622,
+          "probe": "[23:44:59 INFO]: probe ticks=678 meanGapMs=50.32 p50=50.0 p95=51.4 p99=56.3 maxMs=402.5 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.87"
+        },
+        {
+          "revision": "A",
+          "wall_seconds": 33.653740098001435,
+          "probe": "[23:45:34 INFO]: probe ticks=677 meanGapMs=50.24 p50=50.0 p95=51.3 p99=56.1 maxMs=349.7 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.90"
+        }
+      ],
+      "verification": [
+        {
+          "name": "1000 chunk switch A",
+          "ok": true,
+          "wall_seconds": 34.26606031198753,
+          "probe": "[23:44:25 INFO]: probe ticks=683 meanGapMs=50.75 p50=50.0 p95=51.1 p99=57.3 maxMs=451.8 gapsOver100ms=2 gapsOver200ms=2 tpsEstimate=19.70",
+          "output": "[23:43:50 INFO]: [WorldGit] 開始套用 A…\n[23:44:14 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[23:44:24 INFO]: [WorldGit] 已切換到 A @ f40d44cb"
+        },
+        {
+          "name": "1000 chunk switch large",
+          "ok": true,
+          "wall_seconds": 33.76295803801622,
+          "probe": "[23:44:59 INFO]: probe ticks=678 meanGapMs=50.32 p50=50.0 p95=51.4 p99=56.3 maxMs=402.5 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.87",
+          "output": "[23:44:26 INFO]: [WorldGit] 開始套用 large…\n[23:44:49 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[23:44:59 INFO]: [WorldGit] 已切換到 large @ 22bac430"
+        },
+        {
+          "name": "1000 chunk switch A",
+          "ok": true,
+          "wall_seconds": 33.653740098001435,
+          "probe": "[23:45:34 INFO]: probe ticks=677 meanGapMs=50.24 p50=50.0 p95=51.3 p99=56.1 maxMs=349.7 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.90",
+          "output": "[23:45:00 INFO]: [WorldGit] 開始套用 A…\n[23:45:23 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[23:45:33 INFO]: [WorldGit] 已切換到 A @ f40d44cb"
+        },
+        {
+          "name": "存檔後離線 verify 差異 0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "全維度實體 UUID 無重複無遺失",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        },
+        {
+          "name": "存檔光照存在且光源及鄰格正確",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        },
+        {
+          "name": "講台 POI 恢復舊位置",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 2,
+            "skyLightSections": 3,
+            "source": 15,
+            "adjacent": 14,
+            "sun": 15,
+            "poi": [
+              "[3, 65, 3]"
+            ]
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/folia-26.2-20261003-233742-console.log",
+          "bytes": 31338,
+          "sha256": "e1f242ee2671b950281cdfad26f68056b8a9d5486e89956064d535b314dc27d0"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791068547/folia-26.2-phase2.log",
+        "bytes": 17951,
+        "sha256": "53abeee28967b3c71352fd7a033ffa5f5cf081237f9d9a3d7c12d1f9dbb4d246"
+      }
+    },
+    "folia-26.2-phase3": {
+      "path": ".work/paper-phase3/folia-26.2-1791071189/results.json",
+      "bytes": 36840,
+      "sha256": "84f1728384a56f721f25402386f9980c134a18bcc189a32df39f75d75abd0ea8",
+      "success": true,
+      "checks": 90,
+      "steps": [
+        {
+          "name": "非 MERGING conflict-select 被擋",
+          "ok": true
+        },
+        {
+          "name": "不同位置零介入、兩 parent",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client merged-clean 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client merged-clean 2,0,4",
+          "ok": true
+        },
+        {
+          "name": "clean merge 離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "門／柵欄／紅石跨 chunk 衝突",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 未知區域不改狀態",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 0 ours",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 -1 base",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 1 invalid",
+          "ok": true
+        },
+        {
+          "name": "conflict-select 非法參數 1 ours extra",
+          "ok": true
+        },
+        {
+          "name": "conflict-select theirs 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select base 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select ours 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "conflict-select manual 保持 unresolved",
+          "ok": true
+        },
+        {
+          "name": "status 顯示 MERGING",
+          "ok": true
+        },
+        {
+          "name": "MERGING force switch 被擋",
+          "ok": true
+        },
+        {
+          "name": "unresolved commit 被擋",
+          "ok": true
+        },
+        {
+          "name": "區域清單／bbox 與 CLI 一致",
+          "ok": true
+        },
+        {
+          "name": "重啟 MERGING 與全體授權玩家描邊恢復",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 THEIRS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 BASE",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 OURS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client theirs-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 THEIRS",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client base 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 BASE",
+          "ok": true
+        },
+        {
+          "name": "區域切換三種保護",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "區域內切換無傷害 OURS",
+          "ok": true
+        },
+        {
+          "name": "小區域切換中位數 ≤ 2 秒",
+          "ok": true
+        },
+        {
+          "name": "箱子 GUI 開啟含清單",
+          "ok": true
+        },
+        {
+          "name": "GUI 點擊傳送",
+          "ok": true
+        },
+        {
+          "name": "merge-regions-v1 清單／預覽實際傳送",
+          "ok": true
+        },
+        {
+          "name": "MergeProtocol 真 payload 收齊解碼",
+          "ok": true
+        },
+        {
+          "name": "abort HEAD／狀態恢復",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 0,0,4",
+          "ok": true
+        },
+        {
+          "name": "逐格 state／client ours-original 1,0,4",
+          "ok": true
+        },
+        {
+          "name": "abort 全世界離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "全部 resolve 後 commit 兩 parent",
+          "ok": true
+        },
+        {
+          "name": "manual 使用目前世界",
+          "ok": true
+        },
+        {
+          "name": "cherry-pick 乾淨直接 commit",
+          "ok": true
+        },
+        {
+          "name": "revert 乾淨直接 commit",
+          "ok": true
+        },
+        {
+          "name": "cherry-pick 衝突進 MERGING",
+          "ok": true
+        },
+        {
+          "name": "revert 衝突進 MERGING",
+          "ok": true
+        },
+        {
+          "name": "線上 1000 chunk merge、bot 在線、零衝突",
+          "ok": true
+        },
+        {
+          "name": "大世界有 200 個衝突區域",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 theirs",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 base",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 ours",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 theirs",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 base",
+          "ok": true
+        },
+        {
+          "name": "200 區域切換 ours",
+          "ok": true
+        },
+        {
+          "name": "200 區域單區切換中位數 ≤ 2 秒",
+          "ok": true
+        },
+        {
+          "name": "最終完整離線 verify=0",
+          "ok": true
+        },
+        {
+          "name": "實體無重複",
+          "ok": true
+        }
+      ],
+      "started": "2026-10-03 23:46:29",
+      "finished": "2026-10-04 00:08:32",
+      "plugin_sha256": "636148e3afa2d1e7b7da4a38b360e29e884e8c2a26085208b017e56de304bf90",
+      "benchmark": {
+        "wall_seconds": 117.55362979503116,
+        "probe": "[00:05:21 INFO]: probe ticks=2354 meanGapMs=50.10 p50=50.0 p95=50.8 p99=54.6 maxMs=405.4 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.96",
+        "output": "[00:03:23 INFO]: [WorldGit] 開始 merge bench-B…\n[00:04:31 INFO]: [WorldGit] WorldGit apply sections=1000 ticketPeak=16 ticketRemaining=0\n[00:05:20 INFO]: [WorldGit] 合併操作完成：COMPLETE；剩 0 個衝突；提交 {minecraft:overworld=459ba533c5e4cca4dbbaf0a697b97873249904b3, minecraft:the_end=088161c9d3b9de5a28ab7efdae43345fe19ac184, minecraft:the_nether=706a3312cd05403e57606faf46270de5029c291b}"
+      },
+      "region_latency": {
+        "stored_chunks": 2864,
+        "samples_seconds": [
+          1.6035558230360039,
+          0.700990772980731,
+          0.7016410370124504,
+          0.8017872780328616,
+          0.7008724610204808,
+          0.7022688909783028
+        ],
+        "median_seconds": 0.7019549639953766,
+        "max_seconds": 1.6035558230360039
+      },
+      "region_latency_200": {
+        "stored_chunks": 2864,
+        "samples_seconds": [
+          0.7010558160254732,
+          0.700982787006069,
+          0.7010002280003391,
+          0.7011186399613507,
+          0.7010733110364527,
+          0.701033731980715
+        ],
+        "median_seconds": 0.7010447740030941,
+        "max_seconds": 0.7011186399613507,
+        "regions": 200
+      },
+      "verification": [
+        {
+          "name": "clean merge 離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "abort 全世界離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "線上 1000 chunk merge、bot 在線、零衝突",
+          "ok": true,
+          "seconds": 117.55362979503116,
+          "probe": "[00:05:21 INFO]: probe ticks=2354 meanGapMs=50.10 p50=50.0 p95=50.8 p99=54.6 maxMs=405.4 gapsOver100ms=1 gapsOver200ms=1 tpsEstimate=19.96"
+        },
+        {
+          "name": "最終完整離線 verify=0",
+          "ok": true,
+          "output": "COMPLETE\nminecraft:overworld：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_end：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\nminecraft:the_nether：~ chunks=0 sections=0，biome 0，+ entities=0，- entities=0 chunks=0，untracked 保留 0，metadata 0\n"
+        },
+        {
+          "name": "實體無重複",
+          "ok": true,
+          "inspection": {
+            "duplicates": 0,
+            "controlledUuidCount": 1,
+            "blockLightSections": 0,
+            "skyLightSections": 2,
+            "source": -1,
+            "adjacent": -1,
+            "sun": 15,
+            "poi": []
+          }
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/folia-26.2-20261003-234631-console.log",
+          "bytes": 17717,
+          "sha256": "c4aa0af70a7ae7e0ce10914bc9a7f57c497607e25c3ce29afadbcd2d9052f70a"
+        },
+        {
+          "path": ".work/paper-delivery/logs/folia-26.2-20261003-234918-console.log",
+          "bytes": 21405,
+          "sha256": "1ca8708c1d9ca9162b6d6d72777ba7dd956237a6a107b24ee211a98b8efba994"
+        },
+        {
+          "path": ".work/paper-delivery/logs/folia-26.2-20261003-235244-console.log",
+          "bytes": 16768,
+          "sha256": "3c2f76d2b50175935c8663c5cca49655a19c2f6c7808cde4e80888c7e65e9e5c"
+        },
+        {
+          "path": ".work/paper-delivery/logs/folia-26.2-20261003-235431-console.log",
+          "bytes": 28420,
+          "sha256": "fd508429c8bf716c6699c357b6e34aa1f3e4f21654c28918bde0e804b0d5da73"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791068547/folia-26.2-phase3.log",
+        "bytes": 40769,
+        "sha256": "2b4527b13291a45d06aa4773fa1a8e8d35408de1d42e60bc7239a5fcfedc20b6"
+      }
+    },
+    "folia-26.2-interop": {
+      "path": ".work/fabric-acceptance/pair-folia-26.2-20261004-000832/result.json",
+      "bytes": 4404,
+      "sha256": "29662531070ef6610439f7c13032581921a7a1ee6a010d6923d695cda652c352",
+      "success": true,
+      "checks": 17,
+      "steps": [
+        {
+          "name": "server conflict bounds/count",
+          "ok": true
+        },
+        {
+          "name": "ghosts world unchanged (server full sections)",
+          "ok": true
+        },
+        {
+          "name": "Set blocks durable + client list, unresolved",
+          "ok": true
+        },
+        {
+          "name": "Set blocks full server state matches theirs",
+          "ok": true
+        },
+        {
+          "name": "Resolve durable + immediate client list",
+          "ok": true
+        },
+        {
+          "name": "continue clears durable list",
+          "ok": true
+        },
+        {
+          "name": "server 200 regions",
+          "ok": true
+        },
+        {
+          "name": "reconnect obtains same durable list",
+          "ok": true
+        },
+        {
+          "name": "200 regions actual multipart transport",
+          "ok": true
+        },
+        {
+          "name": "200 resolved durable",
+          "ok": true
+        },
+        {
+          "name": "real Fabric client completed",
+          "ok": true
+        },
+        {
+          "name": "final list empty",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-01-conflict-list",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-02-ghost-theirs",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-03-set-blocks",
+          "ok": true
+        },
+        {
+          "name": "screenshot pair-04-200-regions",
+          "ok": true
+        },
+        {
+          "name": "final offline verify",
+          "ok": true
+        }
+      ],
+      "plugin": {
+        "source": "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar",
+        "source_mtime_ns": 1791068491673374719,
+        "source_mtime_utc": "2026-10-03T23:01:31.673375+00:00",
+        "bytes": 15452218,
+        "sha256": "636148e3afa2d1e7b7da4a38b360e29e884e8c2a26085208b017e56de304bf90"
+      },
+      "port_closed": true,
+      "client_port_closed": true,
+      "server_exit": 0,
+      "client_exit": 0,
+      "verification": [
+        {
+          "name": "final offline verify",
+          "ok": true
+        }
+      ],
+      "logs": [
+        {
+          "path": ".work/paper-delivery/logs/folia-26.2-20261004-000833-console.log",
+          "bytes": 24521,
+          "sha256": "eb9286ae2fb1fa270913ffc4d3d27105659a68d9b1a51843f5f22f8d7c96b2bf"
+        }
+      ],
+      "runner_log": {
+        "path": ".work/paper-phase4/regressions-1791068547/folia-26.2-interop.log",
+        "bytes": 3068,
+        "sha256": "d301854f09d2afde0f610c3d0468217861a7296f3dabdf3a8bd26ec6edc18453"
+      }
+    }
+  },
+  "runner": {
+    "path": ".work/paper-phase4/regressions-1791068547/results.json",
+    "bytes": 941,
+    "sha256": "34ac1df5e68bbbdcff8b646e89559f1b7c6cd9bc385ef824bc10f927a2678d85",
+    "cases": [
+      {
+        "name": "paper-26.2-phase2",
+        "exit": 0,
+        "seconds": 609.0648356470047,
+        "log": ".work/paper-phase4/regressions-1791068547/paper-26.2-phase2.log"
+      },
+      {
+        "name": "paper-26.2-phase3",
+        "exit": 0,
+        "seconds": 1505.479886960995,
+        "log": ".work/paper-phase4/regressions-1791068547/paper-26.2-phase3.log"
+      },
+      {
+        "name": "folia-26.2-phase2",
+        "exit": 0,
+        "seconds": 527.8793460269808,
+        "log": ".work/paper-phase4/regressions-1791068547/folia-26.2-phase2.log"
+      },
+      {
+        "name": "folia-26.2-phase3",
+        "exit": 0,
+        "seconds": 1322.3449040499981,
+        "log": ".work/paper-phase4/regressions-1791068547/folia-26.2-phase3.log"
+      },
+      {
+        "name": "folia-26.2-interop",
+        "exit": 0,
+        "seconds": 397.1435845789965,
+        "log": ".work/paper-phase4/regressions-1791068547/folia-26.2-interop.log"
+      }
+    ]
+  },
+  "retained_failure_suite": {
+    "path": ".work/paper-phase4/regressions-1791058177/results.json",
+    "bytes": 1706,
+    "sha256": "d7cb8cff0b49baa3a2d54e1b2c2fddefa9a36276e902b7e0144db829ae0422c8",
+    "results": {
+      "success": false,
+      "cases": [
+        {
+          "name": "paper-1.21.11-phase2",
+          "exit": 1,
+          "seconds": 1282.5618642030167,
+          "log": ".work/paper-phase4/regressions-1791058177/paper-1.21.11-phase2.log"
+        },
+        {
+          "name": "paper-1.21.11-phase3",
+          "exit": 0,
+          "seconds": 1631.8249368730467,
+          "log": ".work/paper-phase4/regressions-1791058177/paper-1.21.11-phase3.log"
+        },
+        {
+          "name": "paper-1.21.11-interop",
+          "exit": 0,
+          "seconds": 1043.5180626890506,
+          "log": ".work/paper-phase4/regressions-1791058177/paper-1.21.11-interop.log"
+        },
+        {
+          "name": "paper-26.2-phase2",
+          "exit": 1,
+          "seconds": 900.5931269900175,
+          "log": ".work/paper-phase4/regressions-1791058177/paper-26.2-phase2.log"
+        },
+        {
+          "name": "paper-26.2-phase3",
+          "exit": 1,
+          "seconds": 2397.5408961130306,
+          "log": ".work/paper-phase4/regressions-1791058177/paper-26.2-phase3.log"
+        },
+        {
+          "name": "paper-26.2-interop",
+          "exit": 0,
+          "seconds": 432.3183908710489,
+          "log": ".work/paper-phase4/regressions-1791058177/paper-26.2-interop.log"
+        },
+        {
+          "name": "folia-1.21.11-phase2",
+          "exit": 0,
+          "seconds": 562.5040931819822,
+          "log": ".work/paper-phase4/regressions-1791058177/folia-1.21.11-phase2.log"
+        },
+        {
+          "name": "folia-1.21.11-phase3",
+          "exit": 0,
+          "seconds": 1403.5283875819878,
+          "log": ".work/paper-phase4/regressions-1791058177/folia-1.21.11-phase3.log"
+        },
+        {
+          "name": "folia-1.21.11-interop",
+          "exit": 0,
+          "seconds": 442.4194632410072,
+          "log": ".work/paper-phase4/regressions-1791058177/folia-1.21.11-interop.log"
+        }
+      ]
+    }
+  },
+  "final_artifacts": [
+    {
+      "path": "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar",
+      "bytes": 15452218,
+      "sha256": "636148e3afa2d1e7b7da4a38b360e29e884e8c2a26085208b017e56de304bf90"
+    },
+    {
+      "path": "hub/build/libs/worldgit-hub.jar",
+      "bytes": 63575063,
+      "sha256": "d579c199d9f4b27522bf014d3ed4ce56dcfe31e7ed8e8d6c7bddc4ac3b36d6c2"
+    },
+    {
+      "path": "cli/build/libs/wgit.jar",
+      "bytes": 15666127,
+      "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+    }
+  ],
+  "coverage_note": "Phase 4 四組凍結 jar 與最終 jar 分開記錄；之後只修 PaperLiveWorld 26.2 的主世界 gamerule 別名，由 Paper／Folia 26.2 完整 Phase 2／3 與 Folia 26.2 interop 覆蓋，未重跑已通過的 Phase 4。",
+  "sources": [
+    {
+      "path": "core/src/main/java/org/worldgit/core/remote/WorldRemotes.java",
+      "bytes": 24684,
+      "sha256": "9c44120aa7f698d1e48b5bbc79f9109ea66e9ad3ffc0ef6817f6ec09a2986415"
+    },
+    {
+      "path": "core/src/main/java/org/worldgit/core/store/GitTransfer.java",
+      "bytes": 23514,
+      "sha256": "d7bb7efa13c23f5d5ab5be0017c39d50f68ae657d8d34952599c0caf04a9adca"
+    },
+    {
+      "path": "i18n/src/main/resources/org/worldgit/i18n/lang/en_us.yml",
+      "bytes": 20364,
+      "sha256": "2311d9bd90bd22045488d309f0ce747c61cf6889942adce95b6d676acb44afd1"
+    },
+    {
+      "path": "i18n/src/main/resources/org/worldgit/i18n/lang/zh_tw.yml",
+      "bytes": 20536,
+      "sha256": "c30711f77da4fc824610fb329757c629590453bf53bf5e6ffd9173887a7821fe"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/Commands.java",
+      "bytes": 29955,
+      "sha256": "9b9e183603297f1079a086c10f49f19145e757c6dfadf508663812d6d0c18168"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/CommentDisplays.java",
+      "bytes": 5067,
+      "sha256": "d92e3600a97bd2f43c5424fd7018b57aa8893fe8fc455ef3ec33327932fca978"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/Debug.java",
+      "bytes": 19420,
+      "sha256": "50f0acec3f07706a17fb6839abb8ed07a3d5db3dbf34bce23522beb9111d4fa3"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/DisplayRequests.java",
+      "bytes": 673,
+      "sha256": "b018789bd959c05998762ea3f4b980922b753dc0c76eb486c175f10e0760e3e6"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/MergeUi.java",
+      "bytes": 10981,
+      "sha256": "9cc437d516f92743ab023f84a23e1670b30ec6e318840977b720e734e6351463"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/PaperLiveWorld.java",
+      "bytes": 17908,
+      "sha256": "85db11c752886559fe278ad04ce2e216ea749c969229dd504a28d20022f6aea3"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/RemoteCommands.java",
+      "bytes": 20549,
+      "sha256": "f9c9b58d105eead3f1384e81d7e2d5aa0d0886f13fcd44b6f6bb539530019a42"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/RemoteConfig.java",
+      "bytes": 2947,
+      "sha256": "82d8517bfc4b1502255c1fe36a7e500f9ee8813a231147cad857c58f43a749e8"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/RepoService.java",
+      "bytes": 19302,
+      "sha256": "50cbbcdf1846ace406590d2964f0cddf42ebaa622af1db448a7f2b2fecd461d7"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/TransientDisplays.java",
+      "bytes": 539,
+      "sha256": "226de0bf4cb990d067dc5f956655eeb5ce33c30a00a419081437b34578370ed0"
+    },
+    {
+      "path": "paper/common/src/main/java/org/worldgit/paper/WorldGitPlugin.java",
+      "bytes": 13376,
+      "sha256": "e89519ff398b2b0091e95c639dba0516ed1cad727bc287e277c396bdf02cd91f"
+    },
+    {
+      "path": "paper/common/src/main/resources/config.yml",
+      "bytes": 3352,
+      "sha256": "ac1d1d111b6a245b89db7d3c212a2a040ae1f20eb8443a835e3444e8d02e922d"
+    },
+    {
+      "path": "paper/common/src/main/resources/plugin.yml",
+      "bytes": 4015,
+      "sha256": "cb4873d2dac12384a577dd8dbef353bd8a3f2dc30ef266c93b19da06f02c224e"
+    },
+    {
+      "path": "paper/common/src/test/java/org/worldgit/paper/MessagesTest.java",
+      "bytes": 4188,
+      "sha256": "7944e34138a5b977038a8c4bef7f44b518cb28b4d8c4d379a07974c000702a08"
+    },
+    {
+      "path": "paper/common/src/test/java/org/worldgit/paper/RemoteConfigTest.java",
+      "bytes": 4286,
+      "sha256": "1216d6858a3fd8bd2d517ef104173ba52dde372961a65de54b473aed7293d4f2"
+    },
+    {
+      "path": "paper/tools/fixtures/Phase4DisplayGameTest.java",
+      "bytes": 3562,
+      "sha256": "62d01143a1a0453071711cdd20935fe82af78925f2de049ddc80275807750f82"
+    },
+    {
+      "path": "paper/tools/phase4.py",
+      "bytes": 18795,
+      "sha256": "d75d2bec38f31c5503c6264060862fee3289b16460772a04138842bd097da237"
+    },
+    {
+      "path": "paper/tools/phase4_regressions.py",
+      "bytes": 3213,
+      "sha256": "e52b95a3ef95496745126d0076e47b48a6f4c660205746bf06979902a60aaf35"
+    },
+    {
+      "path": "paper/tools/phase4_screenshots.py",
+      "bytes": 3873,
+      "sha256": "9253ae85e6f33ea8e21b065786e69d412d1a1d39b19bab830dcf1fa5974e0b4c"
+    },
+    {
+      "path": "paper/tools/wgbot.js",
+      "bytes": 8023,
+      "sha256": "2012b28f36308f023481827701ff70c33e0aa43d3d6d1c268201eb7756d28c56"
+    },
+    {
+      "path": "paper/v1_21_11/src/main/java/org/worldgit/paper/v1_21_11/Bridge_1_21_11.java",
+      "bytes": 16697,
+      "sha256": "a1059c99e825759a438e505d74cb2541bb568eb0051f18fab9a926f76529cd21"
+    },
+    {
+      "path": "paper/v26_2/src/main/java/org/worldgit/paper/v26_2/Bridge_26_2.java",
+      "bytes": 16757,
+      "sha256": "bd6c940a8e2f00d42bfb33bed573b7869d790a32e5ade0c91a11dc3858708350"
+    },
+    {
+      "path": "platform-api/build.gradle.kts",
+      "bytes": 256,
+      "sha256": "1b1b9c6ea187140327946504d591adeb81f536576d0f1ddcfa9a5e1361a98edb"
+    },
+    {
+      "path": "platform-api/src/main/java/org/worldgit/platform/remote/CommentText.java",
+      "bytes": 827,
+      "sha256": "1005692e6614f1b0ce2ce2cac22dbd291bedb30207e798bd5b4a3064ea33ac3b"
+    },
+    {
+      "path": "platform-api/src/main/java/org/worldgit/platform/remote/HubClient.java",
+      "bytes": 10227,
+      "sha256": "3539e743130c513383d0e76ddc43337219860984b3c8c0461e33b541ec1b0547"
+    },
+    {
+      "path": "platform-api/src/main/java/org/worldgit/platform/remote/PlatformCredentials.java",
+      "bytes": 2896,
+      "sha256": "72f8c04dee6cc44283be5a7a040ce8c71acd0e0f512622246df2496b1d95463f"
+    },
+    {
+      "path": "platform-api/src/main/java/org/worldgit/platform/remote/RemoteSettings.java",
+      "bytes": 2321,
+      "sha256": "21a6f52e7ef157401b7727cfa905e694ce998ad2b890d4ed8a19f4a414436239"
+    },
+    {
+      "path": "platform-api/src/main/java/org/worldgit/platform/remote/WebhookReceiver.java",
+      "bytes": 9300,
+      "sha256": "a0f8658a342b6fc434a154e113b95ed37592c0ef1da26ea423bea8ea4ffa494e"
+    },
+    {
+      "path": "platform-api/src/test/java/org/worldgit/platform/remote/CredentialsAndTextTest.java",
+      "bytes": 2826,
+      "sha256": "d875421c02d83964f4da0db515c8d37d649f3e7968896d547faa69cc33c64613"
+    },
+    {
+      "path": "platform-api/src/test/java/org/worldgit/platform/remote/HubClientTest.java",
+      "bytes": 4313,
+      "sha256": "84bdcacfc855ed997b3be96b5bc53f7e40717c4bdbc46ee9b1127c5f8506a8d9"
+    },
+    {
+      "path": "platform-api/src/test/java/org/worldgit/platform/remote/WebhookReceiverTest.java",
+      "bytes": 5483,
+      "sha256": "b5f33d17f46ef5ffa0adaece84f88aaf163b480bd4cf73e1e92300e1e27a4ee1"
+    }
+  ],
+  "baseline_hashes_round2": {
+    ".work/paper-delivery/fixtures/acceptance-flat-1.21.11": {
+      "sha256": "4441a98503d5cd7f1147f9f2db6bfbd8ad77b334d8dd456f3820fe0477687fbd",
+      "files": 44,
+      "bytes": 11980374
+    },
+    ".work/paper-delivery/fixtures/acceptance-flat-26.2": {
+      "sha256": "70c7aa453d53b2d76300e07fb18ba67b6425003280ef2f90545cf9ec7c913437",
+      "files": 62,
+      "bytes": 11989220
+    }
+  },
+  "ports_closed": {
+    "8096": true,
+    "8099": true,
+    "25671": true,
+    "25672": true,
+    "25673": true,
+    "25674": true,
+    "25701": true,
+    "25702": true,
+    "25703": true,
+    "25704": true,
+    "25711": true,
+    "25712": true,
+    "25713": true,
+    "25714": true,
+    "25721": true,
+    "25722": true,
+    "25723": true,
+    "25724": true,
+    "25731": true,
+    "25732": true,
+    "25733": true,
+    "25734": true
+  },
+  "limitations": [
+    "Folia 第三方熱卸載沒有立即跨 region 刪除私人 display 保證；正常停服為 nonpersistent 卸載。",
+    "公開 TLS／高並行 flood／任意 kill 與磁碟故障未實測。",
+    "控制 fixture 不代表大型自然世界或真玩家負載；未追蹤 chunk 依 #29 保留。"
+  ],
+  "cleanup": {
+    "checked_at_utc": "2026-10-04T00:18:27.341802+00:00",
+    "owned_validation_sessions_finished": true,
+    "removed_frozen_jars": [
+      {
+        "path": ".work/fabric-acceptance/pair-folia-1.21.11-20261003-225032/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/fabric-acceptance/pair-folia-1.21.11-20261003-225032/worldgit-paper.jar",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      {
+        "path": ".work/fabric-acceptance/pair-folia-26.2-20261004-000832/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/fabric-acceptance/pair-folia-26.2-20261004-000832/worldgit-paper.jar",
+        "bytes": 15452218,
+        "sha256": "636148e3afa2d1e7b7da4a38b360e29e884e8c2a26085208b017e56de304bf90"
+      },
+      {
+        "path": ".work/fabric-acceptance/pair-paper-1.21.11-20261003-205812/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/fabric-acceptance/pair-paper-1.21.11-20261003-205812/worldgit-paper.jar",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      {
+        "path": ".work/fabric-acceptance/pair-paper-26.2-20261003-221034/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/fabric-acceptance/pair-paper-26.2-20261003-221034/worldgit-paper.jar",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      {
+        "path": ".work/paper-phase3/folia-1.21.11-1791066428/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/paper-phase3/folia-1.21.11-1791066428/worldgit-paper.jar",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      {
+        "path": ".work/paper-phase3/folia-26.2-1791071189/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/paper-phase3/folia-26.2-1791071189/worldgit-paper.jar",
+        "bytes": 15452218,
+        "sha256": "636148e3afa2d1e7b7da4a38b360e29e884e8c2a26085208b017e56de304bf90"
+      },
+      {
+        "path": ".work/paper-phase3/paper-1.21.11-1791059460/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/paper-phase3/paper-1.21.11-1791059460/worldgit-paper.jar",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      {
+        "path": ".work/paper-phase3/paper-26.2-1791063036/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/paper-phase3/paper-26.2-1791063036/worldgit-paper.jar",
+        "bytes": 15452175,
+        "sha256": "6d1a7b59a570128b987d52837d4401adec21b3d01758a3faa05fedf495ff550e"
+      },
+      {
+        "path": ".work/paper-phase3/paper-26.2-1791069156/wgit.jar",
+        "bytes": 15666127,
+        "sha256": "57ee1bc433271b7ac12f76af05b5c17022d858d37f7335dfd90eef8d79ede82d"
+      },
+      {
+        "path": ".work/paper-phase3/paper-26.2-1791069156/worldgit-paper.jar",
+        "bytes": 15452218,
+        "sha256": "636148e3afa2d1e7b7da4a38b360e29e884e8c2a26085208b017e56de304bf90"
+      }
+    ],
+    "bytes_removed": 280064847,
+    "run_directories_empty": [
+      ".work/servers/phase4-runs",
+      ".work/paper-phase2/run",
+      ".work/paper-phase3/run",
+      ".work/fabric-pair/run"
+    ],
+    "ports_closed": {
+      "8091": true,
+      "8092": true,
+      "8093": true,
+      "8094": true,
+      "8095": true,
+      "8096": true,
+      "8097": true,
+      "8098": true,
+      "8099": true,
+      "25671": true,
+      "25672": true,
+      "25673": true,
+      "25674": true,
+      "25701": true,
+      "25702": true,
+      "25703": true,
+      "25704": true,
+      "25711": true,
+      "25712": true,
+      "25713": true,
+      "25714": true,
+      "25721": true,
+      "25722": true,
+      "25723": true,
+      "25724": true,
+      "25731": true,
+      "25732": true,
+      "25733": true,
+      "25734": true
+    }
+  }
+}

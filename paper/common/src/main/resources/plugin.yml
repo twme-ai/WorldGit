@@ -9,7 +9,7 @@ softdepend: [FastAsyncWorldEdit, WorldEdit]
 commands:
   wg:
     description: WorldGit — 世界版本控制
-    usage: /wg <init|status|commit|log|diff|clear|reload|restore|switch|branch|stash|reset|cancel|merge|resolve|conflict-select|conflicts|tool|revert|cherry-pick|help>
+    usage: /wg <init|status|commit|log|diff|clear|reload|restore|switch|branch|stash|reset|cancel|merge|resolve|conflict-select|conflicts|tool|revert|cherry-pick|remote|fetch|push|pull|pr|comments|comment|help>
     aliases: [worldgit]
 permissions:
   worldgit.admin:
@@ -36,6 +36,12 @@ permissions:
       worldgit.command.tool: true
       worldgit.command.revert: true
       worldgit.command.cherry-pick: true
+      worldgit.command.remote: true
+      worldgit.command.fetch: true
+      worldgit.command.push: true
+      worldgit.command.pull: true
+      worldgit.command.pr: true
+      worldgit.command.comment: true
       worldgit.notify: true
   worldgit.command.init:
     description: /wg init（建立 repo，對大型世界很耗時）
@@ -102,4 +108,22 @@ permissions:
     default: op
   worldgit.command.cherry-pick:
     description: /wg cherry-pick
+    default: op
+  worldgit.command.remote:
+    description: /wg remote（遠端協作）
+    default: op
+  worldgit.command.fetch:
+    description: /wg fetch（遠端協作）
+    default: op
+  worldgit.command.push:
+    description: /wg push（遠端協作）
+    default: op
+  worldgit.command.pull:
+    description: /wg pull（遠端協作）
+    default: op
+  worldgit.command.pr:
+    description: /wg pr（遠端協作）
+    default: op
+  worldgit.command.comment:
+    description: /wg comment（遠端協作）
     default: op

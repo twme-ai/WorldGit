@@ -38,6 +38,32 @@ final class Debug {
       case "entities" -> entities(sender,args);
       case "freeze" -> freeze(sender,args);
       case "protection" -> protection(sender,args);
+      case "comment-camera" -> {
+        if(args.length!=2)throw new IllegalArgumentException("comment-camera <player>");
+        var player=Objects.requireNonNull(Bukkit.getPlayerExact(args[1]));
+        var world=plugin.world(org.worldgit.core.model.DimensionId.OVERWORLD);
+        plugin.platform().entity(player,()->{
+          player.setAllowFlight(true);player.setFlying(true);player.setGravity(false);
+          player.teleportAsync(new org.bukkit.Location(world,8.5,224,-5.5,0,0)).whenComplete((ok,error)->
+              plugin.platform().global(()->sender.sendMessage(Component.text("WGCOMMENTCAM success="+(error==null && Boolean.TRUE.equals(ok))))));
+        },()->{});
+      }
+      case "comment-teleport" -> {
+        if(args.length!=3)throw new IllegalArgumentException("comment-teleport <player> <dimension>");
+        var player=Objects.requireNonNull(Bukkit.getPlayerExact(args[1]));
+        var world=Objects.requireNonNull(plugin.world(new org.worldgit.core.model.DimensionId(args[2])));
+        plugin.platform().entity(player,()->player.teleportAsync(new org.bukkit.Location(world,8.5,224,8.5)).whenComplete((ok,error)->
+            plugin.platform().global(()->sender.sendMessage(Component.text("WGCOMMENTTP success="+(error==null && Boolean.TRUE.equals(ok)))))),()->{});
+      }
+      case "comment-displays" -> {
+        if(args.length!=3)throw new IllegalArgumentException("comment-displays <cx> <cz>");
+        int x=Integer.parseInt(args[1]),z=Integer.parseInt(args[2]);
+        var world=plugin.world(org.worldgit.core.model.DimensionId.OVERWORLD);
+        plugin.platform().region(world,x,z,()->{
+          var ids=java.util.Arrays.stream(world.getChunkAt(x,z).getEntities()).filter(e->e instanceof org.bukkit.entity.TextDisplay && e.getScoreboardTags().contains(CommentDisplays.TAG)).map(org.bukkit.entity.Entity::getEntityId).sorted().toList();
+          plugin.platform().global(()->sender.sendMessage(Component.text("WGCOMMENTS chunk="+x+","+z+" entities="+ids.size()+" ids="+ids)));
+        });
+      }
       case "fill" -> fill(sender, args);
       case "fixture-container" -> fixtureContainer(sender,args);
       case "fixture-clean-items" -> fixtureCleanItems(sender);

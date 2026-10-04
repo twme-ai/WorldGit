@@ -41,9 +41,14 @@ final class MergeUi implements Listener {
   void refresh() {
     if(stopped) return;
     plugin.repo().submit(()->{
-      state=MergeState.read(WorldMapper.map().layout().repositoryRoot().resolve("merge-state.bin"));
-      palette=Messages.palette(plugin.repo().readLocal().palette()); version++; tick(); return null;
+      refreshFromRepository(); return null;
     }).exceptionally(e->{ if(!stopped) plugin.getLogger().warning("讀取 MERGING 失敗："+e.getMessage()); return null; });
+  }
+  /** repo executor 在操作完成前發布 UI 狀態；不能排在定時 fetch 後才更新。 */
+  void refreshFromRepository() throws IOException {
+    if(stopped) return;
+    state=MergeState.read(WorldMapper.map().layout().repositoryRoot().resolve("merge-state.bin"));
+    palette=Messages.palette(plugin.repo().readLocal().palette()); version++; tick();
   }
   private static boolean allowed(Player p) { return p.hasPermission("worldgit.command.conflicts") || p.hasPermission("worldgit.admin"); }
   private List<Region> visible(Player p,MergeState s) {

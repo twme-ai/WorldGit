@@ -1,4 +1,4 @@
-# WorldGit Paper / Folia 插件（Phase 3：含線上合併）
+# WorldGit Paper / Folia 插件（Phase 4：遊戲內遠端協作）
 
 同一個發佈 jar 支援 Paper / Folia 的 Minecraft **1.21.11 與 26.2**。1.21.11 使用 Java 21，26.2 使用 Java 25。`common` 只引用公開 Paper API；`v1_21_11`、`v26_2` 以 paperweight-userdev 2.0.0-beta.21 各自編譯薄 NMS 轉接層，啟動時只載入符合版本的類別。
 
@@ -129,3 +129,59 @@ Paper／Folia 的 1.21.11／26.2 四平台 Phase 2 驗收已通過，涵蓋原�
 短暫 tick freeze 保留以隔離 vanilla tick；一般區域的編輯鎖涵蓋指定 chunk，跨 chunk 互動檢查真正目標，活塞／多格放置／爆炸／肥料檢查全部影響位置；容器／發射器／第三方 world-level 協調仍採保守屏障。UUID storage 定位期間保守鎖全組，並納入 root／巢狀乘客 UUID 的所有牽涉 chunk，包含拆離或改騎另一載具的位置。IO barrier 仍等待平台既有 queue，其他 IO 積壓可能增加耗時。`merge-state.bin.updates` 與基底必須一起保存／讀取；伺服器重啟仍能恢復選擇。合併切換留下 PARTIAL 時使用 `/wg merge --abort`，不套用 Phase 2 的 switch 恢復入口。
 
 Phase 3 驗收新增 6 次工具切換、在大世界的 200 個衝突區域中切換一個區域 6 次，報告中位數／最大值。開啟分段計時：`JAVA_TOOL_OPTIONS=-Dworldgit.profile=true python3 paper/tools/acceptance.py paper 1.21.11 phase3`。較短的 4 格重現：`JAVA_TOOL_OPTIONS=-Dworldgit.profile=true python3 paper/tools/profile-region.py paper 1.21.11 optimized`。兩者自行取得 bench.lock。結果與完整限制見 [docs/13 區域切換延遲](../docs/13-phase3-progress.md#區域切換延遲)。
+
+## 遠端協作（Phase 4，2026-10-03）
+
+| 指令 | 行為 | 權限（皆預設 op） |
+|---|---|---|
+| `/wg remote add <name> <Hub URL>`／`remove <name>`／`list`／`set-url <name> <URL>` | 全維度 remote sidecar；一般 git 樣板亦沿用 core | `worldgit.command.remote` |
+| `/wg fetch [remote]` | 背景下載，publication 全組驗證後才發布 tracking | `worldgit.command.fetch` |
+| `/wg push [remote] [branch] [--tags]` | FF 推送／PARTIAL 原參數重試；拒絕非 FF，提示 pull；沒有 force | `worldgit.command.push` |
+| `/wg pull [remote] [branch]` | fetch 後顯示 FF／三方／衝突區域／chunk／套用估計；不改世界 | `worldgit.command.pull` |
+| `/wg pull confirm <code>` | 120 秒內一次性、綁執行者確認；重新 fetch，tip／URL／本地 HEAD 改變即拒絕；live 套用／MERGING | 同上 |
+| `/wg pr create <title> [--source b] [--target main]`／`list`／`view <#>` | 本機來源先 push；另一端已發布來源先 fetch 驗全組；狀態／mergeability／審核數／可點擊 Hub 連結 | `worldgit.command.pr` |
+| `/wg comments [pr #] [--here\|--dimension d]` | 世界／PR／維度釘選清單；--here 為目前 chunk 相交釘選 | `worldgit.command.comment` |
+| `/wg comment <#> <text> [--here]` | PAT 身分留言，--here 帶玩家目前維度與整數座標 | 同上 |
+| `/wg comments show\|hide [pr #]` | 目前維度已載入 chunk 的私人 TextDisplay；hide 清除全部自己的留言顯示 | 同上 |
+
+PR **merge／approve 僅在 Hub 網頁**，因為審核與衝突選擇應搭配網頁 3D 檢視。`worldgit.admin` 包含新增權限。遊戲 `/wg push` 僅推已 commit 的歷史；不自動 capture。pull 要求全組乾淨（含 untracked），沿用 Phase 3 的 commit／stash 與 MERGING 規則。chunk 統計包含候選計畫與精確衝突 atoms（即使預設 ours 暫不改方塊）。估計以候選計畫每秒 80 section 的保守顯示基準計算，至少 1 秒，不含網路、完整 capture／存檔／驗證，也不是延遲保證；後續衝突選擇的套用另計。
+
+`config.yml` 的 `remote` 區段範例見 [內建設定](common/src/main/resources/config.yml)。`hub-url` 空白時使用 `/wg remote add`；有值時遠端操作會補上尚不存在的預設 remote；要永久移除配置的預設 remote，須清空 hub-url 並重新啟動。`default-name: origin`；`fetch-interval-seconds: 0` 關閉定時 fetch，啟用至少 60 秒；REST 與 git socket timeout 使用 `timeout-seconds`（1–120，預設 30）。世界 remotes.yml 不含憑證，token 不可放在 URL。
+
+PAT 來源：指定 `token-environment`（預設 WGIT_TOKEN，以 Bearer 使用）優先，否則 `plugins/WorldGit/credentials.yml`：
+
+```yaml
+credentials:
+  https://hub.example.com:
+    mode: bearer
+    token: YOUR_PAT
+```
+
+檔案必須是插件資料夾直接子檔案、普通非 symlink，POSIX 權限恰為 `600`；不要放進世界 `.worldgit/`、datapacks 或 config.yml。PAT 檔案輪替後，下一操作重新解析，不輸出 token；環境變數、remote 設定與 webhook secret 的更換需重新啟動插件／伺服器。沒有 PAT 時使用 core 的明確 anonymous Basic，私人 Hub 回認證錯誤。遊戲留言作者是 PAT 帳號，座標由執行者 owner thread 取得。
+
+webhook 預設關閉，啟用後預設 `127.0.0.1:25731/worldgit/webhook`；secret 從 `WGIT_WEBHOOK_SECRET` 或插件資料夾 `webhook.secret`（UTF-8 純文字、32–4096 字元、600）取得。Hub 管理者另在世界 webhook 設定同一 URL／secret，事件選 push／pr.merged；loopback 需 Hub 的精確 allowlist。接收器只支援 HTTP/1.1、Content-Length POST、Connection close；不接受 chunked／redirect／其他方法。公開入口應由 TLS reverse proxy 終結，固定 body/header/連線限制。
+
+通知只針對預設 remote 的目前本機分支。簽章／重放／大小／速率檢查後，背景 fetch 驗完整 publication，對有 pull 權限的線上玩家與 console 提示 `/wg pull`；publication 尚未完成／網路失敗有限退避 2/4/8/16/32 秒，仍失敗則提示手動 fetch。**永遠不自動 apply**。安全審查見 [Phase 4 紀錄](docs/security-review-phase4-2026-10-03.md)。
+
+留言最多讀 512 則（不足時可按 PR／維度篩選）；PR／留言清單顯示前 20 則，PR 可用 view 指定編號，show 最多 64 個 TextDisplay，不載入遠端指定的未知 chunk。文字以 `Component.text` 當純文字，作者 32／摘要 240 Unicode 字元，截斷時另加省略號；HTML／MiniMessage 保持字面，legacy 色碼、控制／雙向格式字元移除。範圍是每玩家 DUST 粒子外框（每秒最多 384 點／64 格距離）。`visibleByDefault=false` 後只向請求者 showEntity，`persistent=false`＋兩版 capture tag 排除；hide／離線／換維度清除，晚到的 REST 回應不能重建已清除顯示。Paper 停用同步刪除；Folia 正常停服隨世界卸載清除，第三方熱卸載沒有立即跨 region 刪除保證，詳見安全審查。
+
+平台中立類別位於 `platform-api/src/main/java/org/worldgit/platform/remote/`：RemoteSettings／PlatformCredentials／HubClient（PR、留言 DTO）／WebhookReceiver／CommentText。Fabric 下一任務可直接使用，另接自己的 YAML、權限、owner scheduler 與 live coordinator；Fabric jar-in-jar 必須納入 client 的 Jackson runtime 依賴。這次沒有 Fabric 遠端 UI／render 改動，也沒有新增 protocol capability，原版 TextDisplay／粒子和聊天已能由 Fabric 客戶端顯示。
+
+重跑真 Hub jar＋SQLite 與遊戲場景（自帶 bench.lock，Paper 25721/25722，Folia 25723/25724，webhook 25731–25734，Hub 8096）：
+
+```sh
+python3 paper/tools/phase4.py paper 1.21.11 --screenshots
+python3 paper/tools/phase4.py paper 26.2 --screenshots
+python3 paper/tools/phase4.py folia 1.21.11 --screenshots
+python3 paper/tools/phase4.py folia 26.2 --polling --screenshots
+python3 paper/tools/phase4_regressions.py
+```
+
+完整序列可用 `python3 paper/tools/phase4_regressions.py --phase4`（四組遠端＋四平台各 Phase 2／3／interop，共 16 組）；`--phase4-only` 只跑四組遠端。補驗失敗或缺少的組合可用 `--case`，避免重跑已通過的項目：
+
+```sh
+python3 paper/tools/phase4_regressions.py --case paper-26.2-phase2 --case paper-26.2-phase3
+python3 paper/tools/phase4_regressions.py --case folia-26.2-interop
+```
+
+遠端場景使用 `.work/servers/phase4-runs/` 複本，既有回歸各自使用 harness 的 run 目錄；finally 關閉 Hub／bot／瀏覽客戶端並刪除秘密與大型複本。`paper/tools/fixtures/Phase4DisplayGameTest.java` 是臨時客戶端截圖 fixture，透過 init script 加入既有 gametest task，fixture 不納入正式 Fabric jar，沒有修改 Fabric 原始碼。實際結果與限制見 [docs/14 Paper／Folia](../docs/14-phase4-progress.md#paper-folia)，[可攜驗收摘要](docs/phase4/results-2026-10-03.json) 保留原始證據雜湊，精選截圖在 `paper/docs/screenshots/phase4/`。
