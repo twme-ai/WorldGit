@@ -21,9 +21,11 @@ public final class WorldGitClient implements ClientModInitializer {
       ClientPlayNetworking.registerGlobalReceiver(channel.type(), (payload, context) -> ClientRuntime.get().onPreview(payload.bytes()));
     ClientPlayNetworking.registerGlobalReceiver(Net.CONFLICTS.type(), (payload, context) -> ClientRuntime.get().onMerge(org.worldgit.protocol.MergeProtocol.REGIONS,payload.bytes()));
     ClientPlayNetworking.registerGlobalReceiver(Net.CONFLICT_PREVIEW.type(), (payload, context) -> ClientRuntime.get().onMerge(org.worldgit.protocol.MergeProtocol.PREVIEW,payload.bytes()));
+    ClientPlayNetworking.registerGlobalReceiver(Net.COMMENTS.type(),(payload,context)->ClientRuntime.get().onComments(payload.bytes()));
     var conflictsKey=ClientPlatform.registerKey("key.worldgit.conflicts", org.lwjgl.glfw.GLFW.GLFW_KEY_G);
     net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
       if (connections.shouldReset(client.getConnection())) ClientRuntime.get().onDisconnect();
+      ClientRuntime.get().tickComments();
       while(conflictsKey.consumeClick()) ClientRuntime.get().openConflicts();
     });
     ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
@@ -34,6 +36,7 @@ public final class WorldGitClient implements ClientModInitializer {
     ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ClientRuntime.get().close());
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> ClientCommands.register(dispatcher));
     ClientPlatform.registerRender((view, cx, cy, cz) -> ClientRuntime.get().render(view, cx, cy, cz));
+    ClientPlatform.registerCommentHud();
     ClientRuntime.LOG.info("WORLDGIT CLIENT_LOADED adapter={}", ClientPlatform.VERSION);
   }
 }

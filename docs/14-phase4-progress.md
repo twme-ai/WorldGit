@@ -1,4 +1,4 @@
-# 14 — Phase 4 遠端協作：core／CLI／Hub 進度
+# 14 — Phase 4 遠端協作：四端進度
 
 日期：2026-10-03。範圍是 Phase 4 任務 1，基於 main `6f84654`；未 commit／push WorldGit 自身，也未修改 experiments。本文件記錄 core／CLI 的完成範圍與後續 Hub／Paper／Fabric 接線契約。新決定見 [09](09-roadmap-open-questions.md) #75–#82。
 
@@ -342,3 +342,96 @@ Folia 正常停服時 nonpersistent display 隨世界卸載清除；一般 hide�
 gamerule 修正只影響後續 capture；先前在 gamerule 變更後保存的 26.2 歷史可能已有不一致的別名，讀取時仍依完整 metadata 契約驗證。本次修正不改寫既有 commit。
 
 公開 TLS／代理部署、大量並行 socket flood、磁碟故障／任意時點 kill／fuzz 未實跑；loopback、固定平坦 fixture、凍結自然 tick 的結果不能代表大型自然世界或真玩家負載。顯示僅覆蓋 show 當下已載入的 chunk，移動到新 chunk 需再次 show；沒有自訂 Fabric HUD 或無限距離留言巡覽。本次沒有遊戲 force、PR merge／approve、token 管理指令，沒有自動 apply。
+
+<a id="fabric"></a>
+## Fabric
+
+日期：2026-10-04，Phase 4 任務 4，基於 `af52eb7`。新增決定 #98–#104；主要改 fabric/，可選留言 wire 放 protocol，i18n 補兩種語言。沒有修改 experiments 或 commit／push WorldGit。操作／設定見 [Fabric README](../fabric/README.md)，安全審查見 [Fabric Phase 4](../fabric/docs/security-review-phase4-2026-10-04.md)。本章更新前述「Fabric 接手」歷史狀態。
+
+### 實作與契約
+
+單人整合伺服器與 dedicated 都接 remote add/remove/list/set-url、fetch、FF push（含 tags）、pull 預覽／一次性 confirm、PR create/list/view、comments／comment --here。owner／console／讀寫 op 等級沿既有 Fabric 判定；單人 owner 不需開作弊。REST／Git 在 repo executor，回覆回 server executor；錯誤是固定 i18n，Hub 回傳／玩家文字作 literal arguments。
+
+pull 沿本文件的 core 預覽／套用契約：背景 fetch 完整 map，再走既有 live dry-run；預覽 FF／三方、衝突區域、受影響 chunk 與估計。120 秒 code 綁 sender，confirm 只消耗一次、重新 fetch；URL／remote tips／本地 HEAD／本地分支變更拒絕。固定 targets／expectedHeads 在 coordinator 內再次驗證，真正 apply 沿 ApplyBudget、EditGuard、玩家保護、廣播、存檔／光照／verify／HEAD barrier；#46 不做鄰居更新。衝突進 durable MERGING，原本 Fabric 清單、候選預覽、resolve／continue 接續使用。
+
+新單人存檔 repo／非秘密 remotes YAML 改存世界 `.worldgit/`，既有世界旁外部 repo 保持相容，CLI clone 放入 saves 可直接由原版開世界流程載入。PAT 在使用者 Fabric config 的普通 600 credentials 檔或環境，不進存檔。dedicated receiver 預設關閉／127.0.0.1、沿 WebhookReceiver 的驗簽／雙重去重／預算；只 enqueue fetch。單人即使 webhook.enabled=true 也不建立 receiver。poll 預設 0、啟用至少 60 秒；完整 publication 有新版本才通知有寫權限玩家與 console，沒有自動 apply 路徑。
+
+Jackson runtime 兩版補入 jar-in-jar，版本與 platform-api BOM 相同；check 驗 nested 登記、三組必要 class 與 fixture 不進正式 jar。Phase 4 客戶端驗收使用 Loom `ClientProductionRunTask`，載入正式 jar 和獨立 remapped fixture，**沒有使用開發 classpath 補漏包**。Fabric API／client-gametest API 是驗收用 productionRuntimeMods，不進 WorldGit 正式 jar。
+
+### 客戶端留言
+
+新增可選 comments-v1／worldgit:comments；v2、merge v1、預設 capabilities 保持相容，Paper 不需實作。每玩家有界快照最多 64 則／8 包／128 KiB、每包 28,000 bytes、五秒組包 deadline；單調 snapshot id floor、sender request id、換維度／撤權／離線／hide 清理阻止晚到回應復活。wire 的字串是 writeUTF modified UTF-8，詳見 [protocol](../protocol/README.md)。
+
+客戶端畫 literal HUD（座標／距離／作者／摘要）和世界內座標或範圍線框；沒有伺服器實體／saved-data，commit 不含顯示資料。CommentText 去控制／雙向字元／§ 色碼，HTML／MiniMessage 保留字面。數量／距離／啟用可設定，HUD 近者優先、受畫面高度限制；換維度、離線、關閉世界 close GPU。原版 client show 明確說明需要 WorldGit Fabric 模組，仍可讀文字清單。連 Paper 的 Fabric client 照常顯示 Paper TextDisplay。
+
+### 驗收與證據
+
+真 Hub jar＋SQLite：dedicated 使用 8094、單人 8095；dedicated 25741／25742、client TCP relay 25751／25752、webhook 25761／25762；單人特意設定 25763 並驗證不監聽。慢假 Hub 8099 只用於非阻塞測試，正式 PR 流程走真 Hub。腳本自取 bench.lock，finally 關閉程序／服務並移除秘密、世界複本與凍結 jar。
+
+Phase 4 四組實機流程已收齊，下表把完整流程與補驗分開。1.21.11 dedicated 原完整流程的 24 項功能通過，最後 verify 因 Paper strider 的 AgeLocked 被原版序列化移除而失敗；已擷取 UUID／位置／before／after NBT，逐欄位比對證明只有該欄位不同，Paper AgeableMob 實際 bytecode 亦確認它會寫入 AgeLocked。只在測試副本先載入地獄才 init，後續 14 項補驗含最後 verify=0；不重跑已通過的 PR／衝突功能，也不把原失敗改寫為成功。
+
+| Phase 4 場景 | 1.21.11 | 26.2 |
+|---|---|---|
+| dedicated 真 Hub／PR／FF／MERGING | 24 項功能通過；地獄 fixture 修正後 14 項補驗、verify=0 | 完整 25 項通過；另 14 項留言範圍補驗、verify=0 |
+| 單人 owner／poll／PR／pull／留言 | 本輪 15 項完整通過（含世界渲染截圖） | 本輪 15 項完整通過（含世界渲染截圖） |
+| CLI clone 直接放 saves 開世界 | 真 client 方塊與 Hub 相同，開啟前後 verify=0；[世界畫面](../fabric/docs/screenshots/phase4/single-1.21.11-phase4-clone-open.png) | 真 client 方塊與 Hub 相同，開啟前後 verify=0；[世界畫面](../fabric/docs/screenshots/phase4/single-26.2-phase4-clone-open.png) |
+
+精選 [留言 show／hide、MERGING 與 clone 世界截圖](../fabric/docs/screenshots/phase4/README.md) 均逐張人工檢視。兩版單人本輪完整重跑；clone 圖已替換 Loading terrain 過場，隱藏 GUI 的畫面可見 PR 合併的鑽石方塊與本機金方塊。截圖等待玩家／WorldGit 握手完成、Screen／overlay 自然關閉、觀察者相機位置與角度吻合、目標周圍 3×3 chunk 載入、兩個方塊的區段完成編譯可見及渲染佇列清空，連續三個 client tick 成立；每段最多 2400 client ticks，Python 截圖請求另限 300 秒，逾時保留畫面狀態。只設定相機玩家模式，沒有改世界 GameType 或追蹤方塊；原有真 client 方塊比對及開啟前後完整 verify=0 照常執行。畫廊每組只留一張代表圖，檔名移除時間戳／流水號。
+
+兩版 dedicated 都沒有 TextDisplay，留言前後無變更 commit／HEAD 不動；hide／換維度清除、原版客戶端文字後備、錯 PAT、不可達／慢速 Hub 均通過。慢速 REST 六秒／client timeout 三秒期間，1.21.11 補驗約 20.02 TPS、p99 53.70 ms、client action 0.101 秒、42 FPS；26.2 數字見可攜摘要，這是短時間 loopback 量測。
+
+原始結果、失敗診斷、log 雜湊與精選畫面的 SHA-256 收錄於 [可攜驗收摘要](../fabric/docs/phase4/results-2026-10-04.json)；本輪單人結果亦另存 `fabric/docs/phase4/single-<版本>-results-2026-10-04.json`。每次驗收凍結的 jar 與最後 build 的 jar 分別記錄，不能用最後 jar 雜湊冒充先前開服版本；早期單人 1.21.11 沒有獨立記下 client startup jar 雜湊，保留其 production 路徑／Loader 證據，不補造此值，本輪兩版皆實記 startup jar 雜湊。
+
+重跑使用 `GRADLE_USER_HOME=.work/gradle-home python3 fabric/tools/accept-phase4-singleplayer.py <版本>`（1.21.11／26.2）；腳本自行持有 bench.lock，client Gradle 使用 `--configure-on-demand --max-workers=1`，finally 關閉 client／Xvfb／Hub。
+
+既有實機回歸九組全部通過；保留先前成功項目，只補未完成或修正後需要重驗的場景。
+
+| 回歸 | 結果 | 原始證據 |
+|---|---|---|
+| 單人 1.21.11 Phase 2 | 通過：四個 checkpoint verify=0、預覽逐格與 CLI 相同 | `.work/fabric-acceptance/phase2-1.21.11-20261004-021451/result.json` |
+| 單人 26.2 Phase 2 | 通過：四個 checkpoint verify=0、預覽逐格與 CLI 相同 | `.work/fabric-acceptance/phase2-26.2-20261004-043722/result.json` |
+| 單人 1.21.11 Phase 3 | 通過：三個 checkpoint verify=0、衝突清單與 CLI 相同、最後兩個 parent | `.work/fabric-acceptance/phase3-1.21.11-20261004-041906/result.json` |
+| 單人 26.2 Phase 3 | 通過：三個 checkpoint verify=0、衝突清單與 CLI 相同、最後兩個 parent | `.work/fabric-acceptance/phase3-26.2-20261004-044633/result.json` |
+| 專用服 1.21.11 | 通過：44 項、最後離線 verify=0 | `.work/fabric-acceptance/dedicated-fabric-1.21.11-20261004-044645/result.json` |
+| 專用服 26.2 | 通過：44 項、最後離線 verify=0 | `.work/fabric-acceptance/dedicated-fabric-26.2-20261004-051543/result.json` |
+| Fabric ↔ Paper 1.21.11 | 通過：17 項、最後離線 verify=0 | `.work/fabric-acceptance/pair-paper-1.21.11-20261004-054332/result.json` |
+| Fabric ↔ Paper 26.2 | 通過：17 項、最後離線 verify=0 | `.work/fabric-acceptance/pair-paper-26.2-20261004-055041/result.json` |
+| Paper 1.21.11 Phase 4 | 通過：20 項、最後離線 verify=0 | `.work/paper-phase4/paper-1.21.11-1791093463/results.json` |
+
+兩版 dedicated 回歸保留 1,000 chunk merge、六次區域切換、批量編輯鎖、玩家保護、MERGING 重啟、GUI／工具、abort／continue 與完整離線 verify。千區塊 merge 量測：1.21.11：170.01 秒，20.00 TPS／p99 54.25 ms／max 1589.50 ms；26.2：172.50 秒，20.00 TPS／p99 54.18 ms／max 1675.11 ms。max 保留偶發長 tick；平均 TPS 不代表沒有停頓，這不是大型自然世界 benchmark。Paper Phase 4 回歸另用真 Fabric client 驗證原有私人 TextDisplay show／hide 與 literal 文字，沒有要求 Paper 實作 comments-v1。
+
+最後 `./gradlew build --configure-on-demand --max-workers=1 --no-daemon` 通過（13s，79 actionable tasks: 3 executed, 76 up-to-date），log：`.work/p4-fabric-build-final.log`。JUnit 共 **265 tests，failure／error／skip 全 0**：core 96、CLI 4、Hub 58、i18n 3、platform-api 19、protocol 10、Paper common 28、Fabric logic 47；兩版正式 jar 的 nested Jackson 檢查與編譯也通過。core 新增 clone metadata 別名測試，Fabric logic 新增五項設定／憑證／權限／客戶端設定及兩項 DataPacks 相容預檢測試，protocol 新增三項 round-trip／多包／上限與 late floor 測試。共用 platform-api REST 錯誤／deadline／webhook 安全回歸仍通過。
+
+本輪 Hub／server／bot／Fabric client／Xvfb 與 build 程序均已結束，沒有子代理；驗收 ports 關閉、bench.lock 可重新取得。用完的世界／server 複本、凍結 jar 與憑證已清除，兩版平坦 baseline 最後雜湊與原始值相同。原始結果／log／NBT 診斷／截圖保留；清理證據與產物大小見可攜摘要。
+
+### 失敗與限制
+
+| 發現 | 處理 |
+|---|---|
+| 首輪 dedicated fixture 只複製 Paper 主世界，三維度 push 斷言失敗 | 在 1.21.11 測試副本補 DIM-1／DIM1；不修改 baseline。 |
+| 第二輪不存在 TextDisplay 時原版 execute 沒有任何輸出，探針等待；無變更 commit 訊息亦未匹配 | 停止該輪，改用 execute unless entity 後輸出固定成功標記，commit 明確接受 No changes 訊息。保留原始失敗，該輪不當正式成功證據。 |
+| 正式環境 client task 初次少裝 Fabric API，Loader 拒絕啟動 | 修正 test-only productionRuntimeMods；保留 Loader log，不靠開發 classpath 補依賴。 |
+| 首次正式單人 fixture 相機是生存模式，從高處摔死，套用後 client 觀察失敗 | 相機改 creative、保持 owner 未開作弊，再從乾淨世界重跑；等待操作完成及下一輪 client ticks 處理更新。 |
+| 單人第一輪 clone 已成功，最後 GameTest context 重複 close 使測試退出 1 | 原始世界以 context.close 退出，clone 以原版 disconnect；各 context 僅關閉一次。 |
+| live metadata 套用恢復 survival，先前截圖相機下墜，HUD 距離尚有效但範圍不在鏡頭內；同名 show 圖被第二次 show 覆蓋 | 截圖改用觀察者相機、定位後確認高度穩定；要求可渲染 rows 並人工核對線框。保留 screenshot ordinal，避免覆蓋注入字串的第一張。 |
+| 26.2 新單人 push 可用，CLI clone 卻報「快照缺少主世界生成設定」 | core WorldLayout 補缺少的主世界 shared-data 名稱；單元驗 alias、既有維度 bytes 保留與不寫世界，重跑正式 client push／clone。 |
+| 1.21.11 dedicated 最後 verify 有一筆地獄 entityPuts | 詳細 diff 顯示同一隻 strider 的 UUID／位置／屬性不變，Paper-only AgeLocked=0 在原版序列化後消失。測試副本先載入該地獄區域才 init，既有 baseline 不改；保留原失敗及 before／after NBT，不排除實體欄位或放寬 verify。 |
+| 26.2 單人 Phase 2 switch 被拒絕：DataPacks 需離線 restore | live 預檢拿可攜快照與 raw 平台標記比較。新增 MetadataCompatibility 與測試，沿 #81 在雙方只移除平台標記；真正資料包增刪／順序仍拒絕，重驗既有完整流程。 |
+| 26.2 單人留言與 pull 通過後，停服 verify 有一筆 level.nbt | before／after NBT 只有 GameType 1→3：截圖 gamemode spectator 命令改了單人世界預設模式。fixture 改由 server executor 只設定相機玩家模式，保留世界 GameType；完整重驗停服與 clone，沒有以 commit 改寫驗收目標。 |
+| 部分背景驗收在啟動或等待下一組時以 143 結束，沒有最終 JSON | 外部 SIGTERM 原因未確認，另存 interruption.json 與原始 log，不列為成功；後續由持續監看的 TTY session 執行，已成功項目保留，不從頭重跑。地獄載入探針曾因 execute 無輸出被手動中止（130），另以雙成功／等待標記及有界輪詢修正。 |
+
+HTTP(S) 之外的 SSH、任意第三方 Jackson 模組組合、公開 TLS／代理、socket flood、磁碟故障／任意 kill／fuzz 未覆蓋。固定平坦世界、loopback、llvmpipe／Xvfb 結果不代表大型自然世界、真 GPU 或長時間玩家負載。每玩家 PAT、本地 token 管理、遊戲 force／approve／merge、原版 Fabric 空間留言不是本次入口。修改 receiver／poll 設定需重啟；既有 reload 不重建 RemoteCommands。
+
+
+## Phase 4 總結
+
+| 端 | 實作狀態 | 驗收證據 |
+|---|---|---|
+| core／CLI（任務 1，5dc271c） | FF remote、完整 publication、預覽／lease、可開世界 clone／release 已實作；本次補 26.2 新單人 shared-data 別名 | 本文件 core 章節；兩版 Fabric 新存檔 push／clone 直接開世界、前後 verify=0 |
+| Hub（任務 2，10dd24e） | 帳號／ACL／scopes、PR 審核／合併、釘選留言、webhooks／release 已完成 | 本文件 Hub 章節；本輪真 Hub jar＋SQLite REST 合併重驗 |
+| Paper／Folia（任務 3，af52eb7） | 遊戲遠端與 PR、明確 pull、通知、私人 transient display 已完成 | 本文件 Paper／Folia 章節；本輪 Paper 1.21.11 Phase 4 與兩版 Fabric ↔ Paper 回歸通過 |
+| Fabric（任務 4） | 單人／dedicated 遠端、通知、原生 comments-v1／HUD、正式 jar runtime 已實作 | 兩版單人完整通過，dedicated 完整流程與補驗收齊；九組既有回歸、265 tests 與最後 build 通過 |
+
+路線圖「單人玩家 clone 後直接開世界」兩版均已有正式客戶端直接開 saves 中 CLI clone、遊戲內方塊與 Hub 合併結果相同、開啟前後完整 verify=0 的通過結果；本輪重跑另補上世界渲染完成、PR 方塊可見的截圖，結果見 [1.21.11](../fabric/docs/phase4/single-1.21.11-results-2026-10-04.json)／[26.2](../fabric/docs/phase4/single-26.2-results-2026-10-04.json)。26.2 新單人 metadata alias 缺失與截圖 fixture 的 GameType 變更都已定位並修正，原失敗保留。「網頁合併 PR，伺服器 pull 後內容一致」兩版 Fabric dedicated 的 PR 審核合併／通知不套用／明確 FF confirm／三方 MERGING／resolve／push 已通過；1.21.11 原完整流程的地獄實體差異由逐欄位證明與 fixture 補驗 verify=0 補足，沒有把預覽或通知視為已套用。
+
+未完成事項：core 的 SSH、region sparse/partial、manifest 認證、modified-only 平台持久事件蒐集／第三方工具接線；Hub 的一般 compare／歷史 reader 全面 publication 驗證、多實例共享鎖／配額／session／限流、S3、fork／squash／rebase／manual 編輯、公開註冊治理與帳號恢復、通知 retention／dead-letter；ZIP 單 region／阻塞 socket 與 webhook DNS 沒有硬 deadline，慢下載仍占 owner 鎖；Paper／Folia 第三方熱卸載即時清理。另有公開 TLS／代理與大量 socket 壓力、第三方 OAuth／一般 Git 託管實網、大型自然世界／真 GPU／長時間負載、任意第三方 Jackson 相容矩陣與任意 kill／磁碟故障／fuzz 等未驗部署條件。Fabric 原版 client 空間留言依 #102 不提供，文字清單可用；沒有遊戲 force、PR approve／merge、每玩家 PAT 或自動 apply。各端其餘既有界線仍見各章，不把本次 loopback 驗收當成所有部署條件已完成。

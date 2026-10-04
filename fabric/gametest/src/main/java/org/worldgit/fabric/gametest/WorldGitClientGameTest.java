@@ -34,6 +34,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
       client.options.framerateLimit().set(120);
       client.options.languageCode = "en_us";
     });
+    if(Boolean.getBoolean("wgtest.phase4")) { Phase4ClientGameTest.run(ctx);return; }
     int paperPort = Integer.getInteger("wgtest.paperPort", 0);
     if (paperPort != 0) {
       if (Boolean.getBoolean("wgtest.paperPhase3")) PaperPhase3ClientGameTest.run(ctx,paperPort);

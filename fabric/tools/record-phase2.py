@@ -68,8 +68,10 @@ def record(args):
             shutil.copy2(artifacts / "preview-cells.json", evidence / "preview-cells.json")
             shots = ROOT / ".work/worlds/fabric-gametest" / f"{args.version}-phase2" / "screenshots"
             shutil.copytree(shots, evidence / "screenshots")
-            shutil.copytree(artifacts, evidence / "checkpoints")
-            result["checkpoints"] = str((evidence / "checkpoints").relative_to(ROOT))
+            if os.environ.get("WG_COMPACT_EVIDENCE") != "1":
+                shutil.copytree(artifacts, evidence / "checkpoints")
+            if (evidence / "checkpoints").exists():
+                result["checkpoints"] = str((evidence / "checkpoints").relative_to(ROOT))
             result["success"] = True
         except Exception as error:
             result["error"] = repr(error)

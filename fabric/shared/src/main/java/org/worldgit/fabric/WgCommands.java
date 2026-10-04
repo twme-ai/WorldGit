@@ -108,9 +108,20 @@ public final class WgCommands {
         for (String command : List.of("conflicts", "conflict-preview"))
             root.then(Commands.literal(command).executes(c -> conflicts(c, command, ""))
                 .then(Commands.argument("options", StringArgumentType.greedyString()).executes(c -> conflicts(c, command, StringArgumentType.getString(c,"options")))));
+        for(String command:List.of("remote","fetch","push","pull","pr","comments","comment"))
+            root.then(Commands.literal(command).executes(ctx->remote(ctx,command,""))
+                .then(Commands.argument("options",StringArgumentType.greedyString()).executes(ctx->remote(ctx,command,StringArgumentType.getString(ctx,"options")))));
         dispatcher.register(root);
     }
 
+    private static int remote(CommandContext<CommandSourceStack> ctx,String command,String text) {
+        var rt=runtime(ctx);String[] args=text.isBlank()?new String[0]:text.trim().split("\\s+");
+        int level=RemoteAccess.writes(command,args)?rt.config().writePermissionLevel():rt.config().readPermissionLevel();
+        if(!allowed(level).test(ctx.getSource())) {
+            Texts.failure(ctx.getSource(),rt,Msg.of("fabric.remote.permission"));return 0;
+        }
+        rt.remote().run(ctx.getSource(),command,args);return 1;
+    }
     // ---- 共用 -------------------------------------------------------------------------
 
     private static ServerRuntime runtime(CommandContext<CommandSourceStack> ctx) {

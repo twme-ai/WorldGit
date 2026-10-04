@@ -28,7 +28,10 @@ dependencies {
     include(project(":platform-api"))
     include(project(":protocol"))
     // jar-in-jar 不含傳遞依賴：JGit 需要 JavaEWAH 與 commons-codec（slf4j 由 Minecraft 提供）。
-    for (dep in listOf(libs.jgit, libs.zstd, libs.lz4, libs.yaml, libs.javaewah, libs.commons.codec)) {
+    for (dep in listOf(libs.jgit, libs.zstd, libs.lz4, libs.yaml, libs.javaewah, libs.commons.codec,
+        "com.fasterxml.jackson.core:jackson-core:2.21.7",
+        "com.fasterxml.jackson.core:jackson-annotations:2.21",
+        "com.fasterxml.jackson.core:jackson-databind:2.21.7")) {
         implementation(dep)
         include(dep)
     }
@@ -68,14 +71,34 @@ afterEvaluate {
         inputFile.set(dedicatedFixture.flatMap { it.archiveFile })
         archiveClassifier.set("dedicated-fixture-remapped")
     }
+    // 正式 jar 客戶端驗收：不使用 development classpath，避免漏包被 Gradle 掩蓋。
+    if (providers.gradleProperty("wgtestPhase4").isPresent) {
+        dependencies.add("productionRuntimeMods", "net.fabricmc.fabric-api:fabric-api:0.141.6+1.21.11")
+        dependencies.add("productionRuntimeMods", fabricApi.module("fabric-client-gametest-api-v1", "0.141.6+1.21.11"))
+        dependencies.add("productionRuntimeMods", fabricApi.module("fabric-gametest-api-v1", "0.141.6+1.21.11"))
+        tasks.register<net.fabricmc.loom.task.prod.ClientProductionRunTask>("runPhase4ProductionClient") {
+            dependsOn("remapDedicatedFixtureJar")
+            mods.from(tasks.named("remapDedicatedFixtureJar"))
+            runDir.set(rootProject.layout.projectDirectory.dir(".work/worlds/fabric-gametest/$mcVersion-phase4"))
+            jvmArgs.addAll("-Dfabric.client.gametest", "-Dfabric.client.gametest.disableNetworkSynchronizer=true",
+                "-Dwgtest.phase4=true", "-Dwgtest.phase4Dir=${providers.gradleProperty("wgtestPhase4Dir").get()}",
+                "-Dwgtest.phase4Single=${providers.gradleProperty("wgtestPhase4Single").getOrElse("false")}",
+                "-Xmx2G", "-XX:ActiveProcessorCount=3", "-XX:-UsePerfData")
+            providers.gradleProperty("wgtestPaperPort").orNull?.let { port ->
+                jvmArgs.add("-Dwgtest.paperPort=$port")
+            }
+            programArgs.addAll("--username", "Phase4Player", "--width", "1280", "--height", "720")
+        }
+    }
     val tmp = rootProject.projectDir.resolve(".work/fabric-tmp").apply { mkdirs() }
     loom.runs.named("clientGameTest") {
-        val suffix = if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else if (providers.gradleProperty("wgtestPhase2").isPresent) "-phase2" else if (providers.gradleProperty("wgtestPhase3").isPresent) "-phase3" else ""
+        val suffix = if (providers.gradleProperty("wgtestPhase4").isPresent) "-phase4" else if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else if (providers.gradleProperty("wgtestPhase2").isPresent) "-phase2" else if (providers.gradleProperty("wgtestPhase3").isPresent) "-phase3" else ""
         val workspace = projectDir.canonicalFile.parentFile.parentFile
         runDir(workspace.resolve(".work/worlds/fabric-gametest/$mcVersion$suffix").absolutePath)
         providers.gradleProperty("wgtestPaperPort").orNull?.let { port ->
             vmArgs("-Dwgtest.paperPort=$port", "-Dwgtest.paperReady=${providers.gradleProperty("wgtestPaperReady").get()}")
         }
+        if (providers.gradleProperty("wgtestPhase4").isPresent) vmArgs("-Dwgtest.phase4=true", "-Dwgtest.phase4Dir=${providers.gradleProperty("wgtestPhase4Dir").get()}", "-Dwgtest.phase4Single=${providers.gradleProperty("wgtestPhase4Single").getOrElse("false")}")
         if (providers.gradleProperty("wgtestPaperPhase3").isPresent) vmArgs("-Dwgtest.paperPhase3=true")
         if (providers.gradleProperty("wgtestDedicated").isPresent) vmArgs("-Dwgtest.dedicated=true")
         if (providers.gradleProperty("wgtestPhase2").isPresent) vmArgs("-Dwgtest.phase2=true")
@@ -87,3 +110,11 @@ afterEvaluate {
         ))
     }
 }
+
+// 正式產物的 nested dependency 檢查；只讀 jar，沒有遊戲／網路負載。
+val verifyRemoteRuntime = tasks.register<Exec>("verifyRemoteRuntime") {
+    dependsOn("remapJar")
+    commandLine("python3", rootProject.file("fabric/tools/check-phase4-jars.py"),
+        layout.buildDirectory.file("libs/worldgit-fabric-$mcVersion-${project.version}.jar").get().asFile)
+}
+tasks.named("check") { dependsOn(verifyRemoteRuntime) }

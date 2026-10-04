@@ -42,6 +42,16 @@ Fabric 專用伺服器（2026-10-03）在成功握手後讀取 durable MERGING �
 
 ## Phase 4 Paper／Folia 遠端協作（2026-10-03）
 
-此次沒有新增 remote_status／comments channel 或 capability（決定 #97）。新版提示由 Paper/Folia 在玩家 owner 送 MiniMessage i18n 聊天；座標留言由 per-player、非持久 TextDisplay／粒子提供，原版與 Fabric 客戶端已能渲染。PR／遠端指令仍使用原版命令封包，pull 的確認由伺服器驗本地與遠端 lease。
+Paper/Folia 此任務沒有新增 remote_status／comments channel 或 capability（決定 #97）。新版提示由 Paper/Folia 在玩家 owner 送 MiniMessage i18n 聊天；座標留言由 per-player、非持久 TextDisplay／粒子提供，原版與 Fabric 客戶端已能渲染。PR／遠端指令仍使用原版命令封包，pull 的確認由伺服器驗本地與遠端 lease。
 
-Fabric 下一任務若提供原生 UI，可重用 `platform-api` 模組的 `org.worldgit.platform.remote`：HubClient（PR／留言 DTO）、RemoteSettings、PlatformCredentials、WebhookReceiver、CommentText；需新增 wire 時再定義可選 capability、預算／清理／晚到回應規則，不預先宣告尚無 renderer 的能力。既有 protocol v2 與 Phase 3 merge envelope v1 保持相容，四組真 Fabric 客戶端對接回歸見 [docs/14 Paper／Folia](../docs/14-phase4-progress.md#paper-folia)。
+Fabric 已重用 `platform-api` 模組的 `org.worldgit.platform.remote`：HubClient（PR／留言 DTO）、RemoteSettings、PlatformCredentials、WebhookReceiver、CommentText；原生留言新增的可選能力、預算與清理契約見下一節。既有 protocol v2 與 Phase 3 merge envelope v1 保持相容，四組真 Fabric 客戶端對接回歸見 [docs/14 Paper／Folia](../docs/14-phase4-progress.md#paper-folia)。
+
+## Phase 4 Fabric 座標留言（2026-10-04）
+
+既有 v2、merge v1 與 `Protocol.CAPABILITIES` 不變。Fabric adapter 在 hello 額外宣告可選 `comments-v1`，只對具能力且有讀取權限的玩家送 `worldgit:comments`。Paper 不需實作；其 TextDisplay 仍由 Fabric 客戶端正常渲染。留言請求沿原版 `/wg comments` 命令。
+
+`CommentsProtocol` 大端 envelope：u8 version=1、u8 kind=2、i64 snapshot id、dimension 字串、u8 sequence／parts／totalComments／partComments。每留言含 UUID 字串、author、text、i32 x/y/z、boolean hasRange，存在範圍時再含 i32 maxX/maxY/maxZ（含端點）。**字串用 Java DataOutput.writeUTF 的 u16 byte 長度＋modified UTF-8**，不是既有 v2 的 varint UTF-8。dimension 由 DimensionId 驗證；作者最多 33 Unicode code points、128 UTF-16 units，摘要最多 241／964（包含淨化截斷的省略號）；座標 X/Z ±30,000,000、Y ±2048，max 不得小於 min。
+
+每包最多 28,000 bytes、一批最多 128 KiB／8 包／64 留言，空清單是一包清除。Assembler 每連線只有一個 pending snapshot，支援亂序，收齊才發布；拒絕重複分包／UUID、混合 header、超額／尾隨 bytes。五秒過期丟棄並提高 floor；新 snapshot 取代舊批次，已發布 id 以下不再接受。本機 clear 作廢未完成批次；斷線才 reset floor。伺服器 hide 清除排隊留言並發送較新空 snapshot，同時取消 HTTP request id；換維度／撤權／離線亦清理。客戶端只發布目前維度，文字必須 literal，不解析 HTML／MiniMessage／legacy 色碼。
+
+ClientConfig 預設啟用、最多 64 則、64 格距離；距離可設 16–512、數量 1–64。近者優先 HUD，超過畫面高度停止畫文字；範圍線框沿既有 GPU 上傳／描邊管線。沒有 server entity，不會被 capture。原版客戶端收到 show 指令的固定說明，可改用文字清單。

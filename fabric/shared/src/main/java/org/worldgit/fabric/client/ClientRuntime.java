@@ -42,6 +42,49 @@ public final class ClientRuntime {
   private final ClientPreviews previews = new ClientPreviews();
   private final Map<DimensionId, PreviewScene> scenes = new HashMap<>();
   private ClientConfig config;
+  private final org.worldgit.protocol.CommentsProtocol.Assembler commentAssembler=new org.worldgit.protocol.CommentsProtocol.Assembler();
+  private List<org.worldgit.protocol.CommentsProtocol.Comment> comments=List.of();
+  private String commentsDimension;
+  private PreviewScene commentBounds;
+  private List<org.worldgit.protocol.CommentsProtocol.Comment> visibleComments=List.of();
+  public List<org.worldgit.protocol.CommentsProtocol.Comment> comments() { return comments; }
+  public int visibleCommentsCount() { return visibleComments.size(); }
+  public void onComments(byte[] bytes) {
+    try {
+      if(!handshaken || !commentsCapable)throw new IOException("comments capability");
+      var result=commentAssembler.accept(bytes,System.currentTimeMillis());if(result.isEmpty())return;
+      var s=result.get();clearComments();
+      if(!s.dimension().value().equals(currentDimension()))return;
+      comments=s.comments();commentsDimension=s.dimension().value();
+    }catch(IOException | RuntimeException e) {LOG.warn("WORLDGIT 留言封包被拒絕（內容已遮罩）");}
+  }
+  private void clearComments() {
+    comments=List.of();visibleComments=List.of();commentsDimension=null;
+    if(commentBounds!=null)commentBounds.close();commentBounds=null;
+  }
+  public void tickComments() {
+    var mc=Minecraft.getInstance();
+    if(commentsDimension!=null && !commentsDimension.equals(currentDimension())) {clearComments();commentAssembler.clear();}
+    var next=mc.player==null || !config.commentsEnabled()?List.<org.worldgit.protocol.CommentsProtocol.Comment>of():comments.stream()
+      .filter(c->mc.player.distanceToSqr(c.x()+.5,c.y()+.5,c.z()+.5)<=config.commentsDistance()*(double)config.commentsDistance())
+      .sorted(Comparator.comparingDouble(c->mc.player.distanceToSqr(c.x()+.5,c.y()+.5,c.z()+.5))).limit(config.commentsMaxCount()).toList();
+    if(next.equals(visibleComments))return;visibleComments=next;
+    if(commentBounds!=null)commentBounds.close();commentBounds=null;
+    if(next.isEmpty())return;
+    var outlines=next.stream().map(c->new Protocol.Outline(c.x(),c.y(),c.z(),c.maxX()==null?c.x():c.maxX(),c.maxY()==null?c.y():c.maxY(),c.maxZ()==null?c.z():c.maxZ(),ChangeKind.ADDED,0,0,0,0)).toList();
+    var colors=new EnumMap<ChangeKind,Integer>(ChangeKind.class);colors.putAll(palette().colors());colors.put(ChangeKind.ADDED,0x66DDFF);
+    var style=new ClientConfig(config.palette(),config.seeThrough(),config.detailDistance(),config.commentsDistance(),config.maxDetailSections(),config.ghostBuildPerFrame());
+    commentBounds=new PreviewScene(new ClientPreviews.Published(new DimensionId(commentsDimension),0,List.of(),outlines),style,new DiffPalette(colors),ClientPlatform::model);
+  }
+  List<Component> commentHud() {
+    var mc=Minecraft.getInstance();var lines=new ArrayList<Component>();
+    for(var c:visibleComments) {
+      int distance=mc.player==null?0:(int)Math.sqrt(mc.player.distanceToSqr(c.x(),c.y(),c.z()));
+      lines.add(Component.literal("◆ ("+c.x()+", "+c.y()+", "+c.z()+") "+distance+"m  "+
+        org.worldgit.platform.remote.CommentText.plain(c.author(),32)+": "+org.worldgit.platform.remote.CommentText.plain(c.text(),240)));
+    }return lines;
+  }
+  private boolean commentsCapable;
   private DiffPalette serverPalette;
   private boolean handshaken;
   private boolean mergeCapable;
@@ -169,6 +212,9 @@ public final class ClientRuntime {
   }
 
   private void restyle() {
+    if(commentBounds!=null)commentBounds.close();
+    commentBounds=null;
+    visibleComments=List.of();
     var palette = palette();
     scenes.values().forEach(s -> s.configure(config, palette));
     conflictBounds.values().forEach(v -> v.forEach(s -> {
@@ -191,6 +237,7 @@ public final class ClientRuntime {
       }
       ClientPlayNetworking.send(Net.HELLO.of(Protocol.encode(reply.get())));
       handshaken = true;
+      commentsCapable=hello.capabilities().contains(org.worldgit.protocol.CommentsProtocol.CAPABILITY);
       mergeCapable = hello.capabilities().contains(MergeProtocol.CAPABILITY);
       selectCapable = ClientHandshake.canSelect(hello);
       LOG.info("WORLDGIT CLIENT_HANDSHAKE_OK nonce={} capabilities={} palette={}", hello.nonce(), ClientHandshake.capabilities(), config.palette());
@@ -227,6 +274,7 @@ public final class ClientRuntime {
   }
 
   void clear() {
+    clearComments();commentAssembler.clear();
     scenes.values().forEach(PreviewScene::close);
     scenes.clear();
     previews.clear();
@@ -236,7 +284,7 @@ public final class ClientRuntime {
 
   void onDisconnect() {
     clear();
-    previews.reset();
+    previews.reset();commentAssembler.reset();commentsCapable=false;
     conflicts.reset(); mergeCapable=false; selectCapable=false;
     handshaken = false;
     serverPalette = null;
@@ -287,6 +335,7 @@ public final class ClientRuntime {
     String dim=currentDimension();
     if(dim!=null) active.addAll(conflictBounds.getOrDefault(new DimensionId(dim),List.of()));
     if(conflictGhost!=null && conflictGhost.published().dimension().value().equals(dim)) active.add(conflictGhost);
+    if(commentBounds!=null && config.commentsEnabled())active.add(commentBounds);
     if(active.isEmpty()) return;
     var mc = Minecraft.getInstance();
     var rotation = new Matrix4f(view);

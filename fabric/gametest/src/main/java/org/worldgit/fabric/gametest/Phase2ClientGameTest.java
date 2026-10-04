@@ -113,7 +113,8 @@ final class Phase2ClientGameTest {
 
             // A player remains in a block that becomes solid. No teleport, selective damage suppression.
             server.runCommand("tp @p 3.5 -60 3.5");
-            server.runCommand("gamemode survival @p");
+            // 測玩家傷害保護，只改玩家；26.2 單人 gamemode 命令亦改世界預設 GameType。
+            server.computeOnServer(s->s.getPlayerList().getPlayers().getFirst().setGameMode(net.minecraft.world.level.GameType.SURVIVAL));
             var switched=(WorldOperations.Result)command(ctx,server,"wg switch A");
             check(switched.success(),"switch A 失敗："+switched);
             ctx.waitTicks(40);
@@ -233,7 +234,7 @@ final class Phase2ClientGameTest {
         var source=server.computeOnServer(s->{s.saveEverything(true,true,true);return WorldGitMod.runtime(s).worldRoot();});
         var destination=artifacts.resolve(label);
         copy(source,destination.resolve("world"));
-        copy(source.getParent().resolve(".worldgit").resolve(source.getFileName()),destination.resolve(".worldgit/world"));
+        if(!Files.isDirectory(source.resolve(".worldgit"))) copy(source.getParent().resolve(".worldgit").resolve(source.getFileName()),destination.resolve(".worldgit/world"));
         log("checkpoint="+label);
     }
     private static void copy(Path from,Path to) throws Exception {

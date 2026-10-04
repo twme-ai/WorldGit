@@ -27,6 +27,7 @@ public final class ClientHandshake {
   public static List<String> capabilities() {
     var result = new ArrayList<>(Protocol.CAPABILITIES);
     result.add(MergeProtocol.CAPABILITY);
+    result.add(org.worldgit.protocol.CommentsProtocol.CAPABILITY);
     return List.copyOf(result);
   }
 

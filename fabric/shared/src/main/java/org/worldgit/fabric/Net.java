@@ -49,6 +49,8 @@ public final class Net {
     public static final Channel STATUS = channel(Protocol.STATUS);
     public static final Channel CLEAR = channel(Protocol.CLEAR);
 
+    public static final Channel COMMENTS = channel(org.worldgit.protocol.CommentsProtocol.CHANNEL);
+
     public static final Channel CONFLICTS = channel(MergeProtocol.REGIONS);
     public static final Channel CONFLICT_PREVIEW = channel(MergeProtocol.PREVIEW);
 
@@ -58,6 +60,7 @@ public final class Net {
         if (bytes[0] == MergeProtocol.VERSION) return switch (bytes[1]) {
             case 0 -> CONFLICTS;
             case 1 -> CONFLICT_PREVIEW;
+            case 2 -> COMMENTS;
             default -> throw new IllegalArgumentException("unknown merge message kind");
         };
         return switch (bytes[1]) {
@@ -80,6 +83,7 @@ public final class Net {
         Platform.s2c().register(DIFF.type(), DIFF.codec());
         Platform.s2c().register(STATUS.type(), STATUS.codec());
         Platform.s2c().register(CLEAR.type(), CLEAR.codec());
+        Platform.s2c().register(COMMENTS.type(), COMMENTS.codec());
         Platform.s2c().register(CONFLICTS.type(), CONFLICTS.codec());
         Platform.s2c().register(CONFLICT_PREVIEW.type(), CONFLICT_PREVIEW.codec());
     }

@@ -1,6 +1,6 @@
-# WorldGit Fabric（Phase 3）
+# WorldGit Fabric（Phase 4）
 
-同一套模組提供單人世界／Fabric 專用伺服器的存檔點、復原、切換與合併，以及 Paper／Folia 玩家客戶端的 diff 描邊和鬼影。世界與 bare repo 格式直接共用 core，離線 `wgit` 可讀相同歷史；不需要轉換。
+同一套模組提供單人世界／Fabric 專用伺服器的存檔點、復原、切換與合併，遠端 push／pull／PR／座標留言，以及 Paper／Folia 玩家客戶端的 diff 描邊和鬼影。世界與 bare repo 格式直接共用 core，離線 `wgit` 可讀相同歷史；不需要轉換。
 
 ## 安裝與建置
 
@@ -51,7 +51,7 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 `status --show` 畫 section／chunk 外框，`diff --show`／`preview` 畫逐格外框與半透明方塊模型。顯示與 clear 需玩家執行；console 可執行讀取、寫入與合併命令。指令詳細選項及權限見 `WgCommands`；預設讀取權限等級 0、寫入等級 2，單人世界擁有者可操作。
 
-每個維度一個 repo，路徑為世界資料夾旁的 `.worldgit/<世界名稱>/<維度目錄>/`，例如 `.worldgit/My World/minecraft.overworld/`。主世界保存 world-meta 與維度清單。init 只建立磁碟上存在且尚未初始化的維度；第一次進入新維度後可再 init。
+每個維度一個 repo。新單人存檔與 CLI clone 使用世界內 `.worldgit/<維度目錄>/`；既有外部 repo 保持相容，dedicated 新世界使用世界資料夾旁的 `.worldgit/<世界名稱>/<維度目錄>/`，例如 `.worldgit/My World/minecraft.overworld/`。主世界保存 world-meta 與維度清單。init 只建立磁碟上存在且尚未初始化的維度；第一次進入新維度後可再 init。
 
 預設 creative 範本全部追蹤；survival 範本排除暫態、非 persistent 生物等。`track: modified-only` 與 core 一致，目前只記錄設定，尚未篩掉自然地形。沒有內容變動不產生 commit。
 
@@ -204,3 +204,76 @@ python3 fabric/tools/accept-dedicated.py 26.2
 2026-10-03 兩版各 44 項通過、最終離線 verify=0；區域切換中位數為 0.701／0.702 秒，1,000 chunk 合併平均 TPS 約 20，最大 tick 間隔約 1.6–1.7 秒。兩版單人 Phase 2／Phase 3 與四組 Paper／Folia Phase 3 回歸全過，最後完整 build 通過（199 個單元測試，0 failure／error／skip）。八張原始畫面見 [專用伺服器截圖](docs/screenshots/dedicated/README.md)。量測使用受控平坦世界與凍結世界 tick，實際範圍及限制見進度報告。
 
 沿用 Phase 1 的本機驗收環境：`.work/fabric-srv/<版本>/` 需有 Fabric Launcher、libraries、versions 與 fabric-api.jar；平坦 fixture 沿用 `.work/paper-delivery/fixtures/acceptance-flat-<版本>/`，缺少時由既有 `.work/worlds/<版本>/baseline/` 產生副本。26.2 另需已驗收 Fabric baseline 的 `world/data/minecraft/world_gen_settings.dat`；只複製到測試副本的根目錄，規則使用平坦 fixture 的安靜設定，以適配 Paper／vanilla saved-data 路徑差異。腳本自行建置並凍結正式模組、fixture 與 CLI，不載入既有伺服器的世界或 repo。
+
+## Phase 4 遠端協作
+
+單人與專用伺服器使用相同指令；單人 owner 不需開作弊，dedicated 沿既有 op 等級，console 可執行。讀取類是 remote list、fetch、pr list/view、comments；remote 設定、push/pull、pr create、comment 使用寫入等級。
+
+```text
+/wg remote add <name> <url>
+/wg remote remove <name>
+/wg remote list
+/wg remote set-url <name> <url>
+/wg fetch [remote]
+/wg push [remote [branch]] [--tags]
+/wg pull [remote [branch]]
+/wg pull confirm <code>
+/wg pr create <title> [--source branch] [--target branch]
+/wg pr list
+/wg pr view <number>
+/wg comments [show|hide] [pr <number>] [--here]
+/wg comment <number> <text> [--here]
+```
+
+push 只接受 FF。pull 先 fetch、沿線上 dry-run 預覽 FF／三方、區域／chunk 數與估計；120 秒內以 sender 綁定的一次性 code 確認。確認重新 fetch，遠端 URL／完整 tips／本地 HEAD／本地分支改變就要求重做。套用沿既有 live coordinator、ApplyBudget、編輯鎖、玩家保護與廣播；衝突進 MERGING，沿原本 G 衝突清單／resolve／continue，不做鄰居更新。PR 附可點擊 Hub 連結；merge／approve 在網頁進行。
+
+`config/worldgit-server.yml` 加入下列區段（其他既有設定保留）；兩種伺服器皆由 Fabric config 目錄讀取。remote 名稱／URL 等非秘密 per-save 設定由 core 寫 `.worldgit/remotes.yml`。單人每個存檔各自 remote，PAT 不跟著存檔／clone 移動。
+
+```yaml
+remote:
+  hub-url: ''
+  default-name: origin
+  token-environment: WGIT_TOKEN
+  credentials-file: credentials.yml
+  timeout-seconds: 30
+  fetch-interval-seconds: 0
+  webhook:
+    enabled: false
+    bind: 127.0.0.1
+    port: 25761
+    secret-environment: WGIT_WEBHOOK_SECRET
+    secret-file: webhook.secret
+```
+
+PAT 來源優先環境 `WGIT_TOKEN`，或 Fabric config 下普通檔案 `credentials.yml`（POSIX 權限必須 600；拒絕 symlink／越界路徑），格式共用 [platform-api](../platform-api/README.md)：
+
+```yaml
+credentials:
+  https://hub.example.com:
+    mode: bearer
+    token: YOUR_PAT
+```
+
+不要把 PAT 寫入 world、remote URL 或一般設定。錯誤只回固定 i18n，沒有輸出 HTTP body／exception stack／憑證。REST／Git 網路工作在背景 repo executor，回覆回 server executor；401／403／404／409／429、逾時與不可達都有專用訊息。
+
+專用伺服器 webhook 預設關閉／loopback，HMAC、重放、body／速率／deadline 上限沿共用 WebhookReceiver；回呼只排背景 fetch，完整 publication 有新版才通知有寫入權限玩家與 console。單人**永遠不開 webhook port**，即使 YAML 啟用也不監聽；選用定時 fetch（0 關閉，啟用至少 60 秒）。兩者通知都不 apply。憑證／通知設定變更需重啟世界或伺服器；既有 reload 不重建 receiver。
+
+### 客戶端座標留言
+
+連 Fabric 時 `/wg comments show [pr <number>]` 只對自己顯示：左上 literal HUD 列座標、距離、作者、摘要；世界內畫該座標或範圍線框。HTML／MiniMessage 保持字面，§ 色碼與控制字元由 CommentText 去除。不建立伺服器實體、不寫存檔、不入 capture。客戶端 `worldgit-client.yml` 可設 `comments-enabled: true`、`comments-max-count: 64`（1–64）、`comments-distance: 64`（16–512）；超出距離不渲染，HUD 高度限制優先顯示較近項目。
+
+hide／換維度／撤權／離線／關閉世界清除，HTTP 晚到回應不重新顯示。原版客戶端連 Fabric dedicated 時不支援空間留言；show 明確說明需要 WorldGit Fabric 模組，`/wg comments [pr <number>]` 仍可讀文字。連 Paper／Folia 時仍正常看到插件提供的 TextDisplay，無需 comments-v1。
+
+### Phase 4 建置與驗收
+
+兩版正式 jar-in-jar 補齊 Jackson runtime，`check` 自動執行 [check-phase4-jars.py](tools/check-phase4-jars.py)，確認依賴宣告／必要 classes／正式 jar 不含 fixture。其餘模組使用不相容 Jackson 版本時仍應檢查 Loader 的依賴解析；本次不宣稱任意第三方模組組合相容。
+
+```bash
+python3 fabric/tools/accept-phase4.py 1.21.11
+python3 fabric/tools/accept-phase4.py 26.2
+python3 fabric/tools/accept-phase4-singleplayer.py 1.21.11
+python3 fabric/tools/accept-phase4-singleplayer.py 26.2
+python3 fabric/tools/regress-phase4.py
+```
+
+腳本自行取 bench.lock，啟動真 Hub jar／SQLite、dedicated 正式 jar、Xvfb 真客戶端；finally 關閉／清除世界副本、憑證與服務。截圖在 [phase4](docs/screenshots/phase4/)，可攜結果／來源與產物雜湊見 [驗收摘要](docs/phase4/results-2026-10-04.json)，失敗與限制見 [docs/14 Fabric](../docs/14-phase4-progress.md#fabric)，安全界線見 [Phase 4 安全審查](docs/security-review-phase4-2026-10-04.md)。

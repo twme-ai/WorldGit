@@ -35,7 +35,8 @@ def run(args):
             fcntl.flock(lock, fcntl.LOCK_EX)
         try:
             shutil.copytree(source, world)
-            shutil.copytree(source.parent / ".worldgit" / source.name, worlddir / ".worldgit" / source.name)
+            if not (source / ".worldgit").is_dir():
+                shutil.copytree(source.parent / ".worldgit" / source.name, worlddir / ".worldgit" / source.name)
             jar = evidence / "wgit.jar"
             shutil.copy2(args.cli_jar, jar)
             shutil.copy2(args.log, evidence / "client.log")

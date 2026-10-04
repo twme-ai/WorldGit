@@ -346,7 +346,7 @@ final class Phase3ClientGameTest {
         var source=server.computeOnServer(s->{s.saveEverything(true,true,true);return WorldGitMod.runtime(s).worldRoot();});
         var destination=artifacts.resolve(label);
         copy(source,destination.resolve("world"));
-        copy(source.getParent().resolve(".worldgit").resolve(source.getFileName()),destination.resolve(".worldgit/world"));
+        if(!Files.isDirectory(source.resolve(".worldgit"))) copy(source.getParent().resolve(".worldgit").resolve(source.getFileName()),destination.resolve(".worldgit/world"));
         log("checkpoint="+label);
     }
     private static void copy(Path from,Path to) throws Exception {

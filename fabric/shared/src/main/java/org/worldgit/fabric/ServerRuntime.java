@@ -62,6 +62,19 @@ public final class ServerRuntime {
     private volatile boolean closed;
     private volatile boolean autoRunning;
     private volatile MergeState mergeState;
+    private final RemoteCommands remote;
+    public RemoteCommands remote() { return remote; }
+    private final Map<UUID,Deque<byte[]>> commentsOutbound=new HashMap<>();
+    void sendComments(ServerPlayer player,DimensionId dimension,List<org.worldgit.platform.remote.HubClient.Comment> rows) {
+        if(!handshake.supports(player.getUUID(),org.worldgit.protocol.CommentsProtocol.CAPABILITY))return;
+        try {
+            var comments=rows.stream().map(c->{var p=c.pin();return new org.worldgit.protocol.CommentsProtocol.Comment(c.id(),
+                org.worldgit.platform.remote.CommentText.plain(c.username(),32),org.worldgit.platform.remote.CommentText.plain(c.body(),240),
+                p.x(),p.y(),p.z(),p.maxX(),p.maxY(),p.maxZ());}).toList();
+            var queue=new ArrayDeque<>(org.worldgit.protocol.CommentsProtocol.encode(previewIds.getAndIncrement(),dimension,comments));
+            commentsOutbound.put(player.getUUID(),queue);
+        } catch(IOException | IllegalArgumentException e) { LOG.warn("WORLDGIT 留言封包編碼失敗（內容已遮罩）"); }
+    }
 
     /** 啟動後讀取 durable 狀態；MERGING 不會因重啟變成一般 commit。 */
     void started() {
@@ -75,6 +88,7 @@ public final class ServerRuntime {
                 LOG.warn("WORLDGIT PARTIAL；合併用 /wg merge --abort，其他操作用 switch --force／reset --hard 恢復");
             }
             mergeState=MergeState.read(repositoryRoot().resolve("merge-state.bin"));
+            try {remote.start();}catch(IOException e) {postToServer(()->Texts.failure(server.createCommandSourceStack(),this,Msg.of("fabric.remote.notification-failed")));}
             return null;
         }).exceptionally(e->{LOG.warn("WORLDGIT 讀取恢復狀態失敗",e);return null;});
     }
@@ -91,6 +105,10 @@ public final class ServerRuntime {
         this.server = server;
         this.config = config;
         this.catalog = catalog;
+        if(server.isSingleplayer() && !java.nio.file.Files.exists(worldRoot().getParent().resolve(".worldgit").resolve(worldRoot().getFileName()))) {
+            try {java.nio.file.Files.createDirectories(worldRoot().resolve(".worldgit"));}catch(IOException e) {throw new java.io.UncheckedIOException(e);}
+        }
+        this.remote = new RemoteCommands(this,config.remote());
         this.policy = new AutoCommitPolicy(config.autoCommit(), System.currentTimeMillis());
     }
 
@@ -173,6 +191,7 @@ public final class ServerRuntime {
     /** 與 WorldLayout.repositoryRoot() 相同的規則，但不需要 level.dat 已存在。 */
     public Path repositoryRoot() {
         Path world = worldRoot();
+        if(java.nio.file.Files.isDirectory(world.resolve(".worldgit")))return world.resolve(".worldgit");
         return world.getParent().resolve(".worldgit").resolve(world.getFileName().toString());
     }
 
@@ -576,6 +595,7 @@ public final class ServerRuntime {
     }
 
     void playerLeft(ServerPlayer player) {
+        remote.quit(player);commentsOutbound.remove(player.getUUID());
         handshake.leave(player.getUUID());
         outbound.remove(player.getUUID());
         var bar=bars.remove(player.getUUID()); if(bar!=null) bar.removeAllPlayers();
@@ -615,7 +635,7 @@ public final class ServerRuntime {
         }
     }
 
-    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview", MergeProtocol.CAPABILITY,MergeProtocol.SELECT_CAPABILITY};
+    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview", MergeProtocol.CAPABILITY,MergeProtocol.SELECT_CAPABILITY,org.worldgit.protocol.CommentsProtocol.CAPABILITY};
 
     private final Map<UUID,net.minecraft.server.level.ServerBossEvent> mergeBars=new HashMap<>();
     private void mergeProgress() {
@@ -633,6 +653,12 @@ public final class ServerRuntime {
     void tick() {
         drainServerTasks();
         drainTickTasks(false);
+        remote.tick();
+        for(var e:commentsOutbound.entrySet()) {
+            var player=server.getPlayerList().getPlayer(e.getKey());if(player==null)continue;
+            for(int i=0;i<config.preview().packetsPerTick() && !e.getValue().isEmpty();i++)
+                ServerPlayNetworking.send(player,Net.COMMENTS.of(e.getValue().poll()));
+        }
         if(server.getTickCount()%10==0) mergeProgress();
         for(var group:protection.values()) for(var guard:group.values()) remember(guard);
         protection.values().forEach(group->group.values().removeIf(guard->guard.expires()<System.nanoTime()));
@@ -721,6 +747,7 @@ public final class ServerRuntime {
 
     /** 伺服器關閉（或離開單人世界）時的最後一次自動 commit：阻塞伺服器執行緒，但持續處理排入的伺服器工作。 */
     void stopping() {
+        remote.close();commentsOutbound.clear();
         if(operationActive()) {
             cancelApply();
             var pending=operationFuture;
@@ -755,6 +782,7 @@ public final class ServerRuntime {
     }
 
     void shutdown() {
+        remote.close();commentsOutbound.clear();
         for(var bar:bars.values()) bar.removeAllPlayers();bars.clear();
         for(var bar:mergeBars.values()) bar.removeAllPlayers();mergeBars.clear();
         outbound.clear();protection.clear();

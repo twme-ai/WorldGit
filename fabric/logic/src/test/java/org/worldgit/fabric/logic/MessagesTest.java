@@ -13,7 +13,7 @@ import org.yaml.snakeyaml.Yaml;
 /** 語言鍵與語言檔一致：每個鍵都有 en_us／zh_tw、樣板只用宣告過的參數、語言檔沒有沒註冊的 fabric.* 孤兒鍵。 */
 class MessagesTest {
   private static final Set<String> STYLE_TAGS =
-      Set.of("gray", "white", "aqua", "green", "red", "yellow", "bold", "italic", "wg_added", "wg_removed", "wg_modified", "wg_conflict");
+      Set.of("gold", "gray", "white", "aqua", "green", "red", "yellow", "bold", "italic", "wg_added", "wg_removed", "wg_modified", "wg_conflict");
   private static final Pattern TAG = Pattern.compile("(?<!\\\\)<([a-z_]+)>");
 
   @Test

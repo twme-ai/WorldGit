@@ -21,7 +21,11 @@ public record ServerConfig(
     int readPermissionLevel,
     AutoCommit autoCommit,
     Identity identity,
-    Preview preview) {
+    Preview preview, org.worldgit.platform.remote.RemoteSettings remote) {
+  public ServerConfig(String locale, String template, WorldGitConfig.Track track, int write, int read,
+      AutoCommit auto, Identity identity, Preview preview) {
+    this(locale,template,track,write,read,auto,identity,preview,org.worldgit.platform.remote.RemoteSettings.defaults());
+  }
   public record AutoCommit(
       boolean onLogout, boolean onStop, int intervalMinutes, int minChangedChunks) {}
 
@@ -67,6 +71,7 @@ public record ServerConfig(
             pv.integer("max-ghost-cells", Protocol.MAX_ENTRIES, 1, Protocol.MAX_ENTRIES),
             pv.integer("packets-per-tick", 4, 1, 64));
     pv.rejectUnknown();
+    var remote = RemoteConfig.parse(root.section("remote"));
     root.rejectUnknown();
     return new ServerConfig(
         locale,
@@ -76,7 +81,7 @@ public record ServerConfig(
         read,
         autoCommit,
         identity,
-        preview);
+        preview, remote);
   }
 
   private static String identityText(String s, String source) throws IOException {
@@ -127,5 +132,21 @@ public record ServerConfig(
       preview:
         max-ghost-cells: 100000  # 超過時改送區域包圍盒（上限 100000）
         packets-per-tick: 4      # 每個 tick 對單一玩家最多送幾個預覽封包
+      remote:
+        hub-url: ""
+        default-name: origin
+        token-environment: WGIT_TOKEN
+        credentials-file: credentials.yml  # config 直接子檔案，普通檔且 chmod 600；不放世界
+        timeout-seconds: 30
+        fetch-interval-seconds: 0          # 0 關閉；啟用至少 60 秒，永不自動套用
+        webhook:                           # 單人世界一律不開 port
+          enabled: false
+          bind: 127.0.0.1
+          port: 25761
+          path: /worldgit/webhook
+          secret-environment: WGIT_WEBHOOK_SECRET
+          secret-file: webhook.secret
+          max-body-bytes: 65536
+          requests-per-minute: 60
       """;
 }

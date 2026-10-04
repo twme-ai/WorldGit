@@ -13,7 +13,10 @@ public record ClientConfig(
     int detailDistance,
     int maxDistance,
     int maxDetailSections,
-    int ghostBuildPerFrame) {
+    int ghostBuildPerFrame, boolean commentsEnabled, int commentsMaxCount, int commentsDistance) {
+  public ClientConfig(String palette,boolean seeThrough,int detailDistance,int maxDistance,int maxDetailSections,int ghostBuildPerFrame) {
+    this(palette,seeThrough,detailDistance,maxDistance,maxDetailSections,ghostBuildPerFrame,true,64,64);
+  }
   public static final String FILE_NAME = "worldgit-client.yml";
 
   public static ClientConfig defaults() {
@@ -33,7 +36,8 @@ public record ClientConfig(
             root.integer("detail-distance", 48, 8, 512),
             root.integer("max-distance", 384, 16, 4096),
             root.integer("max-detail-sections", 192, 1, 4096),
-            root.integer("ghost-build-per-frame", 4, 1, 256));
+            root.integer("ghost-build-per-frame", 4, 1, 256),
+            root.bool("comments-enabled",true),root.integer("comments-max-count",64,1,64),root.integer("comments-distance",64,16,512));
     root.rejectUnknown();
     return config;
   }
@@ -60,7 +64,10 @@ public record ClientConfig(
                     "(?m)^max-detail-sections: .*$", "max-detail-sections: " + c.maxDetailSections)
                 .replaceFirst(
                     "(?m)^ghost-build-per-frame: .*$",
-                    "ghost-build-per-frame: " + c.ghostBuildPerFrame))
+                    "ghost-build-per-frame: " + c.ghostBuildPerFrame)
+                .replaceFirst("(?m)^comments-enabled: .*$", "comments-enabled: " + c.commentsEnabled)
+                .replaceFirst("(?m)^comments-max-count: .*$", "comments-max-count: " + c.commentsMaxCount)
+                .replaceFirst("(?m)^comments-distance: .*$", "comments-distance: " + c.commentsDistance))
             .getBytes(java.nio.charset.StandardCharsets.UTF_8));
   }
 
@@ -75,12 +82,12 @@ public record ClientConfig(
 
   public ClientConfig withPalette(String value) {
     return new ClientConfig(
-        value, seeThrough, detailDistance, maxDistance, maxDetailSections, ghostBuildPerFrame);
+        value, seeThrough, detailDistance, maxDistance, maxDetailSections, ghostBuildPerFrame, commentsEnabled, commentsMaxCount, commentsDistance);
   }
 
   public ClientConfig withSeeThrough(boolean value) {
     return new ClientConfig(
-        palette, value, detailDistance, maxDistance, maxDetailSections, ghostBuildPerFrame);
+        palette, value, detailDistance, maxDistance, maxDetailSections, ghostBuildPerFrame, commentsEnabled, commentsMaxCount, commentsDistance);
   }
 
   public static final String DEFAULT_TEXT =
@@ -101,5 +108,9 @@ public record ClientConfig(
       max-detail-sections: 192
       # 每個畫面最多建立幾個新的明細區塊（避免首幀停頓）
       ghost-build-per-frame: 4
+      # 留言 HUD／座標線框：show/hide 由 /wg comments 控制，內容永遠是純文字
+      comments-enabled: true
+      comments-max-count: 64     # 1–64；HUD 按距離排序，只画畫面可容納的列
+      comments-distance: 64      # 16–512 格；超過時不畫 HUD／線框
       """;
 }

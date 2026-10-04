@@ -203,6 +203,10 @@ public final class WorldLayout {
         if (result.containsKey(dimensionKey)
             && (data.containsKey("Bukkit.Version") || !result.containsKey(name + ".nbt")))
           result.put(name + ".nbt", result.get(dimensionKey));
+        // 新的 vanilla/Fabric 26.2 存檔只在世界根目錄保存 shared data。
+        // clone 契約使用主世界名稱；補缺少的別名，不改寫既有歷史或既有維度資料。
+        if (!result.containsKey(dimensionKey) && result.containsKey(name + ".nbt"))
+          result.put(dimensionKey, result.get(name + ".nbt"));
       }
     Path dataDir = world.resolve("data");
     if (Files.isDirectory(dataDir))

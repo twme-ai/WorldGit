@@ -134,4 +134,19 @@ final class ClientPlatform {
     return net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.registerKeyMapping(new net.minecraft.client.KeyMapping(
         name, key, net.minecraft.client.KeyMapping.Category.register(net.minecraft.resources.Identifier.parse("worldgit:controls"))));
   }
+  static void registerCommentHud() {
+    net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.attachElementBefore(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.CHAT,Identifier.parse("worldgit:comments"),(g,delta)->{
+      var mc=Minecraft.getInstance();if(mc.level==null)return;
+      int y=12,width=Math.min(600,g.guiWidth()-24);
+      for(var line:ClientRuntime.get().commentHud()) {
+        for(var part:mc.font.split(line,width)) {
+          if(y>g.guiHeight()-70)return;
+          g.fill(8,y-2,12+width,y+10,0xCC101820);
+          g.text(mc.font,part,12,y,0xFFFFFFFF,true);y+=11;
+        }
+        y+=3;
+      }
+    });
+  }
+
 }

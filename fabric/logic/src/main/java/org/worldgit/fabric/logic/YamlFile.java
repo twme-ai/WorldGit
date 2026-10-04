@@ -30,7 +30,7 @@ final class YamlFile {
     try {
       root = new Yaml(new SafeConstructor(options)).load(text);
     } catch (RuntimeException e) {
-      throw new IOException(source + "：YAML 語法錯誤：" + e.getMessage(), e);
+      throw new IOException(source + "：YAML 語法錯誤（內容已遮罩）");
     }
     if (root == null) return new YamlFile(source, "", Map.of());
     return new YamlFile(source, "", asMap(root, source, "<root>"));
@@ -93,7 +93,7 @@ final class YamlFile {
   /** 所有鍵都被讀取後呼叫；任何剩餘的鍵就是未知設定。 */
   void rejectUnknown() throws IOException {
     for (String k : map.keySet())
-      if (!used.contains(k)) throw new IOException(source + "：未知設定鍵：" + prefix + k);
+      if (!used.contains(k)) throw new IOException(source + "：包含未知設定鍵（內容已遮罩）");
   }
 
   private IOException error(String key, String detail) {

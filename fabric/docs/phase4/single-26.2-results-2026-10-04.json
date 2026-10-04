@@ -1,0 +1,185 @@
+{
+  "version": "26.2",
+  "mode": "singleplayer",
+  "success": true,
+  "steps": [
+    {
+      "name": "new singleplayer remote repository inside save",
+      "ok": true
+    },
+    {
+      "name": "singleplayer never opens webhook even when enabled",
+      "ok": true
+    },
+    {
+      "name": "owner remote push all dimensions",
+      "ok": true
+    },
+    {
+      "name": "optional polling notification never auto applies",
+      "ok": true
+    },
+    {
+      "name": "preview code without world apply",
+      "ok": true
+    },
+    {
+      "name": "singleplayer confirmed pull equals web merge",
+      "ok": true,
+      "client": {
+        "block0": "minecraft:gold_block",
+        "block2": "minecraft:air",
+        "block3": "minecraft:air",
+        "block4": "minecraft:air",
+        "block8": "minecraft:diamond_block",
+        "fps": 29,
+        "comments": 0,
+        "conflicts": 0,
+        "visibleComments": 0,
+        "x": 8.5,
+        "y": -60.0,
+        "z": 8.5,
+        "displays": 0
+      },
+      "heads": {
+        "minecraft:the_nether": "05379ff73f7e01d7f7a853b1e07eb7110188e339",
+        "minecraft:the_end": "78f99f8ee1c384c3c848d21e1f582353b112c9e6",
+        "minecraft:overworld": "b5c6d68bca025a4eee7c3159573c605372cd8abb"
+      },
+      "expected": {
+        "minecraft:overworld": "b5c6d68bca025a4eee7c3159573c605372cd8abb",
+        "minecraft:the_end": "78f99f8ee1c384c3c848d21e1f582353b112c9e6",
+        "minecraft:the_nether": "05379ff73f7e01d7f7a853b1e07eb7110188e339"
+      }
+    },
+    {
+      "name": "singleplayer literal HUD/range no entities",
+      "ok": true
+    },
+    {
+      "name": "singleplayer hide",
+      "ok": true
+    },
+    {
+      "name": "owner coordinate comment stored",
+      "ok": true
+    },
+    {
+      "name": "singleplayer offline verify zero differences",
+      "ok": true
+    },
+    {
+      "name": "clone offline content equals Hub",
+      "ok": true
+    },
+    {
+      "name": "CLI clone directly opened from saves",
+      "ok": true
+    },
+    {
+      "name": "clone gameplay blocks match web merge",
+      "ok": true
+    },
+    {
+      "name": "clone screenshot shows rendered world without loading screen",
+      "ok": true,
+      "client": {
+        "inWorld": true,
+        "screen": "none",
+        "overlay": "none",
+        "surroundingChunksLoaded": true,
+        "renderReady": true,
+        "guiHidden": true,
+        "x": 4.5,
+        "y": 229.0,
+        "z": 6.5,
+        "screenshot": "fabric/docs/screenshots/phase4/single-26.2-phase4-clone-open.png",
+        "sourceScreenshot": "0002_phase4-clone-open.png"
+      }
+    },
+    {
+      "name": "clone after real client offline verify zero differences",
+      "ok": true
+    }
+  ],
+  "evidence": ".work/fabric-phase4/single-26.2-1791095771",
+  "artifacts": {
+    "hub.jar": "c1c2caafee3d33885411c0a6330e86e18b95fdb47314ece6f9ee58dc1043cf3a",
+    "wgit.jar": "b7f4b780583454434d51dc697426694a17d0904f6f0ec762081ce73eb51d248c",
+    "tools.jar": "ca99176a8d62324a748be10e98f9ea088926da7edc137deb24ad3999835942d6"
+  },
+  "client_artifact": "1bec8b10cd0a4f82b85898a50b08d21c016661725ea5a9b87ecd37f5226c3f31",
+  "screenshots": [
+    "fabric/docs/screenshots/phase4/single-26.2-phase4-comments-visible.png",
+    "fabric/docs/screenshots/phase4/single-26.2-phase4-comments-hidden.png",
+    "fabric/docs/screenshots/phase4/single-26.2-phase4-clone-open.png"
+  ],
+  "ports_closed": {
+    "8095": true,
+    "25763": true,
+    "25764": true
+  },
+  "source_result": {
+    "path": ".work/fabric-phase4/single-26.2-1791095771/results.json",
+    "bytes": 3367,
+    "sha256": "cd25f7f2e8f99f932bdcc75b11903b84d7c40a5313ed4b12e149cfa368cf5481"
+  },
+  "logs": [
+    {
+      "path": ".work/fabric-phase4/single-26.2-1791095771/client.log",
+      "bytes": 35906,
+      "sha256": "915e8005b5538defc0846381f3d51f5aa6f612aa3fbb626167e0aa1e3a704d23"
+    },
+    {
+      "path": ".work/fabric-phase4/single-26.2-1791095771/cli.log",
+      "bytes": 8910,
+      "sha256": "431107e7855a7fbe037895442b6fd1b3e2e858cd1c0cb1f7d7a67bfd16b6aed6"
+    },
+    {
+      "path": ".work/fabric-phase4/single-26.2-1791095771/hub.log",
+      "bytes": 4550,
+      "sha256": "f146dedd0e6d18936af48d6f85e5b5131a5bf3f9d6075c810d4b8e9eb0d02981"
+    }
+  ],
+  "screenshot_evidence": [
+    {
+      "path": "fabric/docs/screenshots/phase4/single-26.2-phase4-comments-visible.png",
+      "bytes": 94179,
+      "sha256": "c359b95601f3bc53d38d5ae043c428fa6370460b4c40bd027396ab7893054569",
+      "manual_visual_review": true
+    },
+    {
+      "path": "fabric/docs/screenshots/phase4/single-26.2-phase4-comments-hidden.png",
+      "bytes": 89760,
+      "sha256": "6b06620771052d9cbf1ac8c61c8a37ebfb0874b017bee04f45ca4286c5b471f4",
+      "manual_visual_review": true
+    },
+    {
+      "path": "fabric/docs/screenshots/phase4/single-26.2-phase4-clone-open.png",
+      "bytes": 80930,
+      "sha256": "ff4d19ae35d2384b453ce5f1aecdd69cea005b97bdd00655487eb12c92e44c20",
+      "manual_visual_review": true
+    }
+  ],
+  "screenshot_wait": {
+    "timeout_client_ticks": 2400,
+    "request_timeout_seconds": 300,
+    "stable_client_ticks": 3,
+    "camera": {
+      "x": 4.5,
+      "y": 229,
+      "z": 6.5,
+      "yaw": 180,
+      "pitch": 45
+    },
+    "conditions": [
+      "玩家在世界及 WorldGit 握手完成",
+      "Screen／overlay 自然關閉",
+      "觀察者相機位置、角度及 eye height 吻合",
+      "目標周圍 3×3 chunk 已載入",
+      "(8,224,0) 鑽石方塊及 (0,224,0) 金方塊已同步",
+      "方塊區段完成編譯可見，渲染佇列清空",
+      "隱藏 GUI 後再確認渲染就緒"
+    ]
+  }
+}

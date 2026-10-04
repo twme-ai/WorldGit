@@ -71,7 +71,7 @@ def record(args):
             assert final_conflicts == [], final_conflicts
 
             # 兩個 parent：直接讀 bare repo 的 HEAD commit。
-            repo = next((artifacts / "final/.worldgit/world").glob("minecraft.overworld"))
+            repo = next((artifacts / ("final/world/.worldgit" if (artifacts / "final/world/.worldgit").is_dir() else "final/.worldgit/world")).glob("minecraft.overworld"))
             head = subprocess.run(["git", "--git-dir", str(repo), "cat-file", "-p", f"refs/heads/{branch}"],
                                   text=True, capture_output=True)
             if head.returncode:
@@ -80,14 +80,15 @@ def record(args):
             parents = [l for l in head.stdout.splitlines() if l.startswith("parent ")]
             assert len(parents) == 2, head.stdout + head.stderr
             result["final_parents"] = len(parents)
-            clean_repo = next((artifacts / "clean-merge/.worldgit/world").glob("minecraft.overworld"))
+            clean_repo = next((artifacts / ("clean-merge/world/.worldgit" if (artifacts / "clean-merge/world/.worldgit").is_dir() else "clean-merge/.worldgit/world")).glob("minecraft.overworld"))
             clean_head = subprocess.run(["git", "--git-dir", str(clean_repo), "cat-file", "-p", f"refs/heads/{branch}"],
                                         text=True, capture_output=True)
             assert len([l for l in clean_head.stdout.splitlines() if l.startswith("parent ")]) == 2, clean_head.stdout
             result["clean_merge_parents"] = 2
             shots = ROOT / ".work/worlds/fabric-gametest" / f"{args.version}-phase3" / "screenshots"
             shutil.copytree(shots, evidence / "screenshots")
-            shutil.copytree(artifacts, evidence / "checkpoints")
+            if os.environ.get("WG_COMPACT_EVIDENCE") != "1":
+                shutil.copytree(artifacts, evidence / "checkpoints")
             samples=[float(value) for value in re.findall(r"WGTEST3 region-latency .*seconds=([0-9.]+)",log)]
             assert len(samples)>=5, samples
             result["region_latency"]={"samples_seconds":samples,"median_seconds":statistics.median(samples),"max_seconds":max(samples)}

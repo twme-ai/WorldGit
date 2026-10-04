@@ -72,13 +72,16 @@ Hub 以 **OCI 容器映像**發佈，**Docker 與 Podman 都要能直接部署**
 
 ## 5. 伺服器 ↔ Hub 的整合
 
-Paper/Folia 已提供 `/wg remote`、fetch／push／pull、PR 建立／列表／詳情與座標留言（[Paper README](../paper/README.md)）。PAT 只從環境或插件資料夾普通 600 credentials YAML 取得，不能寫 config.yml／世界／URL。Hub REST、憑證模型、webhook 接收／驗簽與文字淨化放在平台中立的 `platform-api.remote`，Fabric 遠端接線為下一任務。
+Paper/Folia 已提供 `/wg remote`、fetch／push／pull、PR 建立／列表／詳情與座標留言（[Paper README](../paper/README.md)）。PAT 只從環境或插件資料夾普通 600 credentials YAML 取得，不能寫 config.yml／世界／URL。Hub REST、憑證模型、webhook 接收／驗簽與文字淨化放在平台中立的 `platform-api.remote`，Fabric 單人／專用伺服器亦接同一套 API（[Fabric README](../fabric/README.md)，決定 #98–#102）。
 
 Hub 合併 PR 或 push 的 webhook，與可選定時 fetch，**都只提示、永遠不自動套用**。接收器預設關閉/loopback，只接受有大小、deadline、速率限制的 POST；HMAC-SHA256 constant-time，按 delivery 與簽章 body event id 持久去重。逐維度 push 還不代表發布完成，接收後背景 fetch 驗證完整 publication，成功才向有 pull 權限的玩家及 console 提示「遠端 main 有新版本，/wg pull 檢視」。
 
 玩家 `/wg pull` 取得預覽，120 秒內再明確 `/wg pull confirm <code>`；確認前重新 fetch，遠端 tips/URL 與本地 HEAD lease 改變即拒絕，要求重新預覽。世界套用只走既有 live coordinator、編輯鎖、玩家保護、存檔／verify／HEAD barrier；衝突進 Phase 3 MERGING，保持 #46。遊戲 push 沒有 force；PR merge/approve 只在網頁 3D 檢視完成。
 
-遊戲留言是只有請求者可見的非持久 TextDisplay，範圍用 per-player 粒子外框。Hub 資料當純文字，限制數量、長度與已載入 chunk；hide／離線／換維度清除，capture 額外排除插件的 display tags。Paper 停用同步清除；Folia 正常停服隨世界卸載消失，第三方熱卸載沒有立即跨 region 清理保證。安全邊界見 [Paper Phase 4 審查](../paper/docs/security-review-phase4-2026-10-03.md)，實測與 Fabric 接手摘要見 [14 Paper／Folia](14-phase4-progress.md#paper-folia)。
+Paper／Folia 遊戲留言是只有請求者可見的非持久 TextDisplay，範圍用 per-player 粒子外框。Hub 資料當純文字，限制數量、長度與已載入 chunk；hide／離線／換維度清除，capture 額外排除插件的 display tags。Paper 停用同步清除；Folia 正常停服隨世界卸載消失，第三方熱卸載沒有立即跨 region 清理保證。安全邊界見 [Paper Phase 4 審查](../paper/docs/security-review-phase4-2026-10-03.md)，實測與 Fabric 接手摘要見 [14 Paper／Folia](14-phase4-progress.md#paper-folia)。
+
+
+Fabric 留言以 comments-v1 有界快照送到請求者，由客戶端 literal HUD 與座標／範圍線框渲染，不建立實體、不入 capture；原版客戶端 show 明確說明需要模組，仍可讀文字清單。換維度、hide、撤權、離線清除。Fabric 單人新存檔／CLI clone 使用存檔內 `.worldgit/` 非秘密 remotes；PAT 使用使用者 config 600 credentials 檔或環境。單人不啟動 webhook port，選用定時 fetch 預設關閉，通知永遠不套用。專用伺服器沿 #95 receiver 與相同通知契約。細節與實測見 [14 Fabric](14-phase4-progress.md#fabric)。
 
 ## 6. Phase 4 core／CLI remote 契約（2026-10-03）
 
@@ -104,7 +107,7 @@ credentials:
 
 token 不寫 remotes.yml／git config／trees，不接受 URL 內秘密，禁止 HTTP redirect 轉送 Authorization；錯誤遮罩原 token、Authorization 與 URL userinfo，parser 不附秘密原文。平台自行保管設定及權限；不要把 credentials 檔放進世界 datapacks。公開 Hub clone 用明確 anonymous Basic，與既有 GitAuthFilter 一致。
 
-伺服器流程是：背景 executor `WorldRemotes.fetch` → `trackingHeads` → 在既有 live coordinator 取得 dry-run `WorldOperations.pull` 預覽 → 玩家/管理員明確執行套用 → 再次鎖編輯、flush、檢查 expectedHeads、applyAll/verify/HEAD barrier。fetch 自己完全不開 session.lock、不套用世界；preview/套用由 caller 以 `WorldOperations.live` 完成，不可對活世界建立離線 WorldOperations。遠端通知與 preview 不得自動觸發 apply。Paper/Folia 已依本節契約接線；Fabric 為接續任務。Hub 的 PR／帳號／受保護分支 HTTP 層已完成，見下節。
+伺服器流程是：背景 executor `WorldRemotes.fetch` → `trackingHeads` → 在既有 live coordinator 取得 dry-run `WorldOperations.pull` 預覽 → 玩家/管理員明確執行套用 → 再次鎖編輯、flush、檢查 expectedHeads、applyAll/verify/HEAD barrier。fetch 自己完全不開 session.lock、不套用世界；preview/套用由 caller 以 `WorldOperations.live` 完成，不可對活世界建立離線 WorldOperations。遠端通知與 preview 不得自動觸發 apply。Paper/Folia 與 Fabric 單人／專用伺服器已依本節契約接線。Hub 的 PR／帳號／受保護分支 HTTP 層已完成，見下節。
 
 跨維度 PARTIAL、安全重試、有界 packs、clone/export、裸合併與真平台驗收詳見 [14](14-phase4-progress.md)。分批 protocol 會產生多次 HTTP 認證。Phase 4 Hub 已把成功 PAT 與失敗認證分開：成功不消耗失敗額度，另限每 IP／使用者 6000 次/60 秒；錯誤憑證仍 30 次/60 秒、5 次失敗鎖 300 秒。一次多維度傳輸使用預設即可完成，不需提高 attempts；真正超額仍回 429，client 持久化 PARTIAL 供安全重試。
 
@@ -116,4 +119,4 @@ token 不寫 remotes.yml／git config／trees，不接受 URL 內秘密，禁止
 
 ZIP 固定建立 release 時的 tag commit map；逐 region 暫存後串流，預設 512 MiB／300 秒／2 個並行，不保存 ZIP 快取，私人世界每次下載重新授權。downloads.limits 解析額度獨立且有限，預設輸入／解壓各 512 MiB、2000 萬 nodes；超額或磁碟錯誤中止，暫存與下載許可必定釋放。單 region 套用與阻塞的客戶端輸出沒有硬截止期限，反向代理仍須配置 idle/write timeout。實際持有 owner 鎖直到串流完成，同 owner 推送／合併期間下載可回 503。
 
-給 Paper／Fabric：以 PAT 呼叫 `POST/GET …/pulls`、`GET …/pulls/{id}`、`GET …/comments?pinned=true&dimension=…`、`GET …/releases`；REST 路徑、分頁與 JSON 範例見 README。webhook payload 有 `world` 與 `data.target`／`data.commits`（PR merged），或 `data.dimension/ref/old/new`（Git push）；Git push 是逐維度事件，尚不代表全世界發布完成。接收方驗 `X-WorldGit-Signature-256`、按 `X-WorldGit-Delivery` 去重，背景 fetch 驗證 publication 後才提示「main 有新版本」，玩家明確 `/wg pull` 再走 live coordinator。Paper/Folia 遊戲內指令與通知接線已完成（§5）；Fabric 為下一任務，兩者皆禁止通知自動套用。
+給 Paper／Fabric：以 PAT 呼叫 `POST/GET …/pulls`、`GET …/pulls/{id}`、`GET …/comments?pinned=true&dimension=…`、`GET …/releases`；REST 路徑、分頁與 JSON 範例見 README。webhook payload 有 `world` 與 `data.target`／`data.commits`（PR merged），或 `data.dimension/ref/old/new`（Git push）；Git push 是逐維度事件，尚不代表全世界發布完成。接收方驗 `X-WorldGit-Signature-256`、按 `X-WorldGit-Delivery` 去重，背景 fetch 驗證 publication 後才提示「main 有新版本」，玩家明確 `/wg pull` 再走 live coordinator。Paper/Folia 與 Fabric 遊戲內指令與通知接線已完成（§5），各端皆禁止通知自動套用。

@@ -15,11 +15,10 @@ final class LiveMetadata {
             var target=Nbt.read(entry.getValue());
             var current=org.worldgit.core.anvil.WorldLayout.readGzip(runtime.worldRoot().resolve("level.dat")).compound("Data");
             for(String field:OfflineApplier.LEVEL_FIELDS)
-                if(!supported(field) && !equal(target.get(field),current.get(field)))
+                if(!supported(field) && !org.worldgit.fabric.logic.MetadataCompatibility.equivalent(field,target.get(field),current.get(field)))
                     throw new IOException("此世界設定需離線 restore："+field);
         }
     }
-    private static boolean equal(Object a,Object b) { return a==null || b==null ? a==b : Nbt.equal(new Nbt.Compound().with("v",a),new Nbt.Compound().with("v",b)); }
     private static boolean supported(String field) {
         return field.startsWith("Border") || Set.of("GameRules","game_rules","SpawnX","SpawnY","SpawnZ","SpawnAngle","spawn","Difficulty","DifficultyLocked").contains(field);
     }
