@@ -1,0 +1,380 @@
+{
+  "date": "2026-10-04",
+  "success": true,
+  "artifacts": {
+    "initial_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3",
+    "final_sha256": "8e8b00a4d098e0771cba871ce23d0715e2093e38fdedc3b2863abde0d61f3243",
+    "changed_entries": [
+      "org/worldgit/paper/CommandSuggestions.class"
+    ]
+  },
+  "unit_tests": [
+    {
+      "class": "CommandTreeTest",
+      "tests": 5,
+      "report": {
+        "path": "paper/common/build/test-results/test/TEST-org.worldgit.paper.CommandTreeTest.xml",
+        "sha256": "c1b3a50a2c7f9e2dff8c20bda0d1dffef81ea673cf34d3066821f88bc63a8599"
+      }
+    },
+    {
+      "class": "CommandSuggestionsTest",
+      "tests": 5,
+      "report": {
+        "path": "paper/common/build/test-results/test/TEST-org.worldgit.paper.CommandSuggestionsTest.xml",
+        "sha256": "1fcc75135a1dcdb9ed8ecb77d44633bcfbfb1f8fc5bb88c772ba16c154c53615"
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "version": "1.21.11",
+      "result": {
+        "path": ".work/brigadier/paper-1.21.11-1791107299/results.json",
+        "sha256": "6db75ad82e795a598642b89910649238f54bd534ad997300cdc25235a2ff45ee"
+      },
+      "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3",
+      "op_command_count": 29,
+      "deop_commands": [
+        "clear",
+        "help",
+        "log"
+      ],
+      "files": [
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-root.png",
+          "sha256": "8fa0f9afff3b61d51f1be365742bd06371712c65cc7eb0b09b1fef1b26d188cb"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-switch-tooltip.png",
+          "sha256": "902ec5f88510b8488b84136010c20d83a0bdbde2147732dd2a2d12a8082b8454"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-resolve-tooltip.png",
+          "sha256": "c50a46fc9d127442b0ccfaf8bf2ade29092d6f935b84581fa527da3e92fa8a73"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-restore-relative.png",
+          "sha256": "0be6ee93bee02ae900e67bf65f2a703da950cd3c13aa89e4d5ba95fc0928aef9"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-restore-complete.png",
+          "sha256": "c673d774588bb01d022eefcfe431acb80b483fbeacc3bc74510757da932cb79b"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-pr-tooltip.png",
+          "sha256": "13c585f87c696fcff5c6770d62c72feece938c85c28da77c0949e83c8f098d7f"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-integer-error.png",
+          "sha256": "16cefb9ba27f4929ac1f556e29adb97a1c844e29fc1acf02cd79558f5ee32df9"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-coordinate-error.png",
+          "sha256": "cf1077d204ccfc3a26636e8e7c611f08de216cdf121e53f25d44c395aa62b428"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-1.21.11-no-permission-root.png",
+          "sha256": "6a57a5002b01e637a5b3f0a3085ae3a8a3cf1bc22f0706d9473f9a37ad29579d"
+        }
+      ],
+      "checks": [
+        "[09:51:17] [Render thread/INFO] (PaperBrigadierEvidence) BRIGADIER tree=[cancel, pr, resolve, log, commit, remote, branch, switch, reload, merge, conflicts, conflict-preview, init, comments, restore, clear, cherry-pick, diff, revert, tool, push, pull, help, fetch, reset, comment, conflict-select, status, stash] position=BlockPosArgument dimension=IdentifierArgument",
+        "[09:51:31] [Render thread/INFO] (PaperBrigadierEvidence) BRIGADIER error input=wg log nope cursor=7 message={<argument limit:integer(1, 100)>=com.mojang.brigadier.exceptions.CommandSyntaxException: Expected integer at position 7: wg log <--[HERE]}",
+        "[09:51:31] [Render thread/INFO] (PaperBrigadierEvidence) BRIGADIER error input=wg restore HEAD --box ~ nope ~ cursor=22 message={<argument from:net.minecraft.commands.arguments.coordinates.BlockPosArgument@41f7877a>=com.mojang.brigadier.exceptions.CommandSyntaxException: Expected integer at position 24: ...D --box ~ <--[HERE]}",
+        "[09:51:31] [Render thread/INFO] (PaperBrigadierEvidence) BRIGADIER viewer=[help, log, clear]",
+        "[09:51:32] [Test thread/INFO] (PaperBrigadierEvidence) BRIGADIER DONE"
+      ]
+    },
+    {
+      "version": "26.2",
+      "result": {
+        "path": ".work/brigadier/paper-26.2-1791107122/results.json",
+        "sha256": "1e46bda89e07d4a3e9c5c4c9415bb702a541c3cf8fe9ffd677cf2a55055d0ba5"
+      },
+      "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3",
+      "op_command_count": 29,
+      "deop_commands": [
+        "clear",
+        "help",
+        "log"
+      ],
+      "files": [
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-root.png",
+          "sha256": "6f7408f4c07bb178f33267f2ca6e9808b89ed095d958a38eefd614e9b987bcb5"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-switch-tooltip.png",
+          "sha256": "4533fd73cd636cd6710a89f3d44dd74e7a340f0fca42cee8af3200f06ff97106"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-resolve-tooltip.png",
+          "sha256": "a2c90cf14637a92331f3a7e431b686bda15143684591835b8ad2ef0fec446de6"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-restore-relative.png",
+          "sha256": "8deaa385a75144bbadcc41c4a1f6b1476f634e61f719b7761ef8c836b90e65d0"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-restore-complete.png",
+          "sha256": "b31232f7497351dceafa38a5b2aeef19a6b8b4932893350f7314fa14b1b52cbc"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-pr-tooltip.png",
+          "sha256": "df034e001ccc0b41696f2e7b1c8e1b3f1eeb920f56ba0821760f71b278573625"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-integer-error.png",
+          "sha256": "968ca98b070b1c02248a7ee57fbc4d7bceedc4bae0005e4b3dca27fff124297d"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-coordinate-error.png",
+          "sha256": "62053acd60a4cc9b4f3c6dac5e56665a18a76afec0098e5e637f46ffda028aab"
+        },
+        {
+          "path": "paper/docs/screenshots/brigadier/paper-26.2-no-permission-root.png",
+          "sha256": "b6fe69ee560e412d7135555b1868edf85be41b197eda2c53e5c880a9f10b1993"
+        }
+      ],
+      "checks": [
+        "[09:48:02] [Render thread/INFO] (PaperBrigadierEvidence) BRIGADIER tree=[cancel, pr, resolve, log, commit, remote, branch, switch, reload, merge, conflicts, conflict-preview, init, comments, restore, clear, cherry-pick, diff, revert, tool, push, pull, help, fetch, reset, comment, conflict-select, status, stash] position=BlockPosArgument dimension=IdentifierArgument",
+        "[09:48:16] [Render thread/INFO] (PaperBrigadierEvidence) BRIGADIER error input=wg log nope cursor=7 message={<argument limit:integer(1, 100)>=com.mojang.brigadier.exceptions.CommandSyntaxException: Expected integer at position 7: wg log <--[HERE]}",
+        "[09:48:16] [Render thread/INFO] (PaperBrigadierEvidence) BRIGADIER error input=wg restore HEAD --box ~ nope ~ cursor=22 message={<argument from:net.minecraft.commands.arguments.coordinates.BlockPosArgument@62cc20e8>=com.mojang.brigadier.exceptions.CommandSyntaxException: Expected integer at position 24: ...D --box ~ <--[HERE]}",
+        "[09:48:16] [Render thread/INFO] (PaperBrigadierEvidence) BRIGADIER viewer=[help, log, clear]",
+        "[09:48:17] [Test thread/INFO] (PaperBrigadierEvidence) BRIGADIER DONE"
+      ]
+    }
+  ],
+  "nms_compatibility": {
+    "success": true,
+    "cases": [
+      {
+        "version": "1.21.11",
+        "command": [
+          "python3",
+          "paper/tools/check_binary_compat.py",
+          "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar",
+          ".work/servers/paper-1.21.11/server.jar",
+          "org.worldgit.paper.v1_21_11.Bridge_1_21_11"
+        ],
+        "exit": 0,
+        "seconds": 37.32029472000431,
+        "log": ".work/brigadier/nms-compat-1.21.11.log",
+        "log_sha256": "88839f85300a1b1350dab99ea106cf438d5a8ce2795efc4cad26e9c68a766066"
+      },
+      {
+        "version": "26.2",
+        "command": [
+          "python3",
+          "paper/tools/check_binary_compat.py",
+          "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar",
+          ".work/servers/paper-26.2/server.jar",
+          "org.worldgit.paper.v26_2.Bridge_26_2"
+        ],
+        "exit": 0,
+        "seconds": 33.39705569500802,
+        "log": ".work/brigadier/nms-compat-26.2.log",
+        "log_sha256": "20b1d56141e945e396a731360eb72d5929974c50293085482929e02505f4fa05"
+      }
+    ]
+  },
+  "regression_screenshots": [
+    {
+      "original": "paper/docs/screenshots/phase4/folia-1.21.11-phase4-comments-hidden.png",
+      "evidence": ".work/brigadier/regression-screenshots/folia-1.21.11-phase4-comments-hidden.png",
+      "sha256": "09cf17858b1c246f46ad2f61dc661504eb61c739f043aa687a470db91c115d84"
+    },
+    {
+      "original": "paper/docs/screenshots/phase4/folia-1.21.11-phase4-comments-visible.png",
+      "evidence": ".work/brigadier/regression-screenshots/folia-1.21.11-phase4-comments-visible.png",
+      "sha256": "ad086ffc546f4e2eba892628da7ffe17ec91c901189d6f6d297203be7329609a"
+    },
+    {
+      "original": "paper/docs/screenshots/phase4/folia-26.2-phase4-comments-hidden.png",
+      "evidence": ".work/brigadier/regression-screenshots/folia-26.2-phase4-comments-hidden.png",
+      "sha256": "5e3e0b56a112a14aed5657f0e9c014352d736ada163ef8ebaee1c9792222e7e1"
+    },
+    {
+      "original": "paper/docs/screenshots/phase4/folia-26.2-phase4-comments-visible.png",
+      "evidence": ".work/brigadier/regression-screenshots/folia-26.2-phase4-comments-visible.png",
+      "sha256": "86d582aa76e04d03b5185e29234386b47505aa6b6fa830a9bb8481d33910b702"
+    },
+    {
+      "original": "paper/docs/screenshots/phase4/paper-1.21.11-phase4-comments-hidden.png",
+      "evidence": ".work/brigadier/regression-screenshots/paper-1.21.11-phase4-comments-hidden.png",
+      "sha256": "9466df950dd2ac1c16f146b78d4ab4bee2ba17ef471e3bf9dc24d78c94180738"
+    },
+    {
+      "original": "paper/docs/screenshots/phase4/paper-1.21.11-phase4-comments-visible.png",
+      "evidence": ".work/brigadier/regression-screenshots/paper-1.21.11-phase4-comments-visible.png",
+      "sha256": "ebfdc8e68ff75bfbfb73087a1cdfbc752a38c15fdc73d604b0d82fa1004fbdcc"
+    },
+    {
+      "original": "paper/docs/screenshots/phase4/paper-26.2-phase4-comments-hidden.png",
+      "evidence": ".work/brigadier/regression-screenshots/paper-26.2-phase4-comments-hidden.png",
+      "sha256": "ed1514727bca567825069348e4b0d4dbff1395e561d0a4296ed4e5d313888aba"
+    },
+    {
+      "original": "paper/docs/screenshots/phase4/paper-26.2-phase4-comments-visible.png",
+      "evidence": ".work/brigadier/regression-screenshots/paper-26.2-phase4-comments-visible.png",
+      "sha256": "d240797b73beac9a5337214c330d1fdf0fef342f2e49189aa8a0ddf851473788"
+    }
+  ],
+  "regressions": {
+    "command": "python3 paper/tools/phase4_regressions.py --phase4",
+    "initial_success": false,
+    "initial_results": {
+      "path": ".work/paper-phase4/regressions-1791107494/results.json",
+      "sha256": "f682e4c4dbc4472414424e4f69d5515806198b19dd172a5908b95309fc10c96b"
+    },
+    "retry_command": "python3 paper/tools/phase4_regressions.py --case paper-1.21.11-phase3",
+    "retry_success": true,
+    "retry_results": {
+      "path": ".work/paper-phase4/regressions-1791119391/results.json",
+      "sha256": "b632f91ee67ef6530011add4fe7574d78af70d8f0763991759965b2a79fcffca"
+    },
+    "final_cases": [
+      {
+        "name": "paper-1.21.11-phase4",
+        "exit": 0,
+        "seconds": 511.66257030999986,
+        "log": ".work/paper-phase4/regressions-1791107494/paper-1.21.11-phase4.log",
+        "log_sha256": "c6bab61e3ac7d2fb64903693243f152d5b33631d972c04e81faab65f74fa0f5a",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "paper-26.2-phase4",
+        "exit": 0,
+        "seconds": 546.4766536149546,
+        "log": ".work/paper-phase4/regressions-1791107494/paper-26.2-phase4.log",
+        "log_sha256": "300798023439cfe19d181db659054ae92fa58a083da3181475ca5aca6504a360",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "folia-1.21.11-phase4",
+        "exit": 0,
+        "seconds": 544.931787982001,
+        "log": ".work/paper-phase4/regressions-1791107494/folia-1.21.11-phase4.log",
+        "log_sha256": "ff8bb4628bd8a56e910e179dce1d52b8c7bb442a254ed3b9a3113c0300ed18a4",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "folia-26.2-polling",
+        "exit": 0,
+        "seconds": 552.8698945090291,
+        "log": ".work/paper-phase4/regressions-1791107494/folia-26.2-polling.log",
+        "log_sha256": "1267c3953554c7a9237f854a158bef57ddd3e041d43ebd58000c1c13eb195f71",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "paper-1.21.11-phase2",
+        "exit": 0,
+        "seconds": 641.4767597300233,
+        "log": ".work/paper-phase4/regressions-1791107494/paper-1.21.11-phase2.log",
+        "log_sha256": "065ac98e1456449e4c3cc98fbef588327854c7998442e7e90ed62df2225ff099",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "paper-1.21.11-phase3",
+        "exit": 0,
+        "seconds": 1558.5495300270268,
+        "log": ".work/paper-phase4/regressions-1791119391/paper-1.21.11-phase3.log",
+        "log_sha256": "8041da6877f3390b4d9279d607dbafc8412ad27c0b38a16676f9f64f8a9410c1",
+        "plugin_sha256": "8e8b00a4d098e0771cba871ce23d0715e2093e38fdedc3b2863abde0d61f3243"
+      },
+      {
+        "name": "paper-1.21.11-interop",
+        "exit": 0,
+        "seconds": 391.33834049798315,
+        "log": ".work/paper-phase4/regressions-1791107494/paper-1.21.11-interop.log",
+        "log_sha256": "fe6d6bc816851bda0d9b7aaafaed37ad6c996e7375114af842f26a12fcdc4e2d",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "paper-26.2-phase2",
+        "exit": 0,
+        "seconds": 606.6825409730081,
+        "log": ".work/paper-phase4/regressions-1791107494/paper-26.2-phase2.log",
+        "log_sha256": "f0ef044faa9b8f7c70283a6610cbcd8069219940183da599d2543664bef877d4",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "paper-26.2-phase3",
+        "exit": 0,
+        "seconds": 1511.8623212450184,
+        "log": ".work/paper-phase4/regressions-1791107494/paper-26.2-phase3.log",
+        "log_sha256": "cef2acb1a703eb9ea0c33d352fab85d95274606e4e01243ff5584a9786cd9870",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "paper-26.2-interop",
+        "exit": 0,
+        "seconds": 412.64895872899797,
+        "log": ".work/paper-phase4/regressions-1791107494/paper-26.2-interop.log",
+        "log_sha256": "28ee7b37c862848a5cf8a315167e959ba8a29a091959558a2c3d3f9200c4a16d",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "folia-1.21.11-phase2",
+        "exit": 0,
+        "seconds": 558.8442528419546,
+        "log": ".work/paper-phase4/regressions-1791107494/folia-1.21.11-phase2.log",
+        "log_sha256": "cd481aa9c7ff2871968deb0141e816a6d76bb99854fe00b639b38fb4bb41d600",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "folia-1.21.11-phase3",
+        "exit": 0,
+        "seconds": 1464.9936512839631,
+        "log": ".work/paper-phase4/regressions-1791107494/folia-1.21.11-phase3.log",
+        "log_sha256": "419d56fbaf29f1b03ebec5fec66ececf92215e1a6841b1ee49b3debe5d50efef",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "folia-1.21.11-interop",
+        "exit": 0,
+        "seconds": 440.62015471904306,
+        "log": ".work/paper-phase4/regressions-1791107494/folia-1.21.11-interop.log",
+        "log_sha256": "cfa343cd2f49ff703a5b53c165a206f3bfb7f4e5ad3b244590968092dcafd1bb",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "folia-26.2-phase2",
+        "exit": 0,
+        "seconds": 546.9280756959924,
+        "log": ".work/paper-phase4/regressions-1791107494/folia-26.2-phase2.log",
+        "log_sha256": "a2d2db0faf0fe59eeefdfa214b54e381d14361e700043dd7c7750639ff797f93",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "folia-26.2-phase3",
+        "exit": 0,
+        "seconds": 1346.4316833979683,
+        "log": ".work/paper-phase4/regressions-1791107494/folia-26.2-phase3.log",
+        "log_sha256": "3d921df15d0861f664d4cd6101a93318dbc387a6a677b8d7d80bdab6f815f486",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      },
+      {
+        "name": "folia-26.2-interop",
+        "exit": 0,
+        "seconds": 421.9338074250263,
+        "log": ".work/paper-phase4/regressions-1791107494/folia-26.2-interop.log",
+        "log_sha256": "e37a0fbd14626c1d669a08639f0d208a1c20f0350be2c21dde91f9015e663c43",
+        "plugin_sha256": "e966ea25dfffd1a2b2db8fd4f56bf02644794ca631fb71793d7d3e763fe989a3"
+      }
+    ]
+  },
+  "build": {
+    "command": "GRADLE_USER_HOME=.work/gradle-home npm_config_cache=.work/npm-cache PLAYWRIGHT_BROWSERS_PATH=.work/ms-playwright flock .work/bench.lock ./gradlew --no-daemon --configure-on-demand --max-workers=1 build",
+    "success": true,
+    "log": {
+      "path": ".work/brigadier/final-build.log",
+      "sha256": "968b9fa21b61383c5cf03624ff4a03604d2e02f22ec308f5ee3e43b0d44bfbf2"
+    }
+  },
+  "notes": [
+    "首次完整 16 組有一組等待舊 parser 的 /wg merge 用法而逾時；改驗原生錯誤 cursor 與完整 MergeState 不變後，完整重跑該組通過。",
+    "截圖與原始矩陣使用 initial_sha256；後續僅增加非空間衝突的空座標 tooltip 保護，由單元測試與補驗的新 jar 覆蓋，兩個 jar 唯一不同 entry 為 CommandSuggestions.class。"
+  ]
+}

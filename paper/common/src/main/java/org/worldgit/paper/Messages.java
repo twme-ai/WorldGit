@@ -36,6 +36,7 @@ final class Messages {
 
   static void configure(MessageCatalog value, String language) { catalog = Objects.requireNonNull(value); defaultLocale = MessageCatalog.normalizeLocale(language); }
   static void reload() { catalog.reload(); }
+  static String language(CommandSender sender) { return MessageCatalog.normalizeLocale(sender instanceof Player p ? p.getLocale() : defaultLocale); }
   static <T> T inLocale(CommandSender sender, Supplier<T> work) {
     String previous = LOCALE.get();
     LOCALE.set(MessageCatalog.normalizeLocale(sender instanceof Player p ? p.getLocale() : defaultLocale));
@@ -69,6 +70,7 @@ final class Messages {
     return map;
   }
   static Component line(String key, Object... args) { return raw("common.prefix", currentPalette, Map.of()).append(raw(key, currentPalette, pairs(args))); }
+  static Component text(String key, Object... args) { return raw(key, currentPalette, pairs(args)); }
   static Component prefix() { return raw("common.prefix", currentPalette, Map.of()); }
   static Component info(String text) { return prefix().append(Component.text(text, NamedTextColor.GRAY)); }
   static Component ok(String text) { return prefix().append(Component.text(text, NamedTextColor.GREEN)); }

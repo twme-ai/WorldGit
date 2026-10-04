@@ -300,7 +300,7 @@ clone 出來的資料夾就是完整的單人世界（光照與 POI 由遊戲重
 
 ### 6.2 權限
 
-所有寫入類指令預設僅 op。`worldgit.admin` 包含全部指令與 `worldgit.notify`（接收通知）。
+所有寫入類指令預設僅 op。`worldgit.admin` 包含所有正式指令與 `worldgit.notify`（接收通知）。
 
 | 權限 | 指令 | 預設 |
 |---|---|---|
@@ -313,6 +313,8 @@ clone 出來的資料夾就是完整的單人世界（光照與 POI 由遊戲重
 | `worldgit.command.merge`／`resolve`／`conflicts`／`tool`／`revert`／`cherry-pick` | Phase 3 合併（`conflict-select` 與 `resolve` 共用權限） | op |
 | `worldgit.command.remote`／`fetch`／`push`／`pull`／`pr`／`comment` | Phase 4 遠端協作 | op |
 | `worldgit.debug` | `/wg debug`（開發用，預設只有主控台） | false |
+
+Paper／Folia 會依權限把完整指令樹傳給客戶端；預設非 op 玩家只看得到 `/wg log`、`/wg clear`、`/wg help`。`/wg help [子指令]` 只列出你可用的指令，點擊用法可填入聊天列。tool、diff、clear 與衝突預覽限玩家；debug 對玩家另需明確授予 `worldgit.debug`。
 
 ### 6.3 設定檔重點（`plugins/WorldGit/config.yml`）
 
@@ -350,14 +352,21 @@ extent:
 /wg commit -m 活動場地完成
 /wg log 20
 /wg diff --show --radius 6          # 玩家附近明細；hover 看前後狀態、點擊填入傳送指令
-/wg restore HEAD~1 --selection      # 用 WorldEdit 選區還原
-/wg restore HEAD~2 --chunks 3 --dry-run
+/wg restore "HEAD~1" --selection      # 用 WorldEdit 選區還原
+/wg restore "HEAD~2" --chunks 3 --dry-run
+/wg restore HEAD --box ~ ~ ~ ~3 ~4 ~5 --dry-run   # 兩個相對於指令來源的方塊座標
 /wg switch event-map --stash
 /wg branch event-map
 /wg stash push|pop|list|drop
 /wg reset --hard
 /wg cancel
 ```
+
+`/wg`（別名 `/worldgit`）使用 Paper Brigadier：聊天列會上色、逐參數提示，錯誤型別會以紅字指出位置。補全分支／revision 可查看短 hash 與訊息，stash 可查看訊息；log 數量限 1–100、diff 半徑限 1–32、restore 的 chunks 半徑限 0–256。既有 `--xxx` 旗標可任意排列，selection／chunks／box 擇一。含特殊字元的分支／revision 補全會加雙引號，舊未加引號寫法仍可執行。
+
+commit 的 `-m` 與 stash 訊息取後面全部文字；PR 建議 `/wg pr create --source topic --target main 標題`，原本標題後放旗標也可用。若標題／留言本身含 `--source`、`--target` 或 `--here`，以雙引號括住文字，避免當成選項。PR／衝突編號建議用純數字（如 `/wg resolve 1 ours`）；`#1` 仍相容，但原生整數提示會標紅。
+
+`/wg reload` 只重載語言覆寫。指令透過 Paper Lifecycle 註冊，在伺服器需要重建指令時會重新註冊；更新插件 jar 或伺服器設定請重新啟動。第三方熱重載未驗收。
 
 沒裝 Fabric 模組的玩家看 `--show` 時，會用只有自己看得到的發光 BlockDisplay 描邊代替鬼影，`show.display-seconds`（預設 60 秒）後自動消失。
 
@@ -531,6 +540,8 @@ remote:
 ## 8. 伺服器上的玩家／建築者
 
 你能做什麼取決於伺服器給你的權限，以下是常見情境。
+
+連 Paper／Folia 時，輸入 `/wg ` 按 Tab 只會列出你有權限的子指令，`/wg help` 也會過濾並提供可點擊填入的用法。不需安裝模組就能使用語法上色與參數提示；輸入 `/wg switch `、`/wg resolve ` 或 `/wg pr view ` 時，可在補全清單查看分支訊息、MERGING 衝突資料或 PR 標題。Hub 暫時無回應時補全可能為空，稍後再試；查詢不會改動世界。
 
 ### 8.1 查看與預覽
 

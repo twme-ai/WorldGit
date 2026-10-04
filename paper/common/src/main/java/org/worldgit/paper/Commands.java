@@ -22,8 +22,7 @@ import org.worldgit.protocol.Protocol;
  * /wg init | status | commit | log | diff | clear。所有重工作都在背景 repo 執行緒，指令本身立刻返回；
  * 結果以聊天訊息送回（Player 走自己的 entity scheduler，Folia 安全）。權限節點見 plugin.yml。
  */
-final class Commands implements CommandExecutor, TabCompleter {
-  private static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "tool", "conflicts", "conflict-preview", "conflict-select", "revert", "cherry-pick", "remote", "fetch", "push", "pull", "pr", "comments", "comment", "help");
+final class Commands implements CommandTree.Actions {
   private final WorldGitPlugin plugin;
   private final Debug debug;
 
@@ -49,77 +48,58 @@ final class Commands implements CommandExecutor, TabCompleter {
     else send.run();
   }
 
-  static String permission(String sub) { return sub.equals("conflict-select") ? "resolve" : sub.equals("comments") ? "comment" : sub; }
-
-  private boolean allowed(CommandSender sender, String sub) {
-    if (sender.hasPermission("worldgit.command." + permission(sub)) || sender.hasPermission("worldgit.admin")) return true;
-    reply(sender, Messages.permission(permission(sub)));
-    return false;
-  }
-
   @Override
-  public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-    return Messages.inLocale(sender, () -> execute(sender, args));
-  }
-
-  private boolean execute(CommandSender sender, String[] args) {
-    if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
-      help(sender);
-      return true;
+  public void run(io.papermc.paper.command.brigadier.CommandSourceStack source, CommandRequest request)
+      throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    CommandSender sender = source.getSender();
+    // 原生 resolver 的型別錯誤交回 Brigadier；業務錯誤仍使用既有 i18n。
+    Scope scope = Scope.all();
+    if (request.value("from", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class) != null) {
+      var from = request.value("from", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class).resolve(source);
+      var to = request.value("to", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class).resolve(source);
+      scope = Scope.box(from.blockX(), from.blockY(), from.blockZ(), to.blockX(), to.blockY(), to.blockZ());
     }
-    String sub = args[0].toLowerCase(Locale.ROOT);
-    if (sub.equals("debug")) {
-      if (!(sender instanceof ConsoleCommandSender) && !sender.hasPermission("worldgit.debug")) {
-        reply(sender, Messages.debugPermission());
-        return true;
-      }
+    if (request.command().startsWith("debug.")) { debug.run(source, request); return; }
+    Scope selected = scope;
+    Messages.inLocale(sender, () -> {
+      String command = request.command();
+      String sub = command.contains(".") ? command.substring(0, command.indexOf('.')) : command;
       try {
-        debug.run(sender, Arrays.copyOfRange(args, 1, args.length));
-      } catch (RuntimeException e) {
-        reply(sender, Messages.error(String.valueOf(e.getMessage())));
+        switch (sub) {
+          case "remote", "fetch", "push", "pull", "pr", "comments", "comment" -> plugin.remote().run(sender, request);
+          case "merge", "resolve", "conflict-select", "revert", "cherry-pick" -> merge(sender, request);
+          case "tool" -> plugin.merges().tool((Player) sender);
+          case "conflicts", "conflict-preview" -> conflicts(sender, request);
+          case "init" -> init(sender, command.equals("init.survival") ? "survival" : "creative");
+          case "status" -> status(sender, request.flag("--show"), request.flag("--full"));
+          case "commit" -> commit(sender, request.text("text").trim());
+          case "log" -> log(sender, request.number("limit", 10));
+          case "diff" -> diff(sender, request.flag("--show"), request.number("radius", plugin.settings().showRadiusChunks()));
+          case "clear" -> clear(sender);
+          case "reload" -> reload(sender);
+          case "restore", "switch", "branch", "stash", "reset" -> operation(sender, request, selected);
+          case "cancel" -> reply(sender, Messages.line(plugin.repo().cancel() ? "paper.apply.cancel-requested" : "paper.apply.no-operation"));
+          case "help" -> help(source, request.text("topic"));
+          default -> throw new IllegalArgumentException(command);
+        }
+      } catch (UserError e) { reply(sender, Messages.line(e.key, e.args)); }
+      catch (IllegalArgumentException e) { reply(sender, Messages.error(e.getMessage())); }
+      catch (RuntimeException e) {
+        plugin.getLogger().log(Level.WARNING, "指令 /wg " + sub + " 失敗", e);
+        reply(sender, Messages.error(e.toString()));
       }
-      return true;
-    }
-    if (!SUBS.contains(sub)) {
-      reply(sender, Messages.line("paper.error.unknown-command", "sub", sub), Messages.line("paper.error.help-command"));
-      return true;
-    }
-    if (!allowed(sender, sub)) return true;
-    var rest = Arrays.copyOfRange(args, 1, args.length);
-    try {
-      switch (sub) {
-        case "remote", "fetch", "push", "pull", "pr", "comments", "comment" -> plugin.remote().run(sender,sub,rest);
-        case "merge", "resolve", "conflict-select", "revert", "cherry-pick" -> merge(sender,sub,rest);
-        case "tool" -> { if(rest.length!=0) throw bad("paper.merge.usage"); if(!(sender instanceof Player p)) throw bad("paper.error.player-only"); plugin.merges().tool(p); }
-        case "conflicts", "conflict-preview" -> conflicts(sender,sub,rest);
-        case "init" -> init(sender, rest);
-        case "status" -> status(sender, rest);
-        case "commit" -> commit(sender, rest);
-        case "log" -> log(sender, rest);
-        case "diff" -> diff(sender, rest);
-        case "clear" -> clear(sender);
-        case "reload" -> reload(sender);
-        case "restore", "switch", "branch", "stash", "reset" -> operation(sender,sub,rest);
-        case "cancel" -> { if(rest.length!=0) throw bad("paper.apply.usage"); reply(sender,Messages.line(plugin.repo().cancel() ? "paper.apply.cancel-requested" : "paper.apply.no-operation")); }
-        default -> help(sender);
-      }
-    } catch (UserError e) {
-      reply(sender, Messages.line(e.key, e.args));
-    } catch (IllegalArgumentException e) {
-      reply(sender, Messages.line("common.error", "message", e.getMessage()));
-    } catch (RuntimeException e) {
-      plugin.getLogger().log(Level.WARNING, "指令 /wg " + sub + " 失敗", e);
-      reply(sender, Messages.line("common.error", "message", e.toString()));
-    }
-    return true;
+    });
   }
 
-  private void help(CommandSender sender) {
-    reply(
-        sender,
-        Messages.line("paper.help.title"), Messages.line("paper.help.init"), Messages.line("paper.help.status"),
-        Messages.line("paper.help.commit"), Messages.line("paper.help.log"), Messages.line("paper.help.diff"),
-        Messages.line("paper.help.clear"), Messages.line("paper.help.reload"), Messages.line("paper.apply.help"),Messages.line("paper.merge.usage"),Messages.line("paper.remote.usage"));
+  private void help(io.papermc.paper.command.brigadier.CommandSourceStack source, String topic) {
+    var lines = new ArrayList<Component>();
+    lines.add(Messages.line("paper.help.title"));
+    for (String sub : CommandTree.SUBS) if ((topic == null || topic.equals(sub)) && CommandTree.allowed(source, sub)) {
+      lines.add(Messages.text("paper.command.help." + sub)
+          .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/wg " + sub + " "))
+          .hoverEvent(Messages.text("paper.command.help-click")));
+    }
+    reply(source.getSender(), lines);
   }
 
   private CommitMetadata.Identity identity(CommandSender sender) {
@@ -145,20 +125,13 @@ final class Commands implements CommandExecutor, TabCompleter {
 
   // ---------------------------------------------------------------- init
 
-  private void init(CommandSender sender, String[] args) {
-    String template = "creative";
-    for (int i = 0; i < args.length; i++) {
-      if (args[i].equals("--template") && i + 1 < args.length) template = args[++i];
-      else if (args[i].startsWith("--template=")) template = args[i].substring("--template=".length());
-      else throw bad("paper.error.unknown-option", "option", args[i]);
-    }
-    if (!Set.of("creative", "survival").contains(template))
-      throw bad("paper.error.init-template");
+  private void init(CommandSender sender, String template) {
     final String selectedTemplate = template;
     Messages.inLocale(sender, () -> reply(sender, Messages.line("paper.init.start", "template", selectedTemplate)));
     plugin.repo().init(template, WorldGitConfig.Track.ALL, identity(sender)).whenComplete((batch, error) -> Messages.inLocale(sender, () -> {
       if (error != null) { fail(sender, error); return; }
       var lines = new ArrayList<Component>();
+      plugin.suggestions().invalidateLocal();
       lines.add(Messages.line("paper.init.done"));
       lines.addAll(Messages.commit(batch, palette()));
       reply(sender, lines);
@@ -167,15 +140,7 @@ final class Commands implements CommandExecutor, TabCompleter {
 
   // ---------------------------------------------------------------- status
 
-  private void status(CommandSender sender, String[] args) {
-    boolean show = false, full = false;
-    for (String a : args) {
-      switch (a) {
-        case "--show" -> show = true;
-        case "--full" -> full = true;
-        default -> throw bad("paper.error.unknown-option", "option", a);
-      }
-    }
+  private void status(CommandSender sender, boolean show, boolean full) {
     final boolean fShow = show, fFull = full;
     Player player = sender instanceof Player p ? p : null;
     if (show && player == null) throw bad("paper.error.player-only");
@@ -238,10 +203,7 @@ final class Commands implements CommandExecutor, TabCompleter {
 
   // ---------------------------------------------------------------- commit
 
-  private void commit(CommandSender sender, String[] args) {
-    int m = Arrays.asList(args).indexOf("-m");
-    if (m < 0 || m + 1 >= args.length) throw bad("paper.error.commit-usage");
-    String message = String.join(" ", Arrays.copyOfRange(args, m + 1, args.length)).trim();
+  private void commit(CommandSender sender, String message) {
     if (message.isBlank()) throw bad("paper.error.commit-empty");
     if(plugin.merges().state()!=null) {
       plugin.repo().mergeOperation("merge commit",ops->ops.core().commitMerge(identity(sender),CommitMetadata.Source.PLUGIN,message,false))
@@ -256,6 +218,7 @@ final class Commands implements CommandExecutor, TabCompleter {
             fail(sender, error);
             return;
           }
+          plugin.suggestions().invalidateLocal();
           reply(sender, Messages.commit(batch, palette()));
           plugin.notifyCommit(batch, false);
         }));
@@ -263,15 +226,7 @@ final class Commands implements CommandExecutor, TabCompleter {
 
   // ---------------------------------------------------------------- log
 
-  private void log(CommandSender sender, String[] args) {
-    int limit = 10;
-    if (args.length > 0)
-      try {
-        limit = Integer.parseInt(args[0]);
-        if (limit < 1 || limit > 100) throw new NumberFormatException();
-      } catch (NumberFormatException e) {
-        throw bad("paper.error.log-limit");
-      }
+  private void log(CommandSender sender, int limit) {
     final int n = limit;
     plugin.repo().log(n).whenComplete((logs, error) -> Messages.inLocale(sender, () -> {
       if (error != null) {
@@ -287,21 +242,8 @@ final class Commands implements CommandExecutor, TabCompleter {
 
   // ---------------------------------------------------------------- diff
 
-  private void diff(CommandSender sender, String[] args) {
-    if (!(sender instanceof Player player)) throw bad("paper.error.diff-player");
-    boolean show = false;
-    int radius = plugin.settings().showRadiusChunks();
-    for (int i = 0; i < args.length; i++) {
-      if (args[i].equals("--show")) show = true;
-      else if (args[i].equals("--radius") && i + 1 < args.length)
-        try {
-          radius = Integer.parseInt(args[++i]);
-          if (radius < 1 || radius > 32) throw new NumberFormatException();
-        } catch (NumberFormatException e) {
-          throw bad("paper.error.diff-radius");
-        }
-      else throw bad("paper.error.unknown-option", "option", args[i]);
-    }
+  private void diff(CommandSender sender, boolean show, int radius) {
+    Player player = (Player) sender;
     final boolean fShow = show;
     var dimension = plugin.dimensionOf(player.getWorld()).orElseThrow(() -> bad("paper.error.diff-not-tracked"));
     Set<ChunkPos> window = WorldGitPlugin.window(player, radius);
@@ -376,62 +318,48 @@ final class Commands implements CommandExecutor, TabCompleter {
   }
 
   private record Applied(PaperOperations.Result result,String head) {}
-  private void operation(CommandSender sender,String sub,String[] args) {
-    if(sub.equals("branch")) {
-      if(args.length>2 || (args.length==2 && !args[0].equals("-d"))) throw bad("paper.apply.usage");
-      plugin.repo().operation("branch",ops->{
-        if(args.length==0) return ops.branches().stream().map(b->(b.current()?"* ":"  ")+b.name()+" "+b.commits()).toList();
-        if(args[0].equals("-d")) { if(args.length!=2) throw new IOException("/wg branch -d <name>"); ops.deleteBranch(args[1]); }
-        else ops.createBranch(args[0],null);
-        return List.of(args[args.length-1]);
-      }).whenComplete((rows,error)->Messages.inLocale(sender,()->{ if(error!=null) fail(sender,error); else { reply(sender,Messages.line("paper.apply.branch")); rows.forEach(r->reply(sender,Component.text(r))); } }));
+  private void operation(CommandSender sender, CommandRequest request, Scope scope) {
+    String command = request.command();
+    String sub = command.contains(".") ? command.substring(0, command.indexOf('.')) : command;
+    if (sub.equals("branch")) {
+      String name = request.text("branch");
+      plugin.repo().operation("branch", ops -> {
+        if (command.equals("branch.list")) return ops.branches().stream().map(b -> (b.current() ? "* " : "  ") + b.name() + " " + b.commits()).toList();
+        if (command.equals("branch.delete")) ops.deleteBranch(name); else ops.createBranch(name, null);
+        return List.of(name);
+      }).whenComplete((rows, error) -> Messages.inLocale(sender, () -> {
+        if (error != null) fail(sender, error);
+        else { plugin.suggestions().invalidateLocal(); reply(sender, Messages.line("paper.apply.branch")); rows.forEach(r -> reply(sender, Component.text(r))); }
+      }));
       return;
     }
-    if(sub.equals("stash") && args.length>=1 && Set.of("list","drop").contains(args[0])) {
-      if(args.length>2 || (args[0].equals("list") && args.length!=1)) throw bad("paper.apply.usage");
-      int index=args.length==2 ? Integer.parseInt(args[1]) : 0;
-      plugin.repo().operation("stash",ops->{
-        if(args[0].equals("drop")) { ops.stashDrop(index); return List.of("stash@{"+index+"}"); }
-        var list=ops.stashes(); var rows=new ArrayList<String>();
-        for(int i=0;i<list.size();i++) rows.add("stash@{"+i+"} "+list.get(i).time()+" "+list.get(i).message());
+    if (Set.of("stash.list", "stash.drop").contains(command)) {
+      int index = request.number("index", 0);
+      plugin.repo().operation("stash", ops -> {
+        if (command.equals("stash.drop")) { ops.stashDrop(index); return List.of("stash@{" + index + "}"); }
+        var list = ops.stashes(); var rows = new ArrayList<String>();
+        for (int i = 0; i < list.size(); i++) rows.add("stash@{" + i + "} " + list.get(i).time() + " " + list.get(i).message());
         return rows;
-      }).whenComplete((rows,error)->Messages.inLocale(sender,()->{ if(error!=null) fail(sender,error); else { reply(sender,Messages.line("paper.apply.stash")); rows.forEach(r->reply(sender,Component.text(r))); } }));
+      }).whenComplete((rows, error) -> Messages.inLocale(sender, () -> {
+        if (error != null) fail(sender, error);
+        else { plugin.suggestions().invalidateLocal(); reply(sender, Messages.line("paper.apply.stash")); rows.forEach(r -> reply(sender, Component.text(r))); }
+      }));
       return;
     }
-    String revision=null; boolean dry=false,force=false,stash=false; Scope scope=Scope.all(); DimensionId dimension=null;
-    if(sub.equals("restore")||sub.equals("switch")) {
-      if(args.length<1 || args[0].startsWith("--")) throw bad("paper.apply.usage");
-      revision=args[0];
-      boolean range=false;
-      for(int i=1;i<args.length;i++) switch(args[i]) {
-        case "--dry-run" -> dry=true;
-        case "--force" -> { if(!sub.equals("switch")) throw bad("paper.apply.usage"); force=true; }
-        case "--stash" -> { if(!sub.equals("switch")) throw bad("paper.apply.usage"); stash=true; }
-        case "--selection" -> {
-          if(!sub.equals("restore") || range || !(sender instanceof Player player)) throw bad("paper.apply.usage");
-          range=true; scope=WorldEditHook.selection(player); dimension=plugin.dimensionOf(player.getWorld()).orElseThrow(()->bad("paper.error.diff-not-tracked"));
-        }
-        case "--chunks" -> {
-          if(!sub.equals("restore")||range||i+1>=args.length) throw bad("paper.apply.usage");
-          int radius=Integer.parseInt(args[++i]); if(radius<0||radius>256) throw bad("paper.apply.usage");
-          var world=sender instanceof Player p ? p.getWorld() : plugin.getServer().getWorlds().getFirst();
-          var loc=sender instanceof Player p ? p.getLocation() : world.getSpawnLocation();
-          scope=Scope.chunkRadius(loc.getBlockX()>>4,loc.getBlockZ()>>4,radius); range=true;
-          dimension=plugin.dimensionOf(world).orElseThrow(()->bad("paper.error.diff-not-tracked"));
-        }
-        case "--box" -> {
-          if(!sub.equals("restore")||range||i+6>=args.length) throw bad("paper.apply.usage");
-          int x1=Integer.parseInt(args[++i]),y1=Integer.parseInt(args[++i]),z1=Integer.parseInt(args[++i]);
-          int x2=Integer.parseInt(args[++i]),y2=Integer.parseInt(args[++i]),z2=Integer.parseInt(args[++i]);
-          scope=Scope.box(x1,y1,z1,x2,y2,z2); range=true;
-          var world=sender instanceof Player p ? p.getWorld() : plugin.getServer().getWorlds().getFirst();
-          dimension=plugin.dimensionOf(world).orElseThrow(()->bad("paper.error.diff-not-tracked"));
-        }
-        default -> throw bad("paper.error.unknown-option","option",args[i]);
+    String revision = request.text("revision");
+    boolean dry = request.flag("--dry-run"), force = request.flag("--force"), stash = request.flag("--stash");
+    DimensionId dimension = null;
+    if (request.flag("--selection")) {
+      Player player = (Player) sender; scope = WorldEditHook.selection(player);
+      dimension = plugin.dimensionOf(player.getWorld()).orElseThrow(() -> bad("paper.error.diff-not-tracked"));
+    } else if (request.values().containsKey("chunks") || request.values().containsKey("from")) {
+      var world = sender instanceof Player p ? p.getWorld() : plugin.getServer().getWorlds().getFirst();
+      if (request.values().containsKey("chunks")) {
+        var loc = sender instanceof Player p ? p.getLocation() : world.getSpawnLocation();
+        scope = Scope.chunkRadius(loc.getBlockX() >> 4, loc.getBlockZ() >> 4, request.number("chunks", 0));
       }
-    } else if(sub.equals("reset")) { if(args.length!=1||!args[0].equals("--hard")) throw bad("paper.apply.usage"); }
-    else if(sub.equals("stash")) { if(args.length<1||args.length>2||!Set.of("push","pop").contains(args[0])) throw bad("paper.apply.usage"); }
-    else throw bad("paper.apply.usage");
+      dimension = plugin.dimensionOf(world).orElseThrow(() -> bad("paper.error.diff-not-tracked"));
+    }
     final String rev=revision; final boolean d=dry,f=force,st=stash; final Scope selected=scope; final DimensionId dim=dimension;
     reply(sender,Messages.line("paper.apply.start","target",rev==null ? sub : rev));
     plugin.repo().operation(rev==null ? sub : rev,ops->{
@@ -439,13 +367,14 @@ final class Commands implements CommandExecutor, TabCompleter {
         case "restore"->ops.restore(rev,dim,selected,d,false);
         case "switch"->ops.switchTo(rev,st,f,d,false);
         case "reset"->ops.resetHard(null,false,false);
-        case "stash"->args[0].equals("push") ? ops.stashPush(args.length==2 ? args[1] : null,false) : ops.stashPop(args.length==2 ? Integer.parseInt(args[1]) : 0,false);
+        case "stash" -> command.equals("stash.push") ? ops.stashPush(request.text("text"), false) : ops.stashPop(request.number("index", 0), false);
         default->throw new IOException("unknown operation");
       };
       return new Applied(result,ops.head());
     }).whenComplete((applied,error)->Messages.inLocale(sender,()->{
       if(plugin.repo().stopping()) return;
       if(error!=null) { fail(sender,error); return; }
+      plugin.suggestions().invalidateLocal();
       var r=applied.result();
       if(r.state()==PaperOperations.State.PARTIAL) reply(sender,Messages.line("paper.apply.partial","message",r.error()));
       else if(r.state()==PaperOperations.State.DRY_RUN) reply(sender,Messages.line("paper.apply.dry-run","stats",r.dimensions()));
@@ -456,20 +385,20 @@ final class Commands implements CommandExecutor, TabCompleter {
     }));
   }
 
-  private void merge(CommandSender sender,String sub,String[] args) {
-    if(sub.equals("resolve") || sub.equals("conflict-select")) {
-      RegionCommand selection;
-      try { selection=RegionCommand.parse(args); } catch(IllegalArgumentException error) { throw bad("paper.merge.usage"); }
-      var state=plugin.merges().state();
-      if(state==null) throw bad("paper.merge.none");
-      if(selection.id()!=0 && state.regions().stream().noneMatch(r->r.id()==selection.id()))
-        throw bad("paper.merge.unknown-region","id",selection.id());
-      boolean resolved=sub.equals("resolve");
-      plugin.repo().regionOperation(sub,ops->ops.core().selectRegion(selection.id(),selection.choice(),resolved,false))
-          .whenComplete((result,error)->plugin.merges().feedback(sender,result,error)); return;
+  private void merge(CommandSender sender, CommandRequest request) {
+    String command = request.command();
+    String sub = command.contains(".") ? command.substring(0, command.indexOf('.')) : command;
+    if (sub.equals("resolve") || sub.equals("conflict-select")) {
+      int id = command.contains(".all.") ? 0 : request.number("id", 0);
+      var choice = MergeReport.Choice.valueOf(command.substring(command.lastIndexOf('.') + 1).toUpperCase(Locale.ROOT));
+      var state = plugin.merges().state();
+      if (state == null) throw bad("paper.merge.none");
+      if (id != 0 && state.regions().stream().noneMatch(r -> r.id() == id)) throw bad("paper.merge.unknown-region", "id", id);
+      plugin.repo().regionOperation(sub, ops -> ops.core().selectRegion(id, choice, sub.equals("resolve"), false))
+          .whenComplete((result, error) -> plugin.merges().feedback(sender, result, error));
+      return;
     }
-    if(args.length!=1) throw bad("paper.merge.usage");
-    String revision=args[0]; if(revision.startsWith("--") && (!sub.equals("merge") || !Set.of("--abort","--continue").contains(revision))) throw bad("paper.merge.usage");
+    String revision = command.equals("merge.abort") ? "--abort" : command.equals("merge.continue") ? "--continue" : request.text("revision");
     var author=identity(sender);
     reply(sender,Messages.line("paper.merge.start","mode",sub,"target",revision));
     plugin.repo().mergeOperation(sub,ops->{
@@ -484,14 +413,12 @@ final class Commands implements CommandExecutor, TabCompleter {
     }).whenComplete((result,error)->plugin.merges().feedback(sender,result,error));
   }
 
-  private void conflicts(CommandSender sender,String sub,String[] args) {
-    if(sub.equals("conflict-preview") || (args.length>0 && args[0].equals("preview"))) {
-      if(!(sender instanceof Player p)) throw bad("paper.error.player-only");
-      int offset=sub.equals("conflict-preview") ? 0 : 1;
-      if(args.length!=offset+2) throw bad("paper.merge.usage");
-      int id=Integer.parseInt(args[offset].replaceFirst("^#",""));
-      var choice=MergeReport.Choice.valueOf(args[offset+1].toUpperCase(Locale.ROOT));
-      if(id<1 || choice==MergeReport.Choice.MANUAL) throw bad("paper.merge.usage");
+  private void conflicts(CommandSender sender, CommandRequest request) {
+    String command = request.command();
+    if (command.startsWith("conflict-preview.")) {
+      Player p = (Player) sender;
+      int id = request.number("id", 0);
+      var choice = MergeReport.Choice.valueOf(command.substring(command.lastIndexOf('.') + 1).toUpperCase(Locale.ROOT));
       if(!plugin.fabric().supports(p,org.worldgit.protocol.MergeProtocol.CAPABILITY)) throw bad("paper.diff.no-mod");
       // 查詢不需要 freeze；仍以 repo executor 序列化並拿 core 的持久化候選。
       plugin.repo().submit(()->{
@@ -505,44 +432,10 @@ final class Commands implements CommandExecutor, TabCompleter {
         }
       }).whenComplete((ignored,error)->{ if(error!=null) fail(sender,error); }); return;
     }
-    if(args.length>1) throw bad("paper.merge.usage");
-    if(sender instanceof Player p) { plugin.merges().open(p,args.length==1 ? Integer.parseInt(args[0])-1 : 0); return; }
+    if (sender instanceof Player p) { plugin.merges().open(p, request.number("page", 1) - 1); return; }
     var state=plugin.merges().state(); if(state==null) { reply(sender,Messages.line("paper.merge.none")); return; }
     reply(sender,Messages.line("paper.merge.status","count",state.remaining()));
     for(var r:state.regions()) reply(sender,Messages.line("paper.merge.region","id",r.id(),"count",r.blockCount()),Messages.line("paper.merge.coords","dimension",r.dimension(),"bounds",r.bounds()),Messages.line("paper.merge.region-status","choice",r.choice(),"status",r.resolved()));
   }
 
-  // ---------------------------------------------------------------- tab
-
-  @Override
-  public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-    if (args.length == 1) return SUBS.stream().filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT)) && (sender.hasPermission("worldgit.command." + permission(s)) || sender.hasPermission("worldgit.admin"))).toList();
-    String sub = args[0].toLowerCase(Locale.ROOT);
-    if(!sender.hasPermission("worldgit.command."+permission(sub)) && !sender.hasPermission("worldgit.admin")) return List.of();
-    String last = args[args.length - 1];
-    List<String> options =
-        switch (sub) {
-          case "remote" -> List.of("add","remove","list","set-url");
-          case "fetch", "push", "pull" -> List.of("origin","main","--tags");
-          case "pr" -> List.of("create","list","view","--source","--target");
-          case "comments" -> List.of("show","hide","--here","--dimension");
-          case "comment" -> List.of("--here");
-          case "init" -> args.length == 3 && args[1].equals("--template") ? List.of("creative", "survival") : List.of("--template");
-          case "status" -> List.of("--show", "--full");
-          case "diff" -> List.of("--show", "--radius");
-          case "commit" -> List.of("-m");
-          case "restore" -> List.of("HEAD","--selection","--chunks","--box","--dry-run");
-          case "switch" -> List.of("main","HEAD","--stash","--force");
-          case "branch" -> List.of("-d");
-          case "stash" -> List.of("push","pop","list","drop");
-          case "reset" -> List.of("--hard");
-          case "merge" -> List.of("main","HEAD","--abort","--continue");
-          case "resolve", "conflict-select" -> RegionCommand.suggestions(args, plugin.merges().state());
-          case "conflict-preview" -> args.length==3 ? List.of("ours","theirs","base") : RegionCommand.ids(plugin.merges().state(),false);
-          case "conflicts" -> List.of("preview");
-          case "revert", "cherry-pick" -> List.of("HEAD");
-          default -> List.of();
-        };
-    return options.stream().filter(o -> o.startsWith(last)).toList();
-  }
 }

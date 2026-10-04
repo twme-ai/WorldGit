@@ -6,11 +6,6 @@ folia-supported: true
 description: Minecraft 世界的 git 式版本控制（commit、status、diff、自動存檔點、作者歸屬）
 website: https://github.com/twme-ai/WorldGit
 softdepend: [FastAsyncWorldEdit, WorldEdit]
-commands:
-  wg:
-    description: WorldGit — 世界版本控制
-    usage: /wg <init|status|commit|log|diff|clear|reload|restore|switch|branch|stash|reset|cancel|merge|resolve|conflict-select|conflicts|tool|revert|cherry-pick|remote|fetch|push|pull|pr|comments|comment|help>
-    aliases: [worldgit]
 permissions:
   worldgit.admin:
     description: 所有 WorldGit 指令與通知

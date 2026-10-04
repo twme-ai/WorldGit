@@ -5,6 +5,7 @@ dependencies {
     api(project(":platform-api"))
     api(project(":protocol"))
     implementation(project(":i18n"))
+    implementation(libs.jgit) // 補全以 readOnly store 讀取 refs；不開會保存設定的 DimensionRepository
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("org.apache.logging.log4j:log4j-core:2.25.2") { isTransitive = false } // 伺服器自帶；OfflineShutdownCommit 監看關閉進度的 appender
     compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.15.0") { isTransitive = false }

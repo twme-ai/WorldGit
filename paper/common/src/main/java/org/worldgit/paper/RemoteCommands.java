@@ -113,35 +113,26 @@ final class RemoteCommands implements AutoCloseable {
       busy.remove(id);if(stopped)return;if(e!=null)fail(sender,e);else done.accept(v);
     });
   }
-  void run(CommandSender sender,String sub,String[] args) {
+  void run(CommandSender sender, CommandRequest request) {
+    String command = request.command();
     try {
-      switch(sub) {
-        case "remote"->remote(sender,args);
-        case "fetch","push"->transfer(sender,sub,args);
-        case "pull"->pull(sender,args);
-        case "pr"->pr(sender,args);
-        case "comments","comment"->comments(sender,sub,args);
-        default->reply(sender,"usage");
-      }
-    } catch(IllegalArgumentException e) {reply(sender,"usage");}
+      if (command.startsWith("remote.")) remote(sender, command.substring(7), request.text("remote"), request.text("url"));
+      else if (command.equals("fetch") || command.equals("push")) transfer(sender, command,
+          request.text("remote", settings.defaultRemote()), request.text("branch"), request.flag("--tags"));
+      else if (command.startsWith("pull")) pull(sender, request);
+      else if (command.startsWith("pr.")) pr(sender, request);
+      else comments(sender, request);
+    } catch (IllegalArgumentException e) { reply(sender, "usage"); }
   }
-  private static String branch(String s) {
-    if(s.isBlank() || s.startsWith("-") || !s.matches("[A-Za-z0-9_][A-Za-z0-9_./-]{0,127}") || s.contains("..") || s.contains("//") || s.endsWith("/") || s.endsWith(".") || s.endsWith(".lock"))throw new IllegalArgumentException();return s;
+  private void remote(CommandSender sender, String action, String name, String url) {
+    if (action.equals("list")) {
+      async(sender, () -> { try (var r = open()) { return r.remotes(); } }, rows -> {
+        if (rows.isEmpty()) reply(sender, "empty"); rows.forEach((key, spec) -> reply(sender, "remote-row", "name", key, "url", spec.url()));
+      }); return;
+    }
+    async(sender,()->{try(var r=open()) {r.configure(action, name, url, false);return true;}},ignored->{pending.clear();announced=Map.of();plugin.suggestions().invalidateHub();plugin.suggestions().invalidateLocal();reply(sender,"configured");});
   }
-  private void remote(CommandSender sender,String[] args) {
-    if(args.length==0)throw new IllegalArgumentException();String action=args[0];
-    if(action.equals("list") && args.length==1) {async(sender,()->{try(var r=open()) {return r.remotes();}},rows->{
-      if(rows.isEmpty())reply(sender,"empty");rows.forEach((name,spec)->reply(sender,"remote-row","name",name,"url",spec.url()));
-    });return;}
-    if(!Set.of("add","remove","set-url").contains(action) || args.length!=(action.equals("remove")?2:3))throw new IllegalArgumentException();
-    // core URL validation never includes userinfo/PAT in error.
-    async(sender,()->{try(var r=open()) {r.configure(action,args[1],args.length==3?args[2]:null,false);return true;}},ignored->{pending.clear();announced=Map.of();reply(sender,"configured");});
-  }
-  private void transfer(CommandSender sender,String sub,String[] args) {
-    boolean tags=false;var words=new ArrayList<String>();
-    for(String arg:args) {if(sub.equals("push") && arg.equals("--tags") && !tags)tags=true;else if(arg.startsWith("--"))throw new IllegalArgumentException();else words.add(arg);}
-    if(words.size()>(sub.equals("push")?2:1))throw new IllegalArgumentException();
-    String remote=words.isEmpty()?settings.defaultRemote():words.getFirst();String b=words.size()==2?branch(words.get(1)):null;boolean t=tags;
+  private void transfer(CommandSender sender, String sub, String remote, String b, boolean t) {
     var identity=author(sender,plugin);
     async(sender,()->{try(var r=open()) {
       var result=sub.equals("fetch")?r.fetch(remote,false):r.push(remote,b,t,false,false,identity);
@@ -152,11 +143,11 @@ final class RemoteCommands implements AutoCloseable {
     try(var r=open()) {var result=r.fetch(remote,false);if(!result.success())throw new IOException(result.error());
       String target=b==null?r.branch():b;return new Target(remote,target,r.remotes().get(remote).url(),r.trackingHeads(remote,target));}
   }
-  private void pull(CommandSender sender,String[] args) {
-    String id=key(sender);var identity=author(sender,plugin);
-    if(args.length==2 && args[0].equals("confirm")) {
+  private void pull(CommandSender sender, CommandRequest request) {
+    String id = key(sender); var identity = author(sender, plugin);
+    if (request.command().equals("pull.confirm")) {
       Pending p=pending.get(id);
-      if(p==null || !p.code().equals(args[1]) || System.currentTimeMillis()>p.expires()) {reply(sender,"expired");return;}
+      if(p==null || !p.code().equals(request.text("code")) || System.currentTimeMillis()>p.expires()) {reply(sender,"expired");return;}
       if(!busy.add(id)) {reply(sender,"busy");return;}
       pending.remove(id,p);reply(sender,"start");
       // 先 fetch 網路，不持編輯鎖；再在 coordinator 同一 repo queue 內檢查固定 targets/HEAD。
@@ -173,8 +164,7 @@ final class RemoteCommands implements AutoCloseable {
       })).whenComplete((r,e)->{busy.remove(id);if(e!=null)fail(sender,e);else {send(sender,()->r.success()?Messages.line("paper.merge.result","state",r.state(),"count",r.merging()==null?0:r.merging().remaining(),"commits",r.commits()):Messages.line("paper.merge.partial","message",r.error()));if(r.success())broadcast("applied",p.branch());}});
       return;
     }
-    if(args.length>2 || args.length>0 && args[0].startsWith("--"))throw new IllegalArgumentException();
-    String remote=args.length>0?args[0]:settings.defaultRemote(),b=args.length>1?branch(args[1]):null;
+    String remote = request.text("remote", settings.defaultRemote()), b = request.text("branch");
     pending.remove(id);
     if(!busy.add(id)) {reply(sender,"busy");return;}
     reply(sender,"start");
@@ -190,23 +180,28 @@ final class RemoteCommands implements AutoCloseable {
       send(sender,()->Messages.line("paper.remote.confirm","code",p.code()).clickEvent(ClickEvent.suggestCommand("/wg pull confirm "+p.code())));
     });
   }
-  private void pr(CommandSender sender,String[] args) {
-    if(args.length==1 && args[0].equals("list")) {async(sender,()->{try(var h=hub()) {return h.pulls();}},rows->{if(rows.isEmpty())reply(sender,"empty");rows.stream().limit(20).forEach(p->prLine(sender,p));if(rows.size()>20)reply(sender,"pr-more","count",rows.size()-20);});return;}
-    if(args.length==2 && args[0].equals("view")) {int number=number(args[1]);async(sender,()->{try(var h=hub()) {return h.view(h.find(number));}},d->{prLine(sender,d.pr());reply(sender,"pr-detail","state",CommentText.plain(d.mergeability(),32),"approvals",d.approvals(),"required",d.requiredReviews());});return;}
-    if(args.length<2 || !args[0].equals("create"))throw new IllegalArgumentException();
-    String source=null,target="main";var title=new ArrayList<String>();
-    for(int i=1;i<args.length;i++) {
-      if(args[i].equals("--source") && source==null && i+1<args.length)source=branch(args[++i]);
-      else if(args[i].equals("--target") && i+1<args.length)target=branch(args[++i]);
-      else if(args[i].startsWith("--"))throw new IllegalArgumentException();else title.add(args[i]);
+  private void pr(CommandSender sender, CommandRequest request) {
+    String command = request.command();
+    if (command.equals("pr.list")) {
+      async(sender, () -> { try (var h = hub()) { return h.pulls(); } }, rows -> {
+        if (rows.isEmpty()) reply(sender, "empty"); rows.stream().limit(20).forEach(p -> prLine(sender, p));
+        if (rows.size() > 20) reply(sender, "pr-more", "count", rows.size() - 20);
+      }); return;
     }
-    if(title.isEmpty())throw new IllegalArgumentException();String s=source,t=target,text=String.join(" ",title);var identity=author(sender,plugin);
+    if (command.equals("pr.view")) {
+      int number = request.number("id", 0);
+      async(sender, () -> { try (var h = hub()) { return h.view(h.find(number)); } }, d -> {
+        prLine(sender, d.pr()); reply(sender, "pr-detail", "state", CommentText.plain(d.mergeability(), 32), "approvals", d.approvals(), "required", d.requiredReviews());
+      }); return;
+    }
+    String s = request.text("source"), t = request.text("target", "main"), text = request.text("text");
+    var identity = author(sender, plugin);
     async(sender,()->{
       String b;try(var r=open()) {b=s==null?r.branch():s;
         if(r.hasBranch(b)) {var push=r.push(settings.defaultRemote(),b,false,false,false,identity);if(!push.success())throw new IOException(push.error());}
         else {var fetched=r.fetch(settings.defaultRemote(),false);if(!fetched.success())throw new IOException(fetched.error());r.trackingHeads(settings.defaultRemote(),b);}}
       try(var h=hub()) {return h.create(text,b,t);}
-    },p->prLine(sender,p));
+    }, p -> { plugin.suggestions().invalidateHub(); prLine(sender, p); });
   }
   private void prLine(CommandSender sender,HubClient.Pull p) {
     // URI 由本機管理者 URL 與驗證過 UUID 組成，Hub 文字不解析。
@@ -215,31 +210,26 @@ final class RemoteCommands implements AutoCloseable {
           .append(Component.text(" [Hub]").clickEvent(ClickEvent.openUrl(link))));
     });
   }
-  private static int number(String s) {int n=Integer.parseInt(s.replaceFirst("^#",""));if(n<1)throw new IllegalArgumentException();return n;}
-  private void comments(CommandSender sender,String sub,String[] args) {
-    if(sub.equals("comments") && args.length>0 && args[0].equals("hide")) {
-      if(!(sender instanceof Player p) || args.length>2)throw new IllegalArgumentException();if(args.length==2)number(args[1]);plugin.comments().clear(p);reply(sender,"hidden");return;
+  private void comments(CommandSender sender, CommandRequest request) {
+    String command = request.command();
+    if (command.equals("comments.hide")) {
+      plugin.comments().clear((Player) sender); reply(sender, "hidden"); return;
     }
-    boolean show=sub.equals("comments") && args.length>0 && args[0].equals("show"),here=false;
-    int offset=show?1:0;Integer pr=null;String dimension=null;var text=new ArrayList<String>();
-    if(sub.equals("comment")) {if(args.length<2)throw new IllegalArgumentException();pr=number(args[0]);offset=1;}
-    for(int i=offset;i<args.length;i++) {
-      if(args[i].equals("--here") && !here)here=true;
-      else if(sub.equals("comments") && args[i].equals("--dimension") && dimension==null && i+1<args.length) {dimension=args[++i];new DimensionId(dimension);}
-      else if(sub.equals("comments") && pr==null) {if(args[i].equals("pr") && i+1<args.length)pr=number(args[++i]);else pr=number(args[i]);}
-      else if(sub.equals("comment"))text.add(args[i]);else throw new IllegalArgumentException();
-    }
-    if(show && !(sender instanceof Player) || here && !(sender instanceof Player) || here && dimension!=null)throw new IllegalArgumentException();
-    Player player=sender instanceof Player p?p:null;org.bukkit.World world=player==null?null:player.getWorld();
-    String current=world==null?null:plugin.dimensionOf(world).orElseThrow().value();
-    if(show || here)dimension=current;
+    boolean show = command.equals("comments.show"), here = request.flag("--here");
+    Integer pr = request.values().containsKey("id") ? request.number("id", 0) : null;
+    var key = request.value("dimension", net.kyori.adventure.key.Key.class);
+    String dimension = key == null ? null : key.asString();
+    if (here && !(sender instanceof Player) || here && dimension != null) throw new IllegalArgumentException();
+    Player player = sender instanceof Player p ? p : null; org.bukkit.World world = player == null ? null : player.getWorld();
+    String current = world == null ? null : plugin.dimensionOf(world).orElseThrow().value();
+    if (show || here) dimension = current;
     HubClient.Pin pin=null;
     if(here) {var loc=player.getLocation();pin=new HubClient.Pin(current,loc.getBlockX(),loc.getBlockY(),loc.getBlockZ(),null,null,null);}
     String d=dimension;Integer n=pr;HubClient.Pin at=pin;boolean local=here;
     if(show && busy.contains(key(sender))) {reply(sender,"busy");return;}
     long showRequest=show?plugin.comments().request(player):0;
-    if(sub.equals("comment")) {
-      if(text.isEmpty())throw new IllegalArgumentException();String body=String.join(" ",text);
+    if (command.equals("comment")) {
+      String body = request.text("text");
       async(sender,()->{try(var h=hub()) {h.comment(h.find(n),body,at);return true;}},ignored->reply(sender,"commented"));return;
     }
     async(sender,()->{try(var h=hub()) {var rows=h.comments(n==null?null:h.find(n),d);
@@ -252,6 +242,18 @@ final class RemoteCommands implements AutoCloseable {
       },()->{});
       else {if(rows.isEmpty())reply(sender,"empty");rows.stream().limit(20).forEach(c->reply(sender,"comment-row","text",CommentText.display(c),"dimension",c.pin().dimension(),"x",c.pin().x(),"y",c.pin().y(),"z",c.pin().z()));}
     });
+  }
+  Map<String, String> suggestionDefaults() {
+    return settings.hubUrl().isEmpty() ? Map.of() : Map.of(settings.defaultRemote(), settings.hubUrl());
+  }
+  List<CommandSuggestions.Entry> suggestionPulls() throws IOException {
+    if (stopped) return List.of();
+    var urls = RepositorySuggestions.remoteUrls(WorldMapper.map().layout().repositoryRoot(), suggestionDefaults());
+    String url = urls.get(settings.defaultRemote()); if (url == null) return List.of();
+    try (var h = new HubClient(url, secrets.credentials().resolve(settings.defaultRemote(), url), java.time.Duration.ofMillis(1500))) {
+      return h.pulls().stream().limit(256).map(pr -> CommandSuggestions.Entry.of(Integer.toString(pr.number()),
+          "paper.command.tip.pr", "title", CommentText.plain(pr.title(), 160), "state", CommentText.plain(pr.status(), 32))).toList();
+    }
   }
   private void broadcast(String key,String branch) {
     plugin.platform().global(()->{

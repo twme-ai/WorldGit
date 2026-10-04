@@ -110,6 +110,57 @@ paper:
     switched: "<green>已切換到 <target> @ <commit></green>"
     complete: "<green><mode> 完成。</green>"
 
+  command:
+    help-click: 點擊填入聊天列
+    invalid-revision: 版本不可為空白或旗標。
+    invalid-branch: 分支名稱無效；特殊字元可用引號包住。
+    invalid-remote: remote 名稱需為 1–64 個英數字、底線或連字號。
+    invalid-url: remote URL 無效；禁止帳密、query 與 fragment。
+    invalid-id: '編號必須是正整數（亦接受 #編號）。'
+    duplicate-option: 旗標重複：<option>
+    empty-text: 請輸入文字。
+    help:
+      init: <gray>  /wg init [--template creative|survival]</gray>
+      status: <gray>  /wg status [--full] [--show]</gray>
+      commit: <gray>  /wg commit -m <message></gray>
+      log: <gray>  /wg log [1..100]</gray>
+      diff: <gray>  /wg diff [--show] [--radius 1..32]</gray>
+      clear: <gray>  /wg clear</gray>
+      reload: <gray>  /wg reload</gray>
+      restore: <gray>  /wg restore <revision> [--selection|--chunks 0..256|--box <from> <to>] [--dry-run]</gray>
+      switch: <gray>  /wg switch <revision> [--stash] [--force] [--dry-run]</gray>
+      branch: <gray>  /wg branch [-d <name>|<name>]</gray>
+      stash: <gray>  /wg stash push [message]|pop [index]|list|drop [index]</gray>
+      reset: <gray>  /wg reset --hard</gray>
+      cancel: <gray>  /wg cancel</gray>
+      merge: <gray>  /wg merge <revision>|--continue|--abort</gray>
+      resolve: <gray>  /wg resolve <id|all> ours|theirs|base|manual</gray>
+      conflict-select: <gray>  /wg conflict-select <id|all> ours|theirs|base|manual</gray>
+      conflicts: <gray>  /wg conflicts [page] | /wg conflicts preview <id> ours|theirs|base</gray>
+      conflict-preview: <gray>  /wg conflict-preview <id> ours|theirs|base</gray>
+      tool: <gray>  /wg tool</gray>
+      revert: <gray>  /wg revert <revision></gray>
+      cherry-pick: <gray>  /wg cherry-pick <revision></gray>
+      remote: <gray>  /wg remote list|add <name> <url>|remove <name>|set-url <name> <url></gray>
+      fetch: <gray>  /wg fetch [remote]</gray>
+      push: <gray>  /wg push [remote] [branch] [--tags]</gray>
+      pull: <gray>  /wg pull [remote] [branch] | /wg pull confirm <code></gray>
+      pr: <gray>  /wg pr create [--source <branch>] [--target <branch>] <title> | list | view <id></gray>
+      comments: <gray>  /wg comments [show|hide] [pr <id>] [--here|--dimension <key>]</gray>
+      comment: <gray>  /wg comment <id> [--here] <text></gray>
+      help: <gray>  /wg help [command]</gray>
+      debug: <gray>  /wg debug fill|release|probe|measurements|apply|sample|entities|freeze|protection|fixture-container|fixture-clean-items|merge-tool|merge-gui|comment-camera|comment-teleport|comment-displays</gray>
+    tip:
+      revision: <yellow><hash></yellow> <gray><message></gray>
+      stash: <gray><message></gray>
+      region: <light_purple><dimension> <bounds></light_purple> · <count> 格 · <choice> · <status>
+      remote: <gray><url></gray>
+      pr: <yellow><title></yellow> · <gray><state></gray>
+      dimension: <gray>留言維度：<dimension></gray>
+      source: PR 來源分支
+      target: PR 目標分支
+      here: 使用目前維度與方塊座標
+
 fabric:
   help:
     title: "<aqua>WorldGit</aqua> - Minecraft 世界的版本控制"

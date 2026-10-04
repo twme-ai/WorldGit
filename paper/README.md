@@ -31,8 +31,39 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 | `/wg conflicts [頁]` | 衝突清單 GUI（玩家）或文字清單（主控台）；點擊傳送。`conflicts preview <#> ours\|theirs\|base` 對 Fabric 客戶端送預覽 | `worldgit.command.conflicts`（op） |
 | `/wg tool` | 取得合併工具（命名的指南針）：站進衝突區域，右鍵 ours→theirs→base 循環，Shift+右鍵標記已解決 | `worldgit.command.tool`、使用時另需 `worldgit.command.resolve`（op） |
 | `/wg revert <rev>` / `/wg cherry-pick <rev>` | 反向／正向 patch；乾淨直接 commit，有衝突進同一 MERGING 流程 | `worldgit.command.revert`／`worldgit.command.cherry-pick`（op） |
+| `/wg help [子指令]` | 依權限列出用法，點擊填入聊天列 | 所有人 |
 
 `worldgit.admin` 包含上述指令與 `worldgit.notify` 通知。開發量測入口 `/wg debug` 只開放主控台，其他 sender 必須有 `worldgit.debug`（預設 false）。
+
+`/wg` 與別名 `/worldgit` 使用 **Paper Brigadier Command API**。`onEnable` 透過 `LifecycleEvents.COMMANDS` 註冊完整指令樹，`plugin.yml` 只保留權限，沒有 Bukkit `commands:`／字串解析器。每個節點的 `requires` 同時檢查權限與 sender：tool、diff、clear、conflict-preview 限玩家；status 的 --show、restore 的 --selection、comments 的 show／hide／--here 也限玩家。預設非 op 玩家只收到 log、clear、help；help 的主題同樣過濾。直接輸入無權限入口仍回覆既有多語言權限訊息。
+
+聊天列會逐參數提示與上色；log 數量 1–100、diff 半徑 1–32 chunk、restore 的 --chunks 0–256、stash index ≥0、PR／衝突編號／頁碼 ≥1。`--box` 是兩個 `ArgumentTypes.blockPosition()`，除了原本六個整數，也接受相對於指令來源的 `~` 與區域座標 `^`；留言維度使用 namespaced key，debug 的玩家使用 player resolver。型別／範圍錯誤交由 Brigadier 標示位置，repo／Hub 業務錯誤仍使用原有 i18n 訊息。
+
+`--xxx` 旗標保留原寫法，合法旗標可任意排列，同一旗標只能出現一次，selection／chunks／box 擇一；`init --template=creative|survival` 也保留。commit 的 `-m` 與 stash 訊息使用 greedy string，後面的所有字元就是文字。PR 標題／留言使用自訂 greedy argument：保留文字前、後的 `--source`／`--target`／`--here`；若文字本身含有這些旗標，將文字放在雙引號內，例如 `/wg pr create "標題 --source 是文字" --source topic`。建議將 PR 旗標放在標題前，以取得獨立型別節點提示。分支／revision 使用 quoted string 作客戶端型別，含 `/`、`~` 或中文時可加雙引號，補全會自動加上所需引號；伺服器仍接受舊的未加引號寫法。PR／衝突編號建議直接用 `1`，既有 `#1` 仍可送給伺服器，但原生 integer 客戶端會將帶 `#` 的寫法標為紅字。只有數字分支發出動態補全請求，避免原版客戶端取消同位置的另一個在途請求。
+
+動態補全包含分支 head 短 hash／最後訊息、tag／HEAD~n／最近 revision、stash 訊息、MERGING 的衝突座標／格數／選擇／解決狀態、remote URL、Hub PR 標題／狀態與留言維度。tooltip 透過 Adventure `MessageComponentSerializer` 與 i18n，依玩家語言顯示；玩家文字及 Hub 資料為純文字，remote URL 不顯示憑證。查詢走既有 repo 背景 executor、唯讀 store，不 capture 或寫入；每類最多 256 項，本機快取 2 秒、PR 10 秒，同類在途查詢共用。補全 750 ms 未完成即回空，Hub 查詢 timeout 1.5 秒，失敗靜默；下次請求可使用已完成的快取。
+
+Paper 的 [Lifecycle 註冊](https://docs.papermc.io/paper/dev/command-api/basics/registration/)會在需要重建指令時重新註冊（包含伺服器 `/reload`）。WorldGit 的 `/wg reload` 只重載語言覆寫；更新插件 jar、憑證環境或設定請重新啟動伺服器。第三方熱卸載／重載不是本插件的驗收範圍，Folia 的排程與停用清理限制仍適用；兩版共用相同公開指令 API。
+
+## Brigadier 驗收（2026-10-04）
+
+新增 10 個指令樹／補全測試，涵蓋全部入口、native 型別注入邊界、旗標排列與舊寫法、requires／玩家邊界、錯誤 cursor、純文字 tooltip、憑證遮罩、唯讀檔案比對、有界快取、逾時／失敗與 single-flight。真客戶端另核對收到的原生 block position／namespaced key 型別、29 個玩家 op 子指令與 worldgit 別名，以及 deop 後只有 log／clear／help。
+
+兩版 Paper 各 9 張真客戶端截圖已逐張檢視，見 [Brigadier 截圖與失敗修正紀錄](docs/screenshots/brigadier/README.md)。fixture 與 driver 都在 paper/tools，由暫時 Gradle init script 注入測試 classpath，Fabric 原始碼不變。
+
+Phase 3 的四個 conflict-select 非法參數案例改為等待原生錯誤 cursor，並同時斷言錯誤訊息、`<--[HERE]` 與完整 MergeState 不變；原先等待舊 parser 的 `/wg merge` 整頁用法會逾時。其他回歸場景與行為斷言保留。
+
+完整 16 組回歸首次為 15 組通過、Paper 1.21.11 Phase 3 因上述舊斷言逾時；更新斷言後完整補驗該組通過，16 組最終全數通過。最後全專案 `build` 通過（80 個 task，含 common 的 `verifyNoNms` 及兩版轉接層）；最終 jar 另通過兩版 Paper 的 `check_binary_compat.py`，直接 NMS 引用與反射 unsaved 欄位均無問題。[可攜驗收摘要](docs/screenshots/brigadier/results-2026-10-04.json) 保留首次結果、補驗、18 張畫面與原始 log 雜湊；後續空座標 tooltip 保護由新增單元案例與新 jar 的補驗覆蓋，兩個 jar 唯一不同 entry 是 CommandSuggestions.class。
+
+```sh
+GRADLE_USER_HOME=.work/gradle-home flock .work/bench.lock ./gradlew --no-daemon --configure-on-demand --max-workers=1 :paper:common:test :paper:plugin:build
+python3 paper/tools/brigadier.py 26.2
+python3 paper/tools/brigadier.py 1.21.11
+python3 paper/tools/phase4_regressions.py --phase4  # 四種遠端＋四平台各 Phase2／Phase3／interop，共 16 組；子腳本自持鎖
+# 本次首次完整回歸的舊錯誤格式斷言逾時後，完整補驗這一組
+python3 paper/tools/phase4_regressions.py --case paper-1.21.11-phase3
+GRADLE_USER_HOME=.work/gradle-home flock .work/bench.lock ./gradlew --no-daemon --configure-on-demand --max-workers=1 build
+```
 
 ## 儲存、設定與多語言
 

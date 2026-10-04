@@ -27,60 +27,72 @@ final class Debug {
     this.plugin = plugin;
   }
 
-  void run(CommandSender sender, String[] args) {
-    if (args.length == 0) throw new IllegalArgumentException("debug fill <邊長> [方塊] | release | probe start|stop | measurements");
-    switch (args[0]) {
-      case "apply" -> {
-        var q=plugin.repo().activeQueue();
-        sender.sendMessage(Component.text(q==null ? "WGAPPLY idle" : "WGAPPLY sections="+q.sections.get()+" tickets="+q.tickets.get()+" peak="+q.peak.get()));
-      }
-      case "sample" -> sample(sender,args);
-      case "entities" -> entities(sender,args);
-      case "freeze" -> freeze(sender,args);
-      case "protection" -> protection(sender,args);
-      case "comment-camera" -> {
-        if(args.length!=2)throw new IllegalArgumentException("comment-camera <player>");
-        var player=Objects.requireNonNull(Bukkit.getPlayerExact(args[1]));
-        var world=plugin.world(org.worldgit.core.model.DimensionId.OVERWORLD);
-        plugin.platform().entity(player,()->{
-          player.setAllowFlight(true);player.setFlying(true);player.setGravity(false);
-          player.teleportAsync(new org.bukkit.Location(world,8.5,224,-5.5,0,0)).whenComplete((ok,error)->
-              plugin.platform().global(()->sender.sendMessage(Component.text("WGCOMMENTCAM success="+(error==null && Boolean.TRUE.equals(ok))))));
-        },()->{});
-      }
-      case "comment-teleport" -> {
-        if(args.length!=3)throw new IllegalArgumentException("comment-teleport <player> <dimension>");
-        var player=Objects.requireNonNull(Bukkit.getPlayerExact(args[1]));
-        var world=Objects.requireNonNull(plugin.world(new org.worldgit.core.model.DimensionId(args[2])));
-        plugin.platform().entity(player,()->player.teleportAsync(new org.bukkit.Location(world,8.5,224,8.5)).whenComplete((ok,error)->
-            plugin.platform().global(()->sender.sendMessage(Component.text("WGCOMMENTTP success="+(error==null && Boolean.TRUE.equals(ok)))))),()->{});
-      }
-      case "comment-displays" -> {
-        if(args.length!=3)throw new IllegalArgumentException("comment-displays <cx> <cz>");
-        int x=Integer.parseInt(args[1]),z=Integer.parseInt(args[2]);
-        var world=plugin.world(org.worldgit.core.model.DimensionId.OVERWORLD);
-        plugin.platform().region(world,x,z,()->{
-          var ids=java.util.Arrays.stream(world.getChunkAt(x,z).getEntities()).filter(e->e instanceof org.bukkit.entity.TextDisplay && e.getScoreboardTags().contains(CommentDisplays.TAG)).map(org.bukkit.entity.Entity::getEntityId).sorted().toList();
-          plugin.platform().global(()->sender.sendMessage(Component.text("WGCOMMENTS chunk="+x+","+z+" entities="+ids.size()+" ids="+ids)));
-        });
-      }
-      case "fill" -> fill(sender, args);
-      case "fixture-container" -> fixtureContainer(sender,args);
-      case "fixture-clean-items" -> fixtureCleanItems(sender);
-      case "merge-tool" -> mergeTool(sender,args);
-      case "merge-gui" -> mergeGui(sender,args);
-      case "release" -> release(sender);
-      case "probe" -> probe(sender, args);
-      case "measurements" -> plugin.repo().measurements().forEach(m -> sender.sendMessage(Component.text(m.toString())));
-      default -> throw new IllegalArgumentException("未知的 debug 子指令");
+  void run(io.papermc.paper.command.brigadier.CommandSourceStack source, CommandRequest request)
+      throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    var sender = source.getSender();
+    org.bukkit.entity.Player player = null;
+    if (request.values().containsKey("player")) player = request.value("player", io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver.class).resolve(source).getFirst();
+    io.papermc.paper.math.BlockPosition position = null;
+    if (request.values().containsKey("position")) {
+      var pos = request.value("position", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class).resolve(source);
+      position = pos;
     }
+    try {
+      String mode = request.command().substring("debug.".length());
+      switch (mode) {
+        case "apply" -> {
+          var q = plugin.repo().activeQueue();
+          sender.sendMessage(Component.text(q == null ? "WGAPPLY idle" : "WGAPPLY sections=" + q.sections.get() + " tickets=" + q.tickets.get() + " peak=" + q.peak.get()));
+        }
+        case "sample" -> sample(sender, request.number("cx", 0), request.number("cz", 0), request.number("sy", 0));
+        case "freeze.on", "freeze.off" -> freeze(sender, mode.endsWith(".on"));
+        case "protection" -> protection(sender, player);
+        case "comment-camera" -> {
+          var target = player;
+          var world = plugin.world(org.worldgit.core.model.DimensionId.OVERWORLD);
+          plugin.platform().entity(target, () -> {
+            target.setAllowFlight(true); target.setFlying(true); target.setGravity(false);
+            target.teleportAsync(new org.bukkit.Location(world, 8.5, 224, -5.5, 0, 0)).whenComplete((ok, error) ->
+                plugin.platform().global(() -> sender.sendMessage(Component.text("WGCOMMENTCAM success=" + (error == null && Boolean.TRUE.equals(ok))))));
+          }, () -> {});
+        }
+        case "comment-teleport" -> {
+          var target = player;
+          var world = Objects.requireNonNull(plugin.world(new org.worldgit.core.model.DimensionId(request.value("dimension", net.kyori.adventure.key.Key.class).asString())));
+          plugin.platform().entity(target, () -> target.teleportAsync(new org.bukkit.Location(world, 8.5, 224, 8.5)).whenComplete((ok, error) ->
+              plugin.platform().global(() -> sender.sendMessage(Component.text("WGCOMMENTTP success=" + (error == null && Boolean.TRUE.equals(ok)))))), () -> {});
+        }
+        case "comment-displays" -> {
+          int x = request.number("cx", 0), z = request.number("cz", 0);
+          var world = plugin.world(org.worldgit.core.model.DimensionId.OVERWORLD);
+          plugin.platform().region(world, x, z, () -> {
+            var ids = java.util.Arrays.stream(world.getChunkAt(x, z).getEntities()).filter(e -> e instanceof org.bukkit.entity.TextDisplay && e.getScoreboardTags().contains(CommentDisplays.TAG)).map(org.bukkit.entity.Entity::getEntityId).sorted().toList();
+            plugin.platform().global(() -> sender.sendMessage(Component.text("WGCOMMENTS chunk=" + x + "," + z + " entities=" + ids.size() + " ids=" + ids)));
+          });
+        }
+        case "fill" -> fill(sender, request.number("side", 1), request.text("material", "gold_block"), request.number("total", request.number("side", 1) * request.number("side", 1)), request.number("offset", 8));
+        case "fixture-container" -> fixtureContainer(sender, position, request.text("material"));
+        case "fixture-clean-items" -> fixtureCleanItems(sender);
+        case "merge-tool.cycle", "merge-tool.resolve" -> mergeTool(sender, player, mode.endsWith(".resolve"));
+        case "merge-gui" -> mergeGui(sender, player, request.number("slot", 0));
+        case "release" -> release(sender);
+        case "probe.start", "probe.stop" -> probe(sender, mode.endsWith(".start"));
+        case "measurements" -> plugin.repo().measurements().forEach(m -> sender.sendMessage(Component.text(m.toString())));
+        default -> {
+          if (mode.startsWith("entities.")) {
+            var parts = mode.split("[.]");
+            entities(sender, parts[1].equals("overworld") ? World.Environment.NORMAL : World.Environment.NETHER,
+                request.number("cx", 0), request.number("cz", 0), parts[2]);
+          } else throw new IllegalArgumentException(mode);
+        }
+      }
+    } catch (RuntimeException e) { sender.sendMessage(Messages.inLocale(sender, () -> Messages.error(String.valueOf(e.getMessage())))); }
   }
 
   /** Folia 的 vanilla /data、全域 /kill 不可用；驗收 fixture 走真正 owner。 */
-  private void fixtureContainer(CommandSender sender,String[] args) {
-    if(args.length!=5) throw new IllegalArgumentException("debug fixture-container x y z material");
-    int x=Integer.parseInt(args[1]),y=Integer.parseInt(args[2]),z=Integer.parseInt(args[3]);
-    var material=Objects.requireNonNull(Material.matchMaterial(args[4]));
+  private void fixtureContainer(CommandSender sender, io.papermc.paper.math.BlockPosition position, String block) {
+    int x = position.blockX(), y = position.blockY(), z = position.blockZ();
+    var material = Objects.requireNonNull(Material.matchMaterial(block));
     var world=Bukkit.getWorlds().getFirst();
     plugin.platform().region(world,x>>4,z>>4,()->{
       try {
@@ -105,20 +117,16 @@ final class Debug {
   }
 
   /** 驗收模擬真正 Bukkit 右鍵事件，仍走物品 PDC／權限／owner／core barrier。 */
-  private void mergeTool(CommandSender sender,String[] args) {
-    if(args.length!=3 || !Set.of("cycle","resolve").contains(args[2])) throw new IllegalArgumentException("debug merge-tool <player> cycle|resolve");
-    var p=Objects.requireNonNull(Bukkit.getPlayerExact(args[1]));
+  private void mergeTool(CommandSender sender, org.bukkit.entity.Player p, boolean resolve) {
     plugin.platform().entity(p,()->{
       var item=Arrays.stream(p.getInventory().getContents()).filter(Objects::nonNull).filter(i->i.getType()==Material.COMPASS).findFirst().orElseThrow();
-      boolean sneaking=p.isSneaking(); p.setSneaking(args[2].equals("resolve"));
+      boolean sneaking=p.isSneaking(); p.setSneaking(resolve);
       try { Bukkit.getPluginManager().callEvent(new org.bukkit.event.player.PlayerInteractEvent(p,org.bukkit.event.block.Action.RIGHT_CLICK_AIR,item,null,org.bukkit.block.BlockFace.SELF,org.bukkit.inventory.EquipmentSlot.HAND)); }
       finally { p.setSneaking(sneaking); }
       sender.sendMessage(Component.text("WGMERGETOOL event delivered"));
     },()->{});
   }
-  private void mergeGui(CommandSender sender,String[] args) {
-    if(args.length!=3) throw new IllegalArgumentException("debug merge-gui <player> <slot>");
-    var p=Objects.requireNonNull(Bukkit.getPlayerExact(args[1])); int slot=Integer.parseInt(args[2]);
+  private void mergeGui(CommandSender sender, org.bukkit.entity.Player p, int slot) {
     plugin.platform().entity(p,()->{
       var view=p.getOpenInventory();
       if(slot<0 || slot>=view.getTopInventory().getSize()) throw new IllegalArgumentException("slot 超出 GUI");
@@ -129,11 +137,10 @@ final class Debug {
 
   private AutoCloseable fixtureFreeze;
   /** Folia 沒有 /tick；驗收用同一套全域 freeze，操作期間的引用計數不會解除它。 */
-  private void freeze(CommandSender sender,String[] args) {
-    if(args.length!=2 || !Set.of("on","off").contains(args[1])) throw new IllegalArgumentException("debug freeze on|off");
+  private void freeze(CommandSender sender, boolean on) {
     plugin.platform().global(()->{
       try {
-        if(args[1].equals("on")) {
+        if(on) {
           if(fixtureFreeze==null) fixtureFreeze=plugin.edits().freeze(Bukkit.getWorlds().getFirst());
         } else if(fixtureFreeze!=null) {
           fixtureFreeze.close(); fixtureFreeze=null;
@@ -145,12 +152,8 @@ final class Debug {
 
   private static final List<UUID> ENTITY_IDS=List.of(UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),UUID.fromString("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"),UUID.fromString("cccccccc-dddd-eeee-ffff-111111111111"));
   /** 受控跨維度／巢狀乘客場景，任何讀寫都在載入完成的 chunk owner。 */
-  private void entities(CommandSender sender,String[] args) {
-    if(args.length!=5) throw new IllegalArgumentException("debug entities overworld|nether <cx> <cz> seed|solo|clear|inspect");
-    var environment=switch(args[1]) { case "overworld"->World.Environment.NORMAL; case "nether"->World.Environment.NETHER; default->throw new IllegalArgumentException("維度無效"); };
-    var world=Bukkit.getWorlds().stream().filter(w->w.getEnvironment()==environment).findFirst().orElseThrow();
-    int cx=Integer.parseInt(args[2]),cz=Integer.parseInt(args[3]); String action=args[4];
-    if(!Set.of("seed","solo","clear","inspect").contains(action)) throw new IllegalArgumentException("動作無效");
+  private void entities(CommandSender sender, World.Environment environment, int cx, int cz, String action) {
+    var world = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == environment).findFirst().orElseThrow();
     if(plugin.edits().locked(world) && !action.equals("inspect")) throw new IllegalArgumentException("世界已鎖定");
     var queue=new ApplyQueue(plugin);
     queue.run(List.of(new ApplyQueue.Task(world,new org.worldgit.core.model.ChunkPos(cx,cz),(w,c)->{
@@ -181,8 +184,7 @@ final class Debug {
     for(Object child:data.list("Passengers").values()) inspectEntity(sender,(org.worldgit.core.anvil.Nbt.Compound)child,depth+1);
   }
 
-  private void protection(CommandSender sender,String[] args) {
-    var player=Objects.requireNonNull(Bukkit.getPlayerExact(args[1]));
+  private void protection(CommandSender sender, org.bukkit.entity.Player player) {
     plugin.platform().entity(player,()->{
       // 用 DamageSource 版建構子（三參數版已標記 removal）；DamageType 對應各 DamageCause
       var cases=new java.util.LinkedHashMap<org.bukkit.event.entity.EntityDamageEvent.DamageCause,org.bukkit.damage.DamageType>();
@@ -198,8 +200,7 @@ final class Debug {
       }
     },()->{});
   }
-  private void sample(CommandSender sender,String[] args) {
-    int x=Integer.parseInt(args[1]),z=Integer.parseInt(args[2]),sy=Integer.parseInt(args[3]);
+  private void sample(CommandSender sender, int x, int z, int sy) {
     World world=Bukkit.getWorlds().getFirst();
     plugin.platform().region(world,x,z,()->{
       try {
@@ -220,21 +221,17 @@ final class Debug {
   }
 
   /** 以主世界出生點為中心，在 side×side 個 chunk 各放一格方塊（不觸發任何 Bukkit 事件，只靠旗標普查偵測）。 */
-  private void fill(CommandSender sender, String[] args) {
-    int side = Integer.parseInt(args[1]);
-    if (side < 1 || side > 128) throw new IllegalArgumentException("邊長必須是 1–128 chunk");
-    Material material = args.length > 2 ? Objects.requireNonNull(Material.matchMaterial(args[2]), "方塊名稱無效") : Material.GOLD_BLOCK;
+  private void fill(CommandSender sender, int side, String block, int total, int offset) {
+    Material material = Objects.requireNonNull(Material.matchMaterial(block), "方塊名稱無效");
     World world = Bukkit.getWorlds().getFirst();
     ticketWorld = world;
     int cx0 = (world.getSpawnLocation().getBlockX() >> 4) - side / 2, cz0 = (world.getSpawnLocation().getBlockZ() >> 4) - side / 2;
-    int total = args.length > 3 ? Integer.parseInt(args[3]) : side * side;
     if (total < 1 || total > side * side) throw new IllegalArgumentException("chunk 數必須是 1–邊長平方");
     var done = new AtomicInteger();
     var next = new AtomicInteger();
     var inflight = new AtomicInteger();
     long t0 = System.nanoTime();
     int y = world.getMinHeight() + 8;
-    int offset=args.length>4 ? Integer.parseInt(args[4]) : 8;
     if(offset<0 || offset>15) throw new IllegalArgumentException("local X 必須為 0..15");
     Runnable[] pump = new Runnable[1];
     pump[0] =
@@ -281,9 +278,8 @@ final class Debug {
     sender.sendMessage(Component.text("已釋放 " + n + " 個 chunk ticket"));
   }
 
-  private void probe(CommandSender sender, String[] args) {
-    if (args.length < 2) throw new IllegalArgumentException("debug probe start|stop");
-    if (args[1].equals("start")) {
+  private void probe(CommandSender sender, boolean start) {
+    if (start) {
       gaps.clear();
       probing = true;
       lastTick = System.nanoTime();

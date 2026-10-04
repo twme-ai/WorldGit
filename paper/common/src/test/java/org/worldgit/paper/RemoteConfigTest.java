@@ -30,7 +30,7 @@ class RemoteConfigTest {
     var scalar=new YamlConfiguration();scalar.set("remote.webhook",true);assertThrows(IllegalArgumentException.class,()->RemoteConfig.from(scalar));
     var resource=new YamlConfiguration();resource.loadFromString(new String(getClass().getResourceAsStream("/plugin.yml").readAllBytes()));
     for(String command:List.of("remote","fetch","push","pull","pr","comment")) {assertEquals("op",resource.getString("permissions.worldgit.command."+command+".default"));assertTrue(resource.getBoolean("permissions.worldgit.admin.children.worldgit.command."+command));}
-    assertEquals("comment",Commands.permission("comments"));assertEquals("pull",Commands.permission("pull"));
+    assertEquals("comment",CommandTree.permission("comments"));assertEquals("pull",CommandTree.permission("pull"));
   }
   @Test void lateRestResultsCannotUndoHideDimensionChangeOrLogout() {
     var requests=new DisplayRequests();var a=UUID.randomUUID();var b=UUID.randomUUID();

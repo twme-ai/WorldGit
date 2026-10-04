@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import org.bukkit.command.PluginCommand;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -38,6 +38,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   private AutoCommit autoCommit;
   private RemoteCommands remote;
   private CommentDisplays comments;
+  private CommandSuggestions suggestions;
   private org.worldgit.platform.remote.RemoteSettings remoteSettings;
   private OfflineShutdownCommit offlineShutdown;
   private final Attribution attribution = new Attribution();
@@ -81,10 +82,11 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     comments = new CommentDisplays(this);
     remote = new RemoteCommands(this,remoteSettings);
     merges.refresh();
-    PluginCommand command = Objects.requireNonNull(getCommand("wg"), "plugin.yml 缺少 wg 指令");
+    suggestions = CommandSuggestions.forPlugin(this);
     var commands = new Commands(this);
-    command.setExecutor(commands);
-    command.setTabCompleter(commands);
+    getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
+        event.registrar().register(new CommandTree(commands, suggestions).build().build(),
+            "WorldGit", List.of("worldgit")));
     hookWorldEdit();
     repo.submit(() -> {
       try {
@@ -123,6 +125,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   public void onDisable() {
     if (!enabledOk) return;
     enabledOk = false;
+    if(suggestions!=null) suggestions.close();
     if(remote!=null) remote.close();
     if(comments!=null) comments.shutdown();
     boolean wasApplying=repo.applying();
@@ -190,6 +193,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
 
   MergeUi merges() { return merges; }
   RemoteCommands remote() { return remote; }
+  CommandSuggestions suggestions() { return suggestions; }
   CommentDisplays comments() { return comments; }
   World world(DimensionId dimension) {
     return worlds.stream().filter(w->dimension.equals(dimensionByWorld.get(w.getUID()))).findFirst().orElse(null);
@@ -262,6 +266,22 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     if (displays != null) displays.clear(e.getPlayer());
     if (remote != null) remote.quit(e.getPlayer());
     if (autoCommit != null) autoCommit.onQuit(e.getPlayer().getName());
+  }
+
+  /** requires 會隱藏未授權節點；直接輸入舊入口時仍保留既有的 i18n 權限訊息。僅檢查入口，參數全由 Brigadier 解析。 */
+  @EventHandler(ignoreCancelled = true)
+  public void onCommandPermission(org.bukkit.event.player.PlayerCommandPreprocessEvent event) {
+    String[] words = event.getMessage().split(" +", 3);
+    if (words.length < 2 || !Set.of("/wg", "/worldgit", "/worldgit:wg", "/worldgit:worldgit").contains(words[0].toLowerCase(Locale.ROOT))) return;
+    String sub = words[1].toLowerCase(Locale.ROOT);
+    var player = event.getPlayer();
+    if (!CommandTree.SUBS.contains(sub) || sub.equals("help")) return;
+    boolean allowed = sub.equals("debug") ? player.hasPermission("worldgit.debug")
+        : player.hasPermission("worldgit.command." + CommandTree.permission(sub)) || player.hasPermission("worldgit.admin");
+    if (!allowed) {
+      event.setCancelled(true);
+      Messages.inLocale(player, () -> player.sendMessage(sub.equals("debug") ? Messages.debugPermission() : Messages.permission(CommandTree.permission(sub))));
+    }
   }
 
   /** dirty 標記＋作者歸屬（事件與 WorldEdit 的共同入口）。player 可為 null（來源不明或非玩家）。 */

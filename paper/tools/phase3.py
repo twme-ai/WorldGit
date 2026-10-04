@@ -127,8 +127,12 @@ def run(platform, version):
             out=cmd('wg conflict-select 999 ours',r'找不到衝突區域|Unknown conflict region',True)
             check('conflict-select 未知區域不改狀態',state()['dimensions']['minecraft:overworld']['report']['regions'][0]['choice']=='OURS',output=out)
             for invalid in ('0 ours','-1 base','1 invalid','1 ours extra'):
-                out=cmd('wg conflict-select '+invalid,r'/wg merge',True)
-                check('conflict-select 非法參數 '+invalid,'conflict-select' in out)
+                before=state()
+                # Brigadier 型別／literal 錯誤由原生 dispatcher 標示位置，取代舊 parser 的整頁用法。
+                out=cmd('wg conflict-select '+invalid,r'<--\[HERE\]',True)
+                check('conflict-select 非法參數 '+invalid,
+                      bool(re.search(r'Incorrect argument|Unknown or incomplete command|Expected integer|Integer must not be less than',out))
+                      and '<--[HERE]' in out and state()==before,output=out)
             for choice,rev in [('theirs','theirs-original'),('base','base'),('ours','ours-original')]:
                 cmd('wg conflict-select #1 '+choice)
                 selected=state()['dimensions']['minecraft:overworld']['report']['regions'][0]
