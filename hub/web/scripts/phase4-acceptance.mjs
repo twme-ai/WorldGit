@@ -5,7 +5,7 @@ import { chromium } from 'playwright-core'
 
 // 設定檔為腳本即時產生的私有測試資料；內容不印 log。
 const config = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
-const result = { operation: config.operation, assertions: [], violations: [], errors: [], screenshots: [] }
+const result = { operation: config.operation, assertions: [], violations: [], errors: [], screenshots: [], failedResponses: [] }
 const fontConfig = process.env.FONTCONFIG_FILE ?? path.resolve(import.meta.dirname, '../../../.work/fonts/fonts.conf')
 const browser = await chromium.launch({ env: { ...process.env, ...(fs.existsSync(fontConfig) ? { FONTCONFIG_FILE: fontConfig } : {}) }, executablePath: process.env.CHROME ?? '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] })
 const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, acceptDownloads: true })
@@ -21,7 +21,8 @@ if(fs.existsSync(font)) {
 await context.addInitScript(() => { window.__cspViolations = []; window.addEventListener('securitypolicyviolation', e => window.__cspViolations.push({ directive: e.violatedDirective, blocked: e.blockedURI })) })
 const page = await context.newPage()
 page.on('pageerror', e => result.errors.push(String(e)))
-page.on('console', m => { if(m.type()==='error') result.errors.push(m.text()) })
+page.on('response', r => { if(r.status()>=400 && result.failedResponses.length<50){const row={status:r.status(),url:r.url()};result.failedResponses.push(row);void r.json().then(body=>{if(body.errorReport)row.errorReport=body.errorReport}).catch(()=>{})} })
+page.on('console', m => { if(m.type()==='error') result.errors.push(m.text()+' · '+m.location().url) })
 const goto = async p => { result.violations.push(...await page.evaluate(()=>window.__cspViolations ?? []).catch(()=>[])); const response=await page.goto(config.hub+p,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);assert.match(response.headers()['content-security-policy'],/script-src 'self'/) }
 const login = async user => { await goto('/login');await page.locator('input[name=username]').fill(user.username);await page.locator('input[name=password]').fill(user.password);await page.getByRole('button',{name:'登入',exact:true}).click();await page.waitForURL(config.hub+'/');assert.equal(await page.evaluate(()=>localStorage.getItem('worldgit.token')),null);const cookies=await context.cookies();assert.ok(cookies.find(c=>c.name==='JSESSIONID'&&c.httpOnly&&c.sameSite==='Lax'));result.assertions.push('cookie login, no localStorage token') }
 const shot = async label => { await page.evaluate(()=>document.fonts.ready);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({ path:path.join(config.out,label+'.jpg'),type:'jpeg',quality:78,fullPage:true });result.screenshots.push(label+'.jpg') }

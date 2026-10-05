@@ -668,14 +668,15 @@ migrate 必須世界停止，先複製驗證、再原子發布，保留舊備份
 | 頁面 | 內容 |
 |---|---|
 | 世界首頁 | 維度分頁、俯視地圖、變動 chunk 疊圖、clone／push 指令 |
-| commits | 依存檔點合併的歷史（自動 commit 折疊） |
+| commits | 每維度自己的歷史（自動 commit 折疊），不依 snapshot UUID 配對 |
 | 單一 commit | 3D 檢視與上色 diff，可切一般／色盲色票 |
-| branches | 各分支 head、作者、相對 main 的 ahead／behind |
+| branches | 選定維度的分支 head、作者、相對預設分支的 commit ahead／behind |
+| 分支圖 | 每維度 lane／合併線、branch／tag／HEAD／remote tracking；合併 commit 可連到 PR |
 | compare | 任意兩個版本的 3D 比較，網址可分享鏡頭位置 |
 
 ### 10.5 Pull Request 流程
 
-1. **開 PR**：在 Pull Requests 頁建立（來源分支 → 目標分支，同一世界），或從遊戲內 `/wg pr create`、CLI push 分支後在網頁開。
+1. **開 PR**：在 Pull Requests 頁先選**維度**，再選來源分支 → 目標分支，或從遊戲內 `/wg pr create`、CLI push 分支後在網頁開。
 2. **檢視**：PR 頁有來源 commit 列表、3D diff、可合併狀態：
 
    | 狀態 | 意義 |
@@ -686,29 +687,39 @@ migrate 必須世界停止，先複製驗證、再原子發布，保留舊備份
    | changes-requested | 有人要求修改 |
    | unmergeable | 無法合併（例如版本不一致） |
 
-3. **衝突選擇**：在 PR 頁逐區選 ours／theirs／base，3D 檢視可切換「依目前選擇的合併結果」。選擇存在 PR 上；**任一分支 tip 改變，舊選擇與審核全部作廢**，頁面會提示重新選擇。
+3. **衝突選擇**：在 PR 頁逐區選 ours／theirs／base，3D 檢視可切換「依目前選擇的合併結果」。選擇存在 PR 上；**PR 所選維度的來源或目標 tip 改變，舊選擇與審核全部作廢**，頁面會提示重新選擇。
 4. **審核**：Approve 或 Request changes。作者不能審核自己的 PR；選擇改變也會清除審核。
 5. **座標留言**：在 3D 檢視點擊方塊釘選座標（或手動輸入，可選範圍），也可一般留言與回覆。點擊留言的座標會在 3D 中跳到該位置。遊戲內的玩家可用 `/wg comments show` 看到這些留言。
-6. **合併**：按「合併 PR」。Hub 再檢查一次 tip 未變與權限，產生全維度一致的合併提交，並觸發 `pr.merged` webhook。只支援 merge commit（不支援 squash／rebase／fork PR）。
+6. **合併**：按「合併 PR」。Hub 再檢查一次 tip 未變與權限，只在 PR 維度產生合併提交，其他維度 refs 保持原值，並觸發 `pr.merged` webhook。只支援 merge commit（不支援 squash／rebase／fork PR）。
 7. **伺服器取得結果**：伺服器收到通知後提示管理員 `/wg pull`，確認後世界內容即與 Hub 一致。
 
 ### 10.6 受保護分支
 
-在世界設定頁設定（例如 `main`）：
+在世界設定頁選維度再設定分支（例如地獄的 `main`）：
 
 - 禁止 force push 與刪除；
 - 「只能經 PR 合併」：直接 push 會被拒；
 - 需要的核準數（0–10）。
 
-owner／admin 也不能繞過。
+owner／admin 也不能繞過。Phase 4 的舊規則會以 `*` 繼承到各維度；管理員可明確設定該維度規則或刪除繼承規則。
 
 ### 10.7 Release
 
-在 Releases 頁對某個 tag 建立 release（標題、說明）。release 頁提供**世界 ZIP 下載**：解壓後即是可直接開啟的單人世界（不含 repo、玩家資料）。私人世界需要讀取權限。
+在 Releases 頁輸入名稱、標題及說明，**每維度各選 revision**（branch／tag／commit；預設 HEAD，也就是該維度預設分支）。release 保存建立當下的固定 commit map，之後各分支移動不會改變下載內容。不同維度可來自不同分支，無須同名 tag 或相同 snapshot UUID。
+
+世界首頁也提供每維度 revision 的完整世界 ZIP。下載先顯示組裝進度，完成後開始下載；解壓後可直接開啟（不含 repo、玩家資料）。至少需要主世界 metadata，各維度 DataVersion 必須相容。私人世界需要讀取權限；準備檔保留最多 5 分鐘，成功下載後刪除，再次下載會重新準備。
 
 ### 10.8 通知
 
-右上角「通知」顯示與你相關的 PR 開啟、審核、合併事件。
+右上角「通知」顯示與你相關的 PR 開啟、審核、合併事件。所有網頁動作完成都有成功／沒有變更／部分完成／失敗通知，換頁後仍可讀、可關閉，螢幕報讀器會播報。
+
+合併、預覽及 ZIP 顯示階段、維度、計數／百分比及可估算的 ETA；未知總量使用不定進度。SSE 連線中斷會改為輪詢，可取消的預覽／ZIP 提供取消按鈕。PR 發布 refs 的階段不可取消。
+
+每個錯誤通知或頁內 banner 都有「複製」，內容包含 code、operation id、維度、WorldGit／Hub 版本、UTC 與已遮罩的完整訊息。瀏覽器 Clipboard 無法使用時會開啟已選取的純文字，可按 Ctrl/Cmd+C。舊開放 PR 的頁面要求先確認維度，再重新選擇衝突與審核。
+
+### 10.9 互動分支圖
+
+世界頁選好維度後進入「分支圖」，或使用 `/{owner}/{world}/graph/{dimension-repo}`。勾選「所有 refs（--all）」可納入全部分支、tag 與 remote tracking。點 commit 開啟既有 3D／commit 頁，點 PR 編號可查看合併討論；Tab／Enter 可操作連結，手機可水平捲動，支援亮／暗色。預設讀取 200 列，最多 10,000 列，截斷時顯示提示。admin／owner 可在圖頁設定這個維度的預設分支。
 
 ---
 
@@ -894,7 +905,7 @@ wgit push origin main --tags
 
 ## 14. 已知限制
 
-- **Phase 5 平臺過渡**：遊戲內 init 仍保留既有批次入口，creative 使用 `entities: all`；玩家目前維度詢問、wgit／git 別名、graph／ignore GUI、完整進度／完成提示／錯誤複製及觸及事件由任務 3／4 更新。Hub 的維度專案／PR／release 介面由任務 2 更新。
+- **Phase 5 平臺過渡**：遊戲內 init 仍保留既有批次入口，creative 使用 `entities: all`；玩家目前維度詢問、wgit／git 別名、graph／ignore GUI、完整進度／完成提示／錯誤複製及觸及事件由任務 3／4 更新。Hub 的維度專案／PR／release、graph、進度與通知已完成任務 2。
 - **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理；跨 DataVersion 不支援（沒有 DataFixer）。
 - **作者歸屬**是 chunk 粒度，沒有逐格 blame；玩家登出提交的是整個世界，沒有 per-player staging。
 - **`modified-only`** 目前只記錄設定，平臺尚未自動蒐集玩家編輯集合，實際仍追蹤全部 chunk。

@@ -8,7 +8,7 @@ export interface MergeDimension { dimension: string; repo: string; ours: string;
 export interface MergeReport { fingerprint: string; canMerge: boolean; zeroIntervention: boolean; automaticallyMergedSections: number; regions: Region[]; dimensions: MergeDimension[]; ruleDifferences: { dimension: { value: string }; base: string; ours: string; theirs: string; merged: string | null }[]; problems: { dimension: string; code: string; reason: string }[]; warnings: string[] }
 export interface MergeSummary { tree: string; counts: { added: number; removed: number; modified: number; conflict: number }; entities: number; biomes: number; metadata: number; updateShapes: { x: number; y: number; z: number }[] }
 export const parseMergeSpec = parseCompareSpec
-export const mergePath = (o: string, w: string, ours: string, theirs: string) => comparePath(o, w, ours, theirs).replace('/compare/', '/merge-preview/')
+export const mergePath = (o: string, w: string, ours: string, theirs: string, dimension?: string) => comparePath(o, w, ours, theirs, dimension).replace('/compare/', '/merge-preview/')
 export function encodeChoices(choices: Map<number, Choice>): string { return [...choices].sort((a, b) => a[0] - b[0]).map(([id, c]) => `${id}:${c}`).join(',') }
 /** URL 選擇只能套到原 tip 指紋；未知 id／選項丟棄，不默認已解決。 */
 export function readChoices(text: string | null, fingerprint: string | null, report: MergeReport): Map<number, Choice> {

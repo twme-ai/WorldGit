@@ -109,6 +109,11 @@ public class HistoryService {
     }
   }
 
+  public Optional<CommitInfo> head(WorldRow w,DimensionId d)throws IOException {
+    if(!storage.exists(w.ownerSlug(),w.slug(),d))return Optional.empty();
+    try(var h=repos.open(w.ownerSlug(),w.slug(),d)){String id=h.store().head();return id==null?Optional.empty():Optional.of(info(h.store().readCommit(id)));}
+  }
+
   /** 分支 head 的 commit（沒有該分支或維度 repo 不存在時為空）。 */
   public Optional<CommitInfo> branchHead(WorldRow w, DimensionId dim, String branch) throws IOException {
     if (!Refs.validBranch(branch) || !storage.exists(w.ownerSlug(), w.slug(), dim)) return Optional.empty();
@@ -197,41 +202,18 @@ public class HistoryService {
   }
 
   /** branch 為 null＝預設（HEAD）；指定分支時只看該分支的歷史，分支在任何維度都不存在則 NoSuchElementException（404）。 */
-  public SnapshotPage snapshots(WorldRow w, int limit, Long before, boolean includeAuto, String branch) throws IOException {
-    var existing = storage.dimensions(w.ownerSlug(), w.slug());
+  public SnapshotPage snapshots(WorldRow w, int limit, Long before, boolean includeAuto, String branch) throws IOException {return snapshots(w,limit,before,includeAuto,branch,null);}
+  public SnapshotPage snapshots(WorldRow w,int limit,Long before,boolean includeAuto,String branch,DimensionId dimension)throws IOException {
+    var existing = storage.dimensions(w.ownerSlug(), w.slug()).stream().filter(d->dimension==null || d.equals(dimension)).toList();
     var declared = declared(w, existing);
     boolean explicitBranch = branch != null;
     if (branch == null) branch = defaultBranch(w, existing);
-    var groups = new LinkedHashMap<String, Map<String, CommitInfo>>();
-    var rejected = new HashMap<String, String>();
-    boolean found = branch == null || existing.isEmpty();
-    for (DimensionId d : existing) {
-      var history = log(w, d, branch);
-      found |= !history.isEmpty();
-      for (CommitInfo c : history) groups.computeIfAbsent(c.snapshot(), k -> new LinkedHashMap<>()).putIfAbsent(d.value(), c);
+    var rows=new ArrayList<SnapshotRow>();boolean found=existing.isEmpty();
+    for(DimensionId d:existing) {
+      var commits=log(w,d,explicitBranch?branch:null);found|=!commits.isEmpty();
+      for(var c:commits)rows.add(new SnapshotRow(c.snapshot(),c.time(),c.message(),c.author(),c.auto(),c.source(),Map.of(d.value(),c),false,List.of(),null));
     }
-    if (!found && explicitBranch) throw new NoSuchElementException("找不到分支 " + branch);
-    for (var e : accounts.pushEvents(w.id(), 200)) {
-      if ("REJECTED".equals(e.status()) && e.snapshot() != null) rejected.put(e.snapshot(), e.message());
-    }
-    var rows = new ArrayList<SnapshotRow>();
-    for (var g : groups.entrySet()) {
-      var commits = g.getValue();
-      CommitInfo lead = commits.getOrDefault(DimensionId.OVERWORLD.value(), commits.values().iterator().next());
-      long time = commits.values().stream().mapToLong(CommitInfo::time).max().orElse(0);
-      var missing = new ArrayList<String>();
-      for (DimensionId d : declared) {
-        if (commits.containsKey(d.value())) continue;
-        // 沒有該維度的 commit：repo 尚未推送（不存在或沒有 HEAD）才算缺少；
-        // repo 已有歷史而這次存檔沒有 commit，表示該維度那次沒有變動。
-        boolean pushed = existing.contains(d) && !log(w, d, branch).isEmpty();
-        if (!pushed) missing.add(d.value());
-      }
-      String reason = rejected.get(g.getKey());
-      boolean partial = !missing.isEmpty() || reason != null;
-      rows.add(new SnapshotRow(g.getKey(), time, lead.message(), lead.author(), lead.auto(), lead.source(),
-          commits, partial, missing, reason != null ? "push 被拒絕：" + reason : !missing.isEmpty() ? "尚未推送的維度：" + String.join(", ", missing) : null));
-    }
+    if(!found && explicitBranch)throw new NoSuchElementException("找不到分支 "+branch);
     rows.sort(Comparator.comparingLong(SnapshotRow::time).reversed());
     var filtered = rows.stream()
         .filter(r -> before == null || r.time() < before)

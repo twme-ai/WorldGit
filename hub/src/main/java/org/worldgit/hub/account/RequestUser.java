@@ -41,6 +41,8 @@ public class RequestUser {
     return r;
   }
 
+  public Result revalidate(HttpServletRequest req){req.removeAttribute(ATTR);return resolve(req);}
+
   public User user(HttpServletRequest req) {
     return resolve(req).user();
   }

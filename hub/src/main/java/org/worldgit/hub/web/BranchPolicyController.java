@@ -11,5 +11,5 @@ public class BranchPolicyController {
   public BranchPolicyController(Access access,BranchPolicy policy){this.access=access;this.policy=policy;}
   @GetMapping Object list(HttpServletRequest req,@PathVariable String owner,@PathVariable String world){return policy.list(access.world(req,owner,world,Role.READER).id());}
   @PutMapping Object set(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@RequestBody BranchPolicy.Rule rule){policy.set(access.world(req,owner,world,Role.ADMIN),rule);return Map.of("ok",true);}
-  @DeleteMapping Object delete(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@RequestParam String branch){policy.delete(access.world(req,owner,world,Role.ADMIN),branch);return Map.of("ok",true);}
+  @DeleteMapping Object delete(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@RequestParam String branch,@RequestParam(defaultValue="minecraft:overworld") String dimension){policy.delete(access.world(req,owner,world,Role.ADMIN),branch,dimension);return Map.of("ok",true);}
 }

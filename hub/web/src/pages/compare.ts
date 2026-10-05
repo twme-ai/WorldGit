@@ -1,3 +1,4 @@
+import { errorBanner } from '../ui.ts'
 import { api, dimLabel, type CompareDimension } from '../api.ts'
 import { comparePath, dimensionDetail, parseCompareSpec, pickDimension, viewRenderMode, type CompareView } from '../compare.ts'
 import { activePalette, loadPalettes, paletteChoice, setPaletteChoice } from '../palette.ts'
@@ -16,7 +17,7 @@ export async function comparePage(root: HTMLElement, owner: string, world: strin
   const loading = h('p', { class: 'empty' }, '載入比較…')
   root.append(loading)
   try {
-    const result = await api.compare(owner, world, pair.a, pair.b)
+    const result = await api.compare(owner, world, pair.a, pair.b, new URLSearchParams(location.search).get('dim') ?? 'minecraft:overworld')
     const palettes = await loadPalettes()
     let palette = await activePalette()
     const params = new URLSearchParams(location.search)
@@ -111,7 +112,7 @@ export async function comparePage(root: HTMLElement, owner: string, world: strin
         viewer.onPick = p => renderPick(pick, p)
         viewer.onStats = s => { hud.textContent = `${s.ready ? '就緒' : '載入中…'} · ${dimLabel(d.dimension)} · ${view === 'before' ? '前 a' : view === 'after' ? '後 b' : 'a → b'}\nchunks ${s.chunks} · sections ${s.sectionsMeshed} · LOD ${s.lodRegions} · GPU ${s.gpuMB.toFixed(1)} MB` }
         viewer.onViewChange = v => { camera = v; saveURL() }
-        viewer.onError = m => { if (current === generation && !disposed) hud.textContent = `錯誤：${m}`; console.error(m) }
+        viewer.onError = m => { if (current === generation && !disposed) hud.replaceChildren(errorBanner(m)); console.error(m) }
         if (camera) viewer.applyViewState(camera)
         void viewer.start().catch(e => { if (current === generation && !disposed) hud.textContent = `無法啟動檢視器：${e}` })
       } catch (e) { hud.textContent = String(e) }

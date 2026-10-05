@@ -39,25 +39,30 @@ class MergePreviewTest extends AbstractBranchTest {
   JsonNode report(String ours,String theirs) throws Exception {return json(endpoint()+"?ours="+ours+"&theirs="+theirs,TOKEN);}
   String view(JsonNode r,String mode,String choice,String kind) { return endpoint()+"/view/"+kind+"?ours=ours&theirs=theirs&fingerprint="+r.get("fingerprint").asText()+"&dim=minecraft:overworld&view="+mode+"&choices="+choice+"&x0=0&z0=0&x1=0&z1=0"; }
 
-  @Test void zeroConflictMultiDimensionAndMissingSourcePreservesOurs() throws Exception {
-    var r=report("main","feature"); assertTrue(r.get("canMerge").asBoolean());assertTrue(r.get("zeroIntervention").asBoolean());
-    assertEquals(0,r.get("regions").size());assertEquals(3,r.get("dimensions").size());assertEquals(1,r.get("automaticallyMergedSections").asInt());
-    var missing=report("main","side");assertTrue(missing.get("canMerge").asBoolean());
-    assertEquals(2,java.util.stream.StreamSupport.stream(missing.get("dimensions").spliterator(),false).filter(d->d.get("status").asText().equals("keep-ours")).count());
+  @Test void zeroConflictEachDimensionAndMissingSourceIsExplicit() throws Exception {
+    int total=0;for(var dimension:paths.keySet()) {
+      var report=json(endpoint()+"?ours=main&theirs=feature&dimension="+dimension.value(),TOKEN);
+      assertTrue(report.get("canMerge").asBoolean());assertTrue(report.get("zeroIntervention").asBoolean());assertEquals(0,report.get("regions").size());assertEquals(1,report.get("dimensions").size());total+=report.get("automaticallyMergedSections").asInt();
+    }
+    assertEquals(1,total);
+    var missing=report("main","side");assertTrue(missing.get("canMerge").asBoolean());assertEquals(1,missing.get("dimensions").size());
+    for(var d:paths.keySet())if(!d.equals(DimensionId.OVERWORLD))assertEquals(404,get(endpoint()+"?ours=main&theirs=side&dimension="+d.value(),TOKEN).statusCode());
   }
   @Test void coreRegionsMatchAndStateSelectionIsExactAndReadOnly() throws Exception {
     var before=repoDigest(); var r=report("ours","theirs");
     assertTrue(r.get("canMerge").asBoolean());assertFalse(r.get("zeroIntervention").asBoolean());
-    assertEquals(6,r.get("regions").size());
+    assertEquals(2,r.get("regions").size());int totalRegions=0;
     for(var dim:paths.keySet()) try(var s=new JGitStore(paths.get(dim),false)) {
       String o=s.resolve("ours"),t=s.resolve("theirs"),b=MergeBases.unique(s,o,t);
       var core=new MergeEngine(s,dim,s.readCommit(b).tree(),s.readCommit(o).tree(),s.readCommit(t).tree(),List.of(),List.of()).merge(1);
-      var rows=new ArrayList<JsonNode>();r.get("regions").forEach(n->{if(n.get("dimension").asText().equals(dim.value()))rows.add(n);});
+      var selected=json(endpoint()+"?ours=ours&theirs=theirs&dimension="+dim.value(),TOKEN);totalRegions+=selected.get("regions").size();
+      var rows=new ArrayList<JsonNode>();selected.get("regions").forEach(n->{if(n.get("dimension").asText().equals(dim.value()))rows.add(n);});
       assertEquals(core.report().regions().size(),rows.size());
       for(int i=0;i<rows.size();i++) {
         var cr=core.report().regions().get(i);assertEquals(JSON.valueToTree(cr.bounds()),rows.get(i).get("bounds"));assertEquals(cr.blockCount(),rows.get(i).get("blockCount").asInt());
       }
     }
+    assertEquals(6,totalRegions,"三維度逐一驗證仍保留全部衝突區域");
     var region=java.util.stream.StreamSupport.stream(r.get("regions").spliterator(),false).filter(n->n.get("dimension").asText().equals("minecraft:overworld")&&n.get("blockCount").asInt()==3).findFirst().orElseThrow();
     assertTrue(region.get("redstone").asBoolean());assertTrue(region.get("oursAuthors").toString().contains("Alice"));assertTrue(region.get("theirsAuthors").toString().contains("Bob"));
     int id=region.get("id").asInt();
@@ -115,9 +120,9 @@ class MergePreviewTest extends AbstractBranchTest {
     try(var git=org.eclipse.jgit.api.Git.open(paths.get(DimensionId.OVERWORLD).toFile())){git.push().setRemote(url("/git/admin/"+WORLD+"/minecraft.overworld.git")).setRefSpecs(new org.eclipse.jgit.transport.RefSpec("refs/heads/moving:refs/heads/moving")).setCredentialsProvider(new org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider("admin",TOKEN)).call().forEach(x->x.getRemoteUpdates().forEach(u->assertEquals(org.eclipse.jgit.transport.RemoteRefUpdate.Status.OK,u.getStatus())));}
     assertNotEquals(old,report("moving","theirs").get("fingerprint").asText());assertEquals(first,report("ours","theirs").get("fingerprint").asText());
   }
-  @Test void hashUsesGroupRefsIncludingUnchangedDimension() throws Exception {
+  @Test void hashNeverPairsGroupRefsOrOtherDimensions() throws Exception {
     String id;try(var s=new JGitStore(paths.get(DimensionId.OVERWORLD),false)){id=s.resolve("ours");}
-    var r=report(id,"theirs");assertEquals(3,r.get("dimensions").size());assertEquals(6,r.get("regions").size());
+    var r=report(id,"theirs");assertEquals(1,r.get("dimensions").size());assertEquals(2,r.get("regions").size());
   }
   Map<String,String> repoDigest() throws Exception {
     var result=new TreeMap<String,String>();Path root=data.resolve("repos");

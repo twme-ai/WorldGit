@@ -197,7 +197,7 @@ CLI 完成、init 詢問與規則狀態文字使用共用 YAML MiniMessage 純�
 
 | 任務 | 可直接使用的介面 | 待接功能與驗收 |
 |---|---|---|
-| 2：Hub | `BareWorldMerge(Path repository, DimensionId)`、`CommitGraph.read`、`WorldAssembler.assemble/zip` 的 commit map、`OperationProgress`／`OperationResult.ErrorReport` | 以單維度識別專案、權限／分支／PR／release，移除 UI 與 HTTP 的 group／publication 約束；共用 lane 繪圖、授權的有界進度 endpoint、完成通知／複製錯誤。沿用既有 smart HTTP 路徑相容，另設完整世界下載的維度 revision 選取入口。 |
+| 2：Hub（已實作） | 單維度 BareWorldMerge、core 圖／progress／result；graph／operations／revisions REST；schema v5 | 每維度 PR／policy／預設分支／圖、SSE／輪詢、ZIP、全部動作結果／錯誤複製與舊資料遷移已接線；驗收狀態見下方任務 2 實作紀錄。 |
 | 3：Paper／Folia | `WorldRepositories.initializable/initDimensions`、`WorldOperations.live(layout, access, id)`、`IgnoreEditor`、共用 graph／progress／result、`PlayerTouchedEntities.touch` | 玩家所在維度 init、主世界追加按鈕、console 明確維度、wgit／git 別名與衝突開關、ignore GUI／Brigadier、bossbar 與完成／複製；觸及事件依 owner／repo queue 串行寫 sidecar，完整覆蓋 WE／FAWE／指令／互動／乘客／UUID 轉換及跨維度；事件完成前保持 entities: all。驗自然牛不入庫、命名後入庫、盔甲座可還原且自然實體不刪除，補 Folia owner／停服回歸。 |
 | 4：Fabric | 同上，另有 `ServerRuntime.live(id, action)`／`region(id, action)` 的單維度相容入口 | 單人／dedicated 的玩家／console 範圍、別名、HUD／bossbar、ignore 畫面及聊天 graph（另評估圖形畫面）、完成／複製；伺服器驗證與權限不依賴 client。接觸及 mixin／事件、第三方編輯與跨維度 UUID 預檢後再切 creative 預設，補單人及 dedicated 真客戶端驗收。 |
 
@@ -268,3 +268,77 @@ Paper 矩陣 16/16（首輪 13＋補跑 3；第三階段會再完整跑）、Fab
 Fabric 單人 26.2 歷史失敗的 `data/minecraft/chunk_tickets.dat`：三維度各 121 張票券與所有欄位完全相同，只有原版 hash map 序列化順序不同。共用正規化只固定此清單順序，保留重複票券及所有欄位，不忽略檔案；歷史 blob 的完整 NBT 對照見 `.work/phase5-complete-regression/ticket-order-verified.json`。單人 fixture 的續跑建置改由共用 helper 執行實際存在的 `:cli:fatJar`／`:paper:plugin:jar`，修正執行間新增的錯誤 `shadowJar` 任務；新補跑證據見 `post-resume-results.json`，舊建置失敗與 metadata 失敗皆保留。 第一次新補跑的原世界 verify 已通過，但 clone 斷線後 CLI 遇到尚未釋放的 session.lock；fixture 現在等待原整合伺服器執行緒完全退出，維持既有 1200 tick 期限。因為共用 fixture 有變動，26.2 與 1.21.11 皆順序補跑，原世界、clone 初始及 clone 真客戶端重開後的三維度 verify 全部零差異。此輪新失敗亦完整保留於 post-resume 索引及個別日誌。 補上停服等待後，clone 的地獄自然更新差異也被完整 verify 揭露；單人 fixture 改在 SERVER_STARTING 即凍結整合伺服器，並斷言 clone 已凍結，避免在等待世界畫面及握手時先執行自然 ticks。凍結只在驗收 mod 啟用，不改正式平台；clone 失敗診斷也在刪除副本前保留。 完整 build 已成功；第一次清理檢查將外部 `/tmp/sculpt-e2e/server` 的 25599 listener 誤當成本任務資源。已逐次核對設定檔及 Minecraft status 身分為 Sculpt preview E2E，記錄於清理證據，不操作外部服務；所有 WorldGit 測試 ports 仍須關閉。沿用成功 build 並核對受測來源雜湊，只補做清理與報表；原 runner 的清理失敗證據保留於 cleanup-after-build.json。
 
 所有自帶鎖腳本均直接呼叫，只有最後 Gradle build 外包 flock；同一 namespace 的 Java／node／Xvfb 測試程序已退出，測試 ports 關閉，bench.lock 可取得。暫存相對本輪起始增加 1.69 GiB（低於 4 GiB）；未改 experiments、未 commit。清理證據 `.work/phase5-complete-regression/cleanup-final.json`，逐命令結果 `.work/phase5-complete-regression/final-results.json`。
+
+## 任務 2：Hub 動作盤點（2026-10-05，實作前）
+
+盤點來源是全部 REST controllers 與 `hub/web/src/pages`／`main.ts`；完成結果由共用 HTTP 邊界產生，網頁 fetch 邊界呈現，可關閉的 aria-live 通知不隨換頁消失。保留既有 DTO，物件增加 `result`，陣列透過 `X-WorldGit-Result`（UTF-8 JSON 的 Base64）提供同一結果；錯誤另有 `errorReport`。
+
+| 類別 | 全部寫入／使用者動作 |
+|---|---|
+| 帳號 | 登入、登出、申請註冊、驗證信箱、密碼更新、OAuth 連結／解除、管理員建立帳號 |
+| PAT | 建立、撤銷、複製一次性 token |
+| 世界 | 建立、刪除、公開／私人、每維度預設分支、完整世界 ZIP 準備與下載 |
+| PR | 建立、編輯、關閉、舊 PR 確認維度、核准、要求修改、衝突 choices、單維度合併 |
+| 留言 | 一般留言、座標釘選、回覆、編輯、刪除、清除未提交釘選 |
+| release | 每維度 revision 選取、建立、刪除、ZIP 準備、下載 |
+| Webhook | 建立、編輯／啟停、刪除、測試、讀投遞紀錄 |
+| 授權 | 個人授權／撤權、團隊授權／撤權、分支保護設定／刪除 |
+| 組織 | 建立組織／團隊、設定／移除組織成員、增加／移除團隊成員 |
+| 通知與操作 | 標為已讀、可取消操作的取消、合併預覽計算、push 索引與 webhook 排程 |
+| 本機介面 | 複製指令／錯誤、Clipboard 失敗後選取文字；唯讀切換分支／維度／相機以目前選取狀態呈現 |
+
+SUCCESS／NO_OP／PARTIAL／FAILED／CANCELLED 共用 core 結果。非同步啟動只呈現「已開始」，operation 終態才呈現完成；失敗不宣稱回滾。驗證狀態及交接見下一節。
+
+
+## 任務 2：Hub 實作紀錄（2026-10-05）
+
+A、D、F、H、I 與上表的 Hub 契約已接線：世界只作 ACL／配額容器，每維度的 refs／HEAD／tag／PR／policy／ahead／behind／push 獨立；source／target lease、衝突、審核及留言都限定 PR 維度。新 PR 合併只呼叫 `BareWorldMerge(Path, DimensionId)`；主世界更新不會讓地獄 PR 選擇失效。世界歷史可並列各維度 commit，不再拼 snapshot UUID，分支頁的未對齊／partial group 警告已移除。
+
+圖頁每維度使用 core lane／before／after／edges／labels 繪 SVG；--all、PR merge annotation、commit／3D 連結、鍵盤連結、手機水平捲動、亮／暗色、截斷提示及 admin 的 per-repo HEAD 設定已提供。API 先驗 read／PAT scope，limit 1–10000、refs 2000、traversal 20000、JSON 4 MiB。smart HTTP 與 CLI 的 world URL 發現保持原路徑。
+
+PR merge、合併預覽、ZIP 準備及 push 索引／webhook outbox 排程使用同一工作內的 operation id。Hub 排程先配置 UUID，core 新增接受外部 id 的 OperationProgress constructor，工作 thread 再開 context；WorldAssembler 在切維度時回報 dimension，沒有改組裝語意。前端使用同源 SSE，斷線改有界輪詢；網頁所有 JSON 動作由 fetch 邊界呈現可關閉 aria-live 終態，OAuth callback 結果經同 session 一次性 outcome 取回。作業列表只列自己的世界作業，世界頁可監看 push 後處理。queue 滿而 refs 已接受的 push 記 PARTIAL，沒有宣稱資料回滾；PR refs 發布不可取消，可取消 preview／ZIP。同步 PR／留言動作在授權後直接取 PR／留言的專案維度，完成結果與 ErrorReport 不依賴 body 重複帶 dimension。
+
+release／完整世界 ZIP 接受每維度 revision map，省略的維度使用該 repo HEAD；release 保存固定 commits，無須同名 tag。保留 WorldAssembler 的 metadata／DataVersion／bytes／time 預算及下載角色檢查。既有同步 ZIP／merge／preview 保留；新網頁採非同步準備再下載。
+
+schema v5 冪等 transaction 保留 world ACL、merged PR／release 的固定 commits；舊 open PR 要確認維度及重新審核；確認時同步更新留言的專案維度，原有釘選座標維度保留。舊 branch_rules 以 * 繼承全部維度，沒有放寬。舊 root journal 僅供 recovery／finalize，新 journal 在單維度 repo。舊 publication 讀寫入口仍保留 namespace／FF／immutable 既有限制，內容不再要求指向別的 repo，且不能替代受保護分支的 merge 授權。
+
+### 設計的具體化與相容差異
+
+- 世界 ACL／配額保留，維度不是另外創一個 world DB row；角色適用容器各維度，branch policy 與預設 HEAD 各自獨立。
+- 物件 DTO 增加 result；陣列保持原形狀，用 X-WorldGit-Result 的 UTF-8 JSON Base64 帶相同結果。HTTP status 與原成功欄位保留，錯誤增加 errorReport。非同步 202 只代表已排程。
+- operation 是記憶體有界觀察介面：128 records／64 events／8 active per actor／2 workers＋8 queue；完成 15 分鐘 TTL。SSE 32 global／2 per actor／30 秒，前端 500 ms、1800 次輪詢。ZIP 準備／保留最多 2、5 分鐘 TTL、成功下載清除。重啟不續看作業，應讀 PR／release／refs 最終狀態。
+- ErrorReport 純文字由伺服器已知秘密＋core 模式遮罩產生，header 不重複完整報告且 message／operation 分別限 256／200 字元；未匹配 API／Servlet 錯誤也帶安全報告；Clipboard 不可用呈現已選取 textarea。報告上限沿用 core 8192 字元，內部 SQL／stack 不當作使用者訊息。
+- webhook progress 到 outbox 排程為止，HTTP retry／DELIVERED／FAILED 另查 deliveries；下載 progress 到準備完成，實際保存由瀏覽器下載管理處理。
+- 舊 Hub 測試的跨 snapshot 配對期望改為各維度 commit／refs 檢查；Phase 4 驗收仍對照 CLI 三維度 heads 與容器 API，並保留兩版世界 ZIP／Paper verify／CSP／XSS／衝突逐格斷言。
+
+### 留給任務 3／4 的 Hub 介面
+
+| 用途 | 契約 |
+|---|---|
+| 每維度 PR／預覽／policy | PR create body.dimension；list 的 dimension filter；preview query dimension；policy body.dimension 與 delete query dimension。舊未帶維度客戶端預設主世界，任務 3／4 應明確帶玩家維度。 |
+| 圖與預設分支 | `GET /api/v1/worlds/{o}/{w}/dims/{repo}/graph?all=true&limit=N`，原樣使用 core lanes／edges／labels；PUT default-branch 是 admin，不由玩家本地 HEAD 推測 Hub 預設。 |
+| 作業 | POST operations 的 merge／preview／world-zip／release-zip；GET operations?limit=20 列同 actor 作業，GET id／events／download；POST id/cancel；scope 與角色仍需驗。push sideband 回傳 Hub operation UUID，CLI JSON 目前保留自己的 transfer id，可另外查有界作業列表。 |
+| 完成與錯誤 | OperationResult 五狀態、X-WorldGit-Operation／X-WorldGit-Result；錯誤 body.errorReport.text 是已遮罩的安全純文字，遊戲端仍須用 MiniMessage 的安全 literal／可複製 UI。 |
+| 通知與留言 | push／pr.opened／pr.reviewed／pr.merged 的 data.dimension；release 的 data.dimensions＋commits；Comment.dimension 是專案維度，新 pin.dimension 必須相同；舊 PR 釘選保留原座標維度。不要等待 publication 配對後才提示單維度更新。 |
+| 保留任務 | Paper／Folia bossbar、GUI ignore、玩家範圍、wgit/git 別名、觸及 sidecar；Fabric 的單人／dedicated／client UX 同屬任務 3／4。Hub 不辨識玩家觸及事件，不改平台 creative init。 |
+
+最終驗證結果與可攜證據追加於本節下方；安全細項見 [Phase 5 審查](../hub/docs/security-review-phase5-2026-10-05.md)，動作完整盤點在上一節，決策 #122–#128。
+
+### 任務 2 最終驗證（2026-10-05）
+
+| 命令 | 結果／證據 |
+|---|---|
+| `flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home npm_config_cache=.work/npm-cache ./gradlew --no-daemon --configure-on-demand --max-workers=1 build` | exit 0，1 分 17 秒、80 tasks；JUnit 315 項（Hub 74），failure／error／skip 皆 0。`.work/phase5-full-build8.log`。 |
+| `npm --prefix hub/web run test` | exit 0，4 files／26 項；新增 graph lane、五種完成狀態、未知進度／ETA、錯誤遮罩測試。`.work/phase5-web-tests-final2.log`。 |
+| `npm --prefix hub/web run lint`／`run typecheck`／`run build` | 均 exit 0；安全 lint、TypeScript 與 Vite 產物通過。`.work/phase5-web-lint-final.log`、`.work/phase5-web-typecheck-final.log`；最後前端 build 由 Phase 4 腳本執行。 |
+| `env SKIP_BUILD=1 RESULTS_DIR=.work/phase5-phase4-final-1_21_11-r3 hub/scripts/phase4-acceptance.sh --version 1.21.11`；26.2 使用 `RESULTS_DIR=.work/phase5-phase4-final-26_2`／`--version 26.2` | 兩次均 exit 0，同一最終 Hub／CLI jar 雜湊；兩版各 5 次瀏覽器流程（CSP／console／JS error 0）、三次 Paper 重開（主世界／地獄／終界 verify COMPLETE、內容差異 0）、refs 相符、baseline 未變。各目錄 results.json 與同名 .log。 |
+| `env SKIP_BUILD=1 RESULTS_DIR=.work/phase5-hub-acceptance-final5 hub/scripts/phase5-acceptance.sh` | exit 0；真 Hub jar＋SQLite／CLI：獨立地獄 PR／tag、主世界 refs 不變、graph、merge／release／push progress、秘密遮罩、真 Phase 4 schema 重啟遷移、瀏覽器 SSE→輪詢與 8 張截圖。`.work/phase5-acceptance-final5.log`。 |
+| `git diff --check` | 通過；不改 experiments，未 commit。 |
+
+前端命令使用 `npm_config_cache=.work/npm-cache` 的專案絕對路徑；瀏覽器使用 `PLAYWRIGHT_BROWSERS_PATH=.work/ms-playwright` 的專案絕對路徑與 Phase 4 同一系統 Chrome／SwiftShader／繁中字型。兩個驗收腳本自持鎖，沒有再外包 flock；`SKIP_BUILD=1` 僅沿用已完整 build 的 jar，腳本預設會自行建置。
+
+可攜摘要及受測來源／jar／截圖 SHA-256：[acceptance.json](../hub/docs/phase5-security/acceptance.json)；完整變更清單：[changed-files.txt](../hub/docs/phase5-security/changed-files.txt)。截圖位於 `hub/docs/screenshots/phase5/`：graph-light／dark／mobile、operation-progress、success-notification、error-notification-copy、copy-fallback、pr-dimension-selector。
+
+整批補跑曾因 SIGTERM（exit 143）中斷；另一輪 1.21.11 出現單次瀏覽器 HTTP 400，原始日誌及失敗 JSON 都保留。Phase 4 瀏覽器腳本補上至多 50 筆失敗 request 的 URL／status／已遮罩 ErrorReport 診斷，沒有排除錯誤或放寬零 console／JS／CSP 的斷言；之後完整 1.21.11 與兩版最終 jar 驗收沒有再現，未把無法重現的情況宣稱為已修正。先前整批兩版成功證據也保留在 `.work/phase5-phase4-acceptance2/`。
+
+最終 Hub 8091–8099、Paper 25691／25692 均確認無 listener，bench.lock 可取得；所有本輪驗收 sessions 已退出，世界／SQLite／複製 jar／ZIP／私有瀏覽器設定已清理。只保留日誌、結果、雜湊及截圖，不清除既有快取／baseline。未修改 Paper／Fabric 或 experiments，未 commit。容器映像與 container-smoke 留給主對話；本輪只確認 Containerfile／compose 不需改動，SQLite 通過不代表 PostgreSQL 實機驗收已跑。

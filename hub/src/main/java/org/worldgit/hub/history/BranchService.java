@@ -30,10 +30,14 @@ public class BranchService {
   private record DimRefs(DimensionId dim, SortedMap<String, ObjectId> branches, String headBranch) {}
   private record Reach(Set<String> snapshots, boolean truncated) {}
 
-  public BranchPage list(WorldRow w, String base) throws IOException {
-    var existing = storage.dimensions(w.ownerSlug(), w.slug());
+  public BranchPage list(WorldRow w,String base,DimensionId dimension) throws IOException {
+    return listSelected(w,base,dimension);
+  }
+  public BranchPage list(WorldRow w, String base) throws IOException {return listSelected(w,base,null);}
+  private BranchPage listSelected(WorldRow w,String base,DimensionId dimension) throws IOException {
+    var existing = storage.dimensions(w.ownerSlug(), w.slug()).stream().filter(d->dimension==null || d.equals(dimension)).toList();
     checkDimensions(existing.size());
-    var declared = history.declared(w, existing).stream().map(DimensionId::value).toList();
+    var declared = existing.stream().map(DimensionId::value).toList();
     checkDimensions(declared.size());
     var refs = new ArrayList<DimRefs>();
     var names = new TreeSet<String>();
@@ -67,7 +71,7 @@ public class BranchService {
           }
           tips.put(key, count);
         }
-        snaps.addAll(count.only());
+        for(String commitId:count.only())snaps.add(r.dim()+"/"+commitId);
         truncated |= count.truncated();
       }
       reaches.put(name, new Reach(snaps, truncated));

@@ -20,8 +20,8 @@ public class MergePreviewController {
   }
   @GetMapping
   ResponseEntity<byte[]> report(HttpServletRequest req, @PathVariable String owner, @PathVariable String world,
-      @RequestParam String ours, @RequestParam String theirs) throws IOException {
-    return json(service.report(access.world(req,owner,world,Role.READER),ours,theirs));
+      @RequestParam String ours, @RequestParam String theirs,@RequestParam(defaultValue="minecraft:overworld") String dimension) throws IOException {
+    return json(service.report(access.world(req,owner,world,Role.READER),ours,theirs,new org.worldgit.core.model.DimensionId(dimension)));
   }
   @GetMapping("/view/{kind}")
   ResponseEntity<byte[]> view(HttpServletRequest req, @PathVariable String owner, @PathVariable String world,

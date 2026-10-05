@@ -15,5 +15,7 @@ public class WebhookController {
   @PostMapping Object create(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@RequestBody Config b)throws IOException{return hooks.create(access.world(req,owner,world,Role.ADMIN),b.url(),b.secret(),b.events(),b.enabled());}
   @PutMapping("/{id}") Object update(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@PathVariable String id,@RequestBody Config b)throws IOException{return hooks.update(access.world(req,owner,world,Role.ADMIN),id,b.url(),b.secret(),b.events(),b.enabled());}
   @DeleteMapping("/{id}") Object delete(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@PathVariable String id){hooks.delete(access.world(req,owner,world,Role.ADMIN),id);return Map.of("ok",true);}
+  record Test(String dimension) {}
+  @PostMapping("/{id}/test") Object test(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@PathVariable String id,@RequestBody(required=false) Test b){return Map.of("delivery",hooks.test(access.world(req,owner,world,Role.ADMIN),id,b==null || b.dimension()==null?"minecraft:overworld":b.dimension()),"message","測試投遞已排入佇列");}
   @GetMapping("/{id}/deliveries") Object deliveries(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@PathVariable String id,@RequestParam(defaultValue="0") int offset,@RequestParam(defaultValue="50") int limit){return hooks.deliveries(access.world(req,owner,world,Role.ADMIN),id,offset,limit);}
 }

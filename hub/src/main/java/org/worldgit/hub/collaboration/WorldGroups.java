@@ -13,7 +13,7 @@ import org.worldgit.hub.history.BranchService;
 import org.worldgit.hub.storage.RepoStorage;
 import org.worldgit.hub.web.ApiError;
 
-/** publication 的完整 commit map 必須在每個 repo 與分支 heads 相符；中途發布拒絕合併／下載。 */
+/** 世界容器的 repo 發現；各維度 revision 獨立，舊 publication 只保留歷史。 */
 @Service
 public class WorldGroups {
   private final RepoStorage storage;private final RepoCache repos;
@@ -41,30 +41,18 @@ public class WorldGroups {
       var ref=h.repository().exactRef("refs/heads/"+branch);if(ref==null || ref.getObjectId()==null)throw new ApiError.Conflict("分支缺少維度："+d);
       result.put(d,ref.getObjectId().name());
     }
-    var commits=new TreeMap<DimensionId,RefStore.Commit>();
-    for(var d:paths.keySet())try(var h=repos.open(w.ownerSlug(),w.slug(),d)){commits.put(d,h.store().readCommit(result.get(d)));}
-    RepositoryGroup.validateSnapshot(commits,(d,s)->{try(var h=repos.open(w.ownerSlug(),w.slug(),d)){return h.store().resolve("refs/worldgit/groups/"+s);}});
-    // 主世界宣告的維度也必須已存在，不能只推主世界就被視為完整。
-    if(commits.containsKey(DimensionId.OVERWORLD))try(var h=repos.open(w.ownerSlug(),w.slug(),DimensionId.OVERWORLD)) {
-      var entry=TreeEditor.find(h.store(),commits.get(DimensionId.OVERWORLD).tree(),"dimensions");
-      if(entry!=null){var manifest=BoundedYaml.parse(new String(h.store().readBlob(entry.id()),java.nio.charset.StandardCharsets.UTF_8));
-        if(manifest.get("dimensions") instanceof Map<?,?> declared)for(var id:declared.keySet())if(!result.containsKey(new DimensionId(id.toString())))throw new ApiError.Conflict("世界尚未完整推送："+id);
-      }
-    }
-    var expected=new TreeMap<String,String>();result.forEach((d,id)->expected.put(d.value(),id));
-    String operation=null;int markers=0;
-    for(var d:paths.keySet())try(var h=repos.open(w.ownerSlug(),w.slug(),d)) {
-      var r=h.repository().exactRef("refs/worldgit/publications/"+branch);
-      if(r==null)continue;markers++;
-      var c=h.store().readCommit(r.getObjectId().name());var entry=TreeEditor.find(h.store(),c.tree(),"publication.yml");
-      if(entry==null)throw new ApiError.Conflict("publication 缺少清單");
-      byte[] bytes=h.store().readBlob(entry.id());if(bytes.length>65536)throw new ApiError.Conflict("publication 清單過大");
-      var map=BoundedYaml.parse(new String(bytes,java.nio.charset.StandardCharsets.UTF_8));
-      if(!branch.equals(map.get("branch")) || !expected.equals(map.get("commits")) || !(map.get("operation") instanceof String op))throw new ApiError.Conflict("全維度發布尚未完成，請完成原 push 再重試");
-      if(operation!=null && !operation.equals(op))throw new ApiError.Conflict("publication operation 不一致");operation=op;
-    }
-    if(markers>0 && markers!=paths.size())throw new ApiError.Conflict("publication 尚未完整推送");
     return result;
+  }
+  public Path path(WorldRow w,DimensionId d) throws IOException {
+    var path=paths(w).get(d);if(path==null)throw new ApiError.NotFound("找不到維度");return path;
+  }
+  public SortedMap<DimensionId,String> branchTips(WorldRow w,DimensionId d,String branch) throws IOException {
+    BranchPolicy.branch(branch);path(w,d);
+    try(var h=repos.open(w.ownerSlug(),w.slug(),d)) {
+      var ref=h.repository().exactRef("refs/heads/"+branch);
+      if(ref==null || ref.getObjectId()==null)throw new ApiError.NotFound("找不到維度分支："+d+" / "+branch);
+      return new TreeMap<>(Map.of(d,ref.getObjectId().name()));
+    }
   }
   public static Map<String,String> strings(Map<DimensionId,String> tips){var out=new TreeMap<String,String>();tips.forEach((d,id)->out.put(d.value(),id));return out;}
 }

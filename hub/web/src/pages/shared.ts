@@ -31,7 +31,7 @@ export function statSpans(d: CommitDetail): HTMLElement {
 
 export function snapshotRow(owner: string, world: string, snap: SnapshotRow, declared: string[], lazyStats = true): HTMLElement {
   const chips = h('div', { class: 'chips' })
-  for (const dim of declared) {
+  for (const dim of Object.keys(snap.commits)) {
     const c = snap.commits[dim]
     if (c) {
       const stats = h('span', { class: 'stat muted' }, '…')
@@ -52,9 +52,8 @@ export function snapshotRow(owner: string, world: string, snap: SnapshotRow, dec
   return h('div', { class: 'snap' },
     h('div', { class: 'title' }, snap.message.split('\n')[0] || '(無訊息)',
       snap.auto ? h('span', { class: 'badge' }, '自動') : null,
-      h('span', { class: 'badge' }, snap.source),
-      snap.partial ? h('span', { class: 'badge warn', title: snap.partialReason ?? '' }, '部分推送') : null),
-    h('div', { class: 'small muted' }, `${snap.author.name} · `, h('span', { title: fmtFull(snap.time) }, fmtTime(snap.time)), snap.partialReason ? ` · ${snap.partialReason}` : ''),
+      h('span', { class: 'badge' }, snap.source)),
+    h('div', { class: 'small muted' }, `${snap.author.name} · `, h('span', { title: fmtFull(snap.time) }, fmtTime(snap.time))),
     chips)
 }
 

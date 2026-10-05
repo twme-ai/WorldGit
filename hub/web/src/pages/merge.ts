@@ -1,3 +1,5 @@
+import { showError } from '../ui.ts'
+import { runOperation } from '../operations.ts'
 import { dimLabel, getJson } from '../api.ts'
 import { encodeChoices, mergePath, parseMergeSpec, previewCommit, readChoices, selectionSummary, sortedRegions, type Choice, type MergeDimension, type MergeReport, type MergeSummary, type MergeView, type Region } from '../merge.ts'
 import { activePalette, loadPalettes, paletteChoice, setPaletteChoice } from '../palette.ts'
@@ -21,7 +23,7 @@ export async function mergePage(root: HTMLElement, owner: string, world: string,
   const endpoint = `/api/v1/worlds/${owner}/${world}/merge-preview`
   const source = new URLSearchParams({ ours: pair.a, theirs: pair.b })
   try {
-    const report = pull?.report ?? await getJson<MergeReport>(`${endpoint}?${source}`)
+    const report = pull?.report ?? (await runOperation<MergeReport>(`/api/v1/worlds/${owner}/${world}`,{operation:'preview',ours:pair.a,theirs:pair.b,dimension:new URLSearchParams(location.search).get('dim') ?? 'minecraft:overworld'})).data
     const palettes = await loadPalettes(); let palette = await activePalette()
     if (disposed) return dispose
     const params = new URLSearchParams(location.search)
@@ -86,7 +88,7 @@ export async function mergePage(root: HTMLElement, owner: string, world: string,
           const select = e.target as HTMLSelectElement, previous = choices.get(r.id)
           select.disabled = true; choices.set(r.id, select.value as Choice)
           try { if (pull) await pull.onChoices(Object.fromEntries(choices)); mode = 'selected'; updateSelection(); show(); save() }
-          catch (error) { if (previous) choices.set(r.id, previous); else choices.delete(r.id); select.value = previous ?? 'manual'; toast(String(error), 'error') }
+          catch (error) { if (previous) choices.set(r.id, previous); else choices.delete(r.id); select.value = previous ?? 'manual'; showError(error) }
           finally { select.disabled = false }
         } }, ...[['manual', '待遊戲內處理'], ['ours', 'ours'], ['theirs', 'theirs'], ['base', 'base']].map(([v, label]) => h('option', { value: v, selected: (choices.get(r.id) ?? 'manual') === v }, label)))))))
       if (!rows.length) list.append(h('p', { class: 'empty' }, report.regions.length ? '此維度沒有衝突區域。' : '沒有衝突，可零介入合併。'))

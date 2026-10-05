@@ -83,11 +83,11 @@ public class WorldController {
   @GetMapping("/worlds/{owner}/{world}/snapshots")
   SnapshotPage snapshots(HttpServletRequest req, @PathVariable String owner, @PathVariable String world,
       @RequestParam(defaultValue = "50") int limit, @RequestParam(required = false) Long before,
-      @RequestParam(defaultValue = "true") boolean auto, @RequestParam(required = false) String branch) throws IOException {
+      @RequestParam(defaultValue = "true") boolean auto, @RequestParam(required = false) String branch,@RequestParam(required=false) String dimension) throws IOException {
     WorldRow w = access.world(req, owner, world, Role.READER);
     if (branch != null && !branch.isEmpty() && (branch.length() > 100 || !org.eclipse.jgit.lib.Repository.isValidRefName("refs/heads/" + branch)))
       throw new IllegalArgumentException("分支名稱無效");
-    return history.snapshots(w, Math.max(1, Math.min(limit, 500)), before, auto, branch == null || branch.isEmpty() ? null : branch);
+    return history.snapshots(w, Math.max(1, Math.min(limit, 500)), before, auto, branch == null || branch.isEmpty() ? null : branch,dimension==null?null:new org.worldgit.core.model.DimensionId(dimension));
   }
 
   @GetMapping("/worlds/{owner}/{world}/pushes")

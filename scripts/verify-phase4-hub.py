@@ -100,9 +100,14 @@ def version_case(version):
         result['conflict_verify']=verify_all(lambda world,*words:cli(world,*words)[0],a)
         # CLI 拉下的全維度 HEAD／tree 與 PR 合併結果一致。
         detail=result['conflict_pr']['detail'];heads={}
-        for dim in detail['pr']['commits']:
+        for dim in DIMENSIONS:
             path=repository(a,dim,version);heads[dim]=p4.run(['git','--git-dir='+str(path),'rev-parse','refs/heads/main']).strip()
-        assert heads==detail['pr']['commits'],(heads,detail['pr']['commits']);result['heads_match']=True
+        assert set(detail['pr']['commits'])=={'minecraft:overworld'}
+        assert heads['minecraft:overworld']==detail['pr']['commits']['minecraft:overworld']
+        remote=api('GET',base+'/branches',actor='a')
+        remote_heads=next(row['heads'] for row in remote['branches'] if row['name']=='main')
+        assert heads=={dim:row['id'] for dim,row in remote_heads.items()},(heads,remote_heads)
+        result['heads_match']=True
         result['conflict_paper']=p4.load_world(version,a,'conflict-paper-'+version,'paper')
         cli(a,'tag','v-final','-m','Full merged release','--all');cli(a,'push','--tags','--all',actor='a')
         result['release']=web('release',slug,version+'-release',author=USERS['a'],tag='v-final',title='Merged world '+version,zip=str(zip_path))
@@ -110,9 +115,9 @@ def version_case(version):
             assert all('.worldgit' not in Path(name).parts and 'playerdata' not in name and name!='session.lock' for name in archive.namelist());assert 'level.dat' in archive.namelist();archive.extractall(exported)
         # ZIP 本身不帶歷史，為開服前後的逐格驗證另建本機 baseline；解壓世界不經還原或修改。
         initialized=cli(exported,'init','--with-dimensions','all')[0]
-        assert set(initialized['dimensions'])==set(detail['pr']['commits']),initialized
+        assert set(initialized['dimensions'])==set(DIMENSIONS),initialized
         assert initialized.get('snapshot') and all(d.get('error') is None and d.get('value',{}).get('commit') for d in initialized['dimensions'].values()),initialized
-        graphs=cli(exported,'log')[0];assert set(graphs)==set(detail['pr']['commits']) and len({graph['nodes'][0]['snapshot'] for graph in graphs.values()})==len(graphs)
+        graphs=cli(exported,'log')[0];assert set(graphs)==set(DIMENSIONS) and len({graph['nodes'][0]['snapshot'] for graph in graphs.values()})==len(graphs)
         result['release_verify']=verify_all(lambda world,*words:cli(world,*words)[0],exported);result['release_paper']=p4.load_world(version,exported,'release-paper-'+version,'paper')
         result['baseline_unchanged']=p4.p2.manifest(ROOT/'.work/worlds'/version/'baseline')==before;assert result['baseline_unchanged']
         print(version+' Hub PR / CLI pull / Paper / release PASS',flush=True);return result

@@ -7,11 +7,11 @@ import java.io.OutputStream;
 import org.worldgit.core.normalize.DecodeBudget;
 
 /** 在 JSON 輸出串流配置更多空間前限制回應；compare／branches 共用 4 MiB 上限。 */
-final class BoundedJson {
+public final class BoundedJson {
   static final int MAX_BYTES = 4 << 20;
   private BoundedJson() {}
 
-  static byte[] encode(ObjectMapper json, Object value) throws IOException {
+  public static byte[] encode(ObjectMapper json, Object value) throws IOException {
     var bytes = new ByteArrayOutputStream();
     OutputStream bounded = new OutputStream() {
       private void check(int n) throws IOException {

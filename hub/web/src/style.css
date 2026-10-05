@@ -114,3 +114,29 @@ form.stack { max-width: 380px; } form.stack input { width: 100%; }
 .merge-rules pre { max-height:220px; overflow:auto; white-space:pre-wrap }
 .preview-summary details pre { max-height:120px; overflow:auto }
 @media(max-width:900px) { .merge-layout { grid-template-columns:1fr } .conflict-list { max-height:300px } }
+
+/* Phase 5：圖與通知都沿用主題色、可見鍵盤焦點與手機水平捲動。 */
+.toasts { position:fixed;bottom:16px;right:16px;z-index:99;display:grid;gap:8px;max-width:min(560px,calc(100vw - 32px)); }
+.toasts .toast { position:static;transform:none;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px #0004; }
+.toast span { flex:1;overflow-wrap:anywhere; }
+.toast button { padding:4px 8px;white-space:nowrap; }
+.copy-fallback { position:fixed;inset:20% 5%;z-index:110;background:var(--panel);border:2px solid var(--accent);padding:20px; }
+.copy-fallback textarea { width:100%;height:65%; }
+.operation-panel { position:fixed;bottom:100px;right:16px;max-width:min(600px,calc(100vw - 32px));padding:16px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;z-index:90; }
+.operation-panel progress { width:100%;height:18px;accent-color:var(--accent); }
+.error-banner { border:1px solid var(--rem);padding:12px;border-radius:8px; }
+.graph-scroll { display:flex;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--panel); }
+.graph-scroll svg { flex-shrink:0; }
+.graph-list { list-style:none;padding:0;margin:0;min-width:660px;flex:1; }
+.graph-list li { height:64px;display:flex;justify-content:center;flex-direction:column;border-bottom:1px solid var(--border);padding-right:14px; }
+.graph-list .row { flex-wrap:nowrap;gap:6px;white-space:nowrap; }
+.graph-label { background:var(--panel2);color:var(--text); }
+.graph-label.HEAD { border-color:var(--add); }
+.graph-edge { fill:none;stroke:var(--accent);stroke-width:2; }
+.graph-node { fill:var(--accent);stroke:var(--panel);stroke-width:2; }
+.graph-edge.lane-1 { stroke:var(--add); }.graph-node.lane-1 { fill:var(--add); }
+.graph-edge.lane-2 { stroke:var(--con); }.graph-node.lane-2 { fill:var(--con); }
+.graph-edge.lane-3 { stroke:var(--mod); }.graph-node.lane-3 { fill:var(--mod); }
+.graph-edge.lane-4 { stroke:#e985bf; }.graph-node.lane-4 { fill:#e985bf; }
+.graph-edge.lane-5 { stroke:#43c7c9; }.graph-node.lane-5 { fill:#43c7c9; }
+:focus-visible { outline:3px solid var(--accent);outline-offset:3px; }

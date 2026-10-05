@@ -13,7 +13,7 @@ public final class OperationProgress implements AutoCloseable {
   public record Event(UUID operationId, String operation, DimensionId dimension, String phase,
       long completed, Long total, Unit unit, Long remainingMillis, boolean cancellable, Double ratePerSecond) {}
   private static final ThreadLocal<OperationProgress> CURRENT = new ThreadLocal<>();
-  private final UUID id = UUID.randomUUID();
+  private final UUID id;
   private final String operation;
   private final AtomicBoolean cancelled = new AtomicBoolean();
   private final AtomicReference<Event> pending = new AtomicReference<>();
@@ -25,7 +25,10 @@ public final class OperationProgress implements AutoCloseable {
   private volatile String phaseKey;
   private volatile DimensionId currentDimension;
   private volatile long phaseStarted = started;
-  public OperationProgress(String operation, Consumer<Event> listener) {
+  public OperationProgress(String operation, Consumer<Event> listener) {this(UUID.randomUUID(),operation,listener);}
+  /** 外部排程先配置 id，工作執行緒再開啟同一個 context。 */
+  public OperationProgress(UUID id,String operation,Consumer<Event> listener) {
+    this.id=Objects.requireNonNull(id);
     this.operation = operation;
     this.listener = Objects.requireNonNull(listener);
     previous = CURRENT.get(); CURRENT.set(this);

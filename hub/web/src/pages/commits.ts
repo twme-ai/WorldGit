@@ -1,32 +1,35 @@
-import { ApiError, api, type BranchPage, type SnapshotRow } from '../api.ts'
+import { dimensionPicker } from './dimensions.ts'
+import { ApiError, api, dimRepo, type BranchPage, type SnapshotRow } from '../api.ts'
 import { branchOptions } from '../compare.ts'
 import { navigate } from '../router.ts'
-import { fmtFull, h, link } from '../ui.ts'
+import { fmtFull, h, link, errorBanner } from '../ui.ts'
 import { snapshotRow } from './shared.ts'
 
-/** commit 列表：每個存檔一列（依 WorldGit-Snapshot trailer 合併各維度）；連續的自動存檔折疊。 */
+/** commit 列表：每個存檔一列（維度 commit 各自一列，不依 snapshot 配對）；連續的自動存檔折疊。 */
 export async function commitsPage(root: HTMLElement, owner: string, world: string) {
   const body = h('div', { class: 'card' }, h('p', { class: 'empty' }, '載入中…'))
   const moreBox = h('div', { class: 'row', style: 'justify-content:center;margin-top:10px' })
-  const branch = new URLSearchParams(location.search).get('branch')
+  const branch = new URLSearchParams(location.search).get('branch'),dimension=new URLSearchParams(location.search).get('dim') ?? 'minecraft:overworld'
+  const info=await api.world(owner,world)
+  root.append(dimensionPicker(info.dimensions ?? [],dimension,d=>navigate(`/${owner}/${world}/commits?dim=${encodeURIComponent(d)}`)),link(`/${owner}/${world}/graph/${dimRepo(dimension)}`,'互動分支圖','btn'))
   const picker = h('span', { class: 'row small', style: 'gap:6px' })
   root.append(h('div', { class: 'crumbs' }, link('/', '世界'), ' / ', link(`/${owner}/${world}`, `${owner}/${world}`), ' / ', h('b', {}, 'commits')),
     h('div', { class: 'row' }, h('h1', {}, 'Commit 歷史'), picker, link(`/${owner}/${world}/branches`, '所有分支 →', 'small')), body, moreBox)
-  void api.branches(owner, world).then((page) => picker.replaceChildren(branchSelect(page, branch, (b) =>
-    navigate(`/${owner}/${world}/commits${b && b !== page.defaultBranch ? `?branch=${encodeURIComponent(b)}` : ''}`)))).catch(() => {})
+  void api.branches(owner, world,null,dimension).then((page) => picker.replaceChildren(branchSelect(page, branch, (b) =>
+    navigate(`/${owner}/${world}/commits?dim=${encodeURIComponent(dimension)}${b && b !== page.defaultBranch ? `&branch=${encodeURIComponent(b)}` : ''}`)))).catch(() => {})
   let declared: string[] = []
   let before: number | null = null
   let first = true
   const load = async () => {
     try {
-      const page = await api.snapshots(owner, world, 40, before, true, branch)
+      const page = await api.snapshots(owner, world, 40, before, true, branch,dimension)
       declared = page.declaredDimensions
       if (first) { body.replaceChildren(); first = false }
       renderRows(body, page.snapshots, owner, world, declared)
       before = page.nextBefore
       moreBox.replaceChildren(before ? h('button', { onClick: () => void load() }, '載入更多') : '')
       if (first === false && !body.children.length) body.append(h('p', { class: 'empty' }, '還沒有 commit。'))
-    } catch (e) { body.replaceChildren(h('p', { class: 'empty' }, String(e instanceof ApiError ? e.message : e))) }
+    } catch (e) { body.replaceChildren(errorBanner(e)) }
   }
   await load()
 }

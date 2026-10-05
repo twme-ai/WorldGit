@@ -11,6 +11,7 @@ public class SpaController {
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/releases", "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/releases/{id}",
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/settings", "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}", "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/commits",
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/branches",
+      "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/graph", "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/graph/{dim}",
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/compare/{*spec}",
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/merge-preview/{*spec}",
       "/{owner:[a-z0-9_-]+}/{world:[a-z0-9_-]+}/commit/{dim}/{rev}", "/{owner:[a-z0-9_-]+}"})

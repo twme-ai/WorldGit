@@ -20,10 +20,10 @@ public class RequestBoundary {
         String publicOrigin;
         try {var u=URI.create(props.registration().publicUrl());publicOrigin=u.getScheme()+"://"+u.getAuthority();}catch(Exception e){publicOrigin="";}
         if("cross-site".equals(req.getHeader("Sec-Fetch-Site")) || origin!=null && !origin.equals(self) && !origin.equals(publicOrigin)) {
-          LoginSecurity.error(res,403,"origin","不接受跨來源寫入");return;
+          LoginSecurity.error(res,403,"origin","不接受跨來源寫入",req);return;
         }
       }
-      if(req.getContentLengthLong()>1_048_576) {LoginSecurity.error(res,413,"budget","JSON 請求最多 1 MiB");return;}
+      if(req.getContentLengthLong()>1_048_576) {LoginSecurity.error(res,413,"budget","JSON 請求最多 1 MiB",req);return;}
       var wrapped=new HttpServletRequestWrapper(req) {
         @Override public ServletInputStream getInputStream() throws IOException {
           var stream=super.getInputStream();
@@ -38,6 +38,6 @@ public class RequestBoundary {
       };
       chain.doFilter(wrapped,res);
     };
-    var bean=new FilterRegistrationBean<>(filter);bean.setOrder(Integer.MIN_VALUE+1);bean.addUrlPatterns("/api/*");return bean;
+    var bean=new FilterRegistrationBean<>(filter);bean.setOrder(Integer.MIN_VALUE+2);bean.addUrlPatterns("/api/*");return bean;
   }
 }

@@ -128,8 +128,7 @@ final class Refs {
       int n = 0;
       for (RevCommit c : walk) {
         if (n++ >= limit) return new Counts(snaps, true);
-        String s = snapshot(c);
-        if (s != null) snaps.add(s);
+        DecodeBudget.work(1);snaps.add(c.name());
       }
     }
     return new Counts(snaps, false);

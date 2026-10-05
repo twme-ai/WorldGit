@@ -48,34 +48,9 @@ public class MergePreviewService {
     this.compare = compare; this.history = history; this.storage = storage; this.repos = repos; this.assets = assets;
   }
 
-  /** commit 的 group ref 優先；舊歷史按入口 first-parent 的 snapshot 回溯，與 core 相同。 */
-  private CompareService.Resolved resolve(WorldRow w, String spec) throws IOException {
-    var r = compare.resolve(w, spec);
-    if (!r.kind().equals("commit")) return r;
-    var lead = r.commits().values().stream().filter(c -> c.id().startsWith(spec.toLowerCase(Locale.ROOT))).findFirst().orElseThrow();
-    var found = new TreeMap<DimensionId, Dto.CommitInfo>();
-    for (var dim : storage.dimensions(w.ownerSlug(), w.slug())) {
-      try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
-        var ref = h.repository().exactRef("refs/worldgit/groups/" + lead.snapshot());
-        if (ref != null && ref.getObjectId() != null) { found.put(dim, HistoryService.info(h.store().readCommit(ref.getObjectId().name()))); continue; }
-      }
-      String cursor = lead.id();
-      for (int n = 0; cursor != null; n++) {
-        if (n >= 20_000) throw new DecodeBudget.Exceeded("snapshot 配對歷史上限 20000");
-        var c = history.find(w, new DimensionId(lead.dimension()), cursor).orElseThrow();
-        var match = history.commitForSnapshot(w, dim, c.snapshot());
-        if (match.isPresent()) { found.put(dim, match.get()); break; }
-        cursor = c.parents().isEmpty() ? null : c.parents().getFirst();
-      }
-      if (!found.containsKey(dim)) throw new IllegalArgumentException("無法配對 snapshot 的維度 " + dim + "；請使用同步分支");
-    }
-    // 入口本身以指定 commit 為準。
-    found.put(new DimensionId(lead.dimension()), lead);
-    return new CompareService.Resolved(spec, r.kind(), found);
-  }
-
-  private synchronized Cached compute(WorldRow w, String oursSpec, String theirsSpec) throws IOException {
-    var ours = resolve(w, oursSpec); var theirs = resolve(w, theirsSpec);
+  private synchronized Cached compute(WorldRow w,String oursSpec,String theirsSpec,DimensionId selected) throws IOException {
+    var ours=compare.resolve(w,oursSpec,selected);var theirs=compare.resolve(w,theirsSpec,selected);
+    org.worldgit.core.operation.OperationProgress.report(selected,"merge-preview",0L,null,org.worldgit.core.operation.OperationProgress.Unit.SECTION);
     StringBuilder signature = new StringBuilder(w.id());
     for (var side : List.of(ours, theirs)) {
       signature.append('|'); side.commits().forEach((d,c) -> signature.append(d).append('=').append(c.id()).append(';'));
@@ -153,14 +128,15 @@ public class MergePreviewService {
     return result;
   }
 
-  public Report report(WorldRow w, String ours, String theirs) throws IOException { return compute(w, ours, theirs).report(); }
+  public Report report(WorldRow w, String ours, String theirs) throws IOException { return compute(w, ours, theirs,DimensionId.OVERWORLD).report(); }
+  public Report report(WorldRow w,String ours,String theirs,DimensionId dimension) throws IOException {return compute(w,ours,theirs,dimension).report();}
   public synchronized int cacheEntries() { return cache.size(); }
   public synchronized long cacheBytes() { return cacheBytes; }
   public synchronized void clearCache() { cache.clear(); cacheBytes = 0; }
 
   public Object view(WorldRow w, String ours, String theirs, String fingerprint, DimensionId dim, String view,
       String choicesText, Window window, String kind) throws IOException {
-    var cached = compute(w, ours, theirs);
+    var cached = compute(w, ours, theirs,dim);
     if (!cached.report().fingerprint().equals(fingerprint)) throw new IllegalArgumentException("分支 tip 已改變，請重新載入合併預覽；舊選擇不套到新快照");
     if (!cached.report().canMerge()) throw new IllegalArgumentException("此合併有前提衝突，請先處理報告原因");
     var candidate = cached.candidates().get(dim);

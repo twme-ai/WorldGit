@@ -1,3 +1,5 @@
+import { errorBanner } from '../ui.ts'
+import { showError } from '../ui.ts'
 import { ApiError, api, getJson, sendJson, type WorldInfo } from '../api.ts'
 import { navigate } from '../router.ts'
 import { refreshUser, session } from '../session.ts'
@@ -13,7 +15,7 @@ export async function homePage(root: HTMLElement) {
       h('p', {}, session.me.username ? '還沒有世界。建立一個，或直接用 git 推送（Hub 會自動建立私人世界）：' : '沒有公開的世界。登入後可以建立或推送。'),
       session.me.username ? h('pre', { class: 'mono' }, `cd <伺服器>/.worldgit/<世界>/minecraft.overworld\ngit push ${location.origin}/git/${session.me.username}/<世界>/minecraft.overworld.git main`) : null))
     for (const w of worlds) list.append(worldCard(w))
-  } catch (e) { list.replaceChildren(h('p', { class: 'err' }, String(e))) }
+  } catch (e) { list.replaceChildren(errorBanner(e)) }
 }
 
 function worldCard(w: WorldInfo) {
@@ -30,7 +32,7 @@ async function newWorldDialog() {
   try {
     const w = await api.createWorld(name, name, isPublic)
     navigate(`/${w.owner}/${w.name}`)
-  } catch (e) { toast(String(e instanceof ApiError ? e.message : e), 'error') }
+  } catch (e) { showError(e) }
 }
 
 export function loginPage(root: HTMLElement) {
@@ -43,7 +45,7 @@ export function loginPage(root: HTMLElement) {
       await api.login(user.value, pass.value)
       await refreshUser()
       navigate('/')
-    } catch (ex) { err.textContent = ex instanceof ApiError ? ex.message : String(ex) }
+    } catch (ex) { err.replaceChildren(errorBanner(ex)) }
   } },
   h('h1', {}, '登入'), h('label', {}, '帳號'), user, h('label', {}, '密碼'), pass,
   h('p', {}, h('button', { class: 'primary', type: 'submit' }, '登入')), err,
@@ -52,9 +54,9 @@ export function loginPage(root: HTMLElement) {
     for (const provider of options.oauth) form.append(h('a', { href: `/oauth2/authorization/${provider}`, class: 'btn' }, `以 ${provider} 登入`))
     if (options.registration) {
       const email = h('input', { type: 'email', 'aria-label': '註冊信箱' })
-      form.append(h('label', {}, '註冊信箱', email), h('button', { type: 'button', onClick: async () => { try { await sendJson('/api/v1/auth/register', 'POST', { username: user.value, password: pass.value, email: email.value }); err.textContent = '若資料可用，驗證信已寄出' } catch (e) { err.textContent = String(e) } } }, '申請註冊'))
+      form.append(h('label', {}, '註冊信箱', email), h('button', { type: 'button', onClick: async () => { try { await sendJson('/api/v1/auth/register', 'POST', { username: user.value, password: pass.value, email: email.value }); err.textContent = '若資料可用，驗證信已寄出' } catch (e) { err.replaceChildren(errorBanner(e)) } } }, '申請註冊'))
     }
-  }).catch(e => { err.textContent = String(e) })
+  }).catch(e => { err.replaceChildren(errorBanner(e)) })
   root.append(form)
 }
 
@@ -69,7 +71,7 @@ export async function settingsPage(root: HTMLElement) {
       h('table', {}, h('tbody', {}, ...tokens.map((t) => h('tr', {}, h('td', {}, `${t.name} · ${t.scope}`), h('td', { class: 'muted' }, t.kind === 'SESSION' ? '網頁登入' : '個人 token'), h('td', { class: 'muted' }, fmtTime(t.createdAt)),
         h('td', { class: 'muted' }, t.expiresAt ? `到期：${new Date(t.expiresAt).toLocaleString('zh-TW')}` : '無到期日'),
         h('td', { class: 'muted' }, t.lastUsedAt ? `最後使用：${fmtTime(t.lastUsedAt)}` : '尚未使用'),
-        h('td', {}, h('button', { class: 'link', onClick: async () => { await api.deleteToken(t.id); void render() } }, '刪除')))))),
+        h('td', {}, h('button', { class: 'link', onClick: async () => { try{await api.deleteToken(t.id); await render()}catch(e){showError(e)} } }, '刪除')))))),
       h('p', {}, h('button', { onClick: async () => {
         const name = prompt('token 名稱', 'laptop') ?? ''
         const date = prompt('到期日（YYYY-MM-DD；留空使用伺服器預設期限）', '')
@@ -78,15 +80,16 @@ export async function settingsPage(root: HTMLElement) {
         if (parsed && (!Number.isFinite(parsed.getTime()) || parsed.getTime() <= Date.now())) { toast('請輸入有效的未來日期', 'error'); return }
         const scope = prompt('scope：read／write／admin', 'read')
         if (!scope || !['read', 'write', 'admin'].includes(scope)) return
-        const r = await api.createToken(name, parsed?.toISOString(), scope)
+        try {const r = await api.createToken(name, parsed?.toISOString(), scope)
         const cmd = r.token
         box.append(h('div', { class: 'code' }, h('code', {}, cmd), h('button', { class: 'small', onClick: () => copyText(cmd) }, '複製')))
-        toast('已建立 token，請立即複製')
+        toast('token 只顯示一次，請立即複製') }catch(e){showError(e)}
       } }, '建立 token')))
   }
   root.append(h('h1', {}, '設定'), box)
   await render()
   await oauthSettings(root)
+  accountActions(root)
 }
 
 export async function oauthSettings(root: HTMLElement) {
@@ -98,7 +101,20 @@ export async function oauthSettings(root: HTMLElement) {
     card.append(h('button', { onClick: async () => { try {
       if (linked) { await sendJson(`/api/v1/auth/identities/${provider}`, 'DELETE'); navigate('/settings', true) }
       else { const r = await sendJson<{ url: string }>(`/api/v1/auth/oauth/${provider}/link`, 'POST'); location.assign(r.url) }
-    } catch (e) { toast(String(e), 'error') } } }, `${linked ? '解除' : '連結'} ${provider}`))
+    } catch (e) { showError(e) } } }, `${linked ? '解除' : '連結'} ${provider}`))
   }
   root.append(card)
+}
+
+function accountActions(root:HTMLElement) {
+  const action=(title:string,fields:[string,string,string?][],submit:(values:string[])=>Promise<unknown>)=> {
+    const inputs=fields.map(([label,value,type])=>h('input',{'aria-label':label,value,type:type ?? 'text',required:true}))
+    root.append(h('form',{class:'card stack',onSubmit:async(e:Event)=>{e.preventDefault();try{await submit(inputs.map(i=>i.value))}catch(e){showError(e)}}},h('h2',{},title),...inputs.map((input,i)=>h('label',{},fields[i][0],input)),h('button',{type:'submit'},title)))
+  }
+  action('更新密碼',[['新密碼','','password']],([password])=>sendJson('/api/v1/auth/password','PUT',{password}))
+  action('建立組織',[['組織名稱',''],['組織顯示名稱','']],([slug,displayName])=>sendJson('/api/v1/orgs','POST',{slug,displayName}))
+  action('設定組織成員',[['組織',''],['成員帳號',''],['組織角色 owner/admin/write/read/none','read']],([org,user,role])=>sendJson(`/api/v1/orgs/${encodeURIComponent(org)}/members/${encodeURIComponent(user)}`,'PUT',{role}))
+  action('建立團隊',[['團隊所屬組織',''],['團隊名稱','']],([org,slug])=>sendJson(`/api/v1/orgs/${encodeURIComponent(org)}/teams`,'POST',{slug}))
+  action('設定團隊成員',[['成員所屬組織',''],['成員所屬團隊',''],['團隊成員帳號',''],['成員動作 add/remove','add']],([org,team,user,command])=>sendJson(`/api/v1/orgs/${encodeURIComponent(org)}/teams/${encodeURIComponent(team)}/members/${encodeURIComponent(user)}`,command==='remove'?'DELETE':'PUT'))
+  if(session.me.admin)action('建立帳號',[['新帳號',''],['初始密碼','','password']],([username,password])=>sendJson('/api/v1/users','POST',{username,password,admin:false}))
 }

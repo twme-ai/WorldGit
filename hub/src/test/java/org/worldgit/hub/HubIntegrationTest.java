@@ -128,11 +128,12 @@ class HubIntegrationTest {
     // 未授權（錯誤 token）的 push 被拒，且不會建立世界
     assertThrows(TransportException.class, () -> push(DimensionId.OVERWORLD, "e2e", "wrong-token"));
 
-    // 先只推主世界 → 該 snapshot 應顯示為「部分推送」
+    // 單維度推送已完整；世界容器仍列出尚未推送的維度。
     push(DimensionId.OVERWORLD, "e2e", TOKEN);
     var snaps = json("/api/v1/worlds/admin/e2e/snapshots", TOKEN).get("snapshots");
     assertEquals(1, snaps.size());
-    assertTrue(snaps.get(0).get("partial").asBoolean(), "其他維度尚未推送");
+    assertFalse(snaps.get(0).get("partial").asBoolean(), "單維度歷史不依其他維度配對");
+    assertEquals(2, java.util.stream.StreamSupport.stream(json("/api/v1/worlds/admin/e2e",TOKEN).get("dimensions").spliterator(),false).filter(d->d.get("head").isNull()).count());
 
     // 補推其他維度 → 完整
     for (var d : repos.tracked().keySet()) if (!d.equals(DimensionId.OVERWORLD)) push(d, "e2e", TOKEN);

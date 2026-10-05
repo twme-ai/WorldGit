@@ -48,7 +48,17 @@ class CollaborationTest {
   String base(WorldRow w){return "/api/v1/worlds/"+w.ownerSlug()+"/"+w.slug();}
   HttpResponse<byte[]> request(String method,String path,String pat,Object body)throws Exception {
     var b=HttpRequest.newBuilder(URI.create(url(path))).header("Content-Type","application/json");if(pat!=null)b.header("Authorization","Bearer "+pat);
-    return http.send(b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofByteArray(JSON.writeValueAsBytes(body))).build(),HttpResponse.BodyHandlers.ofByteArray());
+    var response=http.send(b.method(method,body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofByteArray(JSON.writeValueAsBytes(body))).build(),HttpResponse.BodyHandlers.ofByteArray());
+    if(path.startsWith("/api/") && !method.equals("GET") && response.statusCode()<300){
+      assertTrue(response.headers().firstValue("X-WorldGit-Result").isPresent(),method+" "+path);
+      var result=JSON.readTree(Base64.getDecoder().decode(response.headers().firstValue("X-WorldGit-Result").orElseThrow()));
+      assertTrue(Set.of("SUCCESS","NO_OP","PARTIAL").contains(result.path("status").asText()));assertFalse(result.path("operationId").asText().isEmpty());
+    }
+    if(path.startsWith("/api/") && response.statusCode()>=400 && response.headers().firstValue("content-type").orElse("").contains("application/json")){
+      var error=JSON.readTree(response.body());assertFalse(error.path("errorReport").path("text").asText().isEmpty(),method+" "+path+" "+error);
+      assertEquals("FAILED",error.path("result").path("status").asText());
+    }
+    return response;
   }
   JsonNode ok(String method,String path,String pat,Object body)throws Exception {var r=request(method,path,pat,body);assertEquals(200,r.statusCode(),new String(r.body()));return JSON.readTree(r.body());}
   record Fixture(WorldRow world,Map<DimensionId,Path> paths) {}
@@ -66,7 +76,8 @@ class CollaborationTest {
     for(var d:paths.keySet()) push(paths.get(d),w,d,token,"refs/heads/*:refs/heads/*","refs/worldgit/groups/*:refs/worldgit/groups/*");return new Fixture(w,paths);
   }
   List<RemoteRefUpdate> push(Path path,WorldRow w,DimensionId d,String pat,String... refs)throws Exception {
-    for(int attempt=0;;attempt++)try(var git=Git.open(path.toFile())) {var result=new ArrayList<RemoteRefUpdate>();git.push().setRemote(url("/git/"+w.ownerSlug()+"/"+w.slug()+"/"+d.directoryName()+".git")).setRefSpecs(Arrays.stream(refs).map(RefSpec::new).toList()).setCredentialsProvider(new UsernamePasswordCredentialsProvider("test",pat)).call().forEach(r->result.addAll(r.getRemoteUpdates()));return result;
+    for(int attempt=0;;attempt++)try(var git=Git.open(path.toFile())) {var result=new ArrayList<RemoteRefUpdate>();git.push().setRemote(url("/git/"+w.ownerSlug()+"/"+w.slug()+"/"+d.directoryName()+".git")).setRefSpecs(Arrays.stream(refs).map(RefSpec::new).toList()).setCredentialsProvider(new UsernamePasswordCredentialsProvider("test",pat)).call().forEach(r->result.addAll(r.getRemoteUpdates()));
+      await().atMost(Duration.ofSeconds(10)).until(()->operations.activeFor(w.id())==0);return result;
     }catch(org.eclipse.jgit.api.errors.TransportException e){if(attempt>=20 || !e.getMessage().contains("429"))throw e;Thread.sleep(50);}
   }
   void branch(Fixture f,String target,String source)throws Exception{for(var d:f.paths.keySet())try(var s=new JGitStore(f.paths.get(d),false)){org.worldgit.hub.tools.BranchFixture.ref(f.paths.get(d),target,s.resolve(source));push(f.paths.get(d),f.world,d,token,"refs/heads/"+target+":refs/heads/"+target);}}
@@ -101,10 +112,12 @@ class CollaborationTest {
     var choices=new TreeMap<Integer,String>();d.preview().regions().forEach(r->choices.put(r.id(),"theirs"));prs.choices(f.world,writer,p.id(),d.pr().fingerprint(),choices);
     assertThrows(org.worldgit.hub.web.ApiError.Conflict.class,()->prs.merge(f.world,owner,p.id(),d.pr().fingerprint()));prs.review(f.world,owner,p.id(),d.pr().fingerprint(),"request-changes");assertEquals("changes-requested",prs.detail(f.world,p.id()).mergeability());
     prs.review(f.world,owner,p.id(),d.pr().fingerprint(),"approve");var merged=prs.merge(f.world,writer,p.id(),d.pr().fingerprint());assertEquals("merged",merged.status());
-    var tips=groups.branchTips(f.world,"protected");UUID snapshot=null;
+    var tips=groups.branchTips(f.world,DimensionId.OVERWORLD,"protected");assertEquals(1,tips.size());
+    for(var dim:f.paths.keySet())if(!dim.equals(DimensionId.OVERWORLD))try(var local=new JGitStore(f.paths.get(dim),false)){assertEquals(local.resolve("protected"),groups.branchTips(f.world,dim,"protected").get(dim),"其他維度 refs 不變");}
+    UUID snapshot=null;
     for(var en:tips.entrySet())try(var git=Git.open(storage.repoPath(owner.username(),f.world.slug(),en.getKey()).toFile());var s=JGitStore.readOnly(git.getRepository())){var c=s.readCommit(en.getValue());assertEquals(2,c.parents().size());if(snapshot==null)snapshot=c.metadata().snapshot();assertEquals(snapshot,c.metadata().snapshot());assertEquals("HUB",c.metadata().source().name());}
   }
-  @Test void protectedPublicationCannotClaimDifferentOtherDimension()throws Exception {
+  @Test void historicalPublicationCannotChangeAnyDimensionOrAuthorizeMerge()throws Exception {
     var f=fixture();policy.set(f.world,new BranchPolicy.Rule("main",true,0));
     var expected=WorldGroups.strings(groups.currentHeads(f.world,"main"));var wrong=new TreeMap<>(expected);
     String other=wrong.keySet().stream().filter(d->!d.equals(DimensionId.OVERWORLD.value())).findFirst().orElseThrow();wrong.put(other,"0".repeat(40));
@@ -113,10 +126,10 @@ class CollaborationTest {
       for(var commits:List.of(wrong,expected)) {
         String blob=store.writeBlob(JSON.writeValueAsBytes(Map.of("branch","main","operation",UUID.randomUUID().toString(),"commits",commits)));
         String tree=store.writeTree(List.of(new ObjectStore.Entry("publication.yml",ObjectStore.Kind.BLOB,blob)));
-        String marker=store.createCommit(tree,List.of(),head.metadata(),Map.of());store.updateRef("refs/worldgit/publications/main",parent,marker);parent=marker;
+        String marker=store.createCommit(tree,parent==null?List.of():List.of(parent),head.metadata(),Map.of());store.updateRef("refs/worldgit/publications/main",parent,marker);parent=marker;
         var update=push(f.paths.get(DimensionId.OVERWORLD),f.world,DimensionId.OVERWORLD,token,"refs/worldgit/publications/main:refs/worldgit/publications/main").getFirst();
-        assertEquals(commits==wrong?RemoteRefUpdate.Status.REJECTED_OTHER_REASON:RemoteRefUpdate.Status.OK,update.getStatus());
-        if(commits==wrong)assertTrue(update.getMessage().contains("全維度"));
+        assertEquals(RemoteRefUpdate.Status.OK,update.getStatus(),"歷史 marker 與分支資料沒有配對約束");
+        assertEquals(expected,WorldGroups.strings(groups.currentHeads(f.world,"main")),"marker 不能改任何 heads 或繞過保護");
       }
     }
     assertEquals(expected,WorldGroups.strings(groups.currentHeads(f.world,"main")));
@@ -180,7 +193,7 @@ class CollaborationTest {
     assertEquals("open",prs.find(f.world,p.id()).status());assertEquals(before,groups.branchTips(f.world,"main"));
     assertEquals("merged",prs.merge(f.world,owner,p.id(),p.fingerprint()).status());
   }
-  @Test void choicesAndReviewsInvalidateOnAnyDimensionTipAndMergeLeaseRace()throws Exception {
+  @Test void choicesAndReviewsInvalidateOnSelectedDimensionTipAndMergeLeaseRace()throws Exception {
     var f=fixture();var p=create(f,"theirs","ours");var d=prs.detail(f.world,p.id());var choices=new TreeMap<Integer,String>();d.preview().regions().forEach(r->choices.put(r.id(),"base"));prs.choices(f.world,writer,p.id(),p.fingerprint(),choices);prs.review(f.world,owner,p.id(),p.fingerprint(),"approve");
     var first=choices.firstKey();choices.put(first,"theirs");assertTrue(prs.choices(f.world,writer,p.id(),p.fingerprint(),choices).reviews().isEmpty());prs.review(f.world,owner,p.id(),p.fingerprint(),"approve");
     advance(f,"theirs");var changed=prs.detail(f.world,p.id());assertTrue(changed.pr().selectionsInvalidated());assertTrue(changed.choices().isEmpty());assertTrue(changed.reviews().isEmpty());assertNotEquals(p.fingerprint(),changed.pr().fingerprint());assertThrows(org.worldgit.hub.web.ApiError.Conflict.class,()->prs.merge(f.world,owner,p.id(),p.fingerprint()));
@@ -297,7 +310,150 @@ class CollaborationTest {
     var response=new org.springframework.mock.web.MockHttpServletResponse(){@Override public jakarta.servlet.ServletOutputStream getOutputStream(){return new jakarta.servlet.ServletOutputStream(){public boolean isReady(){return true;}public void setWriteListener(jakarta.servlet.WriteListener l){}public void write(int b)throws IOException {entered.countDown();try{if(!gate.await(10,java.util.concurrent.TimeUnit.SECONDS))throw new IOException("timeout");}catch(InterruptedException ex){throw new IOException(ex);}}};}};
     try(var executor=java.util.concurrent.Executors.newSingleThreadExecutor()){var future=executor.submit(()->{concurrent.zip(w,id,response);return true;});try{assertTrue(entered.await(10,java.util.concurrent.TimeUnit.SECONDS));assertThrows(org.worldgit.hub.web.ApiError.Unavailable.class,()->concurrent.zip(w,id,new org.springframework.mock.web.MockHttpServletResponse()));}finally{gate.countDown();}assertTrue(future.get());}
   }
+  @Test void prFailuresAndCommentResultsCarrySelectedDimension()throws Exception {
+    var f=fixture();String b=base(f.world),dimension="minecraft:the_nether";
+    var p=prs.create(f.world,writer,new DimensionId(dimension),"feature","main","dimensional report","body");
+    var failed=request("POST",b+"/pulls/"+p.id()+"/reviews",token,Map.of("fingerprint","stale","decision","approve"));
+    assertEquals(409,failed.statusCode());assertEquals(dimension,JSON.readTree(failed.body()).path("errorReport").path("dimension").asText());
+    var invalid=request("POST",b+"/pulls/"+p.id()+"/comments",writeToken,Map.of("body","錯誤維度","pin",Map.of("dimension","minecraft:overworld","x",8,"y",65,"z",8)));
+    assertEquals(400,invalid.statusCode());assertEquals(dimension,JSON.readTree(invalid.body()).path("errorReport").path("dimension").asText());
+    var comment=ok("POST",b+"/pulls/"+p.id()+"/comments",writeToken,Map.of("body","正確維度"));
+    assertEquals(dimension,comment.path("result").path("dimension").path("value").asText());
+    var edited=ok("PATCH",b+"/comments/"+comment.path("id").asText(),writeToken,Map.of("body","更新"));
+    assertEquals(dimension,edited.path("result").path("dimension").path("value").asText());
+  }
+  @Test void legacyDimensionConfirmationKeepsCommentsAndRequiresWriter()throws Exception {
+    var f=fixture();String b=base(f.world);var p=create(f,"feature","main");
+    var comment=ok("POST",b+"/pulls/"+p.id()+"/comments",writeToken,Map.of("body","舊 PR 釘選","pin",Map.of("dimension","minecraft:overworld","x",8,"y",65,"z",8)));
+    prs.review(f.world,owner,p.id(),p.fingerprint(),"approve");
+    db.sql("UPDATE pull_requests SET legacy=1 WHERE id=?").param(p.id()).update();
+    assertEquals(409,request("POST",b+"/pulls/"+p.id()+"/merge",writeToken,Map.of("fingerprint",p.fingerprint())).statusCode());
+    assertEquals(403,request("PATCH",b+"/pulls/"+p.id(),readToken,Map.of("dimension","minecraft:the_nether")).statusCode());
+    var updated=ok("PATCH",b+"/pulls/"+p.id(),writeToken,Map.of("dimension","minecraft:the_nether"));
+    assertFalse(updated.path("legacy").asBoolean());assertEquals("minecraft:the_nether",updated.path("dimension").asText());
+    assertEquals(0,db.sql("SELECT COUNT(*) FROM pr_reviews WHERE pr_id=?").param(p.id()).query(Integer.class).single());
+    var comments=ok("GET",b+"/comments?pr="+p.id(),readToken,null).path("items");
+    assertEquals(comment.path("id").asText(),comments.get(0).path("id").asText());
+    assertEquals("minecraft:the_nether",comments.get(0).path("dimension").asText());
+    assertEquals("minecraft:overworld",comments.get(0).path("pin").path("dimension").asText(),"保留舊座標的實際維度");
+  }
+  @Test void netherPrMergeAndDefaultsAreIndependentAndGraphIsBounded()throws Exception {
+    var f=fixture();String b=base(f.world);var dim=new DimensionId("minecraft:the_nether");
+    var before=groups.branchTips(f.world,"main");
+    var p=prs.create(f.world,writer,dim,"feature","main","nether only","body");
+    assertEquals(dim.value(),p.dimension());String fingerprint=p.fingerprint();
+    // 只移動主世界的同名來源；地獄 lease、choices 與 reviews 不失效。
+    try(var store=new JGitStore(f.paths.get(DimensionId.OVERWORLD),false)){
+      store.updateRef("refs/heads/feature",store.resolve("feature"),store.resolve("theirs"));
+      push(f.paths.get(DimensionId.OVERWORLD),f.world,DimensionId.OVERWORLD,token,"+refs/heads/feature:refs/heads/feature");
+    }
+    assertEquals(fingerprint,prs.detail(f.world,p.id()).pr().fingerprint());
+    var started=request("POST",b+"/operations",writeToken,Map.of("operation","merge","pr",p.id(),"fingerprint",fingerprint));assertEquals(202,started.statusCode());
+    String id=JSON.readTree(started.body()).path("id").asText();
+    await().atMost(Duration.ofSeconds(10)).until(()->operations.find(id).result!=null);
+    var op=ok("GET",b+"/operations/"+id,writeToken,null);assertEquals("SUCCESS",op.path("result").path("status").asText());assertFalse(op.path("events").isEmpty());
+    for(var event:op.path("events"))assertEquals(id,event.path("operationId").asText());
+    assertEquals(404,request("GET",b+"/operations/"+id,token,null).statusCode());assertEquals(404,request("GET",b+"/operations/"+id+"/events",readToken,null).statusCode());
+    assertEquals(before.get(DimensionId.OVERWORLD),groups.branchTips(f.world,DimensionId.OVERWORLD,"main").get(DimensionId.OVERWORLD));
+    assertEquals(before.get(new DimensionId("minecraft:the_end")),groups.branchTips(f.world,new DimensionId("minecraft:the_end"),"main").get(new DimensionId("minecraft:the_end")));
+    assertNotEquals(before.get(dim),groups.branchTips(f.world,dim,"main").get(dim));
+    String graph=b+"/dims/"+dim.directoryName()+"/graph";
+    assertEquals(404,request("GET",graph,null,null).statusCode());assertEquals(400,request("GET",graph+"?limit=10001",token,null).statusCode());
+    assertEquals(400,request("GET",graph+"?limit=0",readToken,null).statusCode());
+    var truncated=ok("GET",graph+"?limit=1&all=true",readToken,null);assertEquals(1,truncated.path("graph").path("nodes").size());assertTrue(truncated.path("graph").path("truncated").asBoolean());
+    try(var h=repos.open(f.world.ownerSlug(),f.world.slug(),dim)){
+      var head=org.eclipse.jgit.lib.ObjectId.fromString(h.store().resolve("main"));
+      for(String ref:List.of("refs/tags/nether-test","refs/remotes/upstream/main")){var update=h.repository().updateRef(ref);update.setNewObjectId(head);update.update();}
+    }
+    var full=ok("GET",graph+"?limit=10000&all=true",readToken,null);
+    var kinds=new HashSet<String>();for(var node:full.path("graph").path("nodes"))for(var label:node.path("labels"))kinds.add(label.path("kind").asText());assertTrue(kinds.containsAll(Set.of("branch","tag","tracking","HEAD")));assertEquals(p.number(),full.path("merges").get(0).path("number").asInt());
+    assertEquals(403,request("PUT",b+"/dims/"+dim.directoryName()+"/default-branch",readToken,Map.of("branch","ours")).statusCode());
+    ok("PUT",b+"/dims/"+dim.directoryName()+"/default-branch",token,Map.of("branch","ours"));
+    assertEquals("ours",ok("GET",graph,readToken,null).path("defaultBranch").asText());
+    assertEquals("main",ok("GET",b+"/dims/minecraft.overworld/graph",readToken,null).path("defaultBranch").asText());
+  }
+  @Test void errorsMaskKnownSecretsAndPreparedZipHasProgressAndAuthorization()throws Exception {
+    String slug="full-"+UUID.randomUUID().toString().substring(0,8);Path local=work.resolve(slug);HubIntegrationTest.copy(Path.of("../core/src/test/resources/fixtures/26.2"),local);
+    var layout=org.worldgit.core.anvil.WorldLayout.discover(local);var repos=new org.worldgit.core.service.WorldRepositories(layout);assertTrue(repos.initAll("creative",org.worldgit.core.config.WorldGitConfig.Track.ALL,new CommitMetadata.Identity("test","test@example.test")).success());
+    var w=accounts.createWorld(owner,owner.username(),slug,slug,"",false).orElseThrow();accounts.grant(w,owner,writer.username(),Role.WRITER);accounts.grant(w,owner,reader.username(),Role.READER);
+    var paths=new TreeMap<DimensionId,Path>();for(var dim:repos.tracked().keySet()){Path path=layout.repository(dim);paths.put(dim,path);push(path,w,dim,token,"refs/heads/main:refs/heads/main");}
+    var f=new Fixture(w,paths);String b=base(f.world);String secret="not-a-token-but-known-request-secret-12345";
+    var bad=request("POST",b+"/pulls",writeToken,Map.of("dimension",new DimensionId("minecraft:the_nether").value(),"source",secret,"target","main","title","error","secret",secret));
+    assertEquals(404,bad.statusCode());var report=JSON.readTree(bad.body()).path("errorReport");assertFalse(new String(bad.body()).contains(secret));assertEquals(new DimensionId("minecraft:the_nether").value(),report.path("dimension").asText());
+    for(String key:List.of("code","operationId","worldGitVersion","platformVersion","utc","message","text"))assertFalse(report.path(key).asText().isEmpty(),key);
+    var rel=ok("POST",b+"/releases",writeToken,Map.of("tag","independent-release","title","release","revisions",Map.of(new DimensionId("minecraft:the_nether").value(),"main",DimensionId.OVERWORLD.value(),"main")));
+    var start=request("POST",b+"/operations",readToken,Map.of("operation","release-zip","release",rel.path("id").asText()));assertEquals(202,start.statusCode());String id=JSON.readTree(start.body()).path("id").asText();
+    await().atMost(Duration.ofSeconds(10)).until(()->operations.find(id).result!=null);
+    var op=ok("GET",b+"/operations/"+id,readToken,null);assertEquals("SUCCESS",op.path("result").path("status").asText(),op.toString());assertTrue(op.path("download").asBoolean());assertFalse(op.path("events").isEmpty());
+    assertEquals(404,request("GET",b+"/operations/"+id+"/download",token,null).statusCode());assertEquals(200,request("GET",b+"/operations/"+id+"/download",readToken,null).statusCode());
+    assertEquals("NO_OP",ok("POST",b+"/operations/"+id+"/cancel",readToken,null).path("result").path("status").asText());
+    accounts.visibility(f.world,true);assertEquals(200,request("GET",b+"/dims/minecraft.the_nether/graph",null,null).statusCode());
+  }
+  @Autowired org.worldgit.hub.web.OperationController operationController;
+  @Test void operationEndpointScopeSseCapsAndCancellation()throws Exception {
+    var f=fixture();String b=base(f.world);var gate=new CountDownLatch(1);var entries=new ArrayList<org.worldgit.hub.operation.Operations.Entry>();
+    var streams=new ArrayList<InputStream>();
+    try {
+      for(int i=0;i<8;i++)entries.add(operations.submit(f.world,owner,"preview",DimensionId.OVERWORLD,true,false,List.of(),e->{gate.await();org.worldgit.core.operation.OperationProgress.check();return Map.of();}));
+      assertEquals(503,request("POST",b+"/operations",token,Map.of("operation","preview","ours","main","theirs","feature")).statusCode());
+      await().atMost(Duration.ofSeconds(5)).until(()->entries.get(0).context!=null && entries.get(1).context!=null);
+      for(int i=0;i<2;i++){
+        var req=HttpRequest.newBuilder(URI.create(url(b+"/operations/"+entries.get(i).id+"/events"))).header("Authorization","Bearer "+token).build();
+        var response=http.send(req,HttpResponse.BodyHandlers.ofInputStream());assertEquals(200,response.statusCode());assertTrue(response.headers().firstValue("content-type").orElse("").startsWith("text/event-stream"));streams.add(response.body());
+      }
+      assertEquals(8,java.util.stream.StreamSupport.stream(ok("GET",b+"/operations?limit=100",token,null).spliterator(),false).filter(row->row.path("result").isNull()).count());assertEquals(400,request("GET",b+"/operations?limit=101",token,null).statusCode());assertTrue(ok("GET",b+"/operations",readToken,null).isEmpty());
+      assertEquals(2,operationController.connections());assertEquals(503,request("GET",b+"/operations/"+entries.get(0).id+"/events",token,null).statusCode());
+      ok("POST",b+"/operations/"+entries.get(0).id+"/cancel",token,null);
+      String readOnly=accounts.createToken(owner,"read-only",false,null,"read");assertEquals(403,request("POST",b+"/operations",readOnly,Map.of("operation","merge","pr","missing")).statusCode());
+    }finally{gate.countDown();for(var stream:streams)stream.close();}
+    await().atMost(Duration.ofSeconds(5)).until(()->entries.stream().allMatch(e->e.result!=null) && operationController.connections()==0);
+    assertEquals(org.worldgit.core.operation.OperationResult.Status.CANCELLED,entries.getFirst().result.status());
+  }
+  @Test void unmappedApiAndMethodErrorsHaveSameReport()throws Exception {
+    assertEquals(404,request("GET","/api/v1/not-a-route",token,null).statusCode());
+    var f=fixture();assertEquals(405,request("POST",base(f.world)+"/dims/minecraft.overworld/graph",token,Map.of()).statusCode());
+  }
+  @Test void graphRefLimitRejectsBeforeTraversingObjects()throws Exception {
+    var f=fixture();var path=storage.repoPath(f.world.ownerSlug(),f.world.slug(),DimensionId.OVERWORLD);
+    try(var h=repos.open(f.world.ownerSlug(),f.world.slug(),DimensionId.OVERWORLD)){
+      String id=h.store().resolve("main");Path tags=path.resolve("refs/tags");Files.createDirectories(tags);
+      for(int i=0;i<2001;i++)Files.writeString(tags.resolve("limit-"+i),id+"\n");h.repository().getRefDatabase().refresh();
+    }
+    assertEquals(413,request("GET",base(f.world)+"/dims/minecraft.overworld/graph",readToken,null).statusCode());
+  }
+  @Test void everyNotificationActionReturnsStructuredCompletion()throws Exception {
+    var f=fixture();String b=base(f.world);String suffix=UUID.randomUUID().toString().substring(0,8);
+    var pat=ok("POST","/api/v1/tokens",token,Map.of("name","notify","scope","admin"));String patId=java.util.stream.StreamSupport.stream(ok("GET","/api/v1/tokens",token,null).spliterator(),false).filter(row->row.path("name").asText().equals("notify")).findFirst().orElseThrow().path("id").asText();
+    ok("DELETE","/api/v1/tokens/"+patId,token,null);assertEquals("NO_OP",ok("DELETE","/api/v1/tokens/"+patId,token,null).path("result").path("status").asText());
+    ok("POST","/api/v1/users",BOOT,Map.of("username","notify-user-"+suffix,"password","notification-password"));
+    String org="notify-"+suffix;ok("POST","/api/v1/orgs",token,Map.of("slug",org,"displayName","通知測試"));
+    ok("PUT","/api/v1/orgs/"+org+"/members/"+writer.username(),token,Map.of("role","write"));
+    ok("POST","/api/v1/orgs/"+org+"/teams",token,Map.of("slug","builders"));
+    ok("POST","/api/v1/worlds",token,Map.of("owner",org,"name","team-world"));ok("PUT","/api/v1/worlds/"+org+"/team-world/permissions/teams/builders",token,Map.of("role","write"));ok("PUT","/api/v1/worlds/"+org+"/team-world/permissions/teams/builders",token,Map.of("role","none"));
+    ok("PUT","/api/v1/orgs/"+org+"/teams/builders/members/"+writer.username(),token,null);
+    ok("DELETE","/api/v1/orgs/"+org+"/teams/builders/members/"+writer.username(),token,null);
+    ok("PUT","/api/v1/orgs/"+org+"/members/"+writer.username(),token,Map.of("role","none"));
+    String slug="notify-world-"+suffix;ok("POST","/api/v1/worlds",token,Map.of("name",slug));ok("DELETE","/api/v1/worlds/"+owner.username()+"/"+slug,token,null);
+    ok("PUT",b+"/permissions/users/"+reader.username(),token,Map.of("role","read"));
+    assertEquals("NO_OP",ok("PUT",b+"/visibility",token,Map.of("isPublic",false)).path("result").path("status").asText());
+    ok("PUT",b+"/protected-branches",token,Map.of("dimension","minecraft:the_nether","branch","other","prOnly",true,"reviews",1));
+    ok("DELETE",b+"/protected-branches?dimension=minecraft%3Athe_nether&branch=other",token,null);
+    var p=ok("POST",b+"/pulls",writeToken,Map.of("dimension","minecraft:the_nether","source","feature","target","main","title","通知"));String id=p.path("id").asText(),fp=p.path("fingerprint").asText();
+    ok("PATCH",b+"/pulls/"+id,writeToken,Map.of("title","編輯通知"));
+    ok("PUT",b+"/pulls/"+id+"/choices",writeToken,Map.of("fingerprint",fp,"choices",Map.of()));
+    ok("POST",b+"/pulls/"+id+"/reviews",token,Map.of("fingerprint",fp,"decision","approve"));
+    var comment=ok("POST",b+"/pulls/"+id+"/comments",readToken,Map.of("body","通知留言"));String cid=comment.path("id").asText();assertEquals("minecraft:the_nether",comment.path("dimension").asText());
+    ok("POST",b+"/pulls/"+id+"/comments",writeToken,Map.of("body","回覆","parentId",cid));ok("PATCH",b+"/comments/"+cid,readToken,Map.of("body","編輯"));ok("DELETE",b+"/comments/"+cid,readToken,null);
+    ok("POST",b+"/pulls/"+id+"/merge",token,Map.of("fingerprint",fp));
+    var closed=ok("POST",b+"/pulls",writeToken,Map.of("source","theirs","target","ours","title","close"));ok("PATCH",b+"/pulls/"+closed.path("id").asText(),writeToken,Map.of("status","closed"));
+    var release=ok("POST",b+"/releases",writeToken,Map.of("tag","notify-release","title","通知 release"));ok("DELETE",b+"/releases/"+release.path("id").asText(),writeToken,null);
+    var hook=ok("POST",b+"/webhooks",token,Map.of("url","http://127.0.0.1:1/hook","secret","notification-hook-secret-1234567890","events",List.of("push"),"enabled",true));String hid=hook.path("id").asText();
+    ok("POST",b+"/webhooks/"+hid+"/test",token,Map.of("dimension","minecraft:the_nether"));
+    ok("PUT",b+"/webhooks/"+hid,token,Map.of("url","http://127.0.0.1:1/hook","events",List.of("push"),"enabled",false));ok("DELETE",b+"/webhooks/"+hid,token,null);
+    var notices=ok("GET","/api/v1/notifications",token,null);if(!notices.path("items").isEmpty())ok("PUT","/api/v1/notifications/"+notices.path("items").get(0).path("id").asText()+"/seen",token,null);
+  }
   @Autowired org.worldgit.hub.git.RepoCache repos;
+  @Autowired org.worldgit.hub.operation.Operations operations;
   @Test @Order(1) void cookieSessionCsrfOriginAndGitCannotUseSession()throws Exception {
     var cookies=new CookieManager();cookies.setCookiePolicy(CookiePolicy.ACCEPT_ALL);var client=HttpClient.newBuilder().cookieHandler(cookies).build();
     var login=HttpRequest.newBuilder(URI.create(url("/api/v1/auth/login"))).header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString("{\"username\":\"p4-owner\",\"password\":\"test-password\"}")).build();assertEquals(200,client.send(login,HttpResponse.BodyHandlers.ofString()).statusCode());

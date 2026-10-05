@@ -1,3 +1,4 @@
+import { errorBanner } from '../ui.ts'
 import { ApiError, api, dimLabel, dimRepo, type CommitDetail, type Palettes } from '../api.ts'
 import { activePalette, loadPalettes, paletteChoice, setPaletteChoice } from '../palette.ts'
 import { navigate } from '../router.ts'
@@ -15,7 +16,7 @@ export async function commitPage(root: HTMLElement, owner: string, world: string
   const dispose = () => { viewer?.dispose(); viewer = null; if (window.__worldgit) window.__worldgit.viewer = null }
   let detail: CommitDetail
   try { detail = await api.commit(owner, world, dimRepoName, rev) } catch (e) {
-    root.append(h('p', { class: 'empty' }, String(e instanceof ApiError ? e.message : e)))
+    root.append(errorBanner(e))
     return dispose
   }
   const palettes = await loadPalettes()
@@ -112,7 +113,7 @@ export async function commitPage(root: HTMLElement, owner: string, world: string
     q.delete('x'); q.delete('z')
     history.replaceState(null, '', `${location.pathname}?${q}`)
   }
-  viewer.onError = (m) => { hud.textContent = `錯誤：${m}`; console.error(m) }
+  viewer.onError = (m) => { hud.replaceChildren(errorBanner(m)); console.error(m) }
   const cam = params.get('cam')?.split(',')
   if (cam && cam.length >= 6) {
     const n = cam.slice(0, 6).map(Number)

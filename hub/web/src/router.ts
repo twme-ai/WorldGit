@@ -1,4 +1,4 @@
-import { clear } from './ui.ts'
+import { clear, errorBanner, showError } from './ui.ts'
 
 export type Dispose = void | (() => void)
 export interface Route {
@@ -38,7 +38,8 @@ async function show() {
   for (const r of routes) {
     const m = r.pattern.exec(path)
     if (!m) continue
-    const d = await r.render(m.slice(1).map(decodeURIComponent), root)
+    let d: Dispose
+    try { d = await r.render(m.slice(1).map(decodeURIComponent), root) } catch(e) { if(token===navToken){root.append(errorBanner(e));showError(e)};return }
     if (token !== navToken) { if (typeof d === 'function') d(); return }
     current = typeof d === 'function' ? d : null
     window.scrollTo(0, 0)

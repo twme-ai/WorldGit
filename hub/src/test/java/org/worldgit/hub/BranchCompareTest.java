@@ -35,7 +35,7 @@ class BranchCompareTest extends AbstractBranchTest {
   }
 
   @Test
-  void branchesMergeAcrossDimensionsAndCountBySnapshot() throws Exception {
+  void containerListsDimensionHeadsAndCountsCommitHashes() throws Exception {
     var page = json(base() + "/branches", TOKEN);
     assertEquals("main", page.get("defaultBranch").asText());
     assertEquals(List.of("main", "feature", "side").stream().sorted().toList(), names(page.get("branches"), "name").stream().sorted().toList());
@@ -64,19 +64,20 @@ class BranchCompareTest extends AbstractBranchTest {
     assertFalse(side.get("consistent").asBoolean());
     assertEquals(2, side.get("missingDimensions").size());
     assertEquals(0, side.get("ahead").asInt());
-    assertEquals(1, side.get("behind").asInt());
+    assertEquals(3, side.get("behind").asInt(),"另兩維度的初始 commit 也各自獨立");
     assertTrue(side.get("aligned").asBoolean());
   }
 
   @Test
   void snapshotsCanBeFilteredByBranch() throws Exception {
     var onMain = names(json(base() + "/snapshots", TOKEN).get("snapshots"), "snapshot");
-    assertEquals(List.of(mainSnapshot, initialSnapshot), onMain);
+    assertEquals(List.of(mainSnapshot,initialSnapshot,initialSnapshot,initialSnapshot),onMain);
     var onFeature = names(json(base() + "/snapshots?branch=feature", TOKEN).get("snapshots"), "snapshot");
-    assertEquals(List.of(featureSnapshot, initialSnapshot), onFeature);
+    assertEquals(List.of(featureSnapshot,initialSnapshot,initialSnapshot,initialSnapshot),onFeature);
     var side = json(base() + "/snapshots?branch=side", TOKEN).get("snapshots");
     assertEquals(1, side.size());
-    assertTrue(side.get(0).get("partial").asBoolean(), "side 缺少其他維度");
+    assertFalse(side.get(0).get("partial").asBoolean(),"side 的單維度推送完整");
+    assertEquals(1,side.get(0).get("commits").size());
     assertEquals(404, get(base() + "/snapshots?branch=nope", TOKEN).statusCode());
     assertEquals(400, get(base() + "/snapshots?branch=a..b", TOKEN).statusCode());
   }
@@ -116,8 +117,9 @@ class BranchCompareTest extends AbstractBranchTest {
 
     // 自己比自己 → identical
     assertTrue(json(base() + "/compare?a=main&b=main", TOKEN).get("identical").asBoolean());
-    // HEAD 是預設分支
-    assertTrue(json(base() + "/compare?a=HEAD&b=main", TOKEN).get("identical").asBoolean());
+    // 每維度 HEAD 起初各自指向 main。
+    assertTrue(json(base()+"/compare?a=HEAD&b=main",TOKEN).get("identical").asBoolean());
+    assertTrue(json(base()+"/compare?a=HEAD&b=main&dimension=minecraft%3Aoverworld",TOKEN).get("identical").asBoolean());
   }
 
   @Test
@@ -175,13 +177,15 @@ class BranchCompareTest extends AbstractBranchTest {
       assertEquals(featureSnapshot, json(base() + "/snapshots", TOKEN).get("snapshots").get(0).get("snapshot").asText());
       org.worldgit.hub.tools.BranchFixture.head(path, "unborn");
       assertEquals("main", json(base() + "/branches", TOKEN).get("defaultBranch").asText());
-      assertTrue(json(base() + "/compare?a=HEAD&b=main", TOKEN).get("identical").asBoolean());
-      assertEquals(mainSnapshot, json(base() + "/snapshots", TOKEN).get("snapshots").get(0).get("snapshot").asText());
+      assertFalse(json(base()+"/compare?a=HEAD&b=main",TOKEN).get("identical").asBoolean(),"unborn HEAD 不跨維度配對 main");
+      assertEquals(404,get(base()+"/compare?a=HEAD&b=main&dimension=minecraft%3Aoverworld",TOKEN).statusCode());
+      assertEquals(2,json(base()+"/snapshots",TOKEN).get("snapshots").size(),"unborn 主世界不借用其他維度 HEAD");
+      assertTrue(java.util.stream.StreamSupport.stream(json(base()+"/snapshots",TOKEN).get("snapshots").spliterator(),false).noneMatch(n->n.get("commits").has("minecraft:overworld")));
     } finally { org.worldgit.hub.tools.BranchFixture.head(path, "main"); }
   }
 
   @Test
-  void snapshotCountsSubtractWorldUnionsAndDeclaredMissingReposAreVisible() throws Exception {
+  void sameSnapshotInDifferentDimensionsRemainsIndependent() throws Exception {
     var admin = accounts.findUser("admin").orElseThrow();
     accounts.createWorld(admin, "admin", "unions", "unions", "", false).orElseThrow();
     // 同一存檔出现在不同分支的不同維度：世界層級仍是共有存檔，不能在兩邊各算一次。
@@ -196,13 +200,15 @@ class BranchCompareTest extends AbstractBranchTest {
       }
     }
     var p = json("/api/v1/worlds/admin/unions/branches", TOKEN);
-    assertEquals(0, branch(p, "feature").get("ahead").asInt());
-    assertEquals(0, branch(p, "feature").get("behind").asInt());
+    assertEquals(2,branch(p,"feature").get("ahead").asInt());
+    assertEquals(1,branch(p,"feature").get("behind").asInt());
+    for(var dimension:org.worldgit.hub.tools.BranchFixture.DIMS){var single=json("/api/v1/worlds/admin/unions/branches?dimension="+dimension.value(),TOKEN);assertEquals(dimension.equals(DimensionId.OVERWORLD)?0:1,branch(single,"feature").get("ahead").asInt());assertEquals(dimension.equals(DimensionId.OVERWORLD)?1:0,branch(single,"feature").get("behind").asInt());}
     // 移除一個已宣告維度的 repo，仍須列為缺少分支。
     PathCleanup.delete(storage.repoPath("admin", "unions", new DimensionId("minecraft:the_end")));
     p = json("/api/v1/worlds/admin/unions/branches", TOKEN);
-    assertFalse(branch(p, "main").get("consistent").asBoolean());
-    assertEquals(List.of("minecraft:the_end"), namesAsText(branch(p, "main").get("missingDimensions")));
+    assertTrue(branch(p,"main").get("consistent").asBoolean(),"只列實際 repo，不把其他維度缺失當分支錯誤");
+    var dimensions=json("/api/v1/worlds/admin/unions",TOKEN).get("dimensions");
+    assertTrue(java.util.stream.StreamSupport.stream(dimensions.spliterator(),false).anyMatch(d->d.get("id").asText().equals("minecraft:the_end") && d.get("head").isNull()),"世界容器仍揭露未推送維度");
   }
 
   private static List<String> namesAsText(JsonNode a) {

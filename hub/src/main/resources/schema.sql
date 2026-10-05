@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS pull_requests (
   author_id TEXT NOT NULL REFERENCES users(id), source_branch TEXT NOT NULL, target_branch TEXT NOT NULL,
   title TEXT NOT NULL, description TEXT NOT NULL, status TEXT NOT NULL, fingerprint TEXT,
   invalidated INTEGER NOT NULL DEFAULT 0, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL,
+  dimension TEXT NOT NULL DEFAULT 'minecraft:overworld', legacy INTEGER NOT NULL DEFAULT 0,
   merged_snapshot TEXT, merge_commits TEXT, merge_pending INTEGER NOT NULL DEFAULT 0, UNIQUE(world_id,number)
 );
 CREATE INDEX IF NOT EXISTS pull_requests_world ON pull_requests(world_id,created_at);
@@ -110,6 +111,7 @@ CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   pr_id TEXT NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id),
   parent_id TEXT REFERENCES comments(id), body TEXT NOT NULL, dimension TEXT,
+  project_dimension TEXT NOT NULL DEFAULT 'minecraft:overworld',
   x INTEGER, y INTEGER, z INTEGER, max_x INTEGER, max_y INTEGER, max_z INTEGER,
   created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
 );

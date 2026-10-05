@@ -1,3 +1,5 @@
+import { notifyResult, showError } from './ui.ts'
+import { type ErrorReport, type Result } from './outcome.ts'
 // REST API 型別與 fetch 輔助。型別對應後端 org.worldgit.hub.history.Dto。
 export interface Person { name: string; email: string }
 export interface CommitInfo {
@@ -64,18 +66,23 @@ export function setToken(_t: string | null) { try { localStorage.removeItem('wor
 setToken(null)
 
 export class ApiError extends Error {
-  constructor(readonly status: number, message: string) { super(message) }
+  constructor(readonly status: number, message: string, readonly report?: ErrorReport) { super(message) }
 }
 
 async function request(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
   const csrf = document.cookie.split('; ').find(c => c.startsWith('XSRF-TOKEN='))?.slice(11)
   if (csrf && !['GET', 'HEAD', 'OPTIONS'].includes(init.method ?? 'GET')) headers.set('X-XSRF-TOKEN', decodeURIComponent(csrf))
-  const res = await fetch(path, { ...init, headers })
+  let res: Response
+  try{res=await fetch(path, { ...init, headers })}catch(e){showError(e);throw e}
   if (!res.ok) {
-    let msg = `HTTP ${res.status}`
-    try { const j = await res.json(); if (j?.error) msg = j.error } catch { /* 非 JSON 錯誤 */ }
-    throw new ApiError(res.status, msg)
+    let msg = `HTTP ${res.status}`, report: ErrorReport | undefined
+    try { const j = await res.json(); if (j?.error) msg = j.error; report=j.errorReport ?? j.result?.error } catch { /* 非 JSON 錯誤 */ }
+    const error=new ApiError(res.status,msg,report);showError(error);throw error
+  }
+  if(!['GET','HEAD','OPTIONS'].includes(init.method ?? 'GET') && !path.endsWith('/operations')) {
+    const header=res.headers.get('X-WorldGit-Result')
+    if(header)try{const bytes=Uint8Array.from(atob(header),c=>c.charCodeAt(0));notifyResult(JSON.parse(new TextDecoder().decode(bytes)) as Result)}catch{ /* 舊伺服器 */ }
   }
   return res
 }
@@ -92,11 +99,11 @@ export const api = {
   login: (username: string, password: string) => sendJson<{ token: string; user: Me }>('/api/v1/auth/login', 'POST', { username, password }),
   worlds: () => getJson<WorldInfo[]>('/api/v1/worlds'),
   world: (o: string, w: string) => getJson<WorldInfo>(`/api/v1/worlds/${o}/${w}`),
-  snapshots: (o: string, w: string, limit = 50, before?: number | null, auto = true, branch?: string | null) =>
-    getJson<SnapshotPage>(`/api/v1/worlds/${o}/${w}/snapshots?limit=${limit}${before ? `&before=${before}` : ''}&auto=${auto}${branch ? `&branch=${encodeURIComponent(branch)}` : ''}`),
-  branches: (o: string, w: string, base?: string | null) => getJson<BranchPage>(`/api/v1/worlds/${o}/${w}/branches${base ? `?base=${encodeURIComponent(base)}` : ''}`),
-  compare: (o: string, w: string, a: string, b: string) =>
-    getJson<CompareResult>(`/api/v1/worlds/${o}/${w}/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`),
+  snapshots: (o: string, w: string, limit = 50, before?: number | null, auto = true, branch?: string | null,dimension?:string|null) =>
+    getJson<SnapshotPage>(`/api/v1/worlds/${o}/${w}/snapshots?limit=${limit}${before ? `&before=${before}` : ''}&auto=${auto}${branch ? `&branch=${encodeURIComponent(branch)}` : ''}${dimension?`&dimension=${encodeURIComponent(dimension)}`:''}`),
+  branches: (o: string, w: string, base?: string | null, dimension?: string) => getJson<BranchPage>(`/api/v1/worlds/${o}/${w}/branches?${new URLSearchParams({ ...(base?{base}:{}),...(dimension?{dimension}:{}) })}`),
+  compare: (o: string, w: string, a: string, b: string, dimension?: string) =>
+    getJson<CompareResult>(`/api/v1/worlds/${o}/${w}/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}${dimension?`&dimension=${encodeURIComponent(dimension)}`:''}`),
   commit: (o: string, w: string, dimRepo: string, rev: string) => getJson<CommitDetail>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}`),
   tiles: (o: string, w: string, dimRepo: string, rev: string) => getJson<TileRef[]>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}/tiles`),
   palettes: () => getJson<Palettes>('/api/v1/diff-palettes'),

@@ -38,6 +38,6 @@ public class PermissionController {
   }
   record Visibility(boolean isPublic) {}
   @PutMapping("/worlds/{owner}/{world}/visibility") Object visibility(HttpServletRequest req,@PathVariable String owner,@PathVariable String world,@RequestBody Visibility b) {
-    accounts.visibility(access.world(req,owner,world,Role.ADMIN),b.isPublic()); return Map.of("ok",true);
+    var w=access.world(req,owner,world,Role.ADMIN);if(w.isPublic()==b.isPublic())req.setAttribute("worldgit.noop",true);accounts.visibility(w,b.isPublic()); return Map.of("ok",true);
   }
 }

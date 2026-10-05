@@ -1,6 +1,6 @@
 # WorldGit Hub
 
-Phase 5 任務 1 保留 Hub 的既有 URL 與介面，core／CLI 已採每維度獨立歷史，不再要求全組 snapshot／publication。不同維度分支的網頁比較、PR／release 與權限模型由任務 2 更新；目前下文跨維度功能是 Phase 4 介面，不能把一次單維度 push 視為世界整組發布。單維度 `BareWorldMerge`、共用 graph lane、progress／result／錯誤報告與組裝介面見 [Phase 5 設計](../docs/16-phase5-design.md)。
+Phase 5 任務 2 已採每維度獨立分支／PR／policy／預設 HEAD、互動分支圖、operation SSE／輪詢、完成通知與可複製錯誤。既有 URL 與世界 ACL／配額容器保留，schema v5 自動升級 Phase 4 資料；下方舊介面保留相容入口，跨維度 snapshot／publication 配對已移除。完整契約與任務 3／4 交接見 [Phase 5 設計](../docs/16-phase5-design.md)，新 endpoint 與限制見本文 Phase 5 Hub。
 
 Phase 1–4 的 Hub：Spring Boot（Java 25）後端 + TypeScript/Vite 前端，單一 jar／單一容器。提供
 
@@ -78,10 +78,10 @@ commit 物件上限 1 MiB、每個 commit 最多 1024 個 trailer／100000 個 c
 | 路徑 | 說明 |
 |---|---|
 | `POST /auth/login`、`GET /me`、`/tokens`（GET/POST/DELETE）、`POST /users`、`POST /orgs` | 本機帳號、HttpOnly session 與 PAT（scope、expiresAt、lastUsedAt） |
-| `GET/POST /worlds`、`GET /worlds/{owner}/{world}`、`/snapshots`、`/pushes` | 世界、依 snapshot 合併的歷史、push 紀錄 |
-| `GET …/branches?base=分支` | 跨維度同名分支、預設分支、各維度 head／作者／snapshot、一致性；相對基準的 ahead／behind（以可達 snapshot 集合計算） |
-| `GET …/snapshots?branch=分支` | 指定分支的存檔歷史；未指定讀世界的預設分支 |
-| `GET …/compare?a=起點&b=終點` | 任意分支／HEAD／唯一 commit 前綴的 a→b 統計，依維度回傳 chunk／section 清單、截斷旗標；沒有配對端點的維度排除統計 |
+| `GET/POST /worlds`、`GET /worlds/{owner}/{world}`、`/snapshots`、`/pushes` | 世界、各維度獨立歷史列、push 紀錄 |
+| `GET …/branches?base=分支` | dimension 選填；每維度分支、HEAD、作者；ahead／behind 以可達 commit 計算。省略 dimension 保留容器彙總，舊一致性欄位僅供相容，沒有配對約束 |
+| `GET …/snapshots?branch=分支` | dimension 選填；指定維度／分支的歷史，未指定分支讀各 repo 自己的 HEAD |
+| `GET …/compare?a=起點&b=終點` | 任意分支／HEAD／唯一 commit 前綴的 a→b 統計，依維度回傳 chunk／section 清單、截斷旗標；缺少比較端點的維度排除統計 |
 | `GET …/merge-preview?ours=&theirs=`、`…/merge-preview/view/{chunks,diff,summary}` | 唯讀合併預覽（Phase 3）：core MergeEngine 在記憶體計算，回傳可否零介入合併、衝突區域、規則差異與前提衝突原因；`view` 依 `choices` 回傳 ours／theirs／base／選擇結果。不寫 repo，有 DecodeBudget、記憶體快取上限（8 筆／32 MiB）。網頁：`/{owner}/{world}/merge-preview/ours...theirs`；PR 頁會保存選擇並可產生 merge commit |
 | `GET …/dims/{維度目錄}/commits/{rev}` | commit 詳情：+/-/~ 統計、變動 chunk、實體變動 |
 | `…/commits/{rev}/chunks?x0&z0&x1&z1` | 方塊資料串流（WGCK 二進位；格式見 `data/ChunkWire.java`） |
@@ -93,7 +93,7 @@ commit 物件上限 1 MiB、每個 commit 最多 1024 個 trailer／100000 個 c
 
 比較頁網址為 `/{owner}/{world}/compare/<a>...<b>`，方向為 a→b；鏡頭 `cam`、維度 `dim`、呈現 `view=color|changed|before|after` 可分享與重載。含 `/` 的分支在網址保留斜線，例如 `compare/main...build/castle`。`base` 的 3D diff／entities 查詢使用解析後的 commit id；`plain=true` 只回該版本實體，不附上一版的差異。
 
-分支代表各維度的目前 head；commit 代表該 commit 及其他維度**同 snapshot UUID**的 commit。不依時間猜測沒有變動維度的 head。缺少端點會明示且不計入總計；用分支可比較各維度目前狀態。分支 `consistent` 表示宣告／實際維度都有分支，`aligned` 表示所有 head 同一 snapshot；兩者分開呈現。
+分支／HEAD 在所選維度解析；容器比較入口各讀 repo 自己的端點，commit 不會依 snapshot UUID 連到其他維度。缺少端點會明示且不計入總計。舊容器 DTO 的 `consistent`／`aligned` 欄位只供相容，新網頁逐維度呈現，不以它們限制操作。
 
 比較回應全維度最多 2000 個 chunk／6000 個 section（座標序），統計與 bounds 保持完整；每維度實體樣本 200、metadata 50。`chunksTruncated`／`sectionsTruncated` 表示省略清單；前端各顯示最多 300 列。每世界最多 32 維度／500 分支；ahead／behind 每 tip／維度最多走 20,000 個 commit，`countsTruncated` 時視為估算。JSON 上限 4 MiB、3D wire 上限 16 MiB；視窗仍最多 1024 chunk、DecodeBudget 限制照常生效。超額回 413；branches／compare 回應 `no-store`，權限檢查先於讀取／快取。compare 不建立磁碟快取，避免任意 commit 配對累積空間。
 
@@ -118,7 +118,7 @@ cd hub/web && npm run dev                           # Vite dev server（127.0.0.
 src/main/java/org/worldgit/hub/
   config/ account/ storage/   設定、帳號與多租戶資料模型（SQLite/PostgreSQL）、儲存層介面（本機磁碟；S3 預留）
   git/                        GitServlet、驗證 filter、pre-receive 驗證 WorldGit trailers、push 後 bounded repack
-  history/ data/              snapshot 合併、commit 詳情、chunk/diff 二進位、俯視 tile（呼叫 core）
+  history/ data/              各維度歷史、commit 詳情、chunk/diff 二進位、俯視 tile（呼叫 core）
   assets/                     資源管線（client jar → 貼圖集、blockstates、models、biomes、mapcolors）
   web/                        REST controllers、SPA 轉發
 web/src/                      TypeScript/Vite 前端：pages/、map/（2D tile 地圖）、viewer/（worker 網格、LOD、diff shader）
@@ -188,13 +188,13 @@ server:
 
 啟用 registration 須設定 `spring.mail.host` 等 SMTP，否則回 503；密碼 12–72 UTF-8 bytes、驗證碼 1 小時、一個 token 只能兌換一次，驗證後才建立使用者。每 IP 最多 3 次/小時、待驗證註冊最多 10000；重複名稱／email 回相同訊息。完整的公開服務治理與 bootstrap 政策見 [docs/07 §4.2](../docs/07-remote-hub.md#42-上線前必做worldgitorg決定-23)。
 
-## Phase 4 REST 契約（給 CLI／Paper／Fabric）
+## REST 契約（Phase 5；給 CLI／Paper／Fabric）
 
 以下路徑都以 `/api/v1` 起頭，`…` 代表 `/worlds/{owner}/{world}`。建議 `Authorization: Bearer <PAT>`；Basic 的密碼欄也接受 PAT。PAT scope read→write→admin 逐層包含，但仍取決於使用者世界角色。全站 admin 保有管理權，受保護分支沒有 owner/admin bypass。舊 token scope 升級為 admin，原期限維持；新 PAT 預設 90 天，回傳最後使用時間。
 
 | 操作 | 路徑／body | 世界角色；PAT scope |
 |---|---|---|
-| PR 建立／列表 | `POST …/pulls`：source,target,title,description；`GET …/pulls?status=open`（open/merged/closed，可省略） | write；write／列表 read；read |
+| PR 建立／列表 | `POST …/pulls`：dimension,source,target,title,description；`GET …/pulls?status=open`（open/merged/closed，可省略） | write；write／列表 read；read |
 | PR 詳情 | `GET …/pulls/{id}`：pr,preview,choices,reviews,mergeability,approvals,requiredReviews,commits,commitsTruncated | read；read |
 | PR 編輯／關閉 | `PATCH …/pulls/{id}`：title,description,status（open/closed；僅仍 open 的 PR） | 作者或 admin；write |
 | 區域選擇 | `PUT …/pulls/{id}/choices`：fingerprint,choices（region id→ours/theirs/base/manual） | write；write |
@@ -202,21 +202,21 @@ server:
 | 合併 | `POST …/pulls/{id}/merge`：fingerprint | write；write |
 | 留言／回覆 | `POST …/pulls/{id}/comments`：body,parentId（選填）,pin（選填）；`PATCH/DELETE …/comments/{id}` | 可讀的登入者；write；編刪限作者或 admin |
 | 遊戲座標留言 | `GET …/comments?pr={id}&pinned=true&dimension=minecraft:overworld`，各 filter 選填 | read；read |
-| release | `GET/POST …/releases`（建立：tag,title,body）、`GET …/releases/{id}`、`GET …/releases/{id}/zip` | 建立 write；write，其餘 read；read |
+| release | `GET/POST …/releases`（建立：tag,title,body,revisions（dimension→revision））、`GET …/releases/{id}`、`GET …/releases/{id}/zip` | 建立 write；write，其餘 read；read |
 | 世界授權 | `GET …/permissions`；`PUT …/permissions/users/{username}`／`…/permissions/teams/{team}`：role（read/write/admin/none） | admin；admin |
-| 可見性／分支保護 | `PUT …/visibility`：isPublic；`GET/PUT …/protected-branches`：branch,prOnly,reviews；`DELETE …/protected-branches?branch=main` | 讀保護 read；read，其餘 admin；admin |
+| 可見性／分支保護 | `PUT …/visibility`：isPublic；`GET/PUT …/protected-branches`：dimension,branch,prOnly,reviews；`DELETE …/protected-branches?dimension=minecraft:overworld&branch=main` | 讀保護 read；read，其餘 admin；admin |
 | webhook | `GET/POST …/webhooks`、`PUT/DELETE …/webhooks/{id}`；`GET …/webhooks/{id}/deliveries` | admin；admin |
 | 組織／團隊 | `POST/GET /orgs`；`GET /orgs/{org}/members`；`PUT /orgs/{org}/members/{username}`：role；`GET/POST /orgs/{org}/teams`（建立：slug）；`GET /orgs/{org}/teams/{team}/members`；`PUT/DELETE …/members/{username}` | 成員列表需 org read，團隊管理需 org admin，組織成員管理需 owner；寫入 admin scope |
 | OAuth／註冊 | `GET /auth/options`、`GET /auth/identities`；`POST /auth/oauth/{provider}/link`；`DELETE /auth/identities/{provider}`；`PUT /auth/password`：password；`POST /auth/register`：username,email,password；`POST /auth/verify`：token | 連結／解除／密碼需登入＋admin scope，register/verify 依開關 |
 | 通知 | `GET /notifications`；`PUT /notifications/{id}/seen` | 本人；read／標已讀 write |
 
-PR／留言／release／webhook／投遞／通知列表回 `{items,offset,limit,hasMore}`；offset 預設 0、最多 10000，limit 預設 50、1–100，下一頁 offset+=limit。組織／團隊／保護規則列表目前是陣列。錯誤一致為 `{code,error}`：400 格式／參數或最後 owner 不變量、401 無效／缺憑證、403 可讀但操作不足、404 私人不可讀或不存在（子資源都以 world id 限定）、409 lease／審核／狀態競爭、413 解析／下載預算、429 rate-limit（Retry-After）、503 併發或暫時忙碌（Retry-After: 2）。JSON 寫入 1 MiB、協作回應 4 MiB，文字只按 text 輸出；協作回應 private,no-store。
+PR／留言／release／webhook／投遞／通知列表回 `{items,offset,limit,hasMore}`；offset 預設 0、最多 10000，limit 預設 50、1–100，下一頁 offset+=limit。組織／團隊／保護規則列表目前是陣列。錯誤一致為 `{code,error,errorReport,result}`：400 格式／參數或最後 owner 不變量、401 無效／缺憑證、403 可讀但操作不足、404 私人不可讀或不存在（子資源都以 world id 限定）、409 lease／審核／狀態競爭、413 解析／下載預算、429 rate-limit（Retry-After）、503 併發或暫時忙碌（Retry-After: 2）。JSON 寫入 1 MiB、協作回應 4 MiB，文字只按 text 輸出；協作回應 private,no-store。
 
 ```json
 {"source":"build/roof","target":"main","title":"屋頂修改","description":"加高兩格"}
 ```
 
-建立 PR 後讀詳情取得 `pr.id` 與 `pr.fingerprint`；送 choices/reviews/merge 均必須使用這個 fingerprint。`mergeability` 為 ff/clean/conflicts/needs-review/changes-requested/unmergeable/merged/closed；任何維度 tip 改變使舊選擇與審核作廢，回 409 或詳情 `selectionsInvalidated: true`。選擇改變也清除審核。合併回傳 `status: merged`、snapshot 與全維度 commits；全部維度走 core publication，PR 與 receive-pack 共用 owner 鎖，發布後 DB finalize 中斷可 reconcile。只有 merge commit（FF 也建立整合提交），fork／squash／rebase 未提供。
+建立 PR 後讀詳情取得 `pr.id` 與 `pr.fingerprint`；送 choices/reviews/merge 均必須使用這個 fingerprint。`mergeability` 為 ff/clean/conflicts/needs-review/changes-requested/unmergeable/merged/closed；PR 所選維度的 source／target tip 改變使舊選擇與審核作廢，回 409 或詳情 `selectionsInvalidated: true`。選擇改變也清除審核。合併回傳 `status: merged`、snapshot metadata 與單維度 commits；只選定 repo 走單維度 BareWorldMerge，PR 與 receive-pack 共用 owner 鎖，發布後 DB finalize 中斷可 reconcile。只有 merge commit（FF 也建立整合提交），fork／squash／rebase 未提供。
 
 push 後 `Maintenance.afterPush` 會非同步持有同一把 owner 鎖檢查 repack 並呼叫 `storage.afterWrite`。PR 合併最多等候 `merge-lock-timeout`，讓短暫維護完成後繼續；取得鎖後重新檢查權限、PR 狀態與 fingerprint，逾時或中斷回 503。此設定只限制取得鎖的等待時間，合併本身的執行時間另計。ZIP 下載仍在下載許可或 owner 鎖忙時立即回 503；git receive-pack（含 info/refs）仍立即回 429，兩者都帶 Retry-After: 2。兩者在完整下載／收包期間持鎖，慢速 socket 沒有硬 deadline；維持立即拒絕可避免請求執行緒與下載許可排隊等候慢速串流（決定 #105）。
 
@@ -233,12 +233,12 @@ release 由 tag 全組建立且固定各維度 commit id；ZIP 不帶 .worldgit�
 設定 body：`url,secret,events,enabled`，secret 32–256 字元，events 為 push/pr.opened/pr.merged/release，最多 10 hooks/世界；API 不回傳 secret。修改 secret=null 表示沿用。預設 HTTPS＋全部 DNS 地址都是公網；loopback／內網／link-local／特殊 IP／IPv6 隧道拒絕，禁止 redirect，socket 固定本次驗證地址。自架內網需精確 `collaboration.webhooks.allowed-hosts`，沒有萬用字元。secret 目前明文存 DB 以簽章，須保護 DB／備份與磁碟存取。
 
 ```json
-{"id":"event-uuid","event":"pr.merged","at":1791025200000,"world":{"owner":"alice","name":"castle"},"data":{"pr":"pr-uuid","number":1,"target":"main","snapshot":"snapshot-uuid","commits":{"minecraft:overworld":"40-hex-commit"}}}
+{"id":"event-uuid","event":"pr.merged","at":1791025200000,"world":{"owner":"alice","name":"castle"},"data":{"pr":"pr-uuid","number":1,"dimension":"minecraft:overworld","target":"main","snapshot":"snapshot-uuid","commits":{"minecraft:overworld":"40-hex-commit"}}}
 ```
 
 `X-WorldGit-Signature-256: sha256=<hex>` 是以 secret 對**原始 UTF-8 JSON body**計 HMAC-SHA256。接收方用 constant-time 比較，不能先重排 JSON。`X-WorldGit-Delivery` 為穩定投遞 UUID，`X-WorldGit-Attempt` 從 1 開始；同 id 重試 body 不變。2xx 成功，其餘與網路錯誤重試：預設最多 5 次，30/60/120/240 秒退避（上限 1 小時），狀態 PENDING/PROCESSING/DELIVERED/FAILED；worker 每次最多 10 筆、60 秒 lease，可當機重投，連線 5 秒／socket 10 秒，禁止無界讀 response body。
 
-push payload 的 data 是 `dimension,ref,old,new`，刪 ref 的 new 為全零 SHA；**逐維度 push 不保證完整 publication 已到齊**。遊戲端只通知／背景 fetch，驗證全組 publication 才提示「main 有新版本」，玩家明確 pull 經 live coordinator 才套用。PR 合併會發 pr.merged，沒有經 receive-pack 故不另發 push。投遞與事件沒有自動保留期／dead-letter 管理；公開服務需配置清理政策與容量監控。
+push payload 的 data 是 `dimension,ref,old,new`，刪 ref 的 new 為全零 SHA；**各維度獨立處理，不依 publication 配對**。遊戲端只通知／背景 fetch，依事件 dimension 檢查該維度分支後提示新版本，玩家明確 pull 經 live coordinator 才套用。PR 合併會發 pr.merged，沒有經 receive-pack 故不另發 push。投遞與事件沒有自動保留期／dead-letter 管理；公開服務需配置清理政策與容量監控。
 
 ## Phase 4 驗收
 
@@ -247,3 +247,32 @@ push payload 的 data 是 `dimension,ref,old,new`，刪 ref 的 new 為全零 SH
 最後驗收（2026-10-03）：SQLite／PostgreSQL 各 58 項測試通過且無略過，完整 `./gradlew build` 通過；前端 lint／26 項測試／build 通過。兩版 Paper 的 PR 合併後 pull 與 release ZIP 重開皆 verify COMPLETE、已追蹤內容差異 0；26.2 Nether／End 各保留 1 個新生成的 untracked chunk。10 次 Playwright 流程的 CSP／JS error 皆 0。容器映像建置及 SQLite／PostgreSQL 冒煙已以 Podman 驗證通過；主對話另以最終 jar 重跑端到端兩版 PASS。
 
 可攜摘要：[acceptance.json](docs/phase4-security/acceptance.json)；完整原始 logs／results 在 `.work/phase4-hub-e2e-complete/` 與 `.work/phase4-hub-*-complete.log`，9 張精選截圖在 `docs/screenshots/phase4/`。端到端使用 12:22 凍結 jar，後續兩項安全修正由最後兩種資料庫測試與 build 覆蓋；artifact hashes 及詳細界線見 [docs/14 Hub](../docs/14-phase4-progress.md#hub)。程序已結束，未留下背景驗收。安全審查：[security-review-phase4-2026-10-03.md](docs/security-review-phase4-2026-10-03.md)。
+
+
+## Phase 5 Hub（2026-10-05）
+
+世界是權限／儲存配額容器；各維度的分支、tag、PR、預設 HEAD、ahead／behind、分支保護及 push 後處理獨立。smart HTTP 的 `/git/{owner}/{world}/{dimension}.git` 與 CLI world URL 發現 API 保持相容。歷史 group／publication refs 可讀且維持不可任意改寫等既有保護，但不再驗跨維度配對。release 名稱不再要求所有 repo 存在同名 tag；`revisions` 未填的維度用自己的 HEAD。既有同步 merge、preview、release ZIP 入口保留，網頁使用下列非同步入口。
+
+| 入口（… = 世界 API） | 契約／授權 |
+|---|---|
+| `GET …/dims/{repo}/graph?all=true&limit=200` | read／read；core 圖＋dimension＋defaultBranch＋merges；limit 1–10,000、遍歷 20,000、refs 2,000、JSON 4 MiB |
+| `PUT …/dims/{repo}/default-branch` | admin／admin；`{branch}`，只更新選定 repo 的 symbolic HEAD |
+| `GET …/branches?dimension=...`／`…/compare?dimension=...&a=...&b=...` | read／read；未給 dimension 保留容器檢視入口，沒有 snapshot 配對 |
+| `GET …/pulls?dimension=...`／`POST …/pulls` | 建立 body 帶 dimension（舊客戶端省略為主世界），source／target 只在選定維度解析 |
+| `PATCH …/pulls/{id}` 的 dimension | 舊 legacy PR 確認或開放 PR 重新選維度；作者／admin＋write，清除舊 choices／reviews、同步留言專案維度（保留舊釘選座標） |
+| `POST …/operations` | 202＋id；`operation=merge`（pr,fingerprint；write）、`preview`（dimension,ours,theirs；read）、`release-zip`（release；read）、`world-zip`（revisions；read） |
+| `GET …/operations?limit=20` | 同 actor＋read／read，limit 1–100，列自己的世界作業；世界頁可監看 push |
+| `GET …/operations/{id}`／`…/{id}/events` | 啟動者＋目前世界 read／read；SSE event `operation`，snapshot 含 id,sequence,events,result,data,cancellable,download |
+| `POST …/operations/{id}/cancel` | 相同啟動者＋read scope；預覽／ZIP 可取消，合併／push 不可取消 |
+| `GET …/operations/{id}/download` | 相同啟動者＋read／read；成功 ZIP，最多 2 個同時傳輸；成功後清除準備檔 |
+| `POST …/webhooks/{id}/test` | admin／admin；dimension 選填，排入指定 hook 的 test delivery；完成通知表示已排程，投遞結果另查 deliveries |
+
+operation 記錄 128 筆、每筆 64 事件、每人 8 個未完成、2 worker＋8 queued；已完成 15 分鐘到期，ZIP 準備／保留最多 2 個、5 分鐘到期。每分鐘清理，Hub 重啟清除記憶體紀錄與殘留檔；沒有跨 instance 或重啟後續看作業的承諾。SSE 全站 32、每人 2、30 秒逾時；前端退回每 500 ms 輪詢、最多 1,800 次。匿名公開世界作業綁定 HttpOnly session，其他使用者即使可讀同世界仍不能讀別人的作業。push smart HTTP sideband 提供 `WorldGit operation=<uuid>`，索引及 webhook outbox 排程使用此 id；投遞 HTTP 重試屬 outbox，另看 delivery 狀態。
+
+全部 JSON 動作由共用 HTTP 邊界產生 core OperationResult：物件加 `result`、陣列用 `X-WorldGit-Result`（UTF-8 JSON Base64）保持舊形狀，`X-WorldGit-Operation` 提供 id。錯誤 JSON 加 `errorReport`；完整已遮罩報告僅在 body，header 不含報告且訊息／操作名稱分別限 256／200 字元。前端共用 fetch 邊界顯示通知，非同步排程回應不當成完成，取 operation 終態。下載準備成功代表 ZIP 可下載，瀏覽器實際傳輸由原生下載管理顯示。
+
+SQLite／PostgreSQL schema v5 自動冪等升級：保留 world／成員 ACL、舊 release 固定 commits、舊 merged PR commits；舊 open PR 標為 legacy 並清空 choices／reviews，需要在頁面確認維度後重新審核。舊 branch_rules 以 `*` 繼承全部維度，沒有放寬保護；舊 root journal 僅由相容恢復入口處理，新合併 journal 放在選定維度 repo。
+
+驗收：`hub/scripts/phase5-acceptance.sh` 自帶鎖，以真 Hub jar＋SQLite／CLI 在 127.0.0.1:8098 驗證地獄獨立合併、refs 不變、圖權限／上限、merge／ZIP／push 進度、遮罩、Phase 4 DB 重啟遷移與瀏覽器。亮／暗／手機圖、PR 維度、進度、成功、錯誤與 Clipboard 後備截圖在 [screenshots/phase5](docs/screenshots/phase5/)。既有 Phase 4 腳本維持兩版開世界、逐格驗證與全維度 refs／ZIP 檢查；PR commits 改驗單維度，容器 heads 與 CLI 三維度另外對照，沒有刪除斷言。Containerfile／compose 不需增加服務、權限或 volume，容器 smoke 由主對話執行。本輪安全審查：[security-review-phase5-2026-10-05.md](docs/security-review-phase5-2026-10-05.md)。
+
+本輪最後驗證：完整 build 315 項 JUnit（Hub 74）、前端 26 項測試／lint／typecheck／build 全綠；同一最終 jar 的 Phase 4 1.21.11／26.2 分版驗收與 Phase 5 實機驗收均 exit 0。10 次 Phase 4 瀏覽器流程無 CSP／console／JS error，六次 Paper 重開的三維度 verify COMPLETE、內容差異 0。可攜摘要／jar／來源／截圖雜湊：[Phase 5 acceptance.json](docs/phase5-security/acceptance.json)；完整變更清單：[changed-files.txt](docs/phase5-security/changed-files.txt)。中間中斷及單次未再現的 HTTP 400 保留在設計驗證紀錄，原斷言未放寬。所有驗收程序及大型副本已清理。

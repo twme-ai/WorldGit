@@ -53,7 +53,7 @@ public class LoginSecurity {
         if(Set.of("/api/v1/auth/login","/api/v1/auth/register","/api/v1/auth/verify").contains(req.getRequestURI())) return false;
         var s=req.getSession(false); return s!=null && s.getAttribute(RequestUser.SESSION_USER)!=null;
       }))
-      .exceptionHandling(e->e.accessDeniedHandler((req,res,ex)->error(res,403,"csrf","CSRF token 無效")))
+      .exceptionHandling(e->e.accessDeniedHandler((req,res,ex)->error(res,403,"csrf","CSRF token 無效",req)))
       .headers(h->h.disable()).formLogin(f->f.disable()).httpBasic(b->b.disable()).logout(l->l.disable());
     if(props.oauth().values().stream().anyMatch(CollaborationProperties.OAuth::enabled)) {
       var resolver=new DefaultOAuth2AuthorizationRequestResolver(clients,"/oauth2/authorization");
@@ -74,19 +74,35 @@ public class LoginSecurity {
             OAuth2User principal=auth.getPrincipal();
             var u=oauth.login(auth.getAuthorizedClientRegistrationId(),principal.getName(),actor);
             req.changeSessionId();s.setAttribute(RequestUser.SESSION_USER,u.id());
+            s.setAttribute("worldgit.notification",new org.worldgit.core.operation.OperationResult(java.util.UUID.randomUUID(),"oauth",org.worldgit.core.operation.OperationResult.Status.SUCCESS,null,Map.of("message","OAuth 登入／連結完成"),0,List.of(),null));
             res.sendRedirect("/settings");
           } catch(RuntimeException ex) {
-            s.invalidate(); error(res,403,"oauth", "OAuth 登入／連結失敗");
+            s.invalidate(); oauthError(req,res,403,"OAuth 登入／連結失敗");
           }
         }).failureHandler((req,res,e)-> {
           var s=req.getSession(false); if(s!=null) {s.removeAttribute("worldgit.oauth.link");s.removeAttribute("worldgit.oauth.provider");s.removeAttribute("worldgit.oauth.started");}
-          error(res,401,"oauth","OAuth state 或授權無效");
+          oauthError(req,res,401,"OAuth state 或授權無效");
         }));
     }
     return http.build();
   }
-  public static void error(HttpServletResponse res,int status,String code,String message) throws IOException {
-    res.setStatus(status);res.setContentType("application/json;charset=UTF-8");
-    res.getWriter().write("{\"code\":\""+code+"\",\"error\":\""+message+"\"}");
+  private static void oauthError(HttpServletRequest req,HttpServletResponse res,int status,String message)throws IOException {
+    if(Objects.toString(req.getHeader("Accept"),"").contains("text/html")){
+      var c=org.worldgit.hub.operation.Reports.OperationProgressContext.of(req);
+      var report=org.worldgit.core.operation.OperationResult.ErrorReport.create("oauth",c.id(),"oauth",null,org.worldgit.hub.operation.Reports.VERSION,"Hub "+org.worldgit.hub.operation.Reports.VERSION,message);
+      req.getSession().setAttribute("worldgit.notification",new org.worldgit.core.operation.OperationResult(c.id(),"oauth",org.worldgit.core.operation.OperationResult.Status.FAILED,null,Map.of("message",message),c.elapsed(),List.of(),report));res.sendRedirect("/login");
+    }else error(res,status,"oauth",message,req);
+  }
+  public static void error(HttpServletResponse res,int status,String code,String message) throws IOException {error(res,status,code,message,org.worldgit.hub.operation.Outcomes.request());}
+  public static void error(HttpServletResponse res,int status,String code,String message,HttpServletRequest req)throws IOException {
+    var mapper=new com.fasterxml.jackson.databind.ObjectMapper();java.util.Map<String,Object> body;
+    if(req!=null && req.getAttribute("worldgit.reports") instanceof org.worldgit.hub.operation.Reports reports)body=reports.error(req,code,message);
+    else {
+      var c=org.worldgit.hub.operation.Reports.OperationProgressContext.of(req);
+      var report=org.worldgit.core.operation.OperationResult.ErrorReport.create(code,c.id(),c.operation(),null,org.worldgit.hub.operation.Reports.VERSION,"Hub "+org.worldgit.hub.operation.Reports.VERSION,message);
+      var result=new org.worldgit.core.operation.OperationResult(c.id(),c.operation(),org.worldgit.core.operation.OperationResult.Status.FAILED,null,Map.of("message",report.message()),c.elapsed(),List.of(),report);
+      body=Map.of("code",code,"error",report.message(),"errorReport",report,"result",result);
+    }
+    res.setStatus(status);res.setContentType("application/json;charset=UTF-8");org.worldgit.hub.operation.Outcomes.headers(res,mapper,(org.worldgit.core.operation.OperationResult)body.get("result"));res.getWriter().write(mapper.writeValueAsString(body));
   }
 }

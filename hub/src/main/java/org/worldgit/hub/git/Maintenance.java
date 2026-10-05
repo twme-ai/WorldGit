@@ -24,19 +24,30 @@ public class Maintenance {
   private final RepoStorage storage;
   private final HubProperties props;
   private final OwnerQuota quota;
+  private final org.worldgit.hub.operation.Operations operations;
+  private final org.worldgit.hub.account.AccountService accounts;
+  private final org.worldgit.hub.collaboration.EventService events;
 
-  public Maintenance(RepoStorage storage, HubProperties props, OwnerQuota quota) {
+  public Maintenance(RepoStorage storage, HubProperties props, OwnerQuota quota,org.worldgit.hub.operation.Operations operations,org.worldgit.hub.account.AccountService accounts,org.worldgit.hub.collaboration.EventService events) {
     this.storage = storage;
     this.props = props;
-    this.quota = quota;
+    this.quota = quota;this.operations=operations;this.accounts=accounts;this.events=events;
   }
 
-  @Async
-  public void afterPush(RepoRef ref) {
+  public java.util.UUID afterPush(RepoRef ref,org.worldgit.hub.account.Models.User user,java.util.List<java.util.Map<String,String>> changes) {
+    var world=accounts.findWorld(ref.owner(),ref.world()).orElseThrow();
+    org.worldgit.hub.operation.Operations.Entry job;
+    try{job=operations.submit(world,user,"push-processing",ref.dimension(),false,false,operations.reports().secrets(null),entry->{
+      process(ref,world,changes);return java.util.Map.of("dimension",ref.dimension().value(),"refs",changes.size());
+    });}catch(org.worldgit.hub.web.ApiError.Unavailable e){job=operations.partial(world,user,"push-processing",ref.dimension(),"push 已接受；索引／webhook 未排程："+e.getMessage());}
+    return job.id;
+  }
+  private void process(RepoRef ref,org.worldgit.hub.account.Models.WorldRow world,java.util.List<java.util.Map<String,String>> changes)throws IOException {
     Path dir = storage.repoPath(ref.owner(), ref.world(), ref.dimension());
     ReentrantLock lock = quota.lock(ref.owner());
     lock.lock();
     try {
+      org.worldgit.core.operation.OperationProgress.report(ref.dimension(),"index",0L,null,org.worldgit.core.operation.OperationProgress.Unit.OBJECT);
       long limit = props.git().packLimitBytes();
       if (largestPack(dir) > limit) {
         try (JGitStore store = new JGitStore(dir, false)) {
@@ -45,8 +56,10 @@ public class Maintenance {
         }
       }
       storage.afterWrite(ref.owner(), ref.world(), ref.dimension());
+      org.worldgit.core.operation.OperationProgress.report(ref.dimension(),"webhook",0L,(long)changes.size(),org.worldgit.core.operation.OperationProgress.Unit.OBJECT);
+      int count=0;for(var change:changes){events.emit(world,"push",change,java.util.Set.of());org.worldgit.core.operation.OperationProgress.report(ref.dimension(),"webhook",++count,(long)changes.size(),org.worldgit.core.operation.OperationProgress.Unit.OBJECT);}
     } catch (IOException | RuntimeException e) {
-      log.error("維護失敗 {}：{}", dir, e.toString());
+      throw e;
     } finally {
       lock.unlock();
     }

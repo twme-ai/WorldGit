@@ -1,7 +1,11 @@
+import { getJson } from './api.ts'
+import { type Result } from './outcome.ts'
+import { notifyResult } from './ui.ts'
 import './style.css'
 import { sendJson } from './api.ts'
 import { refreshUser, session } from './session.ts'
 import { commitPage } from './pages/commit.ts'
+import { graphPage } from './pages/graph.ts'
 import { branchesPage } from './pages/branches.ts'
 import { mergePage } from './pages/merge.ts'
 import { comparePage } from './pages/compare.ts'
@@ -10,7 +14,7 @@ import { homePage, loginPage, settingsPage } from './pages/home.ts'
 import { pullsPage, pullPage, releasesPage, releasePage, permissionsPage, notificationsPage, verifyPage } from './pages/collaboration.ts'
 import { worldPage } from './pages/world.ts'
 import { addRoute, navigate, startRouter } from './router.ts'
-import { h, link } from './ui.ts'
+import { h, link, showError } from './ui.ts'
 
 const app = document.getElementById('app')!
 const nav = h('nav', { class: 'userbox' })
@@ -25,7 +29,7 @@ function renderUser() {
   const me = session.me
   nav.replaceChildren()
   if (me.username) {
-    nav.append(link('/notifications', '通知', 'pill'), link('/settings', me.username, 'pill'), h('button', { class: 'link', onClick: async () => { await sendJson('/api/v1/auth/logout', 'POST'); await refreshUser(); navigate('/') } }, '登出'))
+    nav.append(link('/notifications', '通知', 'pill'), link('/settings', me.username, 'pill'), h('button', { class: 'link', onClick: async () => { try{await sendJson('/api/v1/auth/logout', 'POST'); await refreshUser(); navigate('/')}catch(e){showError(e)} } }, '登出'))
   } else nav.append(link('/login', '登入', 'btn small'))
 }
 session.listeners.push(renderUser)
@@ -39,6 +43,7 @@ addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/pulls\/([^/]+)$/, ([o, w, id], root) 
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/releases$/, ([o, w], root) => releasesPage(root, o, w))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/releases\/([^/]+)$/, ([o, w, id], root) => releasePage(root, o, w, id))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/settings$/, ([o, w], root) => permissionsPage(root, o, w))
+addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/graph(?:\/([^/]+))?$/, ([o,w,d],root)=>graphPage(root,o,w,d))
 addRoute(/^\/settings$/, (_p, root) => settingsPage(root))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/branches$/, ([o, w], root) => branchesPage(root, o, w))
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/compare\/(.+)$/, ([o, w, spec], root) => comparePage(root, o, w, spec))
@@ -48,3 +53,5 @@ addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/commit\/([^/]+)\/([0-9a-fA-F]{4,40}|H
 addRoute(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)$/, ([o, w], root) => worldPage(root, o, w))
 
 void refreshUser().then(() => startRouter(main))
+
+void getJson<{result:Result|null}>('/api/v1/auth/outcome').then(value=>{if(value.result)notifyResult(value.result)}).catch(showError)

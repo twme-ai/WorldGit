@@ -45,6 +45,7 @@ public class Access {
     }
     if (!role.atLeast(needed)) throw new SecurityException("權限不足（需要 " + needed + "）");
     scope(req, needed.atLeast(Role.ADMIN) ? "admin" : needed.atLeast(Role.WRITER) ? "write" : "read");
+    req.setAttribute("worldgit.world",w);req.setAttribute("worldgit.actor",user);
     return w;
   }
 

@@ -1,0 +1,670 @@
+{
+  "date": "2026-10-05",
+  "generatedUtc": "2026-10-05T12:38:49.709610+00:00",
+  "scope": "Phase 5 任務 2：Hub；本輪資料庫為 SQLite，容器驗收由主對話執行。",
+  "decisions": [
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128
+  ],
+  "baseCommit": "14b05c5958df6d3e60fe746f9d33d4983a62560f",
+  "build": {
+    "command": "flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home npm_config_cache=.work/npm-cache ./gradlew --no-daemon --configure-on-demand --max-workers=1 build",
+    "exitCode": 0,
+    "log": ".work/phase5-full-build8.log",
+    "tests": 315,
+    "modules": {
+      "core": {
+        "tests": 119,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "cli": {
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "hub": {
+        "tests": 74,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "i18n": {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "protocol": {
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "platform-api": {
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "paper/common": {
+        "tests": 37,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "fabric/logic": {
+        "tests": 47,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "web": {
+    "commands": [
+      "npm --prefix hub/web run test",
+      "npm --prefix hub/web run lint",
+      "npm --prefix hub/web run typecheck",
+      "npm --prefix hub/web run build"
+    ],
+    "exitCodes": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "testFiles": 4,
+    "tests": 26,
+    "logs": [
+      ".work/phase5-web-tests-final2.log",
+      ".work/phase5-web-lint-final.log",
+      ".work/phase5-web-typecheck-final.log",
+      ".work/phase5-phase4-acceptance-final.log"
+    ]
+  },
+  "phase4": {
+    "commands": [
+      "env SKIP_BUILD=1 RESULTS_DIR=.work/phase5-phase4-final-1_21_11-r3 hub/scripts/phase4-acceptance.sh --version 1.21.11",
+      "env SKIP_BUILD=1 RESULTS_DIR=.work/phase5-phase4-final-26_2 hub/scripts/phase4-acceptance.sh --version 26.2"
+    ],
+    "exitCode": 0,
+    "selfLocking": true,
+    "logs": [
+      ".work/phase5-phase4-final-1_21_11-r3.log",
+      ".work/phase5-phase4-final-26_2.log"
+    ],
+    "results": [
+      ".work/phase5-phase4-final-1_21_11-r3/results.json",
+      ".work/phase5-phase4-final-26_2/results.json"
+    ],
+    "artifactSha256": {
+      "wgit.jar": "6e96eaf6e9cb56781523da39c068707bdcfe96a59282b32dc7f704e7d5dbb371",
+      "acceptance-tools.jar": "24d470e0d8df5b9cab0e7aff4335314201e8108eceed6ebb8ac5161e3d742a88",
+      "hub.jar": "267d34af4bc51a0a5345ad07c14014df70f9318ba0631cf9a122ee671aebdcb4"
+    },
+    "note": "同一最終 jar 分版執行全部斷言；整批補跑因 SIGTERM exit 143 中斷，原始日誌保留。",
+    "versions": {
+      "1.21.11": {
+        "headsMatch": true,
+        "baselineUnchanged": true,
+        "paperCases": {
+          "clean_paper": {
+            "errors": 0,
+            "verify": {
+              "minecraft:overworld": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:overworld": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_nether": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_nether": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_end": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_end": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              }
+            }
+          },
+          "conflict_paper": {
+            "errors": 0,
+            "verify": {
+              "minecraft:overworld": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:overworld": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_nether": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_nether": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_end": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_end": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              }
+            }
+          },
+          "release_paper": {
+            "errors": 0,
+            "verify": {
+              "minecraft:overworld": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:overworld": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_nether": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_nether": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_end": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_end": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              }
+            }
+          }
+        },
+        "browserFlows": 5,
+        "cspViolations": 0,
+        "javascriptErrors": 0
+      },
+      "26.2": {
+        "headsMatch": true,
+        "baselineUnchanged": true,
+        "paperCases": {
+          "clean_paper": {
+            "errors": 0,
+            "verify": {
+              "minecraft:overworld": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:overworld": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_nether": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_nether": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_end": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_end": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              }
+            }
+          },
+          "conflict_paper": {
+            "errors": 0,
+            "verify": {
+              "minecraft:overworld": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:overworld": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_nether": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_nether": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_end": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_end": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              }
+            }
+          },
+          "release_paper": {
+            "errors": 0,
+            "verify": {
+              "minecraft:overworld": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:overworld": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_nether": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_nether": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              },
+              "minecraft:the_end": {
+                "state": "COMPLETE",
+                "dimensions": {
+                  "minecraft:the_end": {
+                    "chunks": 0,
+                    "sections": 0,
+                    "biomeSections": 0,
+                    "entityPuts": 0,
+                    "entityRemoves": 0,
+                    "chunkDeletes": 0,
+                    "untrackedKept": 0,
+                    "metaFiles": 0
+                  }
+                },
+                "error": null
+              }
+            }
+          }
+        },
+        "browserFlows": 5,
+        "cspViolations": 0,
+        "javascriptErrors": 0
+      }
+    }
+  },
+  "phase5": {
+    "command": "env SKIP_BUILD=1 RESULTS_DIR=.work/phase5-hub-acceptance-final5 hub/scripts/phase5-acceptance.sh",
+    "exitCode": 0,
+    "selfLocking": true,
+    "note": "沿用上列完整 build 的最新 jar；預設未設 SKIP_BUILD 的腳本會自行建置。",
+    "log": ".work/phase5-acceptance-final5.log",
+    "results": ".work/phase5-hub-acceptance-final5/results.json",
+    "independentMerge": true,
+    "phase4Migration": true,
+    "mergeOperationId": "70128e66-578e-4629-ad71-972016a2d3a1",
+    "releaseOperationId": "9e60edbe-fe3c-4cdb-9712-0557a5a9f8fd",
+    "pushOperationCount": 6,
+    "safeErrorReport": {
+      "code": "not-found",
+      "operationId": "f5f80883-cb3e-4bf8-bf9e-59b6dfd6f7b9",
+      "operation": "POST /api/v1/worlds/admin/phase5/pulls",
+      "dimension": "minecraft:the_nether",
+      "worldGitVersion": "0.1.0-SNAPSHOT",
+      "minecraftVersion": "unknown",
+      "platformVersion": "Hub 0.1.0-SNAPSHOT",
+      "utc": "2026-10-05T12:28:10.095182816Z",
+      "message": "找不到維度分支：minecraft:the_nether / [REDACTED]",
+      "text": "code=not-found operation=POST /api/v1/worlds/admin/phase5/pulls id=f5f80883-cb3e-4bf8-bf9e-59b6dfd6f7b9 dimension=minecraft:the_nether WorldGit=0.1.0-SNAPSHOT Minecraft=unknown platform=Hub 0.1.0-SNAPSHOT UTC=2026-10-05T12:28:10.095182816Z\n找不到維度分支：minecraft:the_nether / [REDACTED]"
+    },
+    "browser": {
+      "assertions": [
+        "core 分支圖、tag／PR 連結、鍵盤、手機捲動、亮暗色及成功通知",
+        "PR 維度選擇與獨立分支清單",
+        "真 release ZIP 進度、SSE 與瀏覽器下載",
+        "SSE 失敗改有界輪詢",
+        "真 API 錯誤、複製按鈕、已選取文字後備及可關閉 aria-live 通知"
+      ],
+      "cspViolations": 0,
+      "javascriptErrors": 0,
+      "transports": [
+        "SSE",
+        "poll"
+      ]
+    }
+  },
+  "artifactsSha256": {
+    "hub/build/libs/worldgit-hub.jar": "267d34af4bc51a0a5345ad07c14014df70f9318ba0631cf9a122ee671aebdcb4",
+    "cli/build/libs/wgit.jar": "6e96eaf6e9cb56781523da39c068707bdcfe96a59282b32dc7f704e7d5dbb371",
+    "cli/build/libs/acceptance-tools.jar": "24d470e0d8df5b9cab0e7aff4335314201e8108eceed6ebb8ac5161e3d742a88"
+  },
+  "changedSourceSha256": {
+    "core/src/main/java/org/worldgit/core/operation/OperationProgress.java": "76835a432d0c3622b7946e98777ffc47497c189f0ee2286197759da84ef4d7ff",
+    "core/src/main/java/org/worldgit/core/remote/WorldAssembler.java": "bf542b1e46002555655b9a45e0a593fc94e9caf518f6ba4168e77e286187d017",
+    "hub/scripts/phase5-acceptance.py": "236a525afdf2fe0381feff30d8d69ca065538003c5732a42280774fb2f25d307",
+    "hub/scripts/phase5-acceptance.sh": "d680f2d9b2ba198bd9e13a9e93109a13cfaff752378276649e4abe6096267b23",
+    "hub/src/main/java/org/worldgit/hub/account/DimensionSchemaUpgrade.java": "66a932770e7914c1c35ede14c8997b2ba2f4f1a62aa17e318516cd51ceb0d48b",
+    "hub/src/main/java/org/worldgit/hub/account/RequestUser.java": "d99b44f52a0e9555641335e830d686a85b0eb062a160d70ed84bfb3c14db74f6",
+    "hub/src/main/java/org/worldgit/hub/collaboration/BranchPolicy.java": "08b28d10d3cc4ae1a919b449e2d127548e53fde1ab4b82fc2965622e4ee5aacb",
+    "hub/src/main/java/org/worldgit/hub/collaboration/Comments.java": "f0be33bf7a60316309a0e151f75304d2cee703b5506f97b1ea8704734baa05fa",
+    "hub/src/main/java/org/worldgit/hub/collaboration/PullRequests.java": "2bd25b3f7a1f35778d679994a46d02c00eebd211d39e4c8fc395264f4cbe00ca",
+    "hub/src/main/java/org/worldgit/hub/collaboration/Releases.java": "380d92d3f6f4a0dee0bb2383f7a9181de72ca4b6afb3f427a9d9822b619eeeb0",
+    "hub/src/main/java/org/worldgit/hub/collaboration/Webhooks.java": "536e1bca40ca0e640ee076efb53394517d28b4bfd56743f211f79478422bd325",
+    "hub/src/main/java/org/worldgit/hub/collaboration/WorldGroups.java": "d9065e9824a0287c6707fc7e47a5c30375ae4832aba11526af27bd132bdc7e00",
+    "hub/src/main/java/org/worldgit/hub/config/LoginSecurity.java": "013f9d593269c9b3d3e64c5d703edc54779b38f410a244c9f2f0b9c0194e6d2a",
+    "hub/src/main/java/org/worldgit/hub/config/RequestBoundary.java": "afa2cb534097ecba52368384f1fe4828610798d98d99a73de3dfab76e534ba42",
+    "hub/src/main/java/org/worldgit/hub/git/Maintenance.java": "66fa75bce63ef046ad7452411f116306abc2401bb397aac6674938c0a570d558",
+    "hub/src/main/java/org/worldgit/hub/git/PushHooks.java": "81cf063a3dbc420530ce65078f59a9c1e4aecd828265e9a633cb8cd9bfc26052",
+    "hub/src/main/java/org/worldgit/hub/history/BranchService.java": "bf5cebc340026c6e3b5981e0735aa009a34366fb7a2d2899f445122f8a58c8a5",
+    "hub/src/main/java/org/worldgit/hub/history/CompareService.java": "ee3b63ba83efeda4ce06baeb47a1541278eeff08c8cc5dd4ae6d525dcb070223",
+    "hub/src/main/java/org/worldgit/hub/history/HistoryService.java": "1b646c58c3cd650ed14aff8cb4063b79e4b58f418b7fddd04cf3106edb869202",
+    "hub/src/main/java/org/worldgit/hub/history/MergePreviewService.java": "5ba2f09021cde8739f43d60cf4dc716ae7695491d3447cd52fc58bdc9b6098b7",
+    "hub/src/main/java/org/worldgit/hub/history/Refs.java": "731159465ddb795f6893d9db6e088da764bb8530cc2e3fc38a22099d36b9d987",
+    "hub/src/main/java/org/worldgit/hub/operation/Operations.java": "0bc582a044b5796e7dd9a6298ca885825ad53048f77b8142e1fe56f3911203f2",
+    "hub/src/main/java/org/worldgit/hub/operation/Outcomes.java": "469e2574bf25c2fdefccfeea2825c09e6793ade24bc86805287fac8412c599ee",
+    "hub/src/main/java/org/worldgit/hub/operation/Reports.java": "471d897b774e141ea0f202322678fe21086dfc9918fe1f5f0494b7b8924e854f",
+    "hub/src/main/java/org/worldgit/hub/web/Access.java": "f892207660a90111657e6e926512ab2090990957bdca7024f94cd4902e050fb7",
+    "hub/src/main/java/org/worldgit/hub/web/AccountController.java": "b8d09a853a46c973602340b5c128d9dbfb046bfd7c7ee6ad0b65bd68b3c353ab",
+    "hub/src/main/java/org/worldgit/hub/web/ApiError.java": "0f79f34001f0559dad564c27718c0b69fedc820bd8415a05e52b7c972694d62c",
+    "hub/src/main/java/org/worldgit/hub/web/BoundedJson.java": "baa1010b3d1f7f2970cd9c49968cb4ba371ea11a35421a68c5e61edae975a588",
+    "hub/src/main/java/org/worldgit/hub/web/BranchController.java": "5990fcfa715ceb04259d982f16eba7f65febe4953e2d2aa143fa2341638ca769",
+    "hub/src/main/java/org/worldgit/hub/web/BranchPolicyController.java": "beb0a55d92fb71da9d3bbffc1c9d05507b242e17979ea93d3fcf084dc5f82abe",
+    "hub/src/main/java/org/worldgit/hub/web/CollaborationJson.java": "298fe3d64f936756294d44da578eb08ab27e75fc65fb6c2f3a7a9d182fb3ff2d",
+    "hub/src/main/java/org/worldgit/hub/web/CommentController.java": "ba9962bdb89262b4ee36338af682e03bda58cab3aafdb25946df01c61532b80f",
+    "hub/src/main/java/org/worldgit/hub/web/GraphController.java": "fb2fb775152b082c95f5fd2c499e39a399b26cec17c7a87d672c9193f56a200f",
+    "hub/src/main/java/org/worldgit/hub/web/HubErrorController.java": "6669c99b396a527955313f8fa9b954755801c81b313a47a3028f40621d6fd5da",
+    "hub/src/main/java/org/worldgit/hub/web/MergePreviewController.java": "d67848a3d43e2e505e842fc2176cef8f38ed88996826f6e6075351b416533181",
+    "hub/src/main/java/org/worldgit/hub/web/OperationController.java": "954d5f9bb6a942b07e30d88cbbe3524df7987dfb61163d91b9615256f873456a",
+    "hub/src/main/java/org/worldgit/hub/web/PermissionController.java": "debb9a28d97e976b96eb165c9c740b0d810d7379dc277d308a22c6ac5f4c8036",
+    "hub/src/main/java/org/worldgit/hub/web/PullRequestController.java": "8395f708299ee5b775bc60b152ae6bc31f35c90794fda31a891b82f655d3515a",
+    "hub/src/main/java/org/worldgit/hub/web/ReleaseController.java": "c4fd197d0b66ba7847d05fb88520d8dfd0311224e8dac4fe2f38ff5bb4ff0335",
+    "hub/src/main/java/org/worldgit/hub/web/SpaController.java": "3c01e345d07d7e0a020015807f6bd33cd149f2a398c8398d3bead9291e85f0e8",
+    "hub/src/main/java/org/worldgit/hub/web/WebhookController.java": "4dd51e241869653e4e9bbb599e85bd4c836c0241a67c2c6dcc00c369fd85ae01",
+    "hub/src/main/java/org/worldgit/hub/web/WorldController.java": "4f020c2733d68df30f4600bff8c30cf7571e4f72b929459b16ce137a4657cb22",
+    "hub/src/main/resources/schema.sql": "eeac94e067fe2b100529a8e4621f573ca75b5a8b598f6383fdc20aaf022f89e3",
+    "hub/src/test/java/org/worldgit/hub/BranchCompareTest.java": "f5405752902cf67dad4bca6aa2748f4f2a69a8b8db12c7811302a2c245bcfec7",
+    "hub/src/test/java/org/worldgit/hub/CollaborationTest.java": "151e25b2b3c3e6b0de72bc247c8521908e4ff956d88f2699bf7d0ae38b618e0d",
+    "hub/src/test/java/org/worldgit/hub/DimensionMigrationTest.java": "0a54ff021109cf1fb0f86e2cfc02be87d356c41a0d23e97f123dc21b0fd492d5",
+    "hub/src/test/java/org/worldgit/hub/HubIntegrationTest.java": "98fd33ccf0c40e3fd9a4d5b31db85260bf0f2613ec630b93ef6c0e3c3e5bd6cc",
+    "hub/src/test/java/org/worldgit/hub/MergePreviewTest.java": "41d4b18ed97d5dad9621d56abb34640bc95d02214fcb5d02aad8d2a151c9d533",
+    "hub/src/test/java/org/worldgit/hub/OAuthRegistrationTest.java": "ef14a73349c12c3cdfc432dbf05f066d557b4327797a2d9e6308adfe45f9f7dc",
+    "hub/src/test/java/org/worldgit/hub/operation/OperationsTest.java": "d4a676edf54b79716c43a7b68dad6e796fba24247ca6122ed174652d2d11ca71",
+    "hub/src/test/java/org/worldgit/hub/web/OutcomeBoundaryTest.java": "bd3bf4ed3d919765a17bf02dbab78fcb3a05dd7d8421b7f07c9d20730926ab3e",
+    "hub/web/scripts/phase4-acceptance.mjs": "0969702780a3955f67946c1ff7f81d5ababc0b2ecc5419e9ae341acf3d222cd7",
+    "hub/web/scripts/phase5-acceptance.mjs": "b9feffa703d3d6d54551ef0862a0633e84b2dc546d14b3c8c42a9373e943bcc5",
+    "hub/web/src/api.ts": "9cb29d451e3c1fbf84cbe86bbf5167237e49a4d52f6352f23618aaf6e387095c",
+    "hub/web/src/graph.ts": "0ca807bd85cf30f591e6c80adaf670e96678c2ed53c44be99d29d82c331bd027",
+    "hub/web/src/main.ts": "a97bf29930394cbf3aff242aa8aac6221c06550728cb2782379f0a42238cfb30",
+    "hub/web/src/merge.ts": "c9b9fe82ceda53711c24b1028874acfaf09bf26cf394960c636306150b3127c4",
+    "hub/web/src/operations.ts": "de71efebcd66655711c0bfc691163861c4ced19d77d7073526861aa138308cf6",
+    "hub/web/src/outcome.test.ts": "c19f3119bcdc324221c66c7e9bdbb1d1c1f45af8298d655fd0fcf8dc1b0f99f3",
+    "hub/web/src/outcome.ts": "d1e5275f3ad3b89ccf0f6517c6a84a014ad451722bc6ccc6792fb56b033dcfaf",
+    "hub/web/src/pages/branches.ts": "2e81676a4ae2554a13db50863811d9e024d06b3231372456949731e4dff48658",
+    "hub/web/src/pages/collaboration.ts": "54d5d3e71a92f2f75abc38520814c0038d20a2166eb0286f862463a8bdc97b56",
+    "hub/web/src/pages/commit.ts": "98f425e4d7c71318e60f201b6cd784d68e74cf4125e254587177a4a1415b6451",
+    "hub/web/src/pages/commits.ts": "fe0545b67d3c748055b725f9e14dfc6a4efc9ca5171cdc322641c2c2d2d03154",
+    "hub/web/src/pages/compare.ts": "eb16959b44d306cbe37d500f804babe500571fa212a178c004bf916707dfa7b1",
+    "hub/web/src/pages/dimensions.ts": "f631da090c3a2fd24b03cf323bf7fb82a044f78d3c0ca9fd305b5c8b7d4b31b3",
+    "hub/web/src/pages/graph.ts": "9b0ac2acbf3fae511cb471541753810a54b9a070307b22ed466a0e5404ef6fba",
+    "hub/web/src/pages/home.ts": "7fbc4b42c53d13f1e122cc49daadb5fba34b80a9fe37a396acd871e0436371d4",
+    "hub/web/src/pages/merge.ts": "b39fb771c1b29bbdc1eeccb75cdeb03f8307682dbc5764197c1b25f75b270634",
+    "hub/web/src/pages/shared.ts": "4e4218ef8406ac78df9a97cd05699d0f9b27ec7a49ea4db11eb8f4129a5ae873",
+    "hub/web/src/pages/world.ts": "212d97aa96288f796b2e9a7783eb1f81717a53a51e7f51718b22596d5c980e6b",
+    "hub/web/src/router.ts": "98b9257c3f9ade5c8d00cc2c6845b299e89092c2102468b30f0b44c85ab99d38",
+    "hub/web/src/style.css": "c7ddb6bd26e5a0a68c8dd6dd52072e45a1c4ac3815513c2480f952cfd70a8466",
+    "hub/web/src/ui.ts": "90291151fd472851773a2f9abe00dd1bc79163ec1787b4387bc26c787c3e1e60",
+    "scripts/verify-phase4-hub.py": "2701f424c54cd33b9023fbbfe0edabd8ebd77f4b12b030759f33efc2ec052d2f"
+  },
+  "screenshots": [
+    {
+      "file": "hub/docs/screenshots/phase5/copy-fallback.png",
+      "sha256": "ddae3acf665354807d1aee10c00015c855091584c5c135d3ffca81325db4b51d",
+      "bytes": 78084,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "hub/docs/screenshots/phase5/error-notification-copy.png",
+      "sha256": "360d6aba77ec1f273895ce965d26c0bb1be7fcc35ba9fb17e2f9b4ad630bb1fd",
+      "bytes": 47985,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "hub/docs/screenshots/phase5/graph-dark.png",
+      "sha256": "c601c42c190a9a500aed8a85eed360e87b622986403ebc3e46dfa5c327954b97",
+      "bytes": 79969,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "hub/docs/screenshots/phase5/graph-light.png",
+      "sha256": "7605af6b4a007be9c0bbe14a95c5e2a79c8f53634e0740a56402c1de152a07a3",
+      "bytes": 79714,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "hub/docs/screenshots/phase5/graph-mobile.png",
+      "sha256": "4e1d04d76dcf6e1b917b1622a9a59077fe0fbcb1550cfbf68486356105e11c5c",
+      "bytes": 59444,
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "hub/docs/screenshots/phase5/operation-progress.png",
+      "sha256": "2e5fee5b9f1c23e154c54452f1c3e8a9f857af44d0ee18d0cff332d15aa22df7",
+      "bytes": 51898,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "hub/docs/screenshots/phase5/pr-dimension-selector.png",
+      "sha256": "ae25b33b29883f6422e46ba5fcab9f3fff5d43c0b25296eda53fe5f5309118e2",
+      "bytes": 40339,
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "hub/docs/screenshots/phase5/success-notification.png",
+      "sha256": "b0bd7d013cdd54b6c1a0f09937183213dda5cab7f17a231d016932c0c8921aa8",
+      "bytes": 83260,
+      "width": 1440,
+      "height": 1000
+    }
+  ],
+  "limits": [
+    "operation 簿為記憶體介面，Hub 重啟後需讀 PR／release／refs 狀態。",
+    "完成紀錄 15 分鐘，ZIP 準備檔 5 分鐘；webhook 進度到 outbox 排程，傳輸結果另查 deliveries。",
+    "本輪未重跑 PostgreSQL／容器 smoke，不記為通過。"
+  ],
+  "handoff": "任務 3／4 接明確 dimension、graph、OperationResult／ErrorReport、progress 與事件；平台 bossbar／GUI／觸及事件維持原待辦。",
+  "cleanup": {
+    "ports": [
+      8091,
+      8092,
+      8093,
+      8094,
+      8095,
+      8096,
+      8097,
+      8098,
+      8099,
+      25691,
+      25692
+    ],
+    "openPorts": [],
+    "benchLockAvailable": true,
+    "temporaryWorldsDatabasesJarsAndPrivateConfigsRemoved": true,
+    "noCommit": true,
+    "experimentsModified": false,
+    "retainedAcceptanceBytes": 72080310
+  },
+  "observations": [
+    {
+      "message": "整批補跑收到 SIGTERM exit 143，保留日誌，改以同一最終 jar 分版完成全部案例。",
+      "log": ".work/phase5-phase4-acceptance-final.log"
+    },
+    {
+      "message": "一輪 1.21.11 的瀏覽器單次 HTTP 400 未再現；新增失敗 request 診斷並保留零錯誤斷言。後續完整 1.21.11 與兩版最終 jar 均通過，不宣稱根因已修正。",
+      "result": ".work/phase5-phase4-final-1_21_11/1.21.11-conflict-first-browser.json"
+    }
+  ]
+}

@@ -126,6 +126,14 @@
 | 119 | 結構化 ignore 編輯 | 有序行保留註解空行，增刪移動停用、驗證行號、preview／test、原子寫回；MERGING 禁止，256 KiB／4096 行，下一 commit 記歷史。（2026-10-04） | [16](16-phase5-design.md) |
 | 120 | 複製錯誤報告 | 錯誤／失敗／partial 附 operation id、維度、版本、UTC、完整訊息，遮罩秘密、8192 字元。遊戲獨立 [複製] 不覆蓋原 click，Hub 按鈕，CLI JSON。（2026-10-04） | [16](16-phase5-design.md) |
 | 121 | 創造範本實體觸及 | 方塊／BE／biome／地形完整追蹤；core／CLI 新 creative entities: player-touched，survival 與舊 repo 維持 all。版本化 UUID sidecar，集合外 apply 保留。CLI 離線 init 集合為空並提示；遊戲內 creative init 在任務 3／4 接完觸及事件前明確使用 entities: all，不宣稱已能辨識玩家來源。（2026-10-04） | [16](16-phase5-design.md) |
+| 122 | Hub 維度專案 | 世界保留 ACL／配額容器；分支、tag、HEAD、ahead／behind、PR／policy／留言、push 事件各自帶 dimension。新合併只使用單維度 BareWorldMerge；publication/group/snapshot UUID 不再構成配對條件。（2026-10-05） | [16](16-phase5-design.md)、[Hub](../hub/README.md) |
+| 123 | Hub 舊資料升級 | schema v5 冪等 transaction；舊開放 PR 標 legacy，先確認維度並清除 choices／reviews，舊 merged PR／release 固定 commits 不改。舊保護規則以 * 繼承所有維度，只有 admin 可明確覆寫／刪除；ACL 不變。舊 journal 僅供恢復。（2026-10-05） | [安全審查](../hub/docs/security-review-phase5-2026-10-05.md) |
+| 124 | Hub 分支圖 | 使用 core lane／edges／labels；每維度 GET graph，--all 可關閉；limit 1–10,000、遍歷 20,000、refs 2,000、JSON 4 MiB。只關聯該維度 merge commit 與 PR，提供截斷、鍵盤、水平捲動及亮／暗色。（2026-10-05） | [16](16-phase5-design.md) |
+| 125 | Hub operation | 記憶體 128 筆、每筆 64 事件、每人 8 個工作；2 worker＋8 queued，完成後 15 分鐘過期。世界權限＋啟動者授權，匿名公開世界使用 session 身分；SSE 全站 32／每人 2／30 秒，再退回有界輪詢。ZIP 至多 2 個準備／保留檔、5 分鐘過期、成功下載即清除。（2026-10-05） | [Hub](../hub/README.md)、[安全審查](../hub/docs/security-review-phase5-2026-10-05.md) |
+| 126 | Hub 完成結果相容 | 全部 JSON 動作回應同一 OperationResult；物件追加 result，陣列保留形狀，由 X-WorldGit-Result 傳 UTF-8 JSON Base64。非同步啟動結果只表示排程，完成通知取作業終態；前端可關閉 aria-live 通知。（2026-10-05） | [動作盤點](16-phase5-design.md#任務-2hub-動作盤點2026-10-05實作前) |
+| 127 | Hub 錯誤報告 | ErrorReport 先遮罩設定／Authorization／JSON 秘密值及已授權世界 webhook secret，再做 core PAT／URL userinfo／秘密欄位模式遮罩。報告含 code、operation id、dimension、版本、UTC、完整安全訊息；Clipboard 失敗開啟已選取純文字。（2026-10-05） | [安全審查](../hub/docs/security-review-phase5-2026-10-05.md) |
+| 128 | Hub 世界 ZIP 與 release | release 名稱是顯示識別，不再要求跨維度同名 tag。建立時每維度 revisions 可為 branch／tag／HEAD／commit；缺省使用該 repo HEAD，保存固定 commit map，下載交 core WorldAssembler。仍要求主世界 metadata／相容 DataVersion。（2026-10-05） | [使用指南](15-user-guide.md#107-release) |
+
 
 ## 路線圖
 
@@ -186,3 +194,10 @@ Phase 1–4 各自是一條**貫穿四端的垂直切片**，同一個功能由 
 ## Phase 4 第一個實作任務（2026-10-03）
 
 core／CLI 遠端協作、裸 repo 合併、可開世界 clone 與 release ZIP 已建立；Hub PR/帳號與 Paper/Fabric remote 接線留待接續任務。本次真 Hub、兩版 Paper/Fabric 開世界及原生 git HTTP 驗收、量測、API 契約和未完成項目見 [14](14-phase4-progress.md)，不把直接呼叫 bare merge API 視為網頁 PR 功能已完成。
+
+
+## Phase 5 任務 2：Hub（2026-10-05）
+
+每維度 PR／分支保護／圖／預設分支、每維度 ZIP revision、operation SSE／輪詢、完成結果與可複製錯誤已實作。schema v5 保留舊 ACL、release 與 merged PR 的 commit map；未合併舊 PR 須重新確認維度與審核。Paper／Folia、Fabric 的玩家維度、bossbar、GUI、ignore 與觸及事件仍屬任務 3／4；不以 Hub 完成代表四端全部完成。驗證與介面見 [16](16-phase5-design.md)，安全審查見 [Hub Phase 5](../hub/docs/security-review-phase5-2026-10-05.md)。
+
+任務 2 驗證完成：315 項 JUnit（Hub 74）與前端 26 項／lint／typecheck／build 全綠；最終同一 jar 的 Phase 4 兩版與 Phase 5 Hub／SQLite／CLI／瀏覽器均通過。動作盤點、API／任務 3／4 交接、舊資料相容與限制見 [16](16-phase5-design.md)；可攜證據見 [Hub Phase 5 acceptance](../hub/docs/phase5-security/acceptance.json)。本輪未 commit，容器由主對話另驗。

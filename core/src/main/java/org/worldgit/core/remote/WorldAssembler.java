@@ -198,6 +198,7 @@ public final class WorldAssembler {
     var applier = new OfflineApplier(layout);
     try (var lock = WorldSessionLock.acquire(layout)) {
       for (var id : included) {
+        org.worldgit.core.operation.OperationProgress.report(id,"assemble",0L,null,org.worldgit.core.operation.OperationProgress.Unit.BYTES);
         var commit = commits.get(id);
         var store = group.repos().get(id).objects();
         var metadata = TreeEditor.find(store, commit.tree(), "dimension-meta");

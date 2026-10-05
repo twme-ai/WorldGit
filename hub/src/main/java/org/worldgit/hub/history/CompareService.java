@@ -34,13 +34,20 @@ public class CompareService {
 
   record Resolved(String spec, String kind, Map<DimensionId, CommitInfo> commits) {}
 
+  Resolved resolve(WorldRow w,String spec,DimensionId dim) throws IOException {
+    if(spec==null || spec.isBlank() || spec.length()>100)throw new IllegalArgumentException("revision 無效");
+    var c=spec.equals("HEAD")?history.find(w,dim,"HEAD"):history.branchHead(w,dim,spec);
+    if(c.isEmpty())c=history.find(w,dim,spec);
+    if(c.isEmpty())throw new NoSuchElementException("找不到維度 revision："+dim+" / "+spec);
+    return new Resolved(spec,Refs.validBranch(spec) && history.branchHead(w,dim,spec).isPresent()?"branch":"commit",Map.of(dim,c.get()));
+  }
   Resolved resolve(WorldRow w, String spec) throws IOException {
     if (spec == null || spec.isBlank() || spec.length() > 100) throw new IllegalArgumentException("比較的分支或 commit 無效");
     var existing = storage.dimensions(w.ownerSlug(), w.slug());
     BranchService.checkDimensions(existing.size());
     var found = new TreeMap<DimensionId, CommitInfo>();
     String branch = spec.equals("HEAD") ? history.defaultBranch(w, existing) : spec;
-    for (DimensionId d : existing) history.branchHead(w, d, branch).ifPresent(c -> found.put(d, c));
+    for (DimensionId d : existing) (spec.equals("HEAD")?history.head(w,d):history.branchHead(w,d,branch)).ifPresent(c -> found.put(d,c));
     if (!found.isEmpty()) return new Resolved(spec, "branch", found);
     if (HEX.matcher(spec).matches()) {
       DimensionId source = null;
@@ -55,8 +62,7 @@ public class CompareService {
       }
       if (commit != null) {
         found.put(source, commit);
-        for (DimensionId other : existing)
-          if (!other.equals(source)) history.commitForSnapshot(w, other, commit.snapshot()).ifPresent(x -> found.put(other, x));
+
         return new Resolved(spec, "commit", found);
       }
     }
@@ -72,7 +78,12 @@ public class CompareService {
   }
 
   public CompareResult compare(WorldRow w, String aSpec, String bSpec) throws IOException {
-    Resolved a = resolve(w, aSpec), b = resolve(w, bSpec);
+    return compareResolved(w,resolve(w,aSpec),resolve(w,bSpec));
+  }
+  public CompareResult compare(WorldRow w,String a,String b,DimensionId d) throws IOException {
+    return compareResolved(w,resolve(w,a,d),resolve(w,b,d));
+  }
+  private CompareResult compareResolved(WorldRow w,Resolved a,Resolved b) throws IOException {
     var dims = new TreeSet<DimensionId>(a.commits().keySet());
     dims.addAll(b.commits().keySet());
     var out = new ArrayList<CompareDimension>();

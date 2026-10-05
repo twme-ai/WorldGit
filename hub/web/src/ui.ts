@@ -1,3 +1,4 @@
+import { browserReport, resultMessage, type ErrorReport, type Result } from './outcome.ts'
 // 極小的 DOM 輔助與格式化（不使用框架）。
 type Child = Node | string | number | null | undefined | false
 type Attrs = Record<string, string | number | boolean | EventListener | null | undefined>
@@ -45,14 +46,43 @@ export const fmtFull = (ms: number) => new Date(ms).toLocaleString('zh-TW', { ho
 export const fmtNum = (n: number) => n.toLocaleString('en-US')
 export const short = (id: string) => id.slice(0, 7)
 
-export function toast(msg: string, kind: 'info' | 'error' = 'info') {
-  const t = h('div', { class: `toast ${kind}`, role: 'status' }, msg)
-  document.body.append(t)
-  setTimeout(() => t.remove(), kind === 'error' ? 6000 : 3000)
+const shown = new Set<string>()
+export function notifyResult(result: Result) {
+  if(shown.has(result.operationId))return
+  if(shown.size>256)shown.delete(shown.values().next().value!)
+  shown.add(result.operationId)
+  toast(resultMessage(result), ['FAILED','PARTIAL'].includes(result.status)?'error':'info', result.error?.text)
 }
-
+export function toast(msg: string, kind: 'info' | 'error' = 'info', report?: string) {
+  const t = h('div', { class: `toast ${kind}`, role: kind==='error'?'alert':'status', 'aria-live':kind==='error'?'assertive':'polite', 'aria-atomic':'true' },h('span',{},msg))
+  if(kind==='error')t.append(h('button',{onClick:()=>void copyText(report ?? browserReport(msg)), 'aria-label':'複製錯誤報告'},'複製'))
+  t.append(h('button',{'aria-label':'關閉通知',onClick:()=>t.remove()},'關閉'))
+  let host=document.querySelector<HTMLElement>('.toasts')
+  if(!host){host=h('div',{class:'toasts'});document.body.append(host)}
+  while(host.children.length>=6)host.firstElementChild?.remove()
+  host.append(t)
+  if(kind!=='error')setTimeout(()=>t.remove(),10000)
+  return t
+}
+const errorsShown=new WeakSet<object>()
+export function showError(error: unknown) {
+  if(error && typeof error==='object'){if(errorsShown.has(error))return;errorsShown.add(error)}
+  const reportId=(error as {report?:ErrorReport})?.report?.operationId
+  if(reportId && shown.has(reportId))return
+  if(reportId)shown.add(reportId)
+  const value=error as {message?:string;report?:ErrorReport}
+  toast(value?.message ?? String(error),'error',value?.report?.text)
+}
+export function errorBanner(error: unknown) {
+  const value=error as {message?:string;report?:ErrorReport},message=value?.message ?? String(error)
+  return h('div',{class:'err error-banner',role:'alert','aria-live':'assertive'},h('p',{},message),h('button',{onClick:()=>void copyText(value?.report?.text ?? browserReport(message))},'複製'),h('button',{onClick:(e:Event)=>(e.currentTarget as HTMLElement).parentElement?.remove()},'關閉'))
+}
 export async function copyText(text: string) {
-  try { await navigator.clipboard.writeText(text); toast('已複製') } catch { toast('無法複製，請手動選取', 'error') }
+  try { if(!navigator.clipboard)throw new Error('clipboard');await navigator.clipboard.writeText(text);toast('已複製') }
+  catch {
+    const area=h('textarea',{readonly:true,'aria-label':'請選取並複製文字'},text),box=h('div',{class:'copy-fallback',role:'dialog','aria-label':'手動複製'},h('p',{},'請使用 Ctrl/Cmd+C 複製選取文字。'),area,h('button',{onClick:()=>box.remove()},'關閉'))
+    document.body.append(box);area.focus();area.select()
+  }
 }
 
 /** diff 符號與色：色票來自 /api/v1/diff-palettes（protocol 模組），不在前端寫死。 */

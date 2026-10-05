@@ -19,6 +19,11 @@ public class AccountController {
     this.throttle = throttle;
   }
 
+  @GetMapping("/auth/outcome")
+  Map<String,Object> outcome(HttpServletRequest req){
+    var session=req.getSession(false);Object result=session==null?null:session.getAttribute("worldgit.notification");
+    if(session!=null)session.removeAttribute("worldgit.notification");var body=new java.util.LinkedHashMap<String,Object>();body.put("result",result);return body;
+  }
   record Login(String username, String password) {}
 
   @PostMapping("/auth/login")
@@ -77,7 +82,7 @@ public class AccountController {
   @DeleteMapping("/tokens/{id}")
   Map<String, Object> deleteToken(HttpServletRequest req, @PathVariable String id) {
     access.scope(req,"admin");
-    return Map.of("deleted", accounts.deleteToken(access.requireUser(req), id));
+    boolean deleted=accounts.deleteToken(access.requireUser(req), id);if(!deleted)req.setAttribute("worldgit.noop",true);return Map.of("deleted",deleted);
   }
 
   record NewOrg(String slug, String displayName) {}

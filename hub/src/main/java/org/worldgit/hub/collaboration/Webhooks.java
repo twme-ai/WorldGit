@@ -29,17 +29,27 @@ public class Webhooks {
   public Page<Hook> list(WorldRow w,int offset,int limit){Page.offset(offset);Page.limit(limit);return Page.of(db.sql("SELECT id,url,events,enabled,created_at FROM webhooks WHERE world_id=? ORDER BY created_at,id LIMIT ? OFFSET ?").params(w.id(),limit+1,offset).query((rs,n)->new Hook(rs.getString(1),rs.getString(2),List.of(rs.getString(3).split(",")),rs.getInt(4)!=0,rs.getLong(5))).list(),offset,limit);}
   public Hook find(WorldRow w,String id){return db.sql("SELECT id,url,events,enabled,created_at FROM webhooks WHERE world_id=? AND id=?").params(w.id(),id).query((rs,n)->new Hook(rs.getString(1),rs.getString(2),List.of(rs.getString(3).split(",")),rs.getInt(4)!=0,rs.getLong(5))).optional().orElseThrow(()->new ApiError.NotFound("找不到 webhook"));}
   @Transactional public Hook create(WorldRow w,String url,String secret,List<String> eventNames,boolean enabled)throws IOException {
+    db.sql("UPDATE worlds SET id=id WHERE id=?").param(w.id()).update();
     WebhookTarget.resolve(url,props.allowedHosts());validate(secret,eventNames);
     if(db.sql("SELECT COUNT(*) FROM webhooks WHERE world_id=?").param(w.id()).query(Long.class).single()>=10)throw new ApiError.Conflict("每世界最多 10 個 webhook");
     String id=UUID.randomUUID().toString();db.sql("INSERT INTO webhooks(id,world_id,url,secret,events,enabled,created_at) VALUES (?,?,?,?,?,?,?)").params(id,w.id(),url,secret,String.join(",",new TreeSet<>(eventNames)),enabled?1:0,System.currentTimeMillis()).update();return find(w,id);
   }
   private static void validate(String secret,List<String> events){if(secret==null || secret.length()<32 || secret.length()>256 || events==null || events.isEmpty() || events.size()>4 || !EVENTS.containsAll(events))throw new IllegalArgumentException("secret 需 32–256 字元；事件必須 push／pr.opened／pr.merged／release");}
   @Transactional public Hook update(WorldRow w,String id,String url,String secret,List<String> events,boolean enabled)throws IOException {
+    db.sql("UPDATE worlds SET id=id WHERE id=?").param(w.id()).update();
     find(w,id);WebhookTarget.resolve(url,props.allowedHosts());String key=secret==null?db.sql("SELECT secret FROM webhooks WHERE id=?").param(id).query(String.class).single():secret;validate(key,events);
     db.sql("UPDATE webhooks SET url=?,secret=?,events=?,enabled=? WHERE id=? AND world_id=?").params(url,key,String.join(",",new TreeSet<>(events)),enabled?1:0,id,w.id()).update();return find(w,id);
   }
   public void delete(WorldRow w,String id){find(w,id);db.sql("DELETE FROM webhooks WHERE id=? AND world_id=?").params(id,w.id()).update();}
   public Page<Delivery> deliveries(WorldRow w,String id,int offset,int limit){find(w,id);Page.offset(offset);Page.limit(limit);return Page.of(db.sql("SELECT id,event_id,attempt,status,response_code,error,next_at FROM webhook_deliveries WHERE webhook_id=? ORDER BY next_at DESC,id LIMIT ? OFFSET ?").params(id,limit+1,offset).query((rs,n)->new Delivery(rs.getString(1),rs.getString(2),rs.getInt(3),rs.getString(4),(Integer)rs.getObject(5),rs.getString(6),rs.getLong(7))).list(),offset,limit);}
+  @Transactional public String test(WorldRow w,String id,String dimension){
+    db.sql("UPDATE worlds SET id=id WHERE id=?").param(w.id()).update();
+    new org.worldgit.core.model.DimensionId(dimension);var hook=find(w,id);if(!hook.enabled())throw new ApiError.Conflict("請先啟用 webhook");
+    String event=UUID.randomUUID().toString(),delivery=UUID.randomUUID().toString();long now=System.currentTimeMillis();
+    var payload=Map.of("id",event,"event","webhook.test","at",now,"world",Map.of("owner",w.ownerSlug(),"name",w.slug()),"data",Map.of("dimension",dimension,"message","WorldGit webhook 測試"));
+    try {var text=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload);db.sql("INSERT INTO hub_events(id,world_id,type,payload,at) VALUES (?,?,?,?,?)").params(event,w.id(),"webhook.test",text,now).update();}catch(com.fasterxml.jackson.core.JsonProcessingException ex){throw new IllegalStateException(ex);}
+    db.sql("INSERT INTO webhook_deliveries(id,webhook_id,event_id,status,next_at) VALUES (?,?,?,?,?)").params(delivery,id,event,"PENDING",now).update();return delivery;
+  }
   public static String signature(String secret,String payload){try{Mac m=Mac.getInstance("HmacSHA256");m.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8),"HmacSHA256"));return "sha256="+HexFormat.of().formatHex(m.doFinal(payload.getBytes(StandardCharsets.UTF_8)));}catch(java.security.GeneralSecurityException ex){throw new IllegalStateException(ex);}}
   /** 一個 instance 的有界 outbox worker；PROCESSING 帶 60 秒 lease，當機後可重投。 */
   @Scheduled(fixedDelayString="${worldgit.hub.collaboration.webhooks.poll-millis:1000}") public synchronized void deliverDue(){
