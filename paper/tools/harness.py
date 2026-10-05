@@ -48,6 +48,11 @@ class BenchLock:
         waited = time.time() - t0
         if waited > 1:
             print(f'[bench.lock] 等待 {waited:.0f}s 後取得', flush=True)
+        try:
+            ensure_shared_artifacts()
+        except BaseException:
+            self.__exit__()
+            raise
         return self
     def __exit__(self, *a):
         if not os.environ.get('WG_LOCK_HELD'):
@@ -60,6 +65,28 @@ def plugin_jar():
     if not jars:
         raise RuntimeError('先執行 ./gradlew :paper:plugin:jar')
     return os.path.join(PLUGIN_JAR_GLOB, jars[-1])
+
+
+def ensure_shared_artifacts(log=None):
+    """呼叫端已持 bench.lock；續跑前重建受 shared Java 修改影響的 jar。"""
+    from pathlib import Path
+    root = Path(ROOT)
+    sources = [p for module in ['core', 'platform-api', 'i18n', 'protocol', 'cli', 'hub', 'paper']
+               for p in (root / module).rglob('src/main/**/*.java')]
+    sources.append(root / 'core/src/test/java/org/worldgit/core/MetadataNormalizerTest.java')
+    artifacts = [root / p for p in ['hub/build/libs/worldgit-hub.jar', 'cli/build/libs/wgit.jar',
+                                    'cli/build/libs/acceptance-tools.jar']] + [Path(plugin_jar())]
+    if max(p.stat().st_mtime for p in sources) <= min(p.stat().st_mtime if p.exists() else 0 for p in artifacts):
+        return
+    path = Path(log) if log else Path(WORK) / 'paper-delivery' / ('artifact-build-' + str(time.time_ns()) + '.log')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    print('[bench.lock] shared jar 來源已更新，建置證據 ' + str(path.relative_to(root)), flush=True)
+    with path.open('w') as output:
+        subprocess.run(['./gradlew', '--no-daemon', '--configure-on-demand', '--max-workers=1',
+                        ':core:test', ':cli:fatJar', ':cli:acceptanceToolsJar', ':hub:bootJar', ':paper:plugin:jar'],
+                       cwd=ROOT, env={**os.environ, 'JAVA_HOME': '/usr/lib/jvm/java-25-openjdk-amd64',
+                                      'GRADLE_USER_HOME': str(root / '.work/gradle-home')},
+                       stdout=output, stderr=subprocess.STDOUT, check=True, timeout=900)
 
 
 def offline_uuid(name):

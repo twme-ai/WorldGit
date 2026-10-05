@@ -230,7 +230,7 @@ public final class WgCommands {
         }
         deliver(ctx, rt, rt.merging().thenCompose(state -> state == null
             ? rt.commit(message, identity(ctx.getSource(), rt), false, true).thenApply(batch -> rt.messages().commit(batch, false))
-            : rt.live(ops -> ops.commitMerge(identity(ctx.getSource(),rt), CommitMetadata.Source.MOD, message, false)).thenApply(WgCommands::mergeLines)), v -> v);
+            : rt.live(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops -> ops.commitMerge(identity(ctx.getSource(),rt), CommitMetadata.Source.MOD, message, false)).thenApply(WgCommands::mergeLines)), v -> v);
         return 1;
     }
 
@@ -401,23 +401,23 @@ public final class WgCommands {
                     var center=player==null ? ctx.getSource().getPosition() : player.position();
                     var scope=args.scope(net.minecraft.util.Mth.floor(center.x)>>4,net.minecraft.util.Mth.floor(center.z)>>4);
                     var dimension=scope.kind()==Scope.Kind.ALL ? null : ServerRuntime.dimensionId(level);
-                    future=rt.live(ops->ops.restore(positions.getFirst(),dimension,scope,args.flag("--dry-run"),false)).thenApply(result->operationResult(rt,locale,command,positions,result));
+                    future=rt.live(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops->ops.restore(positions.getFirst(),dimension,scope,args.flag("--dry-run"),false)).thenApply(result->operationResult(rt,locale,command,positions,result));
                 }
                 case "switch" -> {
                     if(positions.size()!=1) throw new IllegalArgumentException();
-                    future=rt.live(ops->ops.switchTo(positions.getFirst(),args.flag("--stash"),args.flag("--force"),args.flag("--dry-run"),false)).thenApply(result->operationResult(rt,locale,command,positions,result));
+                    future=rt.live(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops->ops.switchTo(positions.getFirst(),args.flag("--stash"),args.flag("--force"),args.flag("--dry-run"),false)).thenApply(result->operationResult(rt,locale,command,positions,result));
                 }
                 case "reset" -> {
                     if(!args.flag("--hard") || positions.size()>1) throw new IllegalArgumentException();
-                    future=rt.live(ops->ops.resetHard(positions.isEmpty() ? null : positions.getFirst(),args.flag("--force"),args.flag("--dry-run"))).thenApply(result->operationResult(rt,locale,command,positions,result));
+                    future=rt.live(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops->ops.resetHard(positions.isEmpty() ? null : positions.getFirst(),args.flag("--force"),args.flag("--dry-run"))).thenApply(result->operationResult(rt,locale,command,positions,result));
                 }
                 case "branch" -> {
-                    if(positions.isEmpty() || positions.equals(List.of("list"))) future=rt.live(ops->ops.branches().stream().map(b->Msg.of(MessageKeys.BRANCH_ROW,"current",b.current() ? "*" : " ","name",b.name(),"commits",b.commits())).toList());
+                    if(positions.isEmpty() || positions.equals(List.of("list"))) future=rt.live(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops->ops.branches().stream().map(b->Msg.of(MessageKeys.BRANCH_ROW,"current",b.current() ? "*" : " ","name",b.name(),"commits",b.commits())).toList());
                     else {
                         boolean delete=positions.getFirst().equals("delete"); boolean create=positions.getFirst().equals("create"); int offset=delete || create ? 1 : 0;
                         if(positions.size()<offset+1 || positions.size()>offset+2 || delete && positions.size()!=2) throw new IllegalArgumentException();
                         String name=positions.get(offset),start=positions.size()>offset+1 ? positions.get(offset+1) : null;
-                        future=rt.live(ops->{if(delete) ops.deleteBranch(name); else ops.createBranch(name,start); return List.of(Msg.prefixed(MessageKeys.BRANCH_DONE,"name",name));});
+                        future=rt.live(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops->{if(delete) ops.deleteBranch(name); else ops.createBranch(name,start); return List.of(Msg.prefixed(MessageKeys.BRANCH_DONE,"name",name));});
                     }
                 }
                 case "stash" -> {
@@ -425,7 +425,7 @@ public final class WgCommands {
                     String action=positions.getFirst();
                     if(!action.equals("push") && positions.size()>2 || action.equals("list") && positions.size()!=1) throw new IllegalArgumentException();
                     int index=positions.size()>1 && !action.equals("push") ? Integer.parseInt(positions.get(1)) : 0;
-                    future=rt.live(ops->switch(action) {
+                    future=rt.live(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops->switch(action) {
                         case "push" -> ops.stashPush(positions.size()>1 ? String.join(" ",positions.subList(1,positions.size())) : null,false);
                         case "pop" -> ops.stashPop(index,false);
                         case "drop" -> {ops.stashDrop(index);yield List.of(Msg.prefixed(MessageKeys.STASH_DROPPED,"index",index));}
@@ -460,12 +460,12 @@ public final class WgCommands {
                 if(pos.size()!=2) throw new IllegalArgumentException();
                 int id=pos.getFirst().equals("all") ? 0 : Integer.parseInt(pos.getFirst().replaceFirst("^#","")); var choice=MergeReport.Choice.valueOf(pos.get(1).toUpperCase(Locale.ROOT));
                 if(id<0 || id==0 && !pos.getFirst().equals("all")) throw new IllegalArgumentException();
-                future=rt.region(ops -> ops.selectRegion(id,choice,false,false));
+                future=rt.region(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops -> ops.selectRegion(id,choice,false,false));
             } else {
                 var args=MergeArgs.parse(command,text);
-                if(command.equals("resolve")) future=rt.region(ops -> args.choice()==MergeReport.Choice.MANUAL
+                if(command.equals("resolve")) future=rt.region(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops -> args.choice()==MergeReport.Choice.MANUAL
                     ? ops.markResolved(args.region(),true,args.dryRun()) : ops.selectRegion(args.region(),args.choice(),true,args.dryRun()));
-                else future=rt.live(ops -> {
+                else future=rt.live(ServerRuntime.dimensionId(ctx.getSource().getLevel()),ops -> {
                     if(args.abort()) return ops.abortMerge(args.dryRun());
                     if(args.resume()) return ops.continueMerge(author,CommitMetadata.Source.MOD,args.dryRun());
                     var result=switch(command) {

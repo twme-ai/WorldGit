@@ -58,10 +58,19 @@ public final class GitTransfer implements AutoCloseable {
     return List.copyOf(sizes);
   }
 
+  private String advertisedHeadBranch;
+  /** 最近一次 fetch advertisement 的 symbolic HEAD，保留分支同 tip 時的正確預設名稱。 */
+  public String advertisedHeadBranch() { return advertisedHeadBranch; }
+
   public SortedMap<String, String> advertised(boolean push) throws IOException {
     try (var t = open();
         var connection = push ? t.openPush() : t.openFetch()) {
       var result = new TreeMap<String, String>();
+      if (!push) {
+        var head = connection.getRef("HEAD");
+        advertisedHeadBranch = head != null && head.isSymbolic() && head.getTarget().getName().startsWith("refs/heads/")
+            ? head.getTarget().getName().substring(11) : null;
+      }
       for (var r : connection.getRefs())
         if (r.getObjectId() != null && !r.getName().endsWith("^{}"))
           result.put(r.getName(), r.getObjectId().name());
@@ -117,7 +126,7 @@ public final class GitTransfer implements AutoCloseable {
   private long measure(Collection<String> wants, Collection<String> haves) throws IOException {
     try (var reader = repo.newObjectReader();
         var writer = new PackWriter(packConfig(), reader)) {
-      writer.preparePack(NullProgressMonitor.INSTANCE, known(wants), known(haves));
+      writer.preparePack(new org.worldgit.core.operation.GitProgress(), known(wants), known(haves));
       var counter =
           new OutputStream() {
             long n;
@@ -132,7 +141,7 @@ public final class GitTransfer implements AutoCloseable {
               n += l;
             }
           };
-      writer.writePack(NullProgressMonitor.INSTANCE, NullProgressMonitor.INSTANCE, counter);
+      writer.writePack(new org.worldgit.core.operation.GitProgress(), new org.worldgit.core.operation.GitProgress(), counter);
       return counter.n;
     }
   }
@@ -378,9 +387,11 @@ public final class GitTransfer implements AutoCloseable {
             old == null ? null : old.isEmpty() ? ObjectId.zeroId() : ObjectId.fromString(old);
         updates.add(new RemoteRefUpdate(repo, e.getValue(), e.getKey(), force, null, oldId));
       }
+      org.worldgit.core.operation.OperationProgress.report(null, "transfer-send", 0, bytes, org.worldgit.core.operation.OperationProgress.Unit.BYTES);
       activeWire = null;
-      var result = t.push(NullProgressMonitor.INSTANCE, updates);
+      var result = t.push(new org.worldgit.core.operation.GitProgress(), updates);
       sizes.add(new PackSize(bytes, activeWire));
+      org.worldgit.core.operation.OperationProgress.report(null, "transfer-send", bytes, bytes, org.worldgit.core.operation.OperationProgress.Unit.BYTES);
       for (var u : result.getRemoteUpdates())
         if (!Set.of(RemoteRefUpdate.Status.OK, RemoteRefUpdate.Status.UP_TO_DATE)
             .contains(u.getStatus()))
@@ -401,7 +412,7 @@ public final class GitTransfer implements AutoCloseable {
     var old = repo.exactRef(destination);
     try (var t = open()) {
       t.setCheckFetchedObjects(true);
-      var r = t.fetch(NullProgressMonitor.INSTANCE, List.of(new RefSpec("+" + source)));
+      var r = t.fetch(new org.worldgit.core.operation.GitProgress(), List.of(new RefSpec("+" + source)));
       for (var u : r.getTrackingRefUpdates())
         if (!Set.of(
                 RefUpdate.Result.NEW,
@@ -413,6 +424,7 @@ public final class GitTransfer implements AutoCloseable {
         if (!before.contains(p)) {
           long size = Files.size(p);
           sizes.add(new PackSize(size, null));
+          org.worldgit.core.operation.OperationProgress.report(null, "transfer-receive", size, null, org.worldgit.core.operation.OperationProgress.Unit.BYTES);
           if (size > limit) {
             // 尚未發布任何 ref；丟棄超限檔案，既有分批 refs 仍指向完整的舊物件。
             String stem = p.getFileName().toString().replaceFirst("\\.pack$", "");
@@ -464,6 +476,7 @@ public final class GitTransfer implements AutoCloseable {
   /** 每個 HTTP POST tee 至短命檔案；解析 gzip request，PACK 到 request 結尾即實際 pack bytes。 */
   private final class MeasuredHttp implements HttpConnectionFactory {
     private final HttpConnectionFactory delegate;
+    private final org.worldgit.core.operation.OperationProgress progress = org.worldgit.core.operation.OperationProgress.current();
 
     MeasuredHttp(HttpConnectionFactory delegate) {
       this.delegate = delegate;
@@ -486,6 +499,7 @@ public final class GitTransfer implements AutoCloseable {
             OutputStream out;
             String encoding;
             boolean measured;
+            long sent, received;
           };
       return (HttpConnection)
           java.lang.reflect.Proxy.newProxyInstance(
@@ -493,6 +507,16 @@ public final class GitTransfer implements AutoCloseable {
               new Class<?>[] {HttpConnection.class},
               (p, m, args) -> {
                 try {
+                  if (m.getName().equals("getInputStream")) {
+                    var original = (InputStream)m.invoke(c, args);
+                    return new FilterInputStream(original) {
+                      private void received(int count) throws IOException {
+                        if(count > 0) { state.received += count; wireProgress("http-download",state.received); }
+                      }
+                      @Override public int read() throws IOException { int value=in.read(); received(value < 0 ? 0 : 1); return value; }
+                      @Override public int read(byte[] bytes,int offset,int length) throws IOException { int count=in.read(bytes,offset,length); received(count); return count; }
+                    };
+                  }
                   if (m.getName().equals("setRequestProperty")
                       && args[0].toString().equalsIgnoreCase("Content-Encoding"))
                     state.encoding = args[1].toString();
@@ -507,12 +531,14 @@ public final class GitTransfer implements AutoCloseable {
                       public void write(int b) throws IOException {
                         out.write(b);
                         state.out.write(b);
+                        wireProgress("http-upload", ++state.sent);
                       }
 
                       @Override
                       public void write(byte[] b, int o, int l) throws IOException {
                         out.write(b, o, l);
                         state.out.write(b, o, l);
+                        state.sent += l; wireProgress("http-upload",state.sent);
                       }
 
                       @Override
@@ -572,6 +598,10 @@ public final class GitTransfer implements AutoCloseable {
                   throw e.getCause();
                 }
               });
+    }
+    private void wireProgress(String phase, long bytes) throws InterruptedIOException {
+      if(progress != null && progress.isCancelled()) throw new InterruptedIOException("傳輸已取消");
+      if(progress != null) progress.publish(null,phase,bytes,null,org.worldgit.core.operation.OperationProgress.Unit.BYTES);
     }
   }
 

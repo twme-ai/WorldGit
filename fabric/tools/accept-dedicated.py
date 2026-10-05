@@ -17,6 +17,7 @@ import traceback
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'paper/tools'))
 import harness
+from cli_compat import complete_verification_batch
 import dedicated_harness
 import statistics
 spec=importlib.util.spec_from_file_location('phase1',Path(__file__).with_name('accept-paper.py'))
@@ -106,6 +107,10 @@ def run(args):
             result['mod']=phase1.snapshot_plugin(mod,evidence/'worldgit-fabric.jar')
             shutil.copy2(fixture,evidence/'fixture.jar')
             server=dedicated_harness.Server(args.version,evidence,baseline,evidence/'worldgit-fabric.jar',evidence/'fixture.jar')
+            if args.version=='1.21.11':
+                # baseline 是 Paper 分離維度版面；dedicated vanilla 要把兩個維度一併複製。
+                for source,name in [(baseline/'world_nether/DIM-1','DIM-1'),(baseline/'world_the_end/DIM1','DIM1')]:
+                    shutil.copytree(source,Path(server.world)/name)
             control=evidence/'control';control.mkdir()
             server.start();result['console']=str(Path(server.evidence_log).relative_to(ROOT));result['port']=server.port;save()
             lock_result=server.cmd('wg test locks',r'WGLOCKS|WGTESTFAIL',120);check('batch edit guards execute before mutation', 'WGLOCKS' in lock_result,output=lock_result)
@@ -232,9 +237,9 @@ def run(args):
                     with socket.socket() as probe: result['port_closed']=probe.connect_ex(('127.0.0.1',server.port))!=0
                     with socket.socket() as probe: result['client_port_closed']=probe.connect_ex(('127.0.0.1',server.port+10))!=0
                     if result['success']:
-                        proc=subprocess.run([harness.JAVA['1.21.11'],'-jar',str(cli),'-w',server.world,'--format=json','verify','HEAD'],text=True,capture_output=True,timeout=900)
+                        proc=subprocess.run([harness.JAVA['1.21.11'],'-jar',str(cli),'-w',server.world,'--format=json','verify','HEAD','--all'],text=True,capture_output=True,timeout=900)
                         (evidence/'verify.json').write_text(proc.stdout);(evidence/'verify.stderr').write_text(proc.stderr)
-                        check('final offline verify',proc.returncode==0 and json.loads(proc.stdout)['state']=='COMPLETE')
+                        check('final offline verify',proc.returncode==0 and complete_verification_batch(proc.stdout))
                 except BaseException:
                     result['success']=False;result['cleanup_error']=traceback.format_exc()
                 finally: shutil.rmtree(server.dir,ignore_errors=True)

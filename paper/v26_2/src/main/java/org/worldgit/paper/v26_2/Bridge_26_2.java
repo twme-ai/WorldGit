@@ -51,6 +51,19 @@ public final class Bridge_26_2 implements NmsBridge {
   }
 
   @Override
+  public java.util.concurrent.CompletionStage<Void> saveMetadata(World world) {
+    var level = level(world);
+    var storage = level.getDataStorage();
+    // 與 ServerLevel.saveLevelData(false) 同一份副本；保留 IO future，不在 tick 執行緒 join。
+    var pdc = storage.computeIfAbsent(io.papermc.paper.world.saveddata.PaperWorldPDC.TYPE);
+    pdc.setFrom(level.persistentDataContainer);
+    // scheduleSave 在沒有 dirty entry 時回傳 completed future，而非先前的 IO future。
+    // 重寫同一份 PDC，讓這次 barrier 也串接既有的背景寫入。
+    pdc.setDirty();
+    return storage.scheduleSave().thenApply(ignored -> null);
+  }
+
+  @Override
   public void census(World world, CensusSink sink) {
     ServerLevel level = ((CraftWorld) world).getHandle();
     for (NewChunkHolder holder :

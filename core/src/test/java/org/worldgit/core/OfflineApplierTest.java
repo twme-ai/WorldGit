@@ -13,7 +13,7 @@ import org.worldgit.core.normalize.*;
 
 class OfflineApplierTest {
   @TempDir Path temp;
-  @Test void poiRemovalEntityDedupRepartitionAndPassengers() throws Exception {
+  @Test void poiRemovalEntityDedupWithinDimensionPreservesOtherDimension() throws Exception {
     TestWorlds.copy(TestWorlds.fixture("26.2"),temp);var layout=WorldLayout.discover(temp);var dim=layout.dimensions().get(DimensionId.OVERWORLD);
     UUID uuid=UUID.randomUUID(),passengerId=UUID.randomUUID(),other=UUID.randomUUID();
     var original=TestWorlds.entity(uuid,-1,true);
@@ -37,11 +37,11 @@ class OfflineApplierTest {
     for(var scannedDimension:layout.dimensions().values()) for(Path path:RegionFile.list(scannedDimension.entities())) try(var r=new RegionFile(path)) {
       for(int i=0;i<1024;i++) if(r.has(i)) for(var value:r.read(i).list("Entities").values()) {
         var e=(Nbt.Compound)value;
-        if(EntityNormalizer.uuid(e).equals(uuid)) { found++;assertEquals(DimensionId.OVERWORLD,scannedDimension.id());assertEquals(new ChunkPos(1,0),r.pos(i)); }
+        if(EntityNormalizer.uuid(e).equals(uuid)) { found++; if(scannedDimension.id().equals(DimensionId.OVERWORLD)) assertEquals(new ChunkPos(1,0),r.pos(i)); else { assertEquals(nether.id(),scannedDimension.id()); assertEquals(new ChunkPos(0,0),r.pos(i)); assertTrue(Nbt.equal(original,e)); } }
         for(var p:e.list("Passengers").values()) if(EntityNormalizer.uuid((Nbt.Compound)p).equals(passengerId)) passengers++;
       }
     }
-    assertEquals(1,found);assertEquals(1,passengers);
+    assertEquals(2,found);assertEquals(2,passengers);
   }
   @Test void groupBarrierMovesEntityIntoEarlierDimensionBeforeSourceRemoval() throws Exception {
     TestWorlds.copy(TestWorlds.fixture("26.2"),temp);var layout=WorldLayout.discover(temp);

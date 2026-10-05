@@ -52,17 +52,17 @@ def main():
         chunks=subprocess.check_output([*tool,'chunks',str(directory)],text=True).splitlines()
         report['full_chunks']=len(chunks)
         cli=[JAVA,'-Xmx1g','-jar',str(WORK/'wgit.jar'),'--world',str(directory),'--color=never']
-        report['init']=measure('init',[*cli,'init'])
+        report['init']=measure('init',[*cli,'init','--with-dimensions','all'])
         report['status']=measure('status',[*cli,'status'])
         report['no_change_commit']=measure('no-change-commit',[*cli,'commit','-m','unchanged'])
         subprocess.run([*tool,'one-block',str(directory)],check=True)
         report['one_block_commit']=measure('one-block-commit',[*cli,'commit','-m','one block'])
         report['repack']=measure('repack',[*tool,'repack',str(directory)])
-        # 正式 repo 在世界資料夾外：run/.worldgit/world/（directory 是 server root）。
-        packs=list((directory/'.worldgit').rglob('*.pack'))
+        # 各世界／維度資料夾內的 .worldgit，包含巢狀維度。
+        packs=[p for p in directory.rglob('*.pack') if '.worldgit' in p.parts]
         report['packs']={str(p.relative_to(directory)):p.stat().st_size for p in packs}
         report['all_packs_under_100MB']=bool(packs) and all(p.stat().st_size<100_000_000 for p in packs)
-        for repo in (directory/'.worldgit/world').iterdir():
+        for repo in directory.rglob('.worldgit'):
             if repo.is_dir() and (repo/'HEAD').is_file():
                 subprocess.run(['git','--git-dir='+str(repo),'fsck','--no-dangling'],check=True,stdout=subprocess.DEVNULL)
         report['git_fsck']='passed'

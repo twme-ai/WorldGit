@@ -1,6 +1,7 @@
 """Phase 2 線上驗收；由 acceptance.py 的 phase2 場景呼叫，自己持有 bench.lock。"""
 import json, os, re, shutil, subprocess, time, traceback
 import harness
+from cli_compat import cli_data, verify_all
 from harness import BenchLock, Server, ROOT, WORK, JAVA, wgit
 
 
@@ -14,7 +15,7 @@ def run(platform, version):
         print(('PASS ' if ok else 'FAIL ')+name, str(data)[:300],flush=True)
     def strip(text): return re.sub(r'\x1b\[[0-9;]*m','',text)
     def git(s,*args,dim='minecraft.overworld'):
-        return subprocess.check_output(['git','--git-dir',os.path.join(s.dir,'.worldgit','world',dim),*args],text=True).strip()
+        return subprocess.check_output(['git','--git-dir',os.path.join(s.world,'.worldgit') if dim == 'minecraft.overworld' else (os.path.join(s.world,'dimensions',*dim.split('.',1),'.worldgit') if version=='26.2' else os.path.join(s.dir,'world_nether' if dim=='minecraft.the_nether' else 'world_the_end','DIM-1' if dim=='minecraft.the_nether' else 'DIM1','.worldgit')),*args],text=True).strip()
     def cmd(s,text,pattern=r'完成|失敗|PARTIAL|錯誤|已切換到|預估|Switched|complete|Plan',allow_partial=False):
         out=strip(s.cmd(text,pattern+'|PARTIAL|失敗|未提交變動|需離線|不支援|尚不支援',900)); print(text,out[-700:],flush=True)
         if not allow_partial and any(word in out for word in ('PARTIAL','失敗','未提交變動','需離線','不支援','尚不支援')): raise RuntimeError(text+' failed: '+out[-1500:]+'\n'+strip(s.cmd('wg status --full',r'world-meta|section|PARTIAL|失敗',120)))
@@ -121,7 +122,7 @@ def run(platform, version):
                 check('1000 chunk switch '+revision,('已切換到' in output or 'Switched to' in output) and metrics is not None and int(metrics[1])==1000 and int(metrics[2])<=16 and int(metrics[3])==0,wall_seconds=wall,probe=probe,output=output[-1200:])
                 result['benchmark'].append({'revision':revision,'wall_seconds':wall,'probe':probe}); save()
             m=s.mark(); s.send('wg switch large --force')
-            journal=os.path.join(s.dir,'.worldgit','world','apply-state.yml')
+            journal=os.path.join(s.world,'.worldgit','apply-state.yml')
             end=time.time()+180
             written=False
             while time.time()<end:
@@ -147,8 +148,8 @@ def run(platform, version):
         finally:
             s.stop()
             try:
-                output=wgit(['--world',s.world,'verify','A'],check=False)
-                check('存檔後離線 verify 差異 0','"state" : "COMPLETE"' in output or ('COMPLETE' in output and 'PARTIAL' not in output),output=strip(output))
+                output=verify_all(lambda world,*words:cli_data(wgit(['--world',world,'--format=json',*words])),s.world,{'minecraft:overworld':'A'})
+                check('存檔後離線 verify 差異 0',len(output)==3,output=output)
                 raw=subprocess.check_output([JAVA[version],'-cp',os.path.join(ROOT,'cli/build/libs/wgit.jar'),os.path.join(ROOT,'paper/tools/ApplyEvidence.java'),s.world,uid],text=True)
                 inspection=json.loads(raw)
                 check('全維度實體 UUID 無重複無遺失',inspection['duplicates']==0 and inspection['controlledUuidCount']==1,inspection=inspection)

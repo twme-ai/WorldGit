@@ -31,6 +31,8 @@ final class PaperOperations implements AutoCloseable {
   private final WorldRepositories worlds;
   private final SortedMap<DimensionId,DimensionRepository> repos=new TreeMap<>();
   private final RepoLock groupLock;
+  private final Path stateRoot;
+  private final DimensionId selectedDimension;
   private WorldOperations core;
   private final WorldGitPlugin plugin;
   private final WorldMapper.Mapping mapping;
@@ -48,12 +50,18 @@ final class PaperOperations implements AutoCloseable {
     this(plugin,mapping,queue,false);
   }
   PaperOperations(WorldGitPlugin plugin, WorldMapper.Mapping mapping, ApplyQueue queue, boolean merge) throws IOException {
+    this(plugin, mapping, queue, merge, mapping.layout().currentDimension());
+  }
+  PaperOperations(WorldGitPlugin plugin, WorldMapper.Mapping mapping, ApplyQueue queue, boolean merge, DimensionId dimension) throws IOException {
+    this.selectedDimension=dimension; this.stateRoot=new WorldRepositories(mapping.layout()).tracked().get(dimension);
+    if(stateRoot==null) throw new IOException("維度尚未 init："+dimension);
     this.plugin=plugin; this.mapping=mapping; this.queue=queue; this.layout=mapping.layout();
     worlds=new WorldRepositories(layout); applier=new OfflineApplier(layout);
-    tolerance=WorldGitConfig.readLocal(worlds.root().resolve("worldgit.yml")).entityTolerance();
-    groupLock=merge ? null : RepoLock.acquire(worlds.root());
+    tolerance=WorldGitConfig.readLocal(stateRoot.resolve("worldgit.yml")).entityTolerance();
+    groupLock=null;
     try {
       for(var entry:worlds.tracked().entrySet()) {
+        if(!entry.getKey().equals(dimension)) continue;
         if(!mapping.worlds().containsKey(entry.getKey())) throw new IOException("維度未在線："+entry.getKey());
         if(!merge) repos.put(entry.getKey(),new DimensionRepository(entry.getValue(),entry.getKey(),false));
         live.put(entry.getKey(),new PaperLiveWorld(plugin,plugin.state(entry.getKey(),mapping.worlds().get(entry.getKey())),mapping.worlds().get(entry.getKey()),layout,false));
@@ -132,7 +140,7 @@ final class PaperOperations implements AutoCloseable {
             if(!queue.stopping) for(var e:protectedChunks.entrySet()) await(live.get(e.getKey()).protectPlayers(PlayerProtection.operation(e.getValue(),operation,false)));
           }
         }
-      });
+      }, dimension);
     } catch(Exception ex) { close(); throw ex; }
   }
   WorldOperations core() { return Objects.requireNonNull(core); }
@@ -144,13 +152,13 @@ final class PaperOperations implements AutoCloseable {
 
   String head() throws IOException { return repos.get(repos.containsKey(DimensionId.OVERWORLD) ? DimensionId.OVERWORLD : repos.firstKey()).refs().head(); }
 
-  public Map<String,Object> journal() throws IOException { return OperationState.read(worlds.root().resolve("apply-state.yml")); }
+  public Map<String,Object> journal() throws IOException { return OperationState.read(stateRoot.resolve("apply-state.yml")); }
   private void requireNotMerging() throws IOException {
-    if(org.worldgit.core.merge.MergeState.read(worlds.root().resolve("merge-state.bin"))!=null) throw new IOException("世界為 MERGING；請 resolve 後 merge --continue，或 merge --abort。若為 PARTIAL 必須 merge --abort。");
+    if(org.worldgit.core.merge.MergeState.read(stateRoot.resolve("merge-state.bin"))!=null) throw new IOException("世界為 MERGING；請 resolve 後 merge --continue，或 merge --abort。若為 PARTIAL 必須 merge --abort。");
   }
   private void requireComplete() throws IOException {
     requireNotMerging();
-    if(OperationState.partial(worlds.root())) throw new IOException("世界為 PARTIAL；請用 switch --force 或 reset --hard 全範圍重新套用以恢復。");
+    if(OperationState.partial(stateRoot)) throw new IOException("世界為 PARTIAL；請用 switch --force 或 reset --hard 全範圍重新套用以恢復。");
   }
   private SortedMap<DimensionId,DimensionRepository> selected(DimensionId dimension) throws IOException {
     if(dimension==null) return repos;
@@ -159,52 +167,9 @@ final class PaperOperations implements AutoCloseable {
     var result=new TreeMap<DimensionId,DimensionRepository>(); result.put(dimension,repo); return result;
   }
   private SortedMap<DimensionId,RefStore.Commit> resolve(String revision) throws IOException {
-    // 分支名稱在全維度同步。單一 hash／HEAD~n 由入口維度的 snapshot 及祖先配對不變維度。
-    boolean branch=false;
-    for(var repo:repos.values()) branch |= repo.refs().branches().containsKey(revision);
     var result=new TreeMap<DimensionId,RefStore.Commit>();
-    if(branch || revision.equals("HEAD")) {
-      for(var entry:repos.entrySet()) {
-        String id=branch ? entry.getValue().refs().branches().get(revision) : entry.getValue().refs().head();
-        if(id==null) throw new IOException("維度缺少目標分支／HEAD："+entry.getKey());
-        result.put(entry.getKey(),entry.getValue().refs().readCommit(id));
-      }
-      return result;
-    }
-    DimensionId anchor=repos.containsKey(DimensionId.OVERWORLD) ? DimensionId.OVERWORLD : repos.firstKey();
-    RefStore.Commit commit;
-    try { var refs=repos.get(anchor).refs(); commit=refs.readCommit(refs.resolve(revision)); }
-    catch(IOException ex) {
-      // 接受另一維度的 commit hash 作為 snapshot 入口。
-      commit=null;
-      for(var entry:repos.entrySet()) try { commit=entry.getValue().refs().readCommit(entry.getValue().refs().resolve(revision)); anchor=entry.getKey(); break; }
-      catch(IOException ignored) {}
-      if(commit==null) throw ex;
-    }
-    var snapshots=new ArrayList<UUID>();
-    var refs=repos.get(anchor).refs();
-    var cursor=commit;
-    while(true) {
-      snapshots.add(cursor.metadata().snapshot());
-      if(cursor.parents().isEmpty()) break;
-      cursor=refs.readCommit(cursor.parents().getFirst());
-    }
     for(var entry:repos.entrySet()) {
-      if(entry.getKey().equals(anchor)) { result.put(anchor,commit); continue; }
-      try {
-        var other=entry.getValue().refs();
-        result.put(entry.getKey(),other.readCommit(other.resolve("refs/worldgit/groups/"+commit.metadata().snapshot())));
-        continue;
-      } catch(IOException missingGroup) { /* Phase 1 repo：退回 anchor 的 first-parent snapshot 配對。 */ }
-      var bySnapshot=new HashMap<UUID,RefStore.Commit>();
-      for(var candidate:entry.getValue().refs().allCommits()) {
-        var existing=bySnapshot.putIfAbsent(candidate.metadata().snapshot(),candidate);
-        if(existing!=null && !existing.id().equals(candidate.id())) throw new IOException("snapshot 對應多個 commit："+candidate.metadata().snapshot());
-      }
-      RefStore.Commit chosen=null;
-      for(UUID snapshot:snapshots) if(bySnapshot.containsKey(snapshot)) { chosen=bySnapshot.get(snapshot); break; }
-      if(chosen==null) throw new IOException("無法將 snapshot 配對到維度："+entry.getKey()+"；請改用同步分支名稱。");
-      result.put(entry.getKey(),chosen);
+      var refs=entry.getValue().refs(); result.put(entry.getKey(), refs.readCommit(refs.resolve(revision)));
     }
     return result;
   }
@@ -236,7 +201,7 @@ final class PaperOperations implements AutoCloseable {
     var commits=new TreeMap<DimensionId,RefStore.Commit>();
     for(var entry:selected(dimension).entrySet()) {
       var target=targets.get(entry.getKey());
-      var options=options(entry.getValue(),target,meta && entry.getKey().equals(DimensionId.OVERWORLD),delete);
+      var options=options(entry.getValue(),target,meta,delete);
       var plan=ApplyPlanner.plan(entry.getValue().objects(),entry.getKey(),capture(entry.getValue()),target.tree(),scope,options);
       validateOnline(plan);
 
@@ -322,6 +287,7 @@ final class PaperOperations implements AutoCloseable {
       applyAll(prepared.plans);
       captured.clear();
       for(var entry:prepared.plans.entrySet()) {
+        if(entry.getValue().scope().kind()==Scope.Kind.ALL) restoreConfig(repos.get(entry.getKey()),prepared.commits.get(entry.getKey()));
         repos.get(entry.getKey()).invalidateIndex();
         @SuppressWarnings("unchecked") var row=(Map<String,Object>)rows.get(entry.getKey().value());
         row.put("applied",true); writeJournal(journal);
@@ -367,6 +333,7 @@ final class PaperOperations implements AutoCloseable {
   }
   private DimensionId nullForSelection(Prepared prepared) { return prepared.plans.size()==repos.size() ? null : prepared.plans.firstKey(); }
   private void restoreConfig(DimensionRepository repo,RefStore.Commit target) throws IOException {
+    org.worldgit.core.capture.PlayerTouchedEntities.restore(repo.objects(),target.tree(),repo.directory());
     String path=repo.dimension().equals(DimensionId.OVERWORLD) ? "world-meta/worldgit.yml" : "worldgit.yml";
     var config=TreeEditor.find(repo.objects(),target.tree(),path);
     if(config!=null) { var bytes=repo.objects().readBlob(config.id()); WorldGitConfig.readRepo(new String(bytes,StandardCharsets.UTF_8),path); RegionFile.atomicWrite(repo.configPath(),bytes); }
@@ -374,7 +341,7 @@ final class PaperOperations implements AutoCloseable {
   private void writeJournal(Map<String,Object> journal) throws IOException {
     synchronized(plugin.repo()) {
       if(queue.stopping) { journal.put("state","PARTIAL"); journal.put("error","插件關閉中"); }
-      OperationState.write(worlds.root().resolve("apply-state.yml"),journal);
+      OperationState.write(stateRoot.resolve("apply-state.yml"),journal);
     }
   }
   private static String message(Exception ex) { return ex.getMessage()==null ? ex.getClass().getSimpleName() : ex.getMessage(); }
@@ -419,7 +386,7 @@ final class PaperOperations implements AutoCloseable {
   }
 
   @SuppressWarnings("unchecked") public List<Stash> stashes() throws IOException {
-    var state=OperationState.read(worlds.root().resolve("stash.yml"));
+    var state=OperationState.read(stateRoot.resolve("stash.yml"));
     var result=new ArrayList<Stash>();
     for(var value:(List<Map<String,Object>>)state.getOrDefault("entries",List.of())) {
       var commits=new TreeMap<DimensionId,String>(); var bases=new TreeMap<DimensionId,String>();
@@ -435,7 +402,7 @@ final class PaperOperations implements AutoCloseable {
       var commits=new TreeMap<String,String>(); var bases=new TreeMap<String,String>(); stash.commits.forEach((k,v)->commits.put(k.value(),v)); stash.bases.forEach((k,v)->bases.put(k.value(),v));
       entries.add(Map.of("id",stash.id,"time",stash.time,"message",stash.message,"commits",commits,"bases",bases));
     }
-    OperationState.write(worlds.root().resolve("stash.yml"),Map.of("version",1,"entries",entries));
+    OperationState.write(stateRoot.resolve("stash.yml"),Map.of("version",1,"entries",entries));
   }
   private Stash saveStash(String message) throws IOException {
     String id=UUID.randomUUID().toString(); var commits=new TreeMap<DimensionId,String>(); var bases=new TreeMap<DimensionId,String>();

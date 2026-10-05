@@ -95,10 +95,10 @@ public final class TreeFilter {
             }
           }
         }
-      if (r.name().equals("world-meta")) {
+      if (Set.of("world-meta", "dimension-meta").contains(r.name())) {
         var files = new TreeMap<String, byte[]>();
         for (var e : store.readTree(r.id()).values()) files.put(e.name(), store.readBlob(e.id()));
-        editor.replaceTree("world-meta", MetadataNormalizer.normalize(files, rules));
+        editor.replaceTree(r.name(), MetadataNormalizer.normalize(files, rules));
       }
     }
     editor.putBlob(".wgignore", ruleText.getBytes(StandardCharsets.UTF_8));

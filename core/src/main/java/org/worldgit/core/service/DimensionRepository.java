@@ -68,13 +68,29 @@ public final class DimensionRepository implements AutoCloseable {
   public RefStore refs() {
     return store;
   }
+  /** 舊位置仍可讀；未完成的全組操作不能被新單維度寫入繞過。 */
+  public void requireLegacyComplete() throws IOException {
+    if (directory.getFileName().toString().equals(dimension.directoryName())) {
+      Path parent=directory.getParent();
+      if(OperationState.partial(parent) || Files.exists(parent.resolve("merge-state.bin")))
+        throw new IOException("舊版全組 PARTIAL／MERGING 尚未完成；請先用舊版恢復，再 migrate");
+      for(String name:List.of("push-state.yml","fetch-state.yml","tag-state.yml")) {
+        var state=OperationState.read(parent.resolve(name));
+        if(!state.isEmpty() && !"COMPLETE".equals(state.get("state"))) throw new IOException("舊版 "+name+" 尚未完成；請先恢復，再 migrate");
+      }
+    }
+  }
 
   public void initialize(String template, WorldGitConfig.Track track) throws IOException {
+    initialize(template, track, template.equals("creative") ? WorldGitConfig.Entities.PLAYER_TOUCHED : WorldGitConfig.Entities.ALL);
+  }
+
+  public void initialize(String template, WorldGitConfig.Track track, WorldGitConfig.Entities entities) throws IOException {
     if (store.head() != null) throw new IOException("維度已 init：" + dimension);
     if (!Files.exists(ignorePath()))
       WorldGitConfig.write(ignorePath(), IgnoreTemplates.load(template));
     if (!Files.exists(configPath()))
-      WorldGitConfig.write(configPath(), WorldGitConfig.write(new WorldGitConfig.Repo(track)));
+      WorldGitConfig.write(configPath(), WorldGitConfig.write(new WorldGitConfig.Repo(track, entities)));
   }
 
   public Path ignorePath() {
@@ -128,9 +144,10 @@ public final class DimensionRepository implements AutoCloseable {
       double tolerance,
       java.util.function.Predicate<Status> gate)
       throws IOException {
-    if (Files.exists(directory.getParent().resolve("merge-state.bin")))
+    requireLegacyComplete();
+    if (Files.exists(directory.resolve("merge-state.bin")))
       throw new IOException("世界為 MERGING，請 resolve 後 merge --continue 或 merge --abort");
-    if (OperationState.partial(directory.getParent()))
+    if (OperationState.partial(directory))
       throw new IOException("世界為 PARTIAL，請先 switch --force 或 reset --hard 恢復");
     if (!dimension.equals(metadata.dimension())) throw new IOException("metadata 維度與 repo 不符");
     if (metadata.mcDataVersion() != source.dataVersion())
@@ -160,6 +177,7 @@ public final class DimensionRepository implements AutoCloseable {
     String id = null;
     if (c.head == null || (!status.diff.empty() && gate.test(status)))
       id = store.commit(commitTree, c.head, metadata);
+    if (id != null) PlayerTouchedEntities.restore(store, commitTree, directory);
     if (id != null && !metadata.auto()) Files.deleteIfExists(directory.resolve("untracked.yml"));
     String head = id == null ? c.head : id;
     new ScanIndex(
@@ -181,6 +199,12 @@ public final class DimensionRepository implements AutoCloseable {
     return capture.tree;
   }
 
+  /** 合併規則的 capture，保留實體模式與維度資料歸屬，不改 sidecar。 */
+  public String workingTree(SnapshotSource source, Map<DimensionId, String> dimensions,
+      double tolerance, String rules) throws IOException {
+    return capture(source, dimensions, tolerance, true, DiffEngine.Detail.SUMMARY, null, rules).tree;
+  }
+
   public void invalidateIndex() throws IOException {
     Files.deleteIfExists(directory.resolve("worldgit.index"));
   }
@@ -193,9 +217,20 @@ public final class DimensionRepository implements AutoCloseable {
       DiffEngine.Detail detail,
       Set<ChunkPos> window)
       throws IOException {
+    return capture(source, dimensions, tolerance, full, detail, window, null);
+  }
+
+  private Capture capture(
+      SnapshotSource source,
+      Map<DimensionId, String> dimensions,
+      double tolerance,
+      boolean full,
+      DiffEngine.Detail detail,
+      Set<ChunkPos> window, String ignoreOverride)
+      throws IOException {
     if (!dimension.equals(source.dimension())) throw new IOException("快照來源維度不符");
     String head = store.head(), base = head == null ? null : store.readCommit(head).tree();
-    String ignore = Files.exists(ignorePath()) ? Files.readString(ignorePath()) : "";
+    String ignore = ignoreOverride != null ? ignoreOverride : Files.exists(ignorePath()) ? Files.readString(ignorePath()) : "";
     IgnoreRules rules = IgnoreRules.parse(ignore);
     WorldGitConfig.Repo config = WorldGitConfig.readRepo(configPath());
     Optional<Set<ChunkPos>> modified = Optional.empty();
@@ -210,6 +245,9 @@ public final class DimensionRepository implements AutoCloseable {
       }
       modified = modified.map(Set::copyOf);
     }
+    var touched = PlayerTouchedEntities.read(directory);
+    boolean playerTouched = config.entities() == WorldGitConfig.Entities.PLAYER_TOUCHED;
+    var seenEntities = new TreeSet<UUID>();
     String modifiedPolicy = modified.map(s -> new TreeSet<>(s).toString()).orElse("unknown");
     String configText = WorldGitConfig.write(config);
     String rulesHash =
@@ -222,7 +260,7 @@ public final class DimensionRepository implements AutoCloseable {
                     + tolerance
                     + "\0"
                     + source.normalizationFingerprint())
-                .concat("\0" + modifiedPolicy)
+                .concat("\0" + modifiedPolicy + "\0" + (playerTouched ? touched.toString() : "all"))
                 .getBytes(StandardCharsets.UTF_8));
     var warnings = new ArrayList<String>();
     warnings.addAll(source.warnings());
@@ -236,12 +274,15 @@ public final class DimensionRepository implements AutoCloseable {
     }
     if (!Objects.equals(old.head(), head == null ? "" : head) || !old.rules().equals(rulesHash))
       old = ScanIndex.empty();
-    full |= old.tree().isEmpty();
+    full |= old.tree().isEmpty() || playerTouched && !touched.isEmpty();
     // 全量 capture 從空樹重建，否則遺失 index 時會保留已從磁碟刪除的舊 chunk。
     String working = full ? null : old.tree();
     var editor = new TreeEditor(store, working);
+    org.worldgit.core.operation.OperationProgress.report(dimension, "scan", 0, null, org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
     SnapshotSource.Scan scan = source.scan(old, full);
+    long completed = 0;
     for (ChunkPos pos : new TreeSet<>(scan.candidates())) {
+      org.worldgit.core.operation.OperationProgress.report(dimension, "capture", completed++, (long) scan.candidates().size(), org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
       if (modified.isPresent() && !modified.get().contains(pos)) {
         editor.remove(pos.treePath());
         continue;
@@ -255,9 +296,21 @@ public final class DimensionRepository implements AutoCloseable {
       if (snapshot.isEmpty()) editor.remove(pos.treePath());
       else {
         if (!pos.equals(snapshot.get().pos())) throw new IOException("來源回傳錯誤 chunk 座標");
-        editor.replaceTree(pos.treePath(), SnapshotCodec.chunkFiles(snapshot.get()));
+        var chunk = snapshot.get();
+        if (playerTouched) {
+          var raw = source.snapshot(pos, IgnoreRules.none()).toCompletableFuture().join();
+          if (raw.isPresent()) for (var entity : raw.get().entities()) PlayerTouchedEntities.collect(entity.data(), seenEntities);
+          chunk = PlayerTouchedEntities.filter(chunk, touched);
+        }
+        editor.replaceTree(pos.treePath(), SnapshotCodec.chunkFiles(chunk));
       }
     }
+    if (playerTouched) {
+      touched.retainAll(seenEntities);
+      editor.putBlob(PlayerTouchedEntities.FILE, PlayerTouchedEntities.bytes(touched));
+      warnings.add("entities: player-touched；CLI 沿用 UUID 集合（" + touched.size() + "），離線 init 的集合為空。");
+    }
+    org.worldgit.core.operation.OperationProgress.report(dimension, "capture", scan.candidates().size(), (long) scan.candidates().size(), org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
     editor.putBlob(".wgignore", ignore.getBytes(StandardCharsets.UTF_8));
     if (dimension.equals(DimensionId.OVERWORLD)) {
       var meta = MetadataNormalizer.normalize(source.worldMetadata(), rules);
@@ -272,7 +325,10 @@ public final class DimensionRepository implements AutoCloseable {
             .append("'\n");
       if (dimensions.isEmpty()) yaml = new StringBuilder("dimensions: {}\n");
       editor.putBlob("dimensions", yaml.toString().getBytes(StandardCharsets.UTF_8));
-    } else editor.putBlob("worldgit.yml", configText.getBytes(StandardCharsets.UTF_8));
+    } else {
+      editor.putBlob("worldgit.yml", configText.getBytes(StandardCharsets.UTF_8));
+      editor.replaceTree("dimension-meta", MetadataNormalizer.normalize(source.worldMetadata(), rules));
+    }
     String tree = editor.write();
     store.flush();
     if (head != null && !scan.candidates().isEmpty()) tree = sticky(base, tree, tolerance);
@@ -297,7 +353,7 @@ public final class DimensionRepository implements AutoCloseable {
       store.flush();
       warnings.add("保留的 untracked chunk：" + untracked.size() + "；explicit commit 會將它們重新納入追蹤。");
     }
-    if (OperationState.partial(directory.getParent())) warnings.add("世界為 PARTIAL，需全範圍重套恢復。");
+    if (OperationState.partial(directory)) warnings.add("世界為 PARTIAL，需全範圍重套恢復。");
     var diff =
         new DiffEngine(store).compare(dimension, base, comparison, tolerance, detail, window);
     if (diff.entities().size() > 50) warnings.add("實體變動較多；可考慮生存範本或 entity * !persistent。");

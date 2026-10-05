@@ -85,6 +85,7 @@ public record RemoteSpec(String url, SortedMap<DimensionId, String> dimensions) 
       validateUrl(value);
       return value;
     }
+    if (!url.contains("{dimension}") && url.endsWith(".git")) return url;
     // directoryName 本身含 %，URL 再編碼一次；伺服器解碼一次後仍是安全 repo 目錄名稱。
     String directory = id.directoryName().replace("%", "%25");
     validateUrl(url.replace("{dimension}", directory));

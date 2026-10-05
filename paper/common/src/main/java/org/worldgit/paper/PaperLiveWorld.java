@@ -44,6 +44,9 @@ final class PaperLiveWorld implements LiveWorld {
   private final java.util.concurrent.atomic.AtomicInteger duplicateEntities = new java.util.concurrent.atomic.AtomicInteger();
   private volatile Set<ChunkPos> liveSet = Set.of();
   private volatile Set<ChunkPos> lastLoaded = Set.of();
+  // core 對 player-touched 會用同一份快照測試忽略前的 UUID；只保留最後一份副本。
+  private ChunkPos copiedPosition;
+  private Optional<NmsBridge.RawChunk> copiedRaw;
 
   PaperLiveWorld(WorldGitPlugin plugin, DimensionState state, World world, WorldLayout layout, boolean inline) {
     this.plugin = plugin;
@@ -87,8 +90,12 @@ final class PaperLiveWorld implements LiveWorld {
 
   @Override
   public Map<String, byte[]> worldMetadata() throws IOException {
+    if (dataVersion() >= 4903) saveMetadata();
     var metadata = new TreeMap<>(offline.worldMetadata());
-    if (!dimension().equals(DimensionId.OVERWORLD)) return metadata;
+    if (!dimension().equals(DimensionId.OVERWORLD)) {
+      if (dataVersion() >= 4903) metadata.put(dimension().directoryName()+".game_rules.dat.nbt",Nbt.write(new Nbt.Compound().with("DataVersion",dataVersion()).with("data",liveGameRules(world))));
+      return metadata;
+    }
     // gamerule 是受追蹤的設定，不能以「底噪」排除。level.dat / saved data 可能要到 shutdown 才寫回，
     // 因此在全域排程器取一份活資料，避免線上 commit 偷偷保存舊 gamerule。
     if (plugin.bridge().minecraftVersion().equals("1.21.11")) {
@@ -96,17 +103,29 @@ final class PaperLiveWorld implements LiveWorld {
       level.put("game_rules", liveGameRules(world));
       metadata.put("level.nbt", Nbt.write(level));
     } else {
-      for (var entry : WorldMapper.map().worlds().entrySet()) {
-        String key = entry.getKey().directoryName() + ".game_rules.dat.nbt";
-        var data = new Nbt.Compound().with("DataVersion", dataVersion()).with("data", liveGameRules(entry.getValue()));
-        byte[] encoded = Nbt.write(data);
-        metadata.put(key, encoded);
-        // WorldLayout 的 Paper 26.2 主世界別名也必須取同一份活資料；
-        // 否則 gamerule 變更後，commit 會混入磁碟上的舊別名，停服 verify 才出現差異。
-        if (entry.getKey().equals(DimensionId.OVERWORLD)) metadata.put("game_rules.dat.nbt", encoded);
-      }
+      var data = new Nbt.Compound().with("DataVersion", dataVersion()).with("data", liveGameRules(world));
+      byte[] encoded = Nbt.write(data);
+      metadata.put(DimensionId.OVERWORLD.directoryName()+".game_rules.dat.nbt",encoded);
+      metadata.put("game_rules.dat.nbt",encoded);
     }
     return metadata;
+  }
+
+  private void saveMetadata() throws IOException {
+    var result = new CompletableFuture<Void>();
+    Runnable save = () -> {
+      try {
+        plugin.bridge().saveMetadata(world).whenComplete((ignored, error) -> {
+          if (error == null) result.complete(null);
+          else result.completeExceptionally(error);
+        });
+      } catch (Throwable t) { result.completeExceptionally(t); }
+    };
+    if (inline) save.run();
+    else plugin.platform().global(save);
+    try { result.get(plugin.settings().commitTimeoutSeconds(), TimeUnit.SECONDS); }
+    catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IOException("saved-data 保存中斷", e); }
+    catch (ExecutionException | TimeoutException e) { throw new IOException("saved-data 保存失敗", e); }
   }
 
   private Nbt.Compound liveGameRules(World target) throws IOException {
@@ -130,6 +149,7 @@ final class PaperLiveWorld implements LiveWorld {
   @Override
   public Scan scan(ScanIndex previous, boolean full) throws IOException {
     claimed.clear();
+    copiedPosition=null; copiedRaw=null;
     Scan disk = offline.scan(previous, full);
     DimensionState.Census census = state.refresh(plugin.bridge(), world);
     lastLoaded = census.loaded();
@@ -150,6 +170,7 @@ final class PaperLiveWorld implements LiveWorld {
 
   void captureOnly(Set<ChunkPos> chunks) {
     claimed.clear();
+    copiedPosition=null; copiedRaw=null;
     var settings=plugin.settings();
     copier=new LiveCopier(plugin.platform(),plugin.bridge(),world,settings.chunksPerTick(),settings.snapshotWindow(),inline,stats);
     var loaded=state.refresh(plugin.bridge(),world).loaded();
@@ -196,8 +217,9 @@ final class PaperLiveWorld implements LiveWorld {
 
   private CompletionStage<Optional<ChunkSnapshot>> snapshotRaw(ChunkPos pos, IgnoreRules rules) {
     try {
-      if (copier != null && copier.has(pos)) {
-        Optional<NmsBridge.RawChunk> raw = copier.take(pos, plugin.settings().commitTimeoutSeconds());
+      if (copier != null && (copier.has(pos) || pos.equals(copiedPosition))) {
+        Optional<NmsBridge.RawChunk> raw = pos.equals(copiedPosition) ? copiedRaw : copier.take(pos, plugin.settings().commitTimeoutSeconds());
+        copiedPosition=pos; copiedRaw=raw;
         if (raw != null && raw.isPresent()) {
           var chunk = raw.get();
           Nbt.Compound terrain = chunk.terrain();

@@ -29,7 +29,7 @@ class RemoteTest {
     var layout = WorldLayout.discover(path);
     assertTrue(
         new WorldRepositories(layout)
-            .init(null, "creative", WorldGitConfig.Track.ALL, author)
+            .initAll("creative", WorldGitConfig.Track.ALL, author, WorldGitConfig.Entities.ALL)
             .success());
     return layout;
   }
@@ -118,7 +118,7 @@ class RemoteTest {
     try (var r = new WorldRemotes(layout, credentials)) {
       var fetch = r.fetch("origin", false);
       assertTrue(fetch.success(), fetch.error());
-      targets = r.trackingHeads("origin", "main");
+      targets = new TreeMap<>(Map.of(DimensionId.OVERWORLD, r.trackingHeads("origin", "main").get(DimensionId.OVERWORLD)));
     }
     try (var ops = new WorldOperations(layout)) {
       return ops.pull(
@@ -196,7 +196,7 @@ class RemoteTest {
       var a = WorldLayout.discover(source);
       assertTrue(
           new WorldRepositories(a)
-              .init(null, "creative", WorldGitConfig.Track.ALL, author)
+              .initAll("creative", WorldGitConfig.Track.ALL, author, WorldGitConfig.Entities.ALL)
               .success());
       var remote = remote(a, "remote" + version);
       try (var g = new RepositoryGroup(a.repositoryRoot(), new WorldRepositories(a).tracked())) {
@@ -264,11 +264,18 @@ class RemoteTest {
               remote,
               temp.resolve("partial" + version),
               "main",
-              Set.of(new DimensionId("minecraft:the_nether")),
+              Set.of(DimensionId.OVERWORLD, new DimensionId("minecraft:the_nether")),
               credentials,
               WorldAssembler.Budget.defaults());
       assertEquals(
-          1, new WorldRepositories(WorldLayout.discover(partial.world())).tracked().size());
+          2, new WorldRepositories(WorldLayout.discover(partial.world())).tracked().size());
+      if(version.equals("1.21.11")) {
+        assertTrue(Files.isDirectory(partial.world().resolve("DIM1")),"Paper 必須沿用主世界的終界生成與 DragonFight 設定");
+        assertFalse(Files.exists(partial.world().resolve("DIM1/.worldgit")),"未選取的維度不能被自動 init");
+        var original=Nbt.read(a.worldMetadata().get("level.nbt"));var assembled=Nbt.read(WorldLayout.discover(partial.world()).worldMetadata().get("level.nbt"));
+        assertTrue(Nbt.equal(original.compound("WorldGenSettings"),assembled.compound("WorldGenSettings")));
+        assertTrue(Nbt.equal(original.compound("DragonFight"),assembled.compound("DragonFight")));
+      }
       var mainOnly =
           WorldClone.cloneWorld(
               remote,
@@ -282,8 +289,9 @@ class RemoteTest {
         assertTrue(v.success(), v.toString());
       }
       try (var r = new WorldRemotes(WorldLayout.discover(mainOnly.world()), credentials)) {
-        assertThrows(IOException.class, () -> r.push("origin", null, false, false, false, author));
+        assertTrue(r.push("origin", null, false, false, false, author).success());
       }
+      assertThrows(IOException.class, () -> WorldClone.cloneWorld(remote, temp.resolve("no-main" + version), "main", Set.of(new DimensionId("minecraft:the_nether")), credentials, WorldAssembler.Budget.defaults()));
       String initial;
       try (var group =
           new RepositoryGroup(b.repositoryRoot(), new WorldRepositories(b).tracked())) {
@@ -309,7 +317,7 @@ class RemoteTest {
     edit(b, 4, "diamond_block");
     commit(b);
     push(a);
-    try (var r = new WorldRemotes(b, credentials)) {
+    try (var r = new WorldRemotes(b.repository(DimensionId.OVERWORLD), Map.of(DimensionId.OVERWORLD, b.repository(DimensionId.OVERWORLD)), credentials, d -> {})) {
       assertThrows(IOException.class, () -> r.push("origin", null, false, false, false, author));
     }
     assertThrows(IOException.class, () -> pull(b, true));
@@ -352,9 +360,10 @@ class RemoteTest {
       var result = r.push("origin", null, true, false, false, author);
       assertEquals("PARTIAL", result.state());
     }
-    assertThrows(IOException.class, () -> clone(remote, "broken"));
-    assertFalse(Files.exists(temp.resolve("broken")));
-    try (var r = new WorldRemotes(a, credentials)) {
+    var available = clone(remote, "main-available");
+    assertEquals(Set.of(DimensionId.OVERWORLD), new WorldRepositories(available).tracked().keySet());
+    var pendingDimension = new DimensionId("minecraft:the_nether");
+    try (var r = new WorldRemotes(a.repository(pendingDimension), Map.of(pendingDimension, a.repository(pendingDimension)), credentials)) {
       assertThrows(IOException.class, () -> r.configure("set-url", "origin", remote.url(), false));
       assertThrows(IOException.class, () -> r.configure("remove", "origin", null, false));
     }
@@ -373,7 +382,7 @@ class RemoteTest {
     edit(a, 0, "gold_block");
     commit(a);
     push(a);
-    try (var r = new WorldRemotes(b, credentials)) {
+    try (var r = new WorldRemotes(b.repository(DimensionId.OVERWORLD), Map.of(DimensionId.OVERWORLD, b.repository(DimensionId.OVERWORLD)), credentials, d -> {})) {
       assertThrows(IOException.class, () -> r.push("origin", null, false, true, false, author));
       assertTrue(r.fetch("origin", false).success());
       assertTrue(r.push("origin", null, false, true, false, author).success());
@@ -451,7 +460,7 @@ class RemoteTest {
     }
     edit(a, 4, "diamond_block");
     commit(a);
-    try (var bare = new BareWorldMerge(a.repositoryRoot(), new WorldRepositories(a).tracked())) {
+    try (var bare = new BareWorldMerge(a.repository(DimensionId.OVERWORLD), Map.of(DimensionId.OVERWORLD, a.repository(DimensionId.OVERWORLD)))) {
       var preview = bare.preview("main", "topic", 1);
       assertTrue(preview.canMerge());
       assertFalse(preview.fastForward());
@@ -460,7 +469,7 @@ class RemoteTest {
           () -> bare.merge(preview, Map.of(), 2, author, "changed grouping", false));
       var result = bare.merge(preview, Map.of(), 1, author, "PR merge", false);
       assertEquals("COMPLETE", result.state(), result.error());
-      assertEquals(3, result.commits().size());
+      assertEquals(Set.of(DimensionId.OVERWORLD), result.commits().keySet());
       assertThrows(
           IOException.class, () -> bare.merge(preview, Map.of(), 1, author, "stale", false));
     }
@@ -475,7 +484,7 @@ class RemoteTest {
     }
     edit(a, 8, "stone");
     commit(a);
-    try (var bare = new BareWorldMerge(a.repositoryRoot(), new WorldRepositories(a).tracked())) {
+    try (var bare = new BareWorldMerge(a.repository(DimensionId.OVERWORLD), Map.of(DimensionId.OVERWORLD, a.repository(DimensionId.OVERWORLD)))) {
       var preview = bare.preview("main", "conflict", 1);
       assertFalse(preview.canMerge());
       var report = bare.merge(preview, Map.of(), 1, author, "conflict", false);
@@ -522,11 +531,11 @@ class RemoteTest {
   }
 
   @Test
-  void interruptedTagPublicationRecoversBeforeNextGroupOperation() throws Exception {
+  void interruptedTagPublicationRecoversInItsDimension() throws Exception {
     var layout = init("tag-recovery", "1.21.11");
     var changes = new ArrayList<Map<String, Object>>();
     try (var group =
-        new RepositoryGroup(layout.repositoryRoot(), new WorldRepositories(layout).tracked())) {
+        new RepositoryGroup(layout.repositoryRoot(), Map.of(DimensionId.OVERWORLD, layout.repository(DimensionId.OVERWORLD)))) {
       for (var e : group.repos().entrySet()) {
         var refs = e.getValue().refs();
         String tip = refs.head();
@@ -544,7 +553,7 @@ class RemoteTest {
       first.refs().updateRef("refs/tags/interrupted", null, first.refs().head());
     }
     try (var group =
-        new RepositoryGroup(layout.repositoryRoot(), new WorldRepositories(layout).tracked())) {
+        new RepositoryGroup(layout.repositoryRoot(), Map.of(DimensionId.OVERWORLD, layout.repository(DimensionId.OVERWORLD)))) {
       assertFalse(group.tags().contains("interrupted"));
       group.tag("light", null, null, author, false, false);
       assertTrue(group.tags().contains("light"));
@@ -554,7 +563,7 @@ class RemoteTest {
   }
 
   @Test
-  void interruptedFetchPublicationRollsBackAndRetriesWholeGroup() throws Exception {
+  void interruptedFetchPublicationRollsBackAndRetriesItsDimension() throws Exception {
     var a = init("fetch-recovery", "26.2");
     var remote = remote(a, "fetch-recovery-remote");
     push(a);
@@ -563,7 +572,7 @@ class RemoteTest {
     commit(a);
     push(a);
     var changes = new ArrayList<Map<String, Object>>();
-    try (var group = new RepositoryGroup(b.repositoryRoot(), new WorldRepositories(b).tracked())) {
+    try (var group = new RepositoryGroup(b.repositoryRoot(), Map.of(DimensionId.OVERWORLD, b.repository(DimensionId.OVERWORLD)))) {
       for (var e : group.repos().entrySet()) {
         String old = e.getValue().refs().resolve("refs/remotes/origin/main");
         String tip;
@@ -608,7 +617,7 @@ class RemoteTest {
   }
 
   @Test
-  void fetchRejectsCollidingSnapshotIdentityBeforePublishingRefs() throws Exception {
+  void fetchAcceptsIndependentSnapshotIdentityWithoutGroupPins() throws Exception {
     var a = init("collision-source", "26.2");
     var remote = remote(a, "collision-remote");
     push(a);
@@ -635,12 +644,11 @@ class RemoteTest {
                   m.contributions()));
       pin = "refs/worldgit/groups/" + m.snapshot();
       refs.updateRef("refs/heads/main", old.id(), replacement);
-      refs.updateRef(pin, old.id(), replacement);
+      refs.updateRef(pin, null, replacement);
     }
     try (var remotes = new WorldRemotes(b, credentials)) {
       var result = remotes.fetch("origin", false);
-      assertFalse(result.success());
-      assertTrue(result.error().contains("snapshot group"));
+      assertTrue(result.success(), result.error());
     }
     try (var group = new RepositoryGroup(b.repositoryRoot(), new WorldRepositories(b).tracked())) {
       var refs = group.repos().get(DimensionId.OVERWORLD).refs();
@@ -650,7 +658,7 @@ class RemoteTest {
   }
 
   @Test
-  void netherOnlyChangeStillPairsTagsCloneAndPullAsOneWorld() throws Exception {
+  void netherOnlyChangeTagsCloneAndPullRemainIndependent() throws Exception {
     var a = init("nether-only-source", "26.2");
     var remote = remote(a, "nether-only-remote");
     push(a);
@@ -662,17 +670,24 @@ class RemoteTest {
     var nether = new DimensionId("minecraft:the_nether");
     edit(a, nether, 0, "gold_block");
     commit(a);
+    String netherTip;
     try (var group = new RepositoryGroup(a.repositoryRoot(), new WorldRepositories(a).tracked())) {
       assertEquals(oldMain, group.heads().get(DimensionId.OVERWORLD));
-      String netherTip = group.heads().get(nether);
-      assertEquals(netherTip, group.resolve(netherTip).get(nether).id());
-      group.tag("nether-release", netherTip, "地獄改動", author, false, false);
+      netherTip = group.heads().get(nether);
     }
+      try(var single = new RepositoryGroup(a.repository(nether), Map.of(nether, a.repository(nether)))) {
+        assertEquals(netherTip, single.resolve(netherTip).get(nether).id());
+        single.tag("nether-release", netherTip, "地獄改動", author, false, false);
+      }
     push(a);
     clone(remote, "nether-only-after");
-    assertTrue(pull(b, true).result().success());
+    SortedMap<DimensionId,String> incoming;
+    try(var r = new WorldRemotes(b.repository(nether), Map.of(nether, b.repository(nether)), credentials, d -> {})) { assertTrue(r.fetch("origin", false).success()); incoming=r.trackingHeads("origin", "main"); }
+    try(var ops = WorldOperations.inDimension(b, nether)) { assertTrue(ops.pull(incoming, null, true, new WorldOperations.MergeOptions(false,null,1,false,author,CommitMetadata.Source.CLI)).result().success()); }
     try (var group = new RepositoryGroup(b.repositoryRoot(), new WorldRepositories(b).tracked())) {
-      assertEquals(group.heads().get(nether), group.resolve("nether-release").get(nether).id());
+      assertEquals(oldMain, group.heads().get(DimensionId.OVERWORLD));
+      var n = group.repos().get(nether); assertEquals(n.refs().head(), n.refs().resolve("nether-release"));
+      assertFalse(group.repos().get(DimensionId.OVERWORLD).refs().refsByPrefix("refs/tags/").containsKey("refs/tags/nether-release"));
     }
   }
 

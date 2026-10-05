@@ -24,7 +24,7 @@ class JGitStoreReadOnlyTest {
     TestWorlds.copy(TestWorlds.fixture("26.2"), world);
     var repos = new WorldRepositories(WorldLayout.discover(world));
     var author = new CommitMetadata.Identity("test", "test@example.test");
-    assertTrue(repos.init(null, "creative", WorldGitConfig.Track.ALL, author).success());
+    assertTrue(repos.initAll("creative", WorldGitConfig.Track.ALL, author, WorldGitConfig.Entities.ALL).success());
     Path dir = repos.tracked().get(DimensionId.OVERWORLD);
 
     try (var shared = new FileRepository(dir.toFile())) {

@@ -1,149 +1,112 @@
 # WorldGit core
 
-純 Java 21 函式庫，不依賴 MC、Bukkit、Fabric 或 protocol。正式 API 位於 `org.worldgit.core`；JGit 類別不外洩到公用介面。
+純 Java 21 函式庫，不依賴 Minecraft、Bukkit、Fabric 或 protocol，JGit 類別不外洩到公用介面。Phase 5 契約見 [設計](../docs/16-phase5-design.md)；Paper／Fabric／Hub 的完整操作介面由後續任務更新。
 
-## 接手入口
+## 世界、維度與 repo
 
-- `anvil.WorldLayout.discover(Path)`：世界／server root → `DimensionId → Dimension`，兩種存檔目錄；讀 DataVersion 與世界 metadata。
-- `anvil.Nbt`／`RegionFile`／`RegionWriter`：有界 NBT 讀取，canonical compound 排序；gzip/zlib/raw/LZ4、外部 `.mcc` 讀寫。離線更新只動變更 chunk 的 sector，未改 chunk 的 sector／timestamp 不動；寫入使用 zlib。
-- `model.Section`、`ChunkSnapshot`、`EntitySnapshot`：不可變中性快照；section 的 4096 格採 `x | z<<4 | y<<8`（YZX）。NBT 以 canonical bytes 保存，避免洩漏可修改陣列。
-- `normalize.ChunkNormalizer`／`EntityNormalizer`：原生 NBT → 模型；`SnapshotCodec` → 正式有版本 zstd blob。正式 blob 與 Phase 0 不相容，不應混寫。
-- `capture.SnapshotSource`：共用 capture 來源；`scan()` 提供 dirty candidates／可丟棄 index stamps，`snapshot()` 回傳 `CompletionStage<Optional<ChunkSnapshot>>`。不存在／非 full chunk 回傳 empty。來源在正確 region/server 執行緒複製資料並套用相同 IgnoreRules。
-- `service.DimensionRepository`：單維度 `initialize/commit/status/diff/log/repack`，在建構時取得 repo operation lock，請使用 try-with-resources。`objects()`／`refs()` 提供 Hub 的唯讀歷史存取。
-- `service.WorldRepositories`：一組維度的 init/commit/status；回傳每維度 `Outcome`，一個失敗不遮蔽其他成功。可注入 `SnapshotSource` factory，CLI 注入 platform-api 的 `OfflineWorld`。
+`WorldLayout.discover(path)` 接受世界根、包含 world 的伺服器目錄、Paper 分離世界、DIM-1／DIM1，以及 dimensions/ns/path。`currentDimension()` 是路徑所在維度；`repository(id)` 是該維度的 repo 位置。主世界永遠放 `<world>/.worldgit`，即使 26.2 地形在 dimensions/minecraft/overworld；其他維度放自己的地形資料夾 `.worldgit`。
+
+每維度的 HEAD、分支、tag、stash、MERGING、PARTIAL、remote、tracking、設定與歷史完全獨立。snapshot UUID 是單次提交資訊，不能配對其他維度。批次僅提供便利，逐維度回報並保留已成功的結果。主世界保存世界級資料，非主世界只能處理自己的 dimension-meta；還原舊主世界 tree 也不套用其他維度的 metadata。
 
 ```java
 var layout = WorldLayout.discover(Path.of("/srv/minecraft/world"));
 var worlds = new WorldRepositories(layout);
-var identity = new CommitMetadata.Identity("Alice", "alice@example.org");
-var result = worlds.init(null, "creative", WorldGitConfig.Track.ALL, identity);
-// result.snapshot()；result.dimensions() 每一項明確包含 value 或 error。
+var author = new CommitMetadata.Identity("Alice", "alice@example.org");
+var initialized = worlds.init(null, "creative", WorldGitConfig.Track.ALL, author);
+// null 只 init currentDimension，不是全部。
+var dimensions = worlds.initializable(); // 實際資料路徑、新 repo 位置、initialized
+var committed = worlds.commit(null, "完成入口", author, 2);
+// null commit 對全部已 init 維度各自提交有變動的內容。
+try (var ops = WorldOperations.inDimension(layout, new DimensionId("minecraft:the_nether"))) {
+    ops.createBranch("cavern", null);
+    ops.switchTo("cavern", false, false, false, false);
+}
 ```
 
-線上端應直接呼叫 `DimensionRepository.commit(source, manifest, metadata, tolerance)`，用同一 snapshot UUID 協調各維度。主要作者／committer 使用 git commit 欄位，多人 `Contribution` 記錄身分、player UUID、chunk 集合與 cause。`CommitTrailers` 保存 co-author 與完整歸屬；source 支援 CLI/PLUGIN/MOD/HUB，auto 也在 trailer。
+`initDimensions(ids,...)` 明確初始化集合；`initAll(...)` 是明確的便利入口。`tracked()` 新位置優先，兼容兩種舊位置。`RepositoryMigration.migrate(layout,id,dryRun)` 先取得 session 鎖，拒絕未完成舊 journal，以複製／完整 refs 與物件驗證／原子 rename 搬移，保留舊備份並可在中斷後重跑。世界運行時拒絕遷移。
 
-`platform-api.LiveWorld` 延伸 `SnapshotSource`，core 無法反向依賴 platform-api。插件需在背景的 repo executor 呼叫同步 capture API；不可在 region 執行緒等待另一個 region 的 future。先 `flush`、擷取 `DirtyChunkTracker.Batch`，commit 成功後有條件 acknowledge；status 不清除 dirty。
+## 快照與設定
 
-## tree 與設定
+bare repo tree 沒有額外 dimension 層：
 
-每個 bare repo 的根直接是 `.wgignore`、`r.X.Z/c.X.Z/{s.Y.bin,biomes.bin,entities.bin,ticks.bin,structures.bin}`；沒有 dimension 層。全空氣且無 BE 的 section 缺檔即空氣。POI、光照、Heightmaps 不存；structures 的 References 是集合，long[] 排序避免伺服器重寫的假 diff。
+```text
+.wgignore
+dimensions                            # 主世界的發現清單，沒有一致性約束
+world-meta/level.nbt                   # 僅主世界
+world-meta/worldgit.yml                # 主世界的版本化 repo 設定
+worldgit.yml                          # 非主世界的版本化 repo 設定
+world-meta/{地圖、記分板、資料包原檔…}
+dimension-meta/{該維度 saved-data…}    # 26.2 非主世界
+player-touched.yml                    # player-touched 的版本化 UUID 集合
+r.X.Z/c.X.Z/{s.Y.bin,biomes.bin,entities.bin,ticks.bin,structures.bin}
+```
 
-主世界另有 `world-meta/level.nbt`、地圖／記分板與各維度的 gamerule/worldgen/邊界 NBT，以及 `world-meta/worldgit.yml`、`dimensions` YAML 清單。其他維度的 repo 設定位於 root `worldgit.yml`，方便單獨使用。
+section 的 4096 格以 `x | z<<4 | y<<8` 排序，正式 zstd blob 有版本。全空氣且無 BE 的 section 可省略。NBT canonical compound 排序；POI、光照、Heightmaps 不保存。structures References 以集合正規化，避免重寫造成假 diff。
 
-bare repo 的可編輯 sidecar：
+每個 repo 的可編輯 sidecar：
 
-- `<repo>/.wgignore`：commit 時寫入 root `.wgignore` blob；修改後 status 提示，下次 commit 移除被排除內容。
-- `<repo>/worldgit-repo.yml`：`track: all|modified-only`，主世界提交於 `world-meta/worldgit.yml`，其他維度提交於 root `worldgit.yml`。
-- `<world repo root>/worldgit.yml`：本機 `palette: default|colorblind`、`entity-tolerance: 2`；不進版本控制。
-- `<repo>/worldgit.index`：有版本的 binary cache，不是設定檔，可刪除。綁定 HEAD、規則、容許距離與 working tree id。損毀會警告並重建。
+| 檔案 | 用途 |
+|---|---|
+| `.wgignore` | 有序排除規則，下次 commit 保存 |
+| `worldgit-repo.yml` | `track: all|modified-only`、`entities: all|player-touched`，版本化 |
+| `worldgit.yml` | 本機色票／entity-tolerance，不版本化 |
+| `remotes.yml` | 該維度展開後的 URL，不版本化 |
+| `player-touched.yml` | 玩家觸及 UUID，隨歷史移動 |
+| `worldgit.index` | 可丟棄 binary cache，損毀會警告重建 |
+| `apply-state.yml`、`stash.yml`、`merge-state.bin`／`.updates` | 該維度套用、stash、合併恢復狀態 |
+| `push-state.yml`、`fetch-state.yml`、`tag-state.yml` | 單維度 CAS 與恢復 journal |
 
-`modified-only` 可使用 `SnapshotSource.modifiedChunks()` 或 `ModifiedChunks` 每維度 sidecar 的完整曾編輯集合篩選；缺少集合保守全存並警告。平台事件蒐集尚未接線，離線不猜測哪些地形曾被玩家修改。離線 persistence 是版本無關的保守近似；`EntitySemantics` 可由 adapter 提供真正 persistence 與 tag registry。離線 EntityTagRegistry 內建兩版 vanilla tags，依 `DataPacks.Enabled` 載入資料夾/ZIP，支援 replace、遞迴/optional 參照與後面優先；未知 tag 明確報錯。缺少已啟用 pack 提示可能不完整，未知模組內建 pack 要由 adapter 提供 registry。
+新 creative 預設 `player-touched`，方塊／BE／biome／地形仍完整追蹤。survival 及沒有 entities 鍵的舊 repo 維持 all；自然生物的排除規則仍沿用 survival 範本。CLI 沒有事件來源，creative init 集合為空並提示。`PlayerTouchedEntities.touch` 記錄根與乘客閉包，上限 100000 UUID／8 MiB；完整成功 commit 清除已消失的 UUID，status 不改集合。capture、merge、clone 只處理集合內實體，apply 保留集合外的實體與位置。
 
-world-meta 可用 `field worldgit:map *` 排除地圖，以及 `worldgit:level/scoreboard/boss_events/gamerules/border/worldgen` 對應 NBT 根欄位；`!field` 同樣後面優先。排除不會刪除活世界資料。`SnapshotSource.normalizationFingerprint()` 綁定正規化政策、DataVersion、tag registry；adapter 的政策/registry 改變時要更新 fingerprint，使 index 全量重建。
+Paper／Fabric 的相容入口在觸及事件接線前明確使用 `Entities.ALL`，遊戲內 creative init 暫時保持全部實體追蹤；任務 3／4 接完事件後才改用新預設。
 
-`.wgignore` 的 `area` 是包含端點的 block/entity 範圍；biome 使用 4×4×4 sample 的起點比對，排除 sample 使用空字串。`!field` 可以加回內建忽略的普通欄位；實體 id/UUID/Pos 是模型必要身分欄位。玩家永遠排除。structures 是不可拆的 chunk blob，不做結構 bounding box 裁切。
+`modified-only` 使用 `SnapshotSource.modifiedChunks()`／`ModifiedChunks` 完整曾編輯集合，缺集合時保守全存並警告。不能把當次 dirty batch 當完整集合。
 
-## diff 與效能
+`IgnoreEditor.Document` 保留原始行、註解、空行、順序與尾端換行；add／remove／move／enabled，語法錯誤含行號。`preview` 回報移除追蹤的計數與有界樣本，`testBlock/testEntity/testField` 回報最後命中規則。256 KiB／4096 行，MERGING 禁止修改，持 repo 鎖原子寫回。規則是純文字，不解析 UI 標籤。
 
-`DiffEngine.compare(dimension, beforeTree, afterTree, tolerance, Detail)` 先短路相同 tree id，然後解碼不同的 leaf。`WorldDiff` 包含 section、實體、biome 與 metadata 差異，`ChangeKind` 為 added/removed/modified/conflict。BE 差異併入所在格，避免統計重複計數。
+world-meta 支援 field worldgit:level/map/scoreboard/boss_events/gamerules/border/worldgen/saved_data；area 包含端點，biome 依 4×4×4 sample 起點裁切。玩家永遠排除，實體 id／UUID／Pos 保持模型必要欄位。`EntityTagRegistry` 載入兩版 vanilla 與已啟用資料包 tag，未知 tag 明確拒絕；平臺可提供真 persistence／模組 pack resolver。
 
-- `Detail.SUMMARY`：每 section 有 `Counts`，blocks 空列表；biome sampleIndex = -1 與 count 表示 section 統計。capture／CLI 預設使用此模式，init 不展開幾千萬筆方塊。
-- `Detail.BLOCKS`：逐格明細、BE 前後 canonical NBT Base64，以及逐 biome sample，供 CLI `--blocks`、protocol 鬼影、Hub 的局部檢視使用。可用 `compare(..., Detail.BLOCKS, Set<ChunkPos>)` 只解碼指定視窗的方塊/biome，實體保持 UUID 全域比對後裁切。大範圍不可一次展開全世界。
-- 實體全域 UUID 比對與 HEAD 黏性錨點，2 格內且其餘欄位相同則沿用 HEAD；跨 chunk 不算新增＋刪除。NoAI 與靜態實體精確比對。
+## capture、diff 與套用
 
-offline index 對檔案 mtime（奈秒）、size、fileKey 與 sector location 做便宜篩選；region timestamp 在本次／上次掃描秒的不確定窗內，或檔案屬性改變時，重讀 compressed payload SHA-256，再決定是否解析 NBT。同秒重寫不會僅因 timestamp 相同而漏掉。`status --full` 兜底。蓄意回填所有檔案屬性及舊時間戳屬於 `--full` 才能處理的情境。
+`DimensionRepository` 建構時取得 repo operation 鎖，請使用 try-with-resources。`SnapshotSource.scan` 提供候選／index stamps，`snapshot` 非 full／不存在時為 empty。平臺在 owner 執行緒複製資料，背景 repo executor 正規化及寫 git；不得在 owner 等另一個 owner 的 future。
 
-## pack
+offline index 比較 region 標頭、mtime／size／fileKey 與 sector location，同秒不確定窗重讀 compressed payload SHA-256；`status --full` 全量兜底。touched 集合變更也使相關正規化政策失效。
 
-init 設 `pack.packSizeLimit = 95000000`，關閉 JGit 自動 GC；JGit 7.3 本身不會依此設定分 pack。`DimensionRepository.repack()`／`JGitStore.gc()` 使用 JGit PackWriter，依 zlib 最壞上界分組、禁用 delta/reuse，每個 pack 驗證 ≤ 95,000,000 bytes，先安裝全部 pack/index 才刪除舊 pack 與已打包 loose objects。GC 保守保留不可達的 loose objects，尚無到期 prune。
+`DiffEngine.compare` 相同 tree 短路，SUMMARY 提供 section 計數，BLOCKS 才展開逐格方塊／BE／biome。window 限制方塊解碼，實體按該維度 UUID 比對；BE 併入所在格，避免重複統計。動態實體在容許距離內沿用 HEAD 黏性錨點，NoAI 與靜態實體精確比對。
 
-請透過上述 API 維護 pack。外部 JGit GC 不遵守此保證；native git 可使用 repo 設定。其他程序也應遵守 WorldGit operation lock。大 blob 限 32 MiB；不可把整個世界或一張大地圖合成單一超大 blob。
+`ApplyPlanner.plan` 產生中性計畫：section mask、BE、biome、UUID、ticks／structures、metadata；局部範圍不動世界級資料。目標沒有的 chunk 預設保留 untracked，明確 commit 可重新追蹤；刪除需要選項且排除規則允許。
+
+`WorldOperations` 只持單維度 repo 鎖與離線 session 鎖。restore 保持 HEAD；switch 分支／detached、reset、stash、merge／revert／cherry-pick、verify 共用預檢→journal→apply→verify→HEAD。失敗留下 PARTIAL，refs 保留原狀，世界內容以 force switch／reset 全範圍恢復。stash pop 要求原基底且乾淨，成功才 drop。
+
+線上用 `WorldOperations.live(layout,access,id)`：呼叫端管理 lockEdits、flush、owner apply、IO／光照屏障；close 不釋放遊戲的 session.lock。UUID 移除與生成只限選定維度，不刪除其他維度中的實體。兩版原生 region 支援 gzip／zlib／raw／LZ4、外部 mcc，就地更新只動變更 sector。跨 DataVersion 與不一致 DataPacks 拒絕；switch／restore 的 .wgignore 不一致仍預檢拒絕。
+
+## merge、graph 與操作結果
+
+`MergeBases` 找最佳共同祖先，沒有則空 tree，多個最佳 base 明確拒絕。`MergeEngine` 方塊逐格／BE 原子／biome／實體 UUID／NBT 欄位三方合併；規則有序文字三方合併，重新納入的歷史資料不猜測。`selectRegion` 只套精確 atoms，manual 以活世界為準，continue 再 capture 驗證並發布兩 parent commit。MERGING／WAL／refs pin 都在自己的 repo，abort 還原該維度原狀。
+
+所有套用維持來源快照的方塊 state，不呼叫 updateShape；交界與紅石只提供檢查提示。region 快速路徑只 capture 受影響 chunk，metadata 回退完整路徑，UUID 定位可能需要掃 entity storage。
+
+`CommitGraph.read(refs,limit,all)` 提供共同拓樸／時間排序、parents、snapshot、作者、labels、lane／before／after／edges／truncated；上限 10000 列、遍歷 20000 commit。`GraphText` 是基於相同 lane 的 ASCII 呈現，其他端可用 SVG／聊天圖。
+
+`OperationProgress` 提供同一 operationId 的階段、完成／總量、單位、速率與 ETA，未知總量為 null。計算端只更新記憶體，dispatcher ≥100 ms 節流回呼，不在世界鎖內做 IO。取消在安全點檢查，已寫世界內容依 PARTIAL 恢復。`result(...)` 產生同 id 的 `OperationResult`，SUCCESS／NO_OP／PARTIAL／FAILED／CANCELLED 對應 CLI exit 0／0／2／1／130。
+
+`OperationResult.ErrorReport` 提供代碼、操作／id、維度、版本、UTC、純文字全文，遮罩 userinfo／PAT／Authorization／敏感鍵及傳入已知秘密，長度上限 8192。平臺／CLI／Hub 負責呈現，共用摘要與下一步欄位。
+
+## remote 與組裝
+
+`WorldRemotes` 不取得世界 session、不讀寫活世界；每維度自己的設定、分支、tag、tracking、CAS 與 journal。多維度入口逐一執行，不要求同分支／snapshot／publication。`RepositoryGroup` 只是開啟集合的轉接器，不能當全組交易。`WorldOperations.pull` 的 targets／expectedHeads 只能包含自己維度。
+
+`BareWorldMerge(repository,dimension)` 是單維度裸合併；Hub 舊 map 入口暫供任務 2 過渡。`WorldClone.cloneWorld(...,Map<DimensionId,String>,...)` 各維度預設分支／明確 branch，需主世界 metadata，組裝與驗證完成後原子發布目的地。`WorldAssembler` 接受 commit map；release ZIP 排除所有 `.worldgit`／玩家／session.lock，使用者自己壓縮世界資料夾則攜帶 repo。
+
+1.21.11 組裝保留空的 `DIM-1/`、`DIM1/`，即使未選取該維度也保留目錄，ZIP 亦包含目錄項目；不建立未選取維度的地形或 repo。Paper 因此能搬移並沿用主世界 seed／DragonFight，避免首次開服生成新的終界設定。
+
+JGit 自動 GC 關閉，WorldGit 分包使用 ≤95000000 bytes，單 blob ≤32 MiB；transfers 合成 refs 支援空 repo 分批下載。force-with-lease、tag CAS、單維度中斷恢復保留。外部 native git／託管端 GC 不受此保證。
 
 ## 驗證
 
-`./gradlew :core:test` 用提交的真實 fixture；`integrationTest` 用完整 baseline（不存在時略過）；`packLimitTest` 真正產生 > 95 MB 隨機內容，應持有 `.work/bench.lock`。詳細數字見 [進度](../docs/11-phase1-progress.md)。
-
-## Phase 2 套用與復原
-
-`ApplyPlanner.plan(objects, dimension, currentTree, targetTree, scope, options)` 分層短路，只建立有差異的 section／BE、biome、UUID 實體、tick、structure 與 metadata 操作。`DimensionRepository.workingTree` 全量掃描目前世界，不移動 HEAD。`ApplyPlan` 保存壓縮 section blob、4096-bit mask、來源實體位置，支援 `toBytes/fromBytes`、`only(Scope)` 與 `batches(maxSections)`。entity 分成移除／生成兩階段；平台需等全部移除完成再生成。
-
-`Scope.chunkRadius` 為含端點的正方形（0–256），`Scope.box` 為含端點的方塊盒；BE 隨方塊逐格裁切。biome 仍是原版 4×4×4 sample，依起點裁切；tick／structure 只在完整 chunk 範圍套用，有 area 排除時保留。`OfflineApplier` 或正式 `OfflineWorld.apply` 持有 OS session lock，清除變更 chunk 的光照／Heightmaps／POI，UUID 在全維度（含 passengers）移除後依 Pos 寫回。多維度用 `OfflineApplier.applyAll(plans, lock)` 共用移除／生成 barrier；WorldOperations 已使用此入口。低階 writer 不是整個世界的原子交易；中途中斷必須由操作紀錄恢復。
-
-`WorldOperations` 是離線世界組入口，建構時持有世界組／各 repo／session 鎖，提供 restore、switch、branch、reset、stash、verify。先預檢所有維度、寫 `apply-state.yml`、套用並全量驗證，成功才移動 HEAD；失敗回復 refs 並持久化 PARTIAL，世界內容可用 `switch --force`／`reset --hard` 全量重套。PARTIAL 禁止 commit／普通 switch／branch／stash。restore 保持 HEAD；switch hash 為 detached HEAD。
-
-stash 使用各維度 `refs/worldgit/stash/<UUID>` 與世界組 `stash.yml`。pop 要求乾淨且原基底相同，不做跨分支合併。`WorldRepositories` 對不變維度也保存 `refs/worldgit/groups/<snapshot>`，hash 可配對該次完整維度組；舊 Phase 1 歷史以 first-parent snapshot 回溯，無法配對就拒絕。
-
-線上平台可用向後相容的 `WorldOperations.live(layout, LiveAccess)` 共用相同預檢、journal、驗證與 HEAD／stash 流程。遊戲持有 session.lock；呼叫端須先鎖定編輯與 flush，直到 close 後才解鎖，且只在 repo executor 呼叫。`LiveAccess.source` 提供 owner 上的快照、`validate` 全組寫入前預檢、`applyAll` 負責全維度 UUID 移除→生成 barrier 與完整存檔。`packs()` 可提供模組 pack resolver。關閉此入口只釋放 repo 鎖，不釋放遊戲 session；既有離線入口仍取得並檢查 OS session.lock。
-
-目前跨 DataVersion 一律清楚拒絕，不把改版本數字當 DataFixer；`.wgignore` 不一致也拒絕，規則遷移留待後續。world-meta 的還原／保留規則與限制見 [05](../docs/05-switch-restore.md)；平台批次與驗收見 [Phase 2 進度](../docs/12-phase2-progress.md)。重跑：持有 `bench.lock` 跑 `:core:integrationTest`，建置 `:cli:acceptanceToolsJar` 後執行 `python3 scripts/verify-phase2.py`。
-
-## Phase 3 三方合併
-
-`merge.MergeBases.best/unique` 找每維度最佳共同祖先（沒有則空 tree，criss-cross 多個 base 拒絕）；`MergeEngine.merge(k)` 產生候選 tree＋MergeReport。tree 分層短路、4096 格／BE 原子、biome sample、全域 UUID entity、ticks／structures 原子及 world-meta NBT 逐鍵。`MergeEngine.select` 替換區域精確 atoms，`preview` 回傳方塊與 BE；Hub 可只操作 trees，不需要 working world。
-
-`WorldOperations` 的世界組 API：
-
-- `merge/revert/cherryPick(revision, MergeOptions)`：要求乾淨（含 untracked），開始套用＋MERGING；dryRun 只建立 objects／計畫，不寫 refs／世界／合併狀態。noCommit=true 也保留乾淨合併供平台更新形狀。
-- `merging()`：持久化 MergeState，含原 HEAD／分支、各候選樹、region 選擇與 resolved；`remaining()` 為剩餘區域。
-- `selectRegion(id, Choice, resolved, dryRun)`：ours／theirs／base 原地切換，0 為 all；傳 false 可只切換預覽。
-- `markResolved(id, manual, dryRun)`：保留目前選擇或 manual；manual 權威資料是活世界，不接受假造的解決快照。
-- `regionPreview(id, Choice)`：讀取候選方塊／完整 BE，不寫回。
-- `continueMerge(author, source, dryRun)`／`commitMerge(author, source, message, dryRun)`：全部解決後全組 capture，建立同 snapshot 的 merge commit（不同 tip 兩 parent；revert／cherry-pick 單 parent）。
-- `abortMerge(dryRun)`：恢復原世界、規則，HEAD 不動；支援合併寫回失敗留下的 PARTIAL。`lastMergeReports()` 讀取完成報告。
-
-MergeResult 含 state、merging、各維度 reports／plans、完成 commits、error。MergeReport 含自動 section 數、Region 列表、完整規則差異、updateShapes 清單與紅石提示。範圍只有 bounds 用於顯示，切換精確 atoms；不能把整個包圍盒當 replace 範圍。`MergeState.read` 可唯讀讀取 merge-state.bin／last-merge-report.bin；有版本、解碼上限 32 MiB。各 repo MERGE_HEAD 與 refs pin 保留來源／備份，操作仍使用 Phase 2 journal。
-
-離線與線上都維持來源方塊 state，不重算鄰居形狀（docs/09 #46）；updateShapes 是交界處的提示清單，平台不自動處理。線上沿用 WorldOperations.live：全程本次操作的 lockEdits／flush／owner apply／驗證 barrier，套用時不得觸發鄰居更新。等待衝突選擇期間可解鎖，不需要一直 freeze。
-
-merge 的 `.wgignore` 改用有序三方合併（衝突先拒絕），新規則過濾三邊；重新納入時 ours 可從活世界取回資料，其他歷史不猜測未保存內容。Phase 2 switch／restore 的規則限制不變。DataVersion／DataPacks 仍清楚拒絕不一致。規則不同時保存原來被排除的內容，abort 可以回復；保留原始 MC 暫態／衍生欄位的界線沿用 Phase 2。
-
-驗收／量測與給 Paper／Fabric／Hub 的完整摘要見 [13](../docs/13-phase3-progress.md)，重跑 `scripts/verify-phase3.py`（自行拿 bench.lock），以及 `:core:integrationTest --tests org.worldgit.core.Phase3LocalIntegrationTest`。
-
-## 區域切換延遲（2026-10-02）
-
-`selectRegion` 的一般 chunk atoms 路徑使用 `LiveAccess.source(dimension, chunks)`、`lockChunks` 與 `applyRegions`：不呼叫世界 scan／workingTree，不擷取沒有選擇區域的維度。離線來源也能直接依座標讀取 chunk，不需先全量 scan。方塊／BE 的 mask 僅含選擇 atoms；套用後以 0 格實體容許距離驗證完整受影響 chunk，因此同 chunk 區域外的追蹤資料也要相同。UUID 切換加入歷史與實際位置，包含巢狀乘客拆離／改騎其他載具後的位置及其他維度的 removal；定位仍需掃描 entity storage，不保證此特殊路徑與世界大小無關。舊 LiveAccess 預設方法保守準備全量來源；要取得局部效能，adapter 須覆寫局部 source。
-
-`merge-state.bin` 為基底，`merge-state.bin.updates` 保存 result commit、choice／resolved 及提示差異。`MergeState.read` 會重播 WAL，CLI／平台不可只讀基底；舊 binary readers 無法看到增量，需一併升級。WAL 有長度、CRC32C、operation UUID 及 32 MiB 上限；最後一筆截斷沿用上一筆完整狀態。metadata 等完整回退路徑可更新基底 checkpoint 並清除 WAL，清理窗口仍由 APPLYING journal 保護。小型 chunk journal 在第一次套用前寫 APPLYING，在驗證與 WAL force 完成後才 COMPLETE；保存失敗也是 PARTIAL。恢復仍用完整 abort，不提供未驗證的逐批續傳。
-
-merge 開始、abort、continue／commit 的完整世界屏障保留；continue 在發布 HEAD 前再次 capture 全組並比對，完成報告重算全部交界提示。區域外其他 chunk 的玩家 manual 編輯在 continue 取活世界資料，切換時不重讀；提示可能暫時落後於此類編輯。metadata／非 chunk FILE 選擇沿用完整路徑。所有平台都不觸發鄰居更新（#46）。
-
-以 `-Dworldgit.profile=true` 開啟 `WGPROFILE` 分段計時，階段是 inclusive（例如 verify 內含 capture），不可直接相加。Paper lighting 的數值為 owner 回呼等待時間加總；總耗時使用 monotonic wall clock。根因、六端驗收數字與限制見 [區域切換延遲報告](../docs/13-phase3-progress.md#區域切換延遲)。
-
-## Phase 4 遠端協作（2026-10-03）
-
-公用入口在 `org.worldgit.core.remote`，不外洩 JGit 類別：
-
-| API | 契約 |
-|---|---|
-| `RemoteSpec.parse/expand/read/write` | Hub 世界 URL、一般 `{dimension}` 樣板、manifest YAML；只 HTTP(S)/file；世界組 remotes.yml 不進 trees |
-| `Credentials(env,file,Provider)`、`Credentials.system()` | 環境→使用者 600 YAML→平台 provider→anonymous Basic；Secret.toString/error 遮罩，URL 禁止秘密 |
-| `RepositoryGroup(root,dimensionPaths)` | bare-only 世界組鎖；resolve/head/tags/tag，全組版本/snapshot 配對；tag 中斷恢復 |
-| `WorldRemotes(layout,credentials)` 或 bare paths constructor | 不取得 session／不讀寫世界；configure/remotes/fetch/push/trackingHeads/tracking，close 後才另開 WorldOperations |
-| `WorldOperations.pull(targets,expectedHeads,ffOnly,MergeOptions)` | targets 來自成功 fetch；乾淨工作區；dry-run preview 回傳 expectedHeads/targets/fastForward/result；FF 保留分支，三方合併沿用 MERGING/resolve/continue |
-| `BareWorldMerge.preview/merge/recover` | 不需 WorldLayout；tips+distance lease；無衝突或完整區域選擇後產生 Source.HUB、不同 tips 兩 parent（相同 tips 去重）、共用 snapshot 與來源 trailers；report/updateShapes 保留 #46 state |
-| `WorldClone.cloneWorld` | sibling temp→下載/完整驗證/組裝→atomic rename；--branch/selected dimensions；失敗清理 |
-| `WorldAssembler.assemble/zip` | clone/release 共用逐 region Anvil/metadata，ZIP 不關 caller output；Budget 預設 2 GiB/15 分鐘，支援中斷取消 |
-
-```java
-SortedMap<DimensionId, String> targets;
-try (var remote = new WorldRemotes(layout, credentials)) {
-    var fetched = remote.fetch("origin", false);
-    if (!fetched.success()) throw new IOException(fetched.error());
-    targets = remote.trackingHeads("origin", "main");
-}
-try (var operations = new WorldOperations(layout)) { // 離線；線上改用 live
-    var preview = operations.pull(targets, null, false,
-        new WorldOperations.MergeOptions(false, null, 1, true, author, CommitMetadata.Source.CLI));
-    // 使用 preview.expectedHeads()/targets() 再明確執行 pull(dryRun=false)。
-}
+```sh
+flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home ./gradlew :core:test :cli:test --no-daemon --configure-on-demand --max-workers=1
+python3 cli/tools/phase5_acceptance.py  # 自持鎖；真 Hub、SQLite、兩版 Paper、ZIP、遷移
 ```
 
-線上不可建構離線 operations：沿用 caller 的 lockEdits→flush→`WorldOperations.live(layout,access)`→preview/apply/verify→close→unlock。preview 不移動 refs 或寫世界，但可以寫候選物件/index。套用前需再次取得同一屏障，檢查 lease、工作區和原遠端 targets；preview 後遠端新增提交不會隱式換成另一版目標。衝突期間沿用既有 MERGING 互動與區域鎖，不自動套用通知。
-
-push 預檢全維度 FF，force-with-lease 以 fetch tracking 為 lease；tags/group 不覆寫。publication marker 全維度內容相同且 tips 相符才接受，PARTIAL push 依 push-state.yml 原 remote URL/branch/options/tips 重試；重新設定 remote、改 tips 或第三方修改會拒絕。fetch-state.yml 在追蹤 refs 發布中斷後回復舊組再重新下載。tag-state.yml、bare-merge-state.yml 也有 CAS 恢復。原生 git／目前 Hub 網頁 reader 尚不檢查 marker，不能把跨 repo 看成原子交易。
-
-`GitTransfer` 在標準 refs 上保存合成 commit 批次，各 pack ≤95 MB，量測 prepared bytes 與實際 HTTP PACK bytes／fetch pack 檔案大小。保留 refs/worldgit/transfers 供之後空 repo 順序下載；裸合併也呼叫 stageLocal。外部 native git／託管端 GC 不受此保證，沒有分批 refs 的超限外部 pack 明確拒絕。詳細設計、API 範例、兩版開世界驗收與量測見 [14](../docs/14-phase4-progress.md)。
-
-world-meta 增加可攜資料包原檔與 DragonFight/CustomBossEvents/GameType/allowCommands；資料包每檔≤32 MiB、總計≤64 MiB，不解析為 world-meta NBT。Paper/Fabric 內建 `paper`/`fabric-convention-tags-v2` 標記不入 portable 清單，其他 pack 按原優先序保存。clone 的 .worldgit 放在世界內，舊 init 外置布局不變。modified-only clone 把歷史已存 chunks 納入完整集合；收到的新追蹤 chunks 在 apply journal 內先納入，平台提供的曾編輯集合與 sidecar 取聯集，不能傳當次 dirty batch。自然地形用完整 seed/worldgen 重生，遊戲版本和實際資料包仍需一致。
-
-重跑：`flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home ./gradlew :core:integrationTest --tests org.worldgit.core.Phase4LocalIntegrationTest --no-daemon --configure-on-demand --max-workers=1`；`verify-phase4.py` 自己拿鎖並保證 finally 關 Hub/遊戲伺服器，需先建立 cli:acceptanceToolsJar、hub:bootJar。`--skip-scale` 與 `--only-scale` 可分開跑。完整不足項目列於 [14](../docs/14-phase4-progress.md)。
+既有 fixture 測試需要舊實體政策時，明確 initAll(...,Entities.ALL)，保留原本內容與隔離斷言。完整 build／平臺回歸與整合結果見 [驗收紀錄](../docs/16-phase5-design.md#本次實作與後續缺口)。

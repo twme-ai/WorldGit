@@ -50,7 +50,9 @@ public final class DiffEngine {
     var metadata = new ArrayList<BlobChange>();
     var oldEntities = new TreeMap<UUID, Placed>();
     var newEntities = new TreeMap<UUID, Placed>();
+    long completedLeaves = 0;
     for (var leaf : leaves) {
+      org.worldgit.core.operation.OperationProgress.report(dimension, "diff", completedLeaves++, (long)leaves.size(), org.worldgit.core.operation.OperationProgress.Unit.OBJECT);
       String[] path = leaf.path.split("/");
       String name = path[path.length - 1];
       ChunkPos chunk =

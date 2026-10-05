@@ -25,7 +25,7 @@ class MergeEvidence {
     var root=WorldLayout.discover(Path.of(args[1])).repositoryRoot();
     if(args[0].equals("state")) { var state=MergeState.read(root.resolve("merge-state.bin")); System.out.println(json.writeValueAsString(state)); return; }
     int cx=Integer.parseInt(args[3]),cz=Integer.parseInt(args[4]),sy=Integer.parseInt(args[5]);
-    try(var store=new JGitStore(root.resolve("minecraft.overworld"),false)) {
+    try(var store=new JGitStore(WorldLayout.discover(Path.of(args[1])).repository(DimensionId.OVERWORLD),false)) {
       var commit=store.readCommit(store.resolve(args[2]));
       var blob=TreeEditor.find(store,commit.tree(),new ChunkPos(cx,cz).treePath()+"/s."+sy+".bin");
       var section=blob==null ? Section.air() : SnapshotCodec.section(store.readBlob(blob.id()));

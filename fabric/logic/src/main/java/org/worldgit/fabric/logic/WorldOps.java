@@ -113,7 +113,7 @@ public final class WorldOps {
     layout
         .dimensions()
         .keySet()
-        .forEach(id -> candidates.put(id, root().resolve(id.directoryName())));
+        .forEach(id -> candidates.put(id, layout.repository(id)));
     if (selected != null) {
       if (!candidates.containsKey(selected)) throw new IOException("找不到維度：" + selected);
       candidates.keySet().retainAll(Set.of(selected));
@@ -127,7 +127,7 @@ public final class WorldOps {
     }
     for (var e : fresh.entrySet())
       try (var repo = new DimensionRepository(e.getValue(), e.getKey(), true)) {
-        repo.initialize(template, track);
+        repo.initialize(template, track, WorldGitConfig.Entities.ALL); // 觸及事件由 Phase 5 平台任務接線；過渡期保留既有實體行為。
       } catch (Exception ex) {
         result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
       }
@@ -144,7 +144,7 @@ public final class WorldOps {
                   author,
                   author,
                   message,
-                  snapshot,
+                  UUID.randomUUID(),
                   e.getKey(),
                   false,
                   List.of());
@@ -154,7 +154,7 @@ public final class WorldOps {
         } catch (Exception ex) {
           result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
         }
-    pinGroup(snapshot, result);
+
     return new WorldRepositories.Batch<>(snapshot, result);
   }
 
@@ -173,7 +173,7 @@ public final class WorldOps {
                 context.author(),
                 context.committer(),
                 message,
-                snapshot,
+                UUID.randomUUID(),
                 e.getKey(),
                 context.auto(),
                 context.contributions().getOrDefault(e.getKey(), List.of()));
@@ -183,7 +183,7 @@ public final class WorldOps {
       } catch (Exception ex) {
         result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
       }
-    pinGroup(snapshot, result);
+
     return new WorldRepositories.Batch<>(snapshot, result);
   }
 
@@ -245,13 +245,7 @@ public final class WorldOps {
       return new DiffEngine(repo.objects()).compare(dimension,working,target,tolerance(),detail,window);
     }
   }
-  private void pinGroup(UUID snapshot, SortedMap<DimensionId,WorldRepositories.Outcome<DimensionRepository.CommitResult>> result) throws IOException {
-    if(result.values().stream().anyMatch(e->!e.success())) return;
-    for(var entry:tracked().entrySet()) try(var repo=new DimensionRepository(entry.getValue(),entry.getKey(),false)) {
-      String head=repo.refs().head();
-      if(head!=null) repo.refs().updateRef("refs/worldgit/groups/"+snapshot,null,head);
-    }
-  }
+
 
   /** 依 snapshot 分組的歷史，新的在前。 */
   public List<LogRow> log(DimensionId selected, int limit) throws IOException {

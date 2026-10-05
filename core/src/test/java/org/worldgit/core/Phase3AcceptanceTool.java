@@ -190,7 +190,7 @@ public final class Phase3AcceptanceTool {
   static void roundtrip(WorldLayout layout) throws Exception {
     check(
         new WorldRepositories(layout)
-            .init(null, "creative", WorldGitConfig.Track.ALL, AUTHOR)
+            .initAll("creative", WorldGitConfig.Track.ALL, AUTHOR, WorldGitConfig.Entities.ALL)
             .success(),
         "init");
     try (var ops = new WorldOperations(layout)) {
@@ -282,7 +282,7 @@ public final class Phase3AcceptanceTool {
 
   static void benchmarkPrepare(WorldLayout layout, int conflicts) throws Exception {
     var worlds = new WorldRepositories(layout);
-    check(worlds.init(null, "creative", WorldGitConfig.Track.ALL, AUTHOR).success(), "bench init");
+    check(worlds.initAll("creative", WorldGitConfig.Track.ALL, AUTHOR, WorldGitConfig.Entities.ALL).success(), "bench init");
     try (var ops = new WorldOperations(layout)) {
       ops.createBranch("B", null);
     }
@@ -392,9 +392,9 @@ public final class Phase3AcceptanceTool {
         if (entry.getKey().equals(DimensionId.OVERWORLD))
           check(commit.parents().size() == 2, "merge parents");
       }
-    check(snapshots.size() == 1, "shared snapshot UUID");
+    check(snapshots.size() == new WorldRepositories(layout).tracked().size(), "independent dimension snapshot UUIDs");
     System.out.println(
-        "PASS both branches blocks/chest items/UUIDs/cross-chunk; two parents; shared snapshot");
+        "PASS both branches blocks/chest items/UUIDs/cross-chunk; two parents; independent dimension snapshots");
   }
 
   static void inspect(WorldLayout layout) throws Exception {

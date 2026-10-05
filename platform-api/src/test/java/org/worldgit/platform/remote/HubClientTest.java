@@ -38,6 +38,23 @@ class HubClientTest {
       stop();server=null;worker=null;
     }
   }
+  @Test void dimensionRemoteUsesWorldRestEndpointAndWebLinks() throws Exception {
+    for(String prefix:List.of("", "/proxy")) for(String dimension:List.of("minecraft.overworld", "minecraft.the_nether", "example%2Ens.custom%2Fdimension")) {
+      var endpoint=HubClient.endpoint("https://host"+prefix+"/git/alice/world/"+dimension+".git");
+      assertEquals("alice",endpoint.owner());assertEquals("world",endpoint.world());
+      assertEquals(URI.create("https://host"+prefix+"/api/v1/worlds/alice/world"),endpoint.api());
+      assertEquals(URI.create("https://host"+prefix+"/alice/world"),endpoint.web());
+    }
+    try(var original=client(e->{
+      assertEquals("/proxy/api/v1/worlds/alice/world/pulls",e.getRequestURI().getPath());
+      json(e,200,"{\"items\":["+pull(1)+"],\"offset\":0,\"hasMore\":false}");
+    },Duration.ofSeconds(2));var dimension=new HubClient("http://127.0.0.1:"+server.getAddress().getPort()+"/proxy/git/alice/world/minecraft.overworld.git",new Credentials.Secret(Credentials.Mode.BEARER,"token",token),Duration.ofSeconds(2))) {
+      assertEquals(1,dimension.find(1).number());
+      assertEquals("http://127.0.0.1:"+server.getAddress().getPort()+"/proxy/alice/world/pulls/"+id,dimension.link(dimension.find(1)));
+    }
+    assertThrows(java.io.IOException.class,()->HubClient.endpoint("https://name:pat@host/git/alice/world/minecraft.overworld.git"));
+    assertThrows(java.io.IOException.class,()->HubClient.endpoint("https://host/git/alice/world/minecraft.overworld.git?token=secret"));
+  }
   @Test void entireBodyDeadlineAndResponseLimit() throws Exception {
     try(var h=client(e->{e.sendResponseHeaders(200,0);e.getResponseBody().write('{');e.getResponseBody().flush();try{Thread.sleep(3000);}catch(InterruptedException ignored){}e.close();},Duration.ofMillis(150))) {
       long start=System.nanoTime();assertEquals(HubClient.Failure.TIMEOUT,assertThrows(HubClient.Error.class,h::pulls).failure());assertTrue(System.nanoTime()-start<TimeUnit.SECONDS.toNanos(2));

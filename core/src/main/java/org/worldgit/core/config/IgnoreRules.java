@@ -26,7 +26,7 @@ public final class IgnoreRules {
       boolean include,
       boolean nonPersistent,
       Area area,
-      List<String> fields) {}
+      List<String> fields, int line, String text) {}
 
   private final List<Rule> rules;
   private final String source;
@@ -68,7 +68,7 @@ public final class IgnoreRules {
         String kind = include ? head.substring(1) : head;
         if (kind.equals("area")) {
           if (words.size() != 7) throw new IllegalArgumentException("area 需要六個座標");
-          rules.add(new Rule(kind, "*", include, false, area(words, 1), List.of()));
+          rules.add(new Rule(kind, "*", include, false, area(words, 1), List.of(), lineNo, line));
           continue;
         }
         if (!Set.of("entity", "field").contains(kind) || words.size() < 2)
@@ -86,7 +86,7 @@ public final class IgnoreRules {
           for (String f : fields)
             if (!f.matches("[A-Za-z0-9_:.*/-]+"))
               throw new IllegalArgumentException("NBT 欄位無效：" + f);
-          rules.add(new Rule(kind, type, include, false, null, fields));
+          rules.add(new Rule(kind, type, include, false, null, fields, lineNo, line));
           continue;
         }
         int i = 2;
@@ -100,7 +100,7 @@ public final class IgnoreRules {
             throw new IllegalArgumentException("entity 尾端需要 in area 與六個座標");
           area = area(words, i + 2);
         }
-        rules.add(new Rule(kind, type, include, nonPersistent, area, List.of()));
+        rules.add(new Rule(kind, type, include, nonPersistent, area, List.of(), lineNo, line));
       } catch (IllegalArgumentException e) {
         throw new IOException(".wgignore 第 " + lineNo + " 行：" + e.getMessage(), e);
       }
@@ -114,42 +114,41 @@ public final class IgnoreRules {
     return new Area(a[0], a[1], a[2], a[3], a[4], a[5]);
   }
 
-  public boolean ignoredBlock(int x, int y, int z) {
-    boolean ignored = false;
-    for (var r : rules) if (r.kind.equals("area") && r.area.contains(x, y, z)) ignored = !r.include;
-    return ignored;
-  }
+  public record Decision(boolean excluded, Integer line, String rule) {}
 
-  public boolean ignoredEntity(Nbt.Compound e, EntitySemantics semantics) {
-    if (e.string("id").equals("minecraft:player")) return true;
-    var pos = e.list("Pos").values();
-    if (pos.size() != 3) throw new IllegalArgumentException("entity 缺少 Pos");
-    double x = ((Number) pos.get(0)).doubleValue(),
-        y = ((Number) pos.get(1)).doubleValue(),
-        z = ((Number) pos.get(2)).doubleValue();
-    boolean ignored = false;
-    for (var r : rules) {
-      boolean match = r.kind.equals("area") && r.area.contains(x, y, z);
-      if (r.kind.equals("entity"))
-        match =
-            (r.type.equals("*")
-                    || r.type.equals(e.string("id"))
-                    || r.type.startsWith("#")
-                        && semantics.inTag(r.type.substring(1), e.string("id")))
-                && (!r.nonPersistent || !semantics.persistent(e))
-                && (r.area == null || r.area.contains(x, y, z));
-      if (match) ignored = !r.include;
-    }
-    return ignored;
-  }
-
-  public boolean ignoredField(String type, String field, boolean builtin) {
-    boolean result = builtin;
-    for (var r : rules)
-      if (r.kind.equals("field") && (r.type.equals("*") || r.type.equals(type)))
-        for (String glob : r.fields) if (glob(glob, field)) result = !r.include;
+  public Decision testBlock(int x, int y, int z) {
+    var result = new Decision(false, null, null);
+    for (var r : rules) if (r.kind.equals("area") && r.area.contains(x, y, z))
+      result = new Decision(!r.include, r.line, r.text);
     return result;
   }
+  public boolean ignoredBlock(int x, int y, int z) { return testBlock(x, y, z).excluded(); }
+
+  public Decision testEntity(Nbt.Compound e, EntitySemantics semantics) {
+    if (e.string("id").equals("minecraft:player")) return new Decision(true, null, "內建：玩家永遠不追蹤");
+    var pos = e.list("Pos").values();
+    if (pos.size() != 3) throw new IllegalArgumentException("entity 缺少 Pos");
+    double x = ((Number) pos.get(0)).doubleValue(), y = ((Number) pos.get(1)).doubleValue(), z = ((Number) pos.get(2)).doubleValue();
+    var result = new Decision(false, null, null);
+    for (var r : rules) {
+      boolean match = r.kind.equals("area") && r.area.contains(x, y, z);
+      if (r.kind.equals("entity")) match =
+          (r.type.equals("*") || r.type.equals(e.string("id"))
+              || r.type.startsWith("#") && semantics.inTag(r.type.substring(1), e.string("id")))
+          && (!r.nonPersistent || !semantics.persistent(e)) && (r.area == null || r.area.contains(x, y, z));
+      if (match) result = new Decision(!r.include, r.line, r.text);
+    }
+    return result;
+  }
+  public boolean ignoredEntity(Nbt.Compound e, EntitySemantics semantics) { return testEntity(e, semantics).excluded(); }
+
+  public Decision testField(String type, String field, boolean builtin) {
+    var result = new Decision(builtin, null, builtin ? "內建忽略欄位" : null);
+    for (var r : rules) if (r.kind.equals("field") && (r.type.equals("*") || r.type.equals(type)))
+      for (String pattern : r.fields) if (glob(pattern, field)) result = new Decision(!r.include, r.line, r.text);
+    return result;
+  }
+  public boolean ignoredField(String type, String field, boolean builtin) { return testField(type, field, builtin).excluded(); }
 
   private static boolean glob(String pattern, String value) {
     String regex =

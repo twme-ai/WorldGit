@@ -39,6 +39,16 @@ final class Phase3ClientGameTest {
             server.runCommand("tp @p 14.5 -57 2 0 30");
             ctx.waitTicks(240);
             server.runCommand("tick freeze");
+            for(var dimension:List.of(net.minecraft.world.level.Level.NETHER,net.minecraft.world.level.Level.END)) {
+                String name=dimension.equals(net.minecraft.world.level.Level.NETHER)?"minecraft:the_nether":"minecraft:the_end";
+                server.runCommand("execute in "+name+" run forceload add 0 0");
+                for(int i=0;i<600;i++) {
+                    if(server.computeOnServer(s->s.getLevel(dimension).getChunkSource().getChunkNow(0,0)!=null)) break;
+                    ctx.waitTick();
+                }
+                check(server.computeOnServer(s->s.getLevel(dimension).getChunkSource().getChunkNow(0,0)!=null),name+" 測試 chunk 未載入");
+            }
+            ctx.waitTicks(100);
             ctx.waitFor(c->ClientRuntime.get().handshaken(),600);
             check(ctx.computeOnClient(c->ClientRuntime.get().mergeCapable()),"客戶端沒有 merge-regions-v1 capability");
             server.runCommand("wg init"); awaitHead(ctx,server,null);
@@ -313,7 +323,7 @@ final class Phase3ClientGameTest {
     // ---- 指令／repo ---------------------------------------------------------------------
 
     private static String head(ClientGameTestContext ctx,TestServerContext server) {
-        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(1)),2400).getFirst().commits().get(DimensionId.OVERWORLD);
+        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),2400).stream().filter(row->row.commits().containsKey(DimensionId.OVERWORLD)).findFirst().orElseThrow().commits().get(DimensionId.OVERWORLD);
     }
     private static void awaitHead(ClientGameTestContext ctx,TestServerContext server,String previous) {
         for(int i=0;i<180;i++) {

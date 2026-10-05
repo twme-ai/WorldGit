@@ -3,6 +3,7 @@
 import argparse, hashlib, importlib.util, json, os, re, secrets, shutil, signal, socket, subprocess, sys, time, traceback, urllib.request
 from pathlib import Path
 import harness
+from cli_compat import DIMENSIONS, cli_data, heads as world_heads, hub_heads, repository, verify_all
 ROOT=Path(harness.ROOT)
 JAVA=harness.JAVA
 TOKEN=secrets.token_urlsafe(32)
@@ -52,15 +53,15 @@ def run(args):
         p=subprocess.run([JAVA['1.21.11'],'-Xmx900m','-jar',str(work/'wgit.jar'),'--world',str(world),'--format=json',*words],capture_output=True,text=True,env=env,timeout=900)
         (work/'cli.log').open('a').write(str(words)+'\n'+p.stdout+p.stderr)
         if expected and p.returncode:raise RuntimeError(p.stdout+p.stderr)
-        return json.loads(p.stdout)
+        return cli_data(p.stdout)
     def cmd(command,pattern=r'complete|Complete|Error:|Preview|preview|no entries|No entries|MERGING',expected=True):
-        pattern+='|No merge is in progress'
+        pattern+='|No merge is in progress|Hub (?:401|403|404|409)|Hub request timed out'
         # 新指令由真正玩家送出，連回覆與 confirm 的 sender/owner thread 一起驗。
         if command.startswith('wg ') and command.split()[1] in {'remote','fetch','push','pull','pr','comments','comment'}:
-            out=botcmd(bots[0],command[3:],pattern)
+            out=botcmd(remote_bot,command[3:],pattern)
         else:out=strip(server.cmd(command,pattern,180))
         (work/'commands.log').open('a').write(command+'\n'+out+'\n');print(command+' → '+out.splitlines()[-1],flush=True)
-        if expected and any(t in out for t in ('Error:','PARTIAL','Hub 401','Hub 403','No merge is in progress')):raise RuntimeError(command+'\n'+out)
+        if expected and any(t in out for t in ('Error:','PARTIAL','Hub 401','Hub 403','Hub 404','Hub 409','Hub request timed out','No merge is in progress')):raise RuntimeError(command+'\n'+out)
         return out
     def commit(label):return cmd('wg commit -m '+label,r'Snapshot:|has no changes|overworld [0-9a-f]{8}|Error:')
     def edit(x,block):return cmd(f'setblock {x} 224 0 {block}',r'Changed the block|Could not set')
@@ -69,9 +70,11 @@ def run(args):
         if not match:raise RuntimeError(out)
         if confirm:return cmd('wg pull confirm '+match[1],r'Merge operation complete|Error:|PARTIAL')
         return match[1],out
-    def heads():
-        group=Path(server.dir)/'.worldgit/world'
-        return {d.name:subprocess.check_output(['git','--git-dir',str(d),'rev-parse','HEAD'],text=True).strip() for d in group.glob('minecraft.*') if d.is_dir()}
+    def heads():return world_heads(server.world,args.version,paper=True)
+    def move(dimension):
+        nonlocal remote_bot
+        remote_bot=remote_bots[dimension]
+
     def clone():
         shutil.rmtree(work/'b',ignore_errors=True);cli('.', 'clone',url,str(work/'b'));return work/'b'
     def remote_edit(world,x,block):
@@ -104,24 +107,40 @@ def run(args):
         secret=data/'webhook.secret';secret.write_text(SECRET);secret.chmod(0o600)
         server.start();result['server_log']=str(Path(server.evidence_log).relative_to(ROOT));save()
         bots=[server.bot('WgBot'),server.bot('WgBot2')]
-        for p in bots:server.cmd('tp '+p.name+' 8 225 8');server.cmd('gamemode creative '+p.name)
+        remote_bots=dict(zip(DIMENSIONS,[bots[0],server.bot('WgBot3'),server.bot('WgBot4')]))
+        remote_bot=bots[0]
+        for p in list(dict.fromkeys([*bots,*remote_bots.values()])):server.cmd('tp '+p.name+' 8 225 8');server.cmd('gamemode creative '+p.name)
         server.cmd('wg debug freeze on',r'WGFREEZE frozen');time.sleep(3)
+        for dimension,player in remote_bots.items():
+            server.cmd('wg debug comment-teleport '+player.name+' '+dimension,r'WGCOMMENTTP success=true')
+        move('minecraft:overworld');time.sleep(10)
+        # init 前固定首次載入的 DragonFight／saved-data 與 forceload 設定；仍完整追蹤 metadata。
+        if args.platform=='paper':server.cmd('save-all flush',r'Saved the game',180)
         cmd('wg init',r'Initialization|Initialized|init 完成|Error:',True)
-        cmd('wg remote add origin '+url,r'updated|Error:');cmd('wg remote list',r'origin →|Error:');cmd('wg push',r'push complete|Error:')
-        initial=heads();check('game remote add/list/push all dimensions',len(initial)==3)
+        for dimension in DIMENSIONS:
+            move(dimension)
+            cmd('wg remote add origin '+url,r'updated|Error:');cmd('wg remote list',r'origin →|Error:')
+            out=cmd('wg push',r'push complete|Error:')
+            check('player push only '+dimension,'push complete (1 dimensions)' in out)
+        move('minecraft:overworld')
+        initial=heads();check('game remote add/list/push all dimensions',len(initial)==3 and initial==hub_heads(work,'admin',slug),local=initial,remote=hub_heads(work,'admin',slug))
         hook=None if args.polling else hub.api('POST',base+'/webhooks',{'url':'http://127.0.0.1:'+str(webhook_port)+'/worldgit/webhook','secret':SECRET,'events':['pr.merged','push'],'enabled':True})
-        b=clone();cli(b,'branch','topic');cli(b,'switch','topic');remote_edit(b,8,'diamond_block');cli(b,'commit','-m','B disjoint');cli(b,'push','origin','topic')
-        edit(0,'gold_block');commit('A disjoint');cmd('wg push',r'push complete|Error:')
+        b=clone();cli(b,'branch','topic','--all');cli(b,'switch','topic','--all');remote_edit(b,8,'diamond_block');cli(b,'commit','-m','B disjoint');cli(b,'push','origin','topic','--all')
+        edit(0,'gold_block');commit('A disjoint')
+        for dimension in DIMENSIONS:move(dimension);cmd('wg push',r'push complete|Error:')
+        move('minecraft:overworld')
         out=cmd('wg pr create B building --source topic --target main',r'PR #\d+|Error:');pr=hub.api('GET',base+'/pulls')['items'][0]
         detail=hub.api('GET',base+'/pulls/'+pr['id']);hub.api('PUT',base+'/protected-branches',{'branch':'main','prOnly':True,'reviews':1})
         hub.api('POST',base+'/pulls/'+pr['id']+'/reviews',{'fingerprint':detail['pr']['fingerprint'],'decision':'approve'},hub.reviewer)
         mark=server.mark();hub.api('POST',base+'/pulls/'+pr['id']+'/merge',{'fingerprint':detail['pr']['fingerprint']});merged=hub.api('GET',base+'/pulls/'+pr['id'])
         server.wait('has a new version',120,mark);time.sleep(2)
-        check(('scheduled fetch' if args.polling else 'signed webhook')+' notice without auto apply',sample(bots[0],8)=='air' and heads()['minecraft.overworld']!=merged['pr']['commits']['minecraft:overworld'],notification=True)
+        check(('scheduled fetch' if args.polling else 'signed webhook')+' notice without auto apply',sample(bots[0],8)=='air' and heads()['minecraft:overworld']!=merged['pr']['commits']['minecraft:overworld'],notification=True)
         cmd('wg pr list',r'PR #1|Error:');cmd('wg pr view 1',r'Approvals|approvals|Error:')
         code,preview=pull(False);check('preview unchanged',sample(bots[0],8)=='air' and 'FF' in preview)
         cmd('wg pull confirm '+code,r'Merge operation complete|Error:|PARTIAL');time.sleep(2)
-        check('confirmed live FF equals Hub group',sample(bots[0],8)=='diamond_block' and {k.replace('.',':',1):v for k,v in heads().items()}==merged['pr']['commits'])
+        for dimension in DIMENSIONS[1:]:move(dimension);pull()
+        move('minecraft:overworld')
+        check('confirmed live FF equals Hub group',sample(bots[0],8)=='diamond_block' and heads()==merged['pr']['commits'],local=heads(),remote=merged['pr']['commits'])
         # 舊預覽的遠端 lease 拒絕；先暫時移除 branch policy，以便真 CLI 推送競爭變動。
         hub.api('DELETE',base+'/protected-branches?branch=main')
         b=clone();remote_edit(b,2,'emerald_block');cli(b,'commit','-m','remote v2');cli(b,'push')
@@ -135,9 +154,11 @@ def run(args):
         code,out=pull(False);check('three way conflict preview','3-way' in out and '1 conflict' in out and '1 affected chunks' in out)
         out=cmd('wg pull confirm '+code,r'Merge operation complete|Error:|PARTIAL');check('pull enters MERGING','MERGING' in out)
         cmd('wg conflict-select all theirs',r'Merge operation complete|Error:');time.sleep(.5);check('conflict-select changes exact atom',sample(bots[0],4)=='diamond_block')
-        cmd('wg resolve all theirs',r'Merge operation complete|Error:');cmd('wg merge --continue',r'Merge operation complete|Error:');cmd('wg push',r'push complete|Error:')
-        cli(b,'fetch')
-        cli(b,'pull');check('resolved push equals clone',cli(b,'verify')['state']=='COMPLETE')
+        cmd('wg resolve all theirs',r'Merge operation complete|Error:');cmd('wg merge --continue',r'Merge operation complete|Error:')
+        for dimension in DIMENSIONS:move(dimension);cmd('wg push',r'push complete|Error:')
+        move('minecraft:overworld')
+        cli(b,'fetch','--all')
+        cli(b,'pull','--all');check('resolved push equals clone',heads()==world_heads(b,args.version) and bool(verify_all(cli,b)))
         # HTML/MiniMessage 注入純文字留言 + 範圍釘選；viewer 不能看見任何 display。
         server.cmd('deop WgBot2',r'no longer a server operator');denied=botcmd(bots[1],'comments show 1',r'permission');check('non op comment permission denied','permission' in denied)
         body='<red><click:run_command:/op bad><script>alert(1)</script> literal §c color'
@@ -165,7 +186,7 @@ def run(args):
         check('logout removes entities and preserves viewer privacy',bots[1].ask('entities','entities')['displays']==0 and 'entities=0' in server.cmd('wg debug comment-displays 0 0',r'WGCOMMENTS'))
         # 錯誤 PAT／不可達仍由背景 queue 處理；probe 測 tick。
         # 前一步真的登出了原玩家；重新登入後，繼續以真玩家驗網路錯誤。
-        bots[0]=server.bot('WgBot');server.cmd('gamemode creative WgBot')
+        bots[0]=server.bot('WgBot');remote_bots['minecraft:overworld']=bots[0];move('minecraft:overworld');server.cmd('gamemode creative WgBot')
         server.cmd('wg debug probe start',r'probe 開始')
         cred.write_text('credentials:\n  '+hub.base+':\n    mode: bearer\n    token: invalid-pat\n');cred.chmod(0o600)
         out=cmd('wg fetch',r'Hub 401|Hub 404|Error:',False);check('bad PAT safe clear failure','401' in out and TOKEN not in out)
@@ -181,7 +202,21 @@ def run(args):
           try:
             server.stop();result['server_exit']=server.proc.returncode if server.proc else None
             if result['success']:
-              verify=cli(server.world,'verify');check('final offline verify zero differences',verify['state']=='COMPLETE',verify=verify)
+              try:
+                verify=verify_all(cli,server.world);check('final offline verify zero differences',len(verify)==3,verify=verify)
+              except BaseException:
+                result['verification_error']=traceback.format_exc();result['success']=False
+            if not result['success']:
+              difference=cli(server.world,'diff','--blocks')
+              (work/'final-difference.json').write_text(json.dumps(difference,ensure_ascii=False,indent=2)+'\n')
+              result['final_difference_path']=str((work/'final-difference.json').relative_to(ROOT))
+              for dimension,changes in difference.items():
+                for change in changes.get('metadata',[]):
+                  for side in ['beforeId','afterId']:
+                    oid=change.get(side)
+                    if oid:
+                      blob=subprocess.check_output(['git','--git-dir',str(repository(server.world,dimension,args.version,paper=True)),'cat-file','blob',oid])
+                      (work/(oid+'.blob')).write_bytes(blob)
             result['problems']=[l for l in server.lines_since() if re.search(r'\bERROR\b|Exception|thread check',l)]
           except BaseException:result['cleanup_error']=traceback.format_exc();result['success']=False
           shutil.rmtree(server.dir,ignore_errors=True)

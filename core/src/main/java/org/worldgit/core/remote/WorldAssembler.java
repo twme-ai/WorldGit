@@ -37,6 +37,7 @@ public final class WorldAssembler {
   }
 
   private void check(long n) throws IOException {
+    org.worldgit.core.operation.OperationProgress.report(null, "assemble", bytes, null, org.worldgit.core.operation.OperationProgress.Unit.BYTES);
     bytes += n;
     if (bytes > budget.maxBytes()) throw new IOException("世界組裝超過大小預算");
     if (System.nanoTime() - start > budget.maxTime().toNanos()) throw new IOException("世界組裝超過時間預算");
@@ -100,6 +101,12 @@ public final class WorldAssembler {
             == null) throw new IOException("快照缺少主世界生成設定");
     Files.createDirectories(world);
     gzip(world.resolve("level.dat"), new Nbt.Compound().with("Data", data));
+    // Paper 1.21.11 只有看見原版 DIM 目錄才搬移主世界 level.dat 的生成／DragonFight 設定。
+    // 未選取的維度留空目錄，避免首次開服重新隨機生成設定；不建立地形或 repo。
+    if (version < 4903) {
+      Files.createDirectories(world.resolve("DIM-1"));
+      Files.createDirectories(world.resolve("DIM1"));
+    }
     var metadataIds = new TreeSet<>(commits.keySet());
     var manifest = TreeEditor.find(objects, main.tree(), "dimensions");
     if (manifest != null) {
@@ -114,6 +121,7 @@ public final class WorldAssembler {
         objects.readTree(TreeEditor.find(objects, main.tree(), "world-meta").id()).values()) {
       check(0);
       if (e.name().equals("worldgit.yml") || e.name().equals("level.nbt")) continue;
+      if (!ApplyPlanner.ownsMetadata(DimensionId.OVERWORLD, e.name())) continue;
       byte[] raw = objects.readBlob(e.id());
       String name = e.name();
       if (name.startsWith("asset.")) {
@@ -130,14 +138,17 @@ public final class WorldAssembler {
         if (!path.startsWith("datapacks/")
             || path.contains("../")
             || path.contains("\\")
-            || !target.startsWith(world.resolve("datapacks"))) throw new IOException("資料包路徑穿越");
+            || !target.startsWith(world.resolve("datapacks")) || WorldLayout.excluded(Path.of(path))) throw new IOException("資料包路徑穿越");
         check(raw.length);
         RegionFile.atomicWrite(target, raw);
         continue;
       }
       Path target = null;
+      if (name.startsWith("saved.") && name.endsWith(".nbt")) target = SavedData.path(world, name.substring(6, name.length() - 4));
       for (var id : metadataIds) {
         String prefix = id.directoryName() + ".";
+        if (name.startsWith(prefix + "saved.") && name.endsWith(".nbt"))
+          target = SavedData.path(dimensionPath(world, id, version), name.substring(prefix.length()+6, name.length()-4));
         if (name.startsWith(prefix)
             && Set.of("game_rules.dat.nbt", "world_border.dat.nbt", "world_gen_settings.dat.nbt")
                 .contains(name.substring(prefix.length())))
@@ -164,7 +175,7 @@ public final class WorldAssembler {
                 .resolve(version >= 4903 ? "data/minecraft" : "data")
                 .resolve(name.substring(0, name.length() - 4));
       if (target == null) throw new IOException("不支援的世界 metadata：" + name);
-      gzip(target, Nbt.read(raw));
+      gzip(target, SavedData.materialize(target, Nbt.read(raw), new Nbt.Compound()));
       if (version >= 4903 && name.startsWith(DimensionId.OVERWORLD.directoryName() + ".")) {
         String suffix = name.substring(DimensionId.OVERWORLD.directoryName().length() + 1);
         if (Set.of("game_rules.dat.nbt", "world_border.dat.nbt", "world_gen_settings.dat.nbt")
@@ -189,6 +200,19 @@ public final class WorldAssembler {
       for (var id : included) {
         var commit = commits.get(id);
         var store = group.repos().get(id).objects();
+        var metadata = TreeEditor.find(store, commit.tree(), "dimension-meta");
+        if (metadata != null) for (var file : store.readTree(metadata.id()).values()) {
+          String prefix = id.directoryName() + ".";
+          if (file.name().startsWith(prefix + "saved.") && file.name().endsWith(".nbt")) {
+            Path target = SavedData.path(dimensionPath(world, id, version), file.name().substring(prefix.length() + 6, file.name().length() - 4));
+            gzip(target, SavedData.materialize(target, Nbt.read(store.readBlob(file.id())), new Nbt.Compound()));
+            continue;
+          }
+          if (!file.name().startsWith(prefix) || !Set.of("game_rules.dat.nbt", "world_border.dat.nbt", "world_gen_settings.dat.nbt").contains(file.name().substring(prefix.length())))
+            throw new IOException("dimension-meta 名稱無效");
+          String name = file.name().substring(prefix.length(), file.name().length() - 4);
+          gzip(dimensionPath(world, id, version).resolve("data/minecraft/" + name), Nbt.read(store.readBlob(file.id())));
+        }
         DataVersions.requireSame(version, commit.metadata().mcDataVersion());
         for (var region : store.readTree(commit.tree()).values())
           if (region.name().matches("r\\.-?\\d+\\.-?\\d+")
@@ -259,6 +283,7 @@ public final class WorldAssembler {
                 private void reserve(int n) throws IOException {
                   emitted += n;
                   check(0);
+                  org.worldgit.core.operation.OperationProgress.report(null, "zip", emitted, null, org.worldgit.core.operation.OperationProgress.Unit.BYTES);
                   if (emitted > budget.maxBytes()) throw new IOException("ZIP 輸出超過大小預算");
                 }
 
@@ -284,7 +309,7 @@ public final class WorldAssembler {
           for (Path path : files.filter(p -> !p.equals(temp)).sorted().toList()) {
             check(0);
             String name = temp.relativize(path).toString().replace(java.io.File.separatorChar, '/');
-            if (name.equals("session.lock")) continue;
+            if (name.equals("session.lock") || WorldLayout.excluded(Path.of(name))) continue;
             // 空維度也必須保留；遊戲需辨識它並沿用 level.dat 的生成／終界設定。
             if (Files.isDirectory(path)) name += "/";
             var entry = new ZipEntry(name);

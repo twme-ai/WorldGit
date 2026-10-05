@@ -76,7 +76,7 @@ class HubIntegrationTest {
     copy(root.resolve("core/src/test/resources/fixtures/26.2"), work.resolve("world"));
     repos = new WorldRepositories(WorldLayout.discover(work.resolve("world")));
     var author = new CommitMetadata.Identity("tester", "tester@example.test");
-    assertTrue(repos.init(null, "creative", WorldGitConfig.Track.ALL, author).success());
+    assertTrue(repos.initAll("creative", WorldGitConfig.Track.ALL, author, WorldGitConfig.Entities.ALL).success());
   }
 
   @AfterAll
@@ -137,9 +137,8 @@ class HubIntegrationTest {
     // 補推其他維度 → 完整
     for (var d : repos.tracked().keySet()) if (!d.equals(DimensionId.OVERWORLD)) push(d, "e2e", TOKEN);
     snaps = json("/api/v1/worlds/admin/e2e/snapshots", TOKEN).get("snapshots");
-    assertEquals(1, snaps.size());
-    assertFalse(snaps.get(0).get("partial").asBoolean());
-    assertEquals(3, snaps.get(0).get("commits").size(), "同一次存檔合併成一列");
+    assertEquals(3, snaps.size());
+    for (var row : snaps) { assertFalse(row.get("partial").asBoolean()); assertEquals(1,row.get("commits").size(),"每維度獨立歷史保留現有列顯示"); }
 
     // 私人世界：匿名不可讀
     int anon = get("/api/v1/worlds/admin/e2e/snapshots", null).statusCode();

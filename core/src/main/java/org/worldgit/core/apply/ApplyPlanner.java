@@ -194,18 +194,21 @@ public final class ApplyPlanner {
 
     var meta = new TreeMap<String, byte[]>();
     if (options.worldMeta) {
-      var w = rootWorking.get("world-meta");
-      var t = rootTarget.get("world-meta");
+      String metadataTree = dimension.equals(DimensionId.OVERWORLD) ? "world-meta" : "dimension-meta";
+      var w = rootWorking.get(metadataTree);
+      var t = rootTarget.get(metadataTree);
       if (t != null && (w == null || !w.id().equals(t.id()))) {
         var wf = w == null ? Map.<String, ObjectStore.Entry>of() : store.readTree(w.id());
         var tf = store.readTree(t.id());
         for (var e : tf.values()) {
           if (e.kind() != ObjectStore.Kind.BLOB || e.name().equals("worldgit.yml")) continue;
+          if (!ownsMetadata(dimension, e.name())) continue;
           var old = wf.get(e.name());
           if (old == null || !old.id().equals(e.id())) meta.put(e.name(), store.readBlob(e.id()));
         }
         for (var e : wf.values())
           if (!tf.containsKey(e.name()) && !e.name().equals("worldgit.yml")
+              && ownsMetadata(dimension, e.name())
               && !MetadataNormalizer.normalize(Map.of(e.name(), store.readBlob(e.id())), options.targetRules).isEmpty())
             meta.put(e.name(), null);
       }
@@ -215,6 +218,14 @@ public final class ApplyPlanner {
   }
 
   private record DiffPlaced(ChunkPos chunk, EntitySnapshot entity) {}
+
+  /** 舊主世界 tree 可能帶有其他維度的 saved-data；讀舊歷史時仍遵守新的所有權。 */
+  public static boolean ownsMetadata(DimensionId dimension, String name) {
+    if (!dimension.equals(DimensionId.OVERWORLD)) return name.startsWith(dimension.directoryName() + ".");
+    if (name.startsWith("saved.")) return true;
+    return !name.matches("[^.]+\\.[^.]+\\.(?:game_rules|world_border|world_gen_settings)\\.dat\\.nbt")
+        || name.startsWith(DimensionId.OVERWORLD.directoryName() + ".");
+  }
 
   private static boolean inScope(Scope scope, EntitySnapshot e) {
     double[] p = e.position();

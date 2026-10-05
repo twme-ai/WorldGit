@@ -35,12 +35,16 @@ final class Phase2ClientGameTest {
             server.runCommand("tp @p 7 -57 -4 0 27");
             ctx.waitTicks(240);
             server.runCommand("tick freeze");
-            server.runCommand("execute in minecraft:the_nether run forceload add 0 0");
-            for(int i=0;i<600;i++) {
-                if(server.computeOnServer(s->s.getLevel(net.minecraft.world.level.Level.NETHER).getChunkSource().getChunkNow(0,0)!=null)) break;
-                ctx.waitTick();
+            for(var dimension:List.of(net.minecraft.world.level.Level.NETHER,net.minecraft.world.level.Level.END)) {
+                String name=dimension.equals(net.minecraft.world.level.Level.NETHER)?"minecraft:the_nether":"minecraft:the_end";
+                server.runCommand("execute in "+name+" run forceload add 0 0");
+                for(int i=0;i<600;i++) {
+                    if(server.computeOnServer(s->s.getLevel(dimension).getChunkSource().getChunkNow(0,0)!=null)) break;
+                    ctx.waitTick();
+                }
+                check(server.computeOnServer(s->s.getLevel(dimension).getChunkSource().getChunkNow(0,0)!=null),name+" 測試 chunk 未載入");
             }
-            check(server.computeOnServer(s->s.getLevel(net.minecraft.world.level.Level.NETHER).getChunkSource().getChunkNow(0,0)!=null),"地獄測試 chunk 未載入");
+            ctx.waitTicks(100);
             server.runCommand("setblock 3 -60 3 minecraft:stone");
             server.runCommand("setblock 5 -60 5 minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]");
             server.runCommand("setblock 7 -60 7 minecraft:glowstone");
@@ -54,7 +58,8 @@ final class Phase2ClientGameTest {
             ctx.waitFor(c->ClientRuntime.get().handshaken(),600);
             server.runCommand("wg init"); awaitCommits(ctx,server,1);
             command(ctx,server,"wg branch A");
-            var a=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),1800).getFirst().commits().get(DimensionId.OVERWORLD);
+            for(var dimension:List.of("minecraft:the_nether","minecraft:the_end")) commandIn(ctx,server,dimension,"wg branch A");
+            var a=head(ctx,server);
             log("A="+a);
 
             // B: remove/add/modify, chest inventory, UUID movement, biome, POI, adjacent chunk.
@@ -72,7 +77,8 @@ final class Phase2ClientGameTest {
             server.runCommand("execute in minecraft:the_nether as @e[tag=cross_dimension] in minecraft:overworld run tp @s 26 -60 10");
             server.runCommand("wg commit -m Phase2-B"); awaitCommits(ctx,server,2);
             command(ctx,server,"wg branch B");
-            var b=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),1800).getFirst().commits().get(DimensionId.OVERWORLD);
+            for(var dimension:List.of("minecraft:the_nether","minecraft:the_end")) commandIn(ctx,server,dimension,"wg branch B");
+            var b=head(ctx,server);
             log("B="+b);
             var verifyBefore=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(ops->ops.verify("B",null,Scope.all(),true))),2400);
             check(verifyBefore.success(),"B commit 與世界不符："+verifyBefore);
@@ -126,10 +132,13 @@ final class Phase2ClientGameTest {
                 return before==p.getHealth() && p.position().equals(at);
             });
             check(protectedPlayer,"玩家保護失敗");
+            // 主世界保護檢查完成，再測地獄；另一個操作可能超過十秒的保護期限。
+            server.computeOnServer(s->s.getPlayerList().getPlayers().getFirst().setGameMode(net.minecraft.world.level.GameType.CREATIVE));
             var lighting=server.computeOnServer(s->s.overworld().getBrightness(LightLayer.BLOCK,new BlockPos(7,-60,7)));
             check(lighting>0,"glowstone 光照未重算");
             check(server.computeOnServer(s->s.overworld().getPoiManager().getType(new BlockPos(11,-60,7)).isPresent()
                 && s.overworld().getPoiManager().getType(new BlockPos(12,-60,7)).isEmpty()),"POI 未移除／重建");
+            commandIn(ctx,server,"minecraft:the_nether","wg switch A");
             check(server.computeOnServer(s->s.getLevel(net.minecraft.world.level.Level.NETHER).getBlockState(new BlockPos(0,64,0)).is(net.minecraft.world.level.block.Blocks.GLOWSTONE)),"地獄 section 未還原");
             check(server.computeOnServer(s->{long count=0;for(var e:s.overworld().getAllEntities()) if(e.getUUID().equals(ENTITY)) count++;return count;})==1,"實體重複／遺失");
             check(server.computeOnServer(s->{long count=0;for(var level:s.getAllLevels()) for(var e:level.getAllEntities()) if(e.getUUID().equals(new UUID(0x54b9500000000000L,2))) count++;return count;})==1,"跨維度實體重複／遺失");
@@ -141,7 +150,7 @@ final class Phase2ClientGameTest {
             server.runCommand("gamemode creative @p"); server.runCommand("tp @p 7 -57 -4 0 27");
             ctx.waitTicks(20); ctx.takeScreenshot("phase2-02-switch-A");
 
-            command(ctx,server,"wg switch B");
+            commandIn(ctx,server,"minecraft:the_nether","wg switch B"); command(ctx,server,"wg switch B");
             server.runCommand("tp @p 7 -57 3 0 27"); // center chunk 0,0
             var dry=(WorldOperations.Result)command(ctx,server,"wg restore A --chunks 0 --dry-run");
             check(dry.state()==WorldOperations.State.DRY_RUN,"dry-run 寫回");
@@ -165,7 +174,8 @@ final class Phase2ClientGameTest {
             server.runCommand("setblock 3 -60 3 minecraft:lapis_block");
             var stashedSwitch=(WorldOperations.Result)command(ctx,server,"wg switch A --stash");
             check(stashedSwitch.success(),"switch --stash 失敗");
-            command(ctx,server,"wg switch B");
+            commandIn(ctx,server,"minecraft:the_nether","wg switch A");
+            commandIn(ctx,server,"minecraft:the_nether","wg switch B"); command(ctx,server,"wg switch B");
             check(((WorldOperations.Result)command(ctx,server,"wg stash pop")).success(),"switch stash pop 失敗");
             command(ctx,server,"wg reset --hard");
             server.runCommand("setblock 3 -60 3 minecraft:lapis_block");
@@ -191,6 +201,7 @@ final class Phase2ClientGameTest {
             check(head(ctx,server).equals(b),"取消移動 HEAD");
             var recovered=(WorldOperations.Result)command(ctx,server,"wg switch A --force");
             check(recovered.success(),"PARTIAL 無法恢復："+recovered);
+            commandIn(ctx,server,"minecraft:the_nether","wg switch A");
             compareBlocks(ctx,server,0,47,-61,-45,0,15);
             log("cancel-partial=true recovered=true");
             checkpoint(server,"A-recovered");
@@ -206,7 +217,7 @@ final class Phase2ClientGameTest {
         log("DONE");
     }
     private static String head(ClientGameTestContext ctx,TestServerContext server) {
-        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(1)),2400).getFirst().commits().get(DimensionId.OVERWORLD);
+        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),2400).stream().filter(row->row.commits().containsKey(DimensionId.OVERWORLD)).findFirst().orElseThrow().commits().get(DimensionId.OVERWORLD);
     }
     private static String block(TestServerContext server,int x,int y,int z) { return server.computeOnServer(s->s.overworld().getBlockState(new BlockPos(x,y,z)).toString()); }
     private static ClientRuntime.Summary summary(ClientGameTestContext ctx) { return ctx.computeOnClient(c->ClientRuntime.get().summary()); }
@@ -220,6 +231,17 @@ final class Phase2ClientGameTest {
         send(ctx,command); var future=waitNewOperation(ctx,server,previous); var result=await(ctx,future,3600);
         if(result instanceof WorldOperations.Result r) check(r.success(),command+": "+r);
         log("command="+command+" result="+result); return result;
+    }
+    private static Object commandIn(ClientGameTestContext ctx,TestServerContext server,String dimension,String command) {
+        // 真指令明確設定維度；先移除 UUID 的來源，再切目的維度，保留唯一性。
+        var primary=head(ctx,server);
+        var previous=server.computeOnServer(s->WorldGitMod.runtime(s).lastOperation());
+        server.runCommand("execute in "+dimension+" run "+command);
+        var result=await(ctx,waitNewOperation(ctx,server,previous),3600);
+        if(result instanceof WorldOperations.Result r) check(r.success(),command+": "+r);
+        check(head(ctx,server).equals(primary),"地獄操作移動了主世界 HEAD："+command);
+        log("dimension="+dimension+" command="+command+" result="+result);
+        return result;
     }
     private static CompletableFuture<?> waitNewOperation(ClientGameTestContext ctx,TestServerContext server,CompletableFuture<?> previous) {
         for(int i=0;i<2400;i++) { var next=server.computeOnServer(s->WorldGitMod.runtime(s).lastOperation());if(next!=null && next!=previous)return next;ctx.waitTick(); }
@@ -250,7 +272,7 @@ final class Phase2ClientGameTest {
         for(int i=0;i<ticks && !future.isDone();i++)ctx.waitTick();check(future.isDone(),"操作逾時");return future.join();
     }
     private static void awaitCommits(ClientGameTestContext ctx,TestServerContext server,int count) {
-        for(int i=0;i<180;i++) {try {if(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),600).size()>=count)return;}catch(CompletionException notYet){}ctx.waitTicks(10);}throw new AssertionError("commit 逾時");
+        for(int i=0;i<180;i++) {try {if(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),600).stream().filter(row->row.commits().containsKey(DimensionId.OVERWORLD)).count()>=count)return;}catch(CompletionException notYet){}ctx.waitTicks(10);}throw new AssertionError("commit 逾時");
     }
     private static void check(boolean ok,String message) { if(!ok) throw new AssertionError(message); }
     private static void log(String message) { WorldGitClientGameTest.LOG.info("WGTEST2 {}",message); }

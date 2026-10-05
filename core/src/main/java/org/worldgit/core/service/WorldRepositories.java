@@ -9,7 +9,7 @@ import org.worldgit.core.config.*;
 import org.worldgit.core.model.*;
 import org.worldgit.core.store.*;
 
-/** 世界是一組 repo；共用 snapshot id，逐維度回報成功、無變動及失敗，保留已成功的 commit。 */
+/** 各維度 repo 獨立；批次 id 僅用於回報，保留每個維度已成功的 commit。 */
 public final class WorldRepositories {
   public record Outcome<T>(T value, String error) {
     public boolean success() {
@@ -54,10 +54,21 @@ public final class WorldRepositories {
         .dimensions()
         .forEach(
             (id, dim) -> {
-              Path path = root().resolve(id.directoryName());
+              Path path = layout.repository(id);
+              if (!Files.isRegularFile(path.resolve("HEAD")))
+                for (Path legacy : layout.legacyRepositories(id))
+                  if (Files.isRegularFile(legacy.resolve("HEAD"))) { path = legacy; break; }
               if (Files.isRegularFile(path.resolve("HEAD"))) result.put(id, path);
             });
     return result;
+  }
+
+  public record Initializable(DimensionId dimension, Path directory, Path repository, boolean initialized) {}
+
+  public List<Initializable> initializable() {
+    var tracked = tracked();
+    return layout.dimensions().values().stream().map(d ->
+        new Initializable(d.id(), d.directory(), layout.repository(d.id()), tracked.containsKey(d.id()))).toList();
   }
 
   public Map<DimensionId, String> manifest() throws IOException {
@@ -77,19 +88,21 @@ public final class WorldRepositories {
       return result;
     }
     var m = new TreeMap<DimensionId, String>();
-    tracked()
-        .forEach(
-            (id, p) -> {
-              if (!id.equals(DimensionId.OVERWORLD)) m.put(id, "../" + id.directoryName());
-            });
+    // 宣告可發現的維度，不表示它已 init，也不要求相同分支／snapshot。
+    // 主世界先 init、其他維度稍後 init/push 時，不必再修改主世界歷史才能 clone。
+    layout.dimensions().keySet().forEach(id -> {
+      if (!id.equals(DimensionId.OVERWORLD)) m.put(id, "../" + id.directoryName());
+    });
     return m;
   }
 
   private SortedMap<DimensionId, Path> select(DimensionId selected, boolean init)
       throws IOException {
     var result = init ? new TreeMap<DimensionId, Path>() : tracked();
-    if (init)
-      layout.dimensions().forEach((id, d) -> result.put(id, root().resolve(id.directoryName())));
+    if (init) {
+      var existing = tracked();
+      layout.dimensions().forEach((id, d) -> result.put(id, existing.getOrDefault(id, layout.repository(id))));
+    }
     if (selected != null) {
       Path path = result.get(selected);
       if (path == null) throw new IOException("找不到" + (init ? "" : "已 init 的") + "維度：" + selected);
@@ -106,9 +119,27 @@ public final class WorldRepositories {
       WorldGitConfig.Track track,
       CommitMetadata.Identity author)
       throws IOException {
+    return initDimensions(Set.of(selected == null ? layout.currentDimension() : selected), template, track, author);
+  }
+
+  public Batch<DimensionRepository.CommitResult> initAll(String template, WorldGitConfig.Track track, CommitMetadata.Identity author) throws IOException {
+    return initDimensions(layout.dimensions().keySet(), template, track, author);
+  }
+
+  public Batch<DimensionRepository.CommitResult> initAll(String template, WorldGitConfig.Track track, CommitMetadata.Identity author, WorldGitConfig.Entities entities) throws IOException {
+    for (var dimension : layout.dimensions().keySet()) {
+      Path path = layout.repository(dimension);
+      if (Files.exists(path.resolve("HEAD"))) throw new IOException("維度已 init：" + dimension);
+      WorldGitConfig.write(path.resolve("worldgit-repo.yml"), WorldGitConfig.write(new WorldGitConfig.Repo(track, entities)));
+    }
+    return initAll(template, track, author);
+  }
+
+  public Batch<DimensionRepository.CommitResult> initDimensions(Collection<DimensionId> dimensions, String template, WorldGitConfig.Track track, CommitMetadata.Identity author) throws IOException {
     UUID snapshot = UUID.randomUUID();
     var result = new TreeMap<DimensionId, Outcome<DimensionRepository.CommitResult>>();
-    var selectedRepos = select(selected, true);
+    var selectedRepos = new TreeMap<DimensionId, Path>();
+    for (var id : dimensions) selectedRepos.putAll(select(id, true));
     // 先建立所有 bare repo，讓主世界的 dimensions 清單完整。
     for (var e : selectedRepos.entrySet())
       try (var repo = new DimensionRepository(e.getValue(), e.getKey(), true)) {
@@ -120,12 +151,12 @@ public final class WorldRepositories {
       if (!result.containsKey(e.getKey()))
         try (var repo = new DimensionRepository(e.getValue(), e.getKey(), false);
             var source = sourceFactory.apply(layout.dimensions().get(e.getKey()))) {
-          var m = metadata(author, "初始化世界", snapshot, e.getKey(), false, List.of());
+          var m = metadata(author, "初始化世界", UUID.randomUUID(), e.getKey(), false, List.of());
           result.put(e.getKey(), new Outcome<>(repo.commit(source, manifest(), m, 2), null));
         } catch (Exception ex) {
           result.put(e.getKey(), new Outcome<>(null, error(ex)));
         }
-    recordGroup(snapshot, result);
+
     return new Batch<>(snapshot, result);
   }
 
@@ -143,30 +174,14 @@ public final class WorldRepositories {
                 repo.commit(
                     source,
                     manifest(),
-                    metadata(author, message, snapshot, e.getKey(), false, List.of()),
+                    metadata(author, message, UUID.randomUUID(), e.getKey(), false, List.of()),
                     tolerance),
                 null));
       } catch (Exception ex) {
         result.put(e.getKey(), new Outcome<>(null, error(ex)));
       }
-    recordGroup(snapshot, result);
-    return new Batch<>(snapshot, result);
-  }
 
-  /** 沒改變的維度也記下同一次 snapshot 的 HEAD，讓 hash 入口可精確配對。 */
-  private void recordGroup(
-      UUID snapshot, SortedMap<DimensionId, Outcome<DimensionRepository.CommitResult>> result) {
-    for (var entry : result.entrySet())
-      if (entry.getValue().success()) {
-        try (var repo =
-            new DimensionRepository(
-                root().resolve(entry.getKey().directoryName()), entry.getKey(), false)) {
-          String head = repo.refs().head();
-          if (head != null) repo.refs().updateRef("refs/worldgit/groups/" + snapshot, null, head);
-        } catch (IOException ex) {
-          result.put(entry.getKey(), new Outcome<>(entry.getValue().value(), error(ex)));
-        }
-      }
+    return new Batch<>(snapshot, result);
   }
 
   public Batch<DimensionRepository.Status> status(

@@ -38,7 +38,7 @@ public final class Phase2AcceptanceTool {
   }
   public static void roundtrip(WorldLayout layout) throws Exception {
     var worlds=new WorldRepositories(layout);
-    check(worlds.init(null,"creative",WorldGitConfig.Track.ALL,AUTHOR).success(),"init");
+    check(worlds.initAll("creative", WorldGitConfig.Track.ALL, AUTHOR, WorldGitConfig.Entities.ALL).success(),"init");
     try(var ops=new WorldOperations(layout)) { ops.createBranch("A",null); }
     mutate(layout,14);
     check(worlds.commit(null,"B: blocks/BE/entity/cross-chunk",AUTHOR,2).success(),"commit B");
@@ -188,7 +188,7 @@ public final class Phase2AcceptanceTool {
     for(String key:List.of("spawn_mobs","advance_time","advance_weather")) rules.put("minecraft:"+key,(byte)0);
   }
   static void benchmarkPrepare(WorldLayout layout) throws Exception {
-    var worlds=new WorldRepositories(layout);check(worlds.init(null,"creative",WorldGitConfig.Track.ALL,AUTHOR).success(),"bench init");
+    var worlds=new WorldRepositories(layout);check(worlds.initAll("creative", WorldGitConfig.Track.ALL, AUTHOR, WorldGitConfig.Entities.ALL).success(),"bench init");
     try(var ops=new WorldOperations(layout)) { ops.createBranch("A",null); }
     var dim=layout.dimensions().get(DimensionId.OVERWORLD);int count=0;
     for(Path path:RegionFile.list(dim.region())) try(var writer=new RegionWriter(path)) {

@@ -1,6 +1,6 @@
 plugins { application }
 dependencies {
-    implementation(project(":core")); implementation(project(":platform-api")); implementation(project(":protocol"))
+    implementation(project(":core")); implementation(project(":platform-api")); implementation(project(":protocol")); implementation(project(":i18n"))
     implementation(libs.picocli); implementation(libs.jackson); runtimeOnly(libs.slf4j.nop)
 }
 application { mainClass.set("org.worldgit.cli.Wgit") }

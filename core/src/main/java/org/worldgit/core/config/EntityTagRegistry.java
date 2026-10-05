@@ -70,7 +70,9 @@ public final class EntityTagRegistry implements EntitySemantics {
       throws IOException {
     var definitions = new TreeMap<String, List<Value>>();
     var warnings = new ArrayList<String>();
-    var level = WorldLayout.readGzip(world.resolve("level.dat")).compound("Data");
+    boolean standalone = !Files.isRegularFile(world.resolve("level.dat"));
+    var level = standalone ? new Nbt.Compound() : WorldLayout.readGzip(world.resolve("level.dat")).compound("Data");
+    if (standalone) warnings.add("獨立維度沒有主世界資料包；使用內建 entity tags，未知自訂 tag 會拒絕操作。");
     var datapacks = level.compound("DataPacks");
     if (datapacks.containsKey("Enabled") && !(datapacks.get("Enabled") instanceof Nbt.ListTag))
       throw new IOException("DataPacks.Enabled 必須是字串清單");

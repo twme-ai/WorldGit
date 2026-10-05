@@ -10,12 +10,12 @@ import org.worldgit.core.store.*;
 /** 沒有世界資料夾也可使用的維度組鎖、revision 與 tag 入口。 */
 public final class RepositoryGroup implements AutoCloseable {
   private final Path root;
-  private final RepoLock lock;
+  private final boolean owner;
   private final SortedMap<DimensionId, DimensionRepository> repos = new TreeMap<>();
 
   public RepositoryGroup(Path root, Map<DimensionId, Path> paths) throws IOException {
-    this.root = root;
-    lock = RepoLock.acquire(root);
+    this.root = paths.size() == 1 ? paths.values().iterator().next() : root;
+    owner = true;
     try {
       for (var e : new TreeMap<>(paths).entrySet())
         repos.put(e.getKey(), new DimensionRepository(e.getValue(), e.getKey(), false));
@@ -28,7 +28,7 @@ public final class RepositoryGroup implements AutoCloseable {
       throw new IOException("世界沒有 repo");
     }
     try {
-      recoverTags();
+      if (repos.size() == 1) recoverTags();
     } catch (IOException ex) {
       close();
       throw ex;
@@ -51,59 +51,23 @@ public final class RepositoryGroup implements AutoCloseable {
 
   public SortedMap<DimensionId, RefStore.Commit> resolve(String revision) throws IOException {
     var result = new TreeMap<DimensionId, RefStore.Commit>();
-    boolean branch =
-        repos.values().stream()
-            .anyMatch(
-                r -> {
-                  try {
-                    return r.refs().branches().containsKey(revision);
-                  } catch (IOException e) {
-                    return false;
-                  }
-                });
-    if (branch
-        || revision.equals("HEAD")
-        || revision.startsWith("refs/remotes/")
-        || tags().contains(revision)) {
-      for (var e : repos.entrySet())
-        result.put(
-            e.getKey(), e.getValue().refs().readCommit(e.getValue().refs().resolve(revision)));
-      validate(result);
-      return result;
-    }
-    var anchor =
-        repos.containsKey(DimensionId.OVERWORLD) ? DimensionId.OVERWORLD : repos.firstKey();
-    var ref = repos.get(anchor).refs();
-    RefStore.Commit c;
-    try {
-      c = ref.readCommit(ref.resolve(revision));
-    } catch (IOException missing) {
-      c = null;
-      for (var entry : repos.entrySet())
-        try {
-          var other = entry.getValue().refs();
-          c = other.readCommit(other.resolve(revision));
-          anchor = entry.getKey();
-          break;
-        } catch (IOException absent) {
-        }
-      if (c == null) throw missing;
-    }
     for (var e : repos.entrySet()) {
-      var other = e.getValue().refs();
-      String id =
-          e.getKey().equals(anchor)
-              ? c.id()
-              : other.resolve("refs/worldgit/groups/" + c.metadata().snapshot());
-      result.put(e.getKey(), other.readCommit(id));
+      var refs = e.getValue().refs();
+      result.put(e.getKey(), refs.readCommit(refs.resolve(revision)));
     }
-    validate(result);
-    return result;
+    validate(result); return result;
   }
+
+  private RepositoryGroup(DimensionRepository repository) {
+    owner = false; root = repository.directory(); repos.put(repository.dimension(), repository);
+  }
+
+  RepositoryGroup dimension(DimensionId dimension) { return new RepositoryGroup(repos.get(dimension)); }
 
   public void validate(Map<DimensionId, RefStore.Commit> commits) throws IOException {
     if (!commits.keySet().equals(repos.keySet())) throw new IOException("快照必須涵蓋已開啟的維度組");
-    validateSnapshot(commits, this::groupCommit);
+    for (var e : commits.entrySet()) if (!e.getValue().metadata().dimension().equals(e.getKey()))
+      throw new IOException("commit 維度不符");
   }
 
   @FunctionalInterface
@@ -111,36 +75,15 @@ public final class RepositoryGroup implements AutoCloseable {
     String resolve(DimensionId dimension, UUID snapshot) throws IOException;
   }
 
-  /** carrier 可以是任何被修改的維度，主世界未改時不能只用其舊 UUID 配對。 */
+  /** 舊 API 的唯讀相容入口；只驗證 commit 所屬維度，UUID 不再構成約束。 */
   public static void validateSnapshot(Map<DimensionId, RefStore.Commit> commits, GroupPin pins)
       throws IOException {
     if (commits.isEmpty()) throw new IOException("快照清單不可空");
-    var anchor = commits.values().iterator().next();
-    var candidates = new HashSet<UUID>();
-    for (var e : commits.entrySet()) {
-      var c = e.getValue();
-      if (!c.metadata().dimension().equals(e.getKey())
-          || c.metadata().mcDataVersion() != anchor.metadata().mcDataVersion())
-        throw new IOException("維度或 DataVersion 不一致");
-      candidates.add(c.metadata().snapshot());
-    }
-    if (candidates.size() == 1) return;
-    for (UUID snapshot : candidates) {
-      boolean coherent = true;
-      for (var e : commits.entrySet())
-        try {
-          coherent &= e.getValue().id().equals(pins.resolve(e.getKey(), snapshot));
-        } catch (IOException absent) {
-          coherent = false;
-        }
-      if (coherent) return;
-    }
-    throw new IOException("分支不能依 snapshot group 配對；請先完成全維度 commit/push");
+    for (var e : commits.entrySet()) if (!e.getValue().metadata().dimension().equals(e.getKey()))
+      throw new IOException("commit 維度不符");
   }
 
-  private String groupCommit(DimensionId dimension, UUID snapshot) throws IOException {
-    return repos.get(dimension).refs().resolve("refs/worldgit/groups/" + snapshot);
-  }
+
 
   public SortedSet<String> tags() throws IOException {
     var names = new TreeSet<String>();
@@ -158,6 +101,11 @@ public final class RepositoryGroup implements AutoCloseable {
       boolean delete,
       boolean dryRun)
       throws IOException {
+    if (repos.size() > 1) {
+      for (var id : repos.keySet()) dimension(id).tag(name, revision, message, author, delete, dryRun);
+      return;
+    }
+    for (var repo : repos.values()) repo.requireLegacyComplete();
     JGitStore.validateBranch(name);
     var targets = delete ? null : resolve(revision == null ? "HEAD" : revision);
     for (var r : repos.values()) {
@@ -207,7 +155,7 @@ public final class RepositoryGroup implements AutoCloseable {
     if (journal.isEmpty() || "COMPLETE".equals(journal.get("state"))) return;
     if (!(journal.get("changes") instanceof List<?> changes))
       throw new IOException("tag journal 無效");
-    // 先檢查全組 lease，第三方改動時不能覆寫。
+    // 先檢查 journal 中的 lease，第三方改動時不能覆寫。
     for (Object item : changes) {
       if (!(item instanceof Map<?, ?> c)) throw new IOException("tag journal 無效");
       var repo = repos.get(new DimensionId((String) c.get("dimension")));
@@ -231,6 +179,7 @@ public final class RepositoryGroup implements AutoCloseable {
 
   @Override
   public void close() throws IOException {
+    if (!owner) return;
     IOException error = null;
     for (var r : repos.values())
       try {
@@ -238,7 +187,7 @@ public final class RepositoryGroup implements AutoCloseable {
       } catch (IOException e) {
         error = e;
       }
-    lock.close();
+
     if (error != null) throw error;
   }
 }

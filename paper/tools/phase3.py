@@ -1,6 +1,7 @@
 """Phase 3 Paper／Folia：線上 merge／工具／GUI／重啟／patch／1000 chunk，有 bot。自己持 bench.lock。"""
 import glob, hashlib, json, os, re, shutil, statistics, subprocess, time, traceback
 import harness
+from cli_compat import cli_data, verify_all
 from harness import BenchLock, Server, ROOT, WORK, JAVA
 
 
@@ -26,7 +27,7 @@ def run(platform, version):
     def inspect(action,*args):
         out=subprocess.check_output([JAVA['1.21.11'],'-Xmx512m','-cp',helper+':'+cli,'MergeEvidence',action,*map(str,args)],text=True,timeout=90)
         return json.loads(out) if action in ('state','wire') else out.strip()
-    def git(*args):return subprocess.check_output(['git','--git-dir',os.path.join(s.dir,'.worldgit','world','minecraft.overworld'),*args],text=True).strip()
+    def git(*args):return subprocess.check_output(['git','--git-dir',os.path.join(s.world,'.worldgit'),*args],text=True).strip()
     def cmd(text,pattern=r'合併操作完成|Merge operation complete|錯誤|Error|PARTIAL',allow_error=False):
         out=strip(s.cmd(text,pattern,900));print(text,out[-450:],flush=True)
         if not allow_error and any(t in out for t in ('錯誤：','Error:','PARTIAL','失敗：')):raise RuntimeError(text+'\n'+out)
@@ -145,7 +146,7 @@ def run(platform, version):
             out=cmd('wg switch base --force',r'MERGING|錯誤|Error',True);check('MERGING force switch 被擋','MERGING' in out and git('rev-parse','HEAD')==ours)
             out=cmd('wg commit -m blocked',r'衝突區域未解決|unresolved|錯誤|Error',True);check('unresolved commit 被擋',git('rev-parse','HEAD')==ours)
             # 重啟：與 CLI 的清單逐欄一致，狀態／bar／outline／工具重新可用。
-            s.stop();cli_regions=json.loads(wgit(['--world',s.world,'--format=json','conflicts']));norm=lambda rs:[{'id':r['id'],'dim':r['dimension']['value'] if isinstance(r['dimension'],dict) else r['dimension'],'bounds':r['bounds'],'count':r['blockCount'],'redstone':r['redstone'],'choice':r['choice'].upper(),'atoms':r['atoms']} for r in rs];check('區域清單／bbox 與 CLI 一致',norm(cli_regions)==norm(regions),cli=cli_regions)
+            s.stop();cli_regions=cli_data(wgit(['--world',s.world,'--dimension','minecraft:overworld','--format=json','conflicts']));norm=lambda rs:[{'id':r['id'],'dim':r['dimension']['value'] if isinstance(r['dimension'],dict) else r['dimension'],'bounds':r['bounds'],'count':r['blockCount'],'redstone':r['redstone'],'choice':r['choice'].upper(),'atoms':r['atoms']} for r in rs];check('區域清單／bbox 與 CLI 一致',norm(cli_regions)==norm(regions),cli=cli_regions)
             s.start();result['console'].append(os.path.relpath(s.evidence_log,ROOT));bots=[s.bot('WgBot',mod=True),s.bot('WgBot2')];time.sleep(4);s.cmd('wg debug freeze on',r'WGFREEZE frozen')
             for bot in bots:s.cmd(f'tp {bot.name} 17.5 65 2.5');s.cmd(f'gamemode creative {bot.name}')
             time.sleep(3);wait_state('OURS',False)
@@ -210,7 +211,7 @@ def run(platform, version):
         finally:
             s.stop()
             try:
-                out=wgit(['--world',s.world,'verify','HEAD']);check('最終完整離線 verify=0','COMPLETE' in out and 'PARTIAL' not in out,output=out)
+                out=verify_all(lambda world,*words:cli_data(wgit(['--world',world,'--format=json',*words])),s.world);check('最終完整離線 verify=0',len(out)==3,output=out)
                 # all UUID including passengers; BE 在 verify 與正式快照比較範圍內。
                 raw=subprocess.check_output([JAVA[version],'-cp',cli,os.path.join(ROOT,'paper/tools/ApplyEvidence.java'),s.world,'11111111-2222-3333-4444-555555555555'],text=True);items=json.loads(raw)
                 check('實體無重複',items['duplicates']==0,inspection=items)

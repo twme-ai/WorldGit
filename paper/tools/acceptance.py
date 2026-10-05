@@ -50,7 +50,7 @@ def save():
 
 
 def repo_dir(s, dim='minecraft.overworld'):
-    return os.path.join(s.dir, '.worldgit', 'world', dim)
+    return os.path.join(s.world, '.worldgit') if dim == 'minecraft.overworld' else (os.path.join(s.world,'dimensions',*dim.split('.',1),'.worldgit') if version=='26.2' else os.path.join(s.dir,'world_nether' if dim=='minecraft.the_nether' else 'world_the_end','DIM-1' if dim=='minecraft.the_nether' else 'DIM1','.worldgit'))
 
 
 def git(s, dim, *args):
@@ -85,7 +85,7 @@ def shadow_world(s):
     else:
         for dim in ('the_nether', 'the_end', 'overworld'):
             os.makedirs(os.path.join(sh, 'world', 'dimensions', 'minecraft', dim, 'region'), exist_ok=True)
-    os.symlink(os.path.join(s.dir, '.worldgit'), os.path.join(sh, '.worldgit'))
+    os.symlink(os.path.join(s.world, '.worldgit'), os.path.join(sh, 'world', '.worldgit'))
     return os.path.join(sh, 'world')
 
 
@@ -446,6 +446,8 @@ def main():
     save()
     failed = [x['step'] for x in results['steps'] if not x['ok']]
     print('FAILED:', failed if failed else 'none')
+    if os.environ.get('WG_COMPACT_EVIDENCE') == '1':
+        shutil.rmtree(s.dir, ignore_errors=True)
     return bool(failed)
 
 

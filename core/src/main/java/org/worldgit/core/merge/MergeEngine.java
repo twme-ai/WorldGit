@@ -51,6 +51,7 @@ public final class MergeEngine {
 
   public Result merge(int distance) throws IOException {
     if (distance < 0 || distance > 16) throw new IllegalArgumentException("分群距離 k 必須為 0..16");
+    org.worldgit.core.operation.OperationProgress.report(dimension, "merge-compute", 0, null, org.worldgit.core.operation.OperationProgress.Unit.SECTION);
     String tree = mergeNode("", base, ours, theirs, ObjectStore.Kind.TREE);
     if (tree == null) tree = store.writeTree(List.of());
     tree = mergeEntities(tree);
@@ -58,6 +59,7 @@ public final class MergeEngine {
     var regions = group(distance);
     // 多格結構中只有一格衝突時，整組預設 ours，不能留下混合的門／床。
     for (var region : regions) tree = select(store, tree, ours, region);
+    tree = org.worldgit.core.capture.PlayerTouchedEntities.reconcile(store, tree, List.of(base, ours, theirs));
     var shapes = shapes(tree);
     var conflictSections = new HashSet<String>();
     for (var r : regions)
@@ -68,15 +70,18 @@ public final class MergeEngine {
     if (!shapes.isEmpty())
       warnings.add("離線保留方塊連接 state；" + shapes.size() + " 格需要線上 updateShape，伺服器載入不保證自行修正。");
     if (changedRedstone || regions.stream().anyMatch(Region::redstone)) warnings.add("含紅石元件，建議測試。");
+    org.worldgit.core.operation.OperationProgress.report(dimension, "merge-write", 1, 1L, org.worldgit.core.operation.OperationProgress.Unit.COMMIT);
     store.flush();
     return new Result(tree, new MergeReport(automatic, regions, List.of(), shapes, warnings));
   }
 
   private String treeForLookup;
   private boolean changedRedstone;
+  private long processedNodes;
 
   private String mergeNode(String path, String b, String o, String t, ObjectStore.Kind kind)
       throws IOException {
+    org.worldgit.core.operation.OperationProgress.report(dimension, "merge-compute", processedNodes++, null, org.worldgit.core.operation.OperationProgress.Unit.OBJECT);
     if (Objects.equals(o, t)) return o;
     if (Objects.equals(o, b)) return t;
     if (Objects.equals(t, b)) return o;
@@ -103,6 +108,7 @@ public final class MergeEngine {
       }
       return out.isEmpty() ? null : store.writeTree(out);
     }
+    if (path.equals(org.worldgit.core.capture.PlayerTouchedEntities.FILE)) return o != null ? o : t;
     if (path.matches("r\\.-?\\d+\\.-?\\d+/c\\.-?\\d+\\.-?\\d+/s\\.-?\\d+\\.bin")) {
       var bs = decode(b);
       var os = decode(o);
@@ -113,6 +119,7 @@ public final class MergeEngine {
       var blocks = new ArrayList<BlockState>(4096);
       var bes = new TreeMap<Integer, byte[]>();
       for (int i = 0; i < 4096; i++) {
+        if ((i & 255) == 0) org.worldgit.core.operation.OperationProgress.check();
         int side =
             pick(
                 cellEqual(os, oe, ts, te, i),
@@ -132,7 +139,8 @@ public final class MergeEngine {
     }
     if (path.endsWith("/biomes.bin")) return mergeBiomes(path, b, o, t);
     if (path.endsWith("/entities.bin")) return o; // 第二階段以全域 UUID 合併，跨 chunk 移動不能逐 blob 比較。
-    if (path.startsWith("world-meta/") && MetadataNormalizer.type(path.substring(11)) != null) {
+    if ((path.startsWith("world-meta/") || path.startsWith("dimension-meta/"))
+        && MetadataNormalizer.type(path.substring(path.indexOf('/') + 1)) != null) {
       Object merged = mergeNbt(path, List.of(), nbt(b), nbt(o), nbt(t));
       return merged == null ? null : store.writeBlob(Nbt.write((Nbt.Compound) merged));
     }

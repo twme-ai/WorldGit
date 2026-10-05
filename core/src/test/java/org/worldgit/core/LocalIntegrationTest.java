@@ -28,7 +28,7 @@ class LocalIntegrationTest {
       var repos = new WorldRepositories(layout);
       var author = RepositoryFixtureTest.AUTHOR;
       long start = System.nanoTime();
-      var init = repos.init(null, "creative", WorldGitConfig.Track.ALL, author);
+      var init = repos.initAll("creative", WorldGitConfig.Track.ALL, author, WorldGitConfig.Entities.ALL);
       assertTrue(init.success(), init.toString());
       System.out.printf("BASELINE %s init=%.3fs%n", version, (System.nanoTime() - start) / 1e9);
       assertTrue(

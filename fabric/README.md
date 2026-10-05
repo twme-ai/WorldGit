@@ -2,6 +2,8 @@
 
 同一套模組提供單人世界／Fabric 專用伺服器的存檔點、復原、切換與合併，遠端 push／pull／PR／座標留言，以及 Paper／Folia 玩家客戶端的 diff 描邊和鬼影。世界與 bare repo 格式直接共用 core，離線 `wgit` 可讀相同歷史；不需要轉換。
 
+Phase 5 任務 1 相容更新：單人與 dedicated 的主世界 repo 都在 `<world>/.worldgit/`，其他維度放各自資料目錄 `.worldgit/`；舊位置可讀並由離線 `wgit migrate` 搬移。玩家的切換／合併／remote／傳輸只作用於目前維度，console 暫用主世界。init 暫保留既有批次入口，creative 使用 `entities: all`，玩家觸及事件尚未接線。所在維度 init／追加詢問、別名、graph／ignore 畫面、完整進度／完成結果／錯誤複製及實體事件由任務 4 實作；下文 Phase 4 語意中有衝突的部分以 [Phase 5 設計](../docs/16-phase5-design.md) 為準。
+
 ## 安裝與建置
 
 | Minecraft | Java | Loader | Fabric API | Adventure Fabric | Loom |
@@ -51,7 +53,7 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 `status --show` 畫 section／chunk 外框，`diff --show`／`preview` 畫逐格外框與半透明方塊模型。顯示與 clear 需玩家執行；console 可執行讀取、寫入與合併命令。指令詳細選項及權限見 `WgCommands`；預設讀取權限等級 0、寫入等級 2，單人世界擁有者可操作。
 
-每個維度一個 repo。新單人存檔與 CLI clone 使用世界內 `.worldgit/<維度目錄>/`；既有外部 repo 保持相容，dedicated 新世界使用世界資料夾旁的 `.worldgit/<世界名稱>/<維度目錄>/`，例如 `.worldgit/My World/minecraft.overworld/`。主世界保存 world-meta 與維度清單。init 只建立磁碟上存在且尚未初始化的維度；第一次進入新維度後可再 init。
+每個維度一個 repo，主世界保存 world-meta 與維度清單。主世界 repo 在世界根 `.worldgit/`，其他維度在自己的 `DIM-1/`、`DIM1/` 或 `dimensions/<ns>/<path>/` 內；新單人、dedicated 與 CLI clone 使用相同規則。init 只建立磁碟上存在且尚未初始化的維度；第一次進入新維度後可再 init。
 
 預設 creative 範本全部追蹤；survival 範本排除暫態、非 persistent 生物等。`track: modified-only` 與 core 一致，目前只記錄設定，尚未篩掉自然地形。沒有內容變動不產生 commit。
 
@@ -61,7 +63,7 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 `preview` 只顯示「目前世界 → 目標 commit」的差異；新增／修改顯示目標模型、移除顯示目前模型，沿用綠／紅／黃與實線／鬼影／虛線。`--radius` 是玩家所在 chunk 的正方形半徑（0–256、含端點），未指定時比較該維度全部追蹤 chunk；超過鬼影上限改區域外框。`preview off`／`clear` 清除，連到支援此命令的 Paper／Fabric 伺服器時使用相同 v2 封包；客戶端即使連到舊伺服器也能先清掉本機預覽。
 
-寫入命令同時支援單人整合伺服器與 Fabric 專用伺服器，沿用寫入 op 等級（預設 2）；console 的局部 restore 使用命令來源的維度／座標。`restore` 不移動 HEAD，chunk 半徑以玩家為中心，box 包含端點並逐格裁切方塊／BE，biome 以 4×4×4 sample 起點裁切。`switch` 同步全維度同名分支，hash 為 detached HEAD；dirty 工作區需 commit、`--stash` 或 `--force`。stash pop 要求原基底及乾淨工作區，不做跨分支合併。`reset --hard` 無 revision 只丟棄未提交變動；指定 revision 會改寫歷史且要求 `--force`。
+寫入命令同時支援單人整合伺服器與 Fabric 專用伺服器，沿用寫入 op 等級（預設 2）；console 的局部 restore 使用命令來源的維度／座標。`restore` 不移動 HEAD，chunk 半徑以玩家為中心，box 包含端點並逐格裁切方塊／BE，biome 以 4×4×4 sample 起點裁切。`switch` 只切選定維度，hash 為 detached HEAD；dirty 工作區需 commit、`--stash` 或 `--force`。stash pop 要求原基底及乾淨工作區，不做跨分支合併。`reset --hard` 無 revision 只丟棄未提交變動；指定 revision 會改寫歷史且要求 `--force`。
 
 套用期間顯示 bossbar，暫停世界 tick、關閉容器、攔截玩家物品／容器／實體互動及一般 LevelChunk 方塊寫入；不移動玩家、不加藥水效果。範圍內玩家（含中途進入者）在操作全程及結束後 10 秒免受摔落、窒息、溺水傷害，其他傷害照常。原本的 frozen 狀態會恢復，第三方模組若直接改 section／BE 或實體需配合 `ServerRuntime.editsLocked()`，不能繞過鎖寫入。
 
@@ -105,7 +107,7 @@ WG_PHASE3=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 26.2 --record
 
 - `config/worldgit-server.yml`：console／提交訊息語言、預設範本、指令權限、自動提交、伺服器身分、預覽上限與每 tick 送包配額。
 - `config/worldgit-client.yml`：`palette: auto|default|colorblind`、穿牆、明細距離（48 格）、最大距離（384 格）、明細 section 上限（192）、每幀建置配額（4）。
-- 世界旁的 `.worldgit/<世界>/worldgit.yml`：與 CLI 共用的 repo 本機設定，例如實體容許距離和伺服器色票。
+- 各維度 repo 內的 `worldgit.yml`：與 CLI 共用的本機設定，例如實體容許距離和伺服器色票；平台目前由主世界讀取，完整逐維度設定 UX 待任務 4。
 
 ```text
 /wgc palette auto|default|colorblind
@@ -227,7 +229,7 @@ python3 fabric/tools/accept-dedicated.py 26.2
 
 push 只接受 FF。pull 先 fetch、沿線上 dry-run 預覽 FF／三方、區域／chunk 數與估計；120 秒內以 sender 綁定的一次性 code 確認。確認重新 fetch，遠端 URL／完整 tips／本地 HEAD／本地分支改變就要求重做。套用沿既有 live coordinator、ApplyBudget、編輯鎖、玩家保護與廣播；衝突進 MERGING，沿原本 G 衝突清單／resolve／continue，不做鄰居更新。PR 附可點擊 Hub 連結；merge／approve 在網頁進行。
 
-`config/worldgit-server.yml` 加入下列區段（其他既有設定保留）；兩種伺服器皆由 Fabric config 目錄讀取。remote 名稱／URL 等非秘密 per-save 設定由 core 寫 `.worldgit/remotes.yml`。單人每個存檔各自 remote，PAT 不跟著存檔／clone 移動。
+`config/worldgit-server.yml` 加入下列區段（其他既有設定保留）；兩種伺服器皆由 Fabric config 目錄讀取。remote 名稱／URL 等非秘密設定由 core 寫入各維度 repo 的 `remotes.yml`。單人每個存檔／維度各自 remote，PAT 不跟著存檔／clone 移動。
 
 ```yaml
 remote:

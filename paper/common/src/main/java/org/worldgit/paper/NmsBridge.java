@@ -32,6 +32,11 @@ public interface NmsBridge {
   /** 世界級 gamerule 的獨立 NBT 複本（全域排程器；不讀取實體或 chunk）。 */
   Nbt.Compound copyGameRules(World world) throws java.io.IOException;
 
+  /** 全域 scheduler 複製維度 saved-data 並排入背景 IO；呼叫端在 repo 執行緒等待完成。 */
+  default java.util.concurrent.CompletionStage<Void> saveMetadata(World world) {
+    return java.util.concurrent.CompletableFuture.completedFuture(null);
+  }
+
   /** 複製出來、尚未編碼的 chunk 資料。 */
   interface RawChunk {
     int x();

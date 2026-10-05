@@ -21,11 +21,18 @@ public final class WorldGitConfig {
     }
   }
 
-  public record Repo(Track track) {
+  public enum Entities { ALL("all"), PLAYER_TOUCHED("player-touched");
+    public final String yaml; Entities(String yaml) { this.yaml = yaml; }
+  }
+
+  public record Repo(Track track, Entities entities) {
+    public Repo(Track track) { this(track, Entities.ALL); }
     public Repo {
-      Objects.requireNonNull(track);
+      Objects.requireNonNull(track); Objects.requireNonNull(entities);
     }
   }
+
+  public static Repo legacy(Track track) { return new Repo(track); }
 
   public record Local(String palette, double entityTolerance) {
     public Local {
@@ -39,13 +46,17 @@ public final class WorldGitConfig {
   }
 
   public static Repo readRepo(String text, String source) throws IOException {
-    var m = load(text, source, Set.of("track"));
+    var m = load(text, source, Set.of("track", "entities"));
     String t = string(m, "track", "all", source);
     return new Repo(
         switch (t) {
           case "all" -> Track.ALL;
           case "modified-only" -> Track.MODIFIED_ONLY;
           default -> throw error(source, "track 必須是 all|modified-only");
+        }, switch (string(m, "entities", "all", source)) {
+          case "all" -> Entities.ALL;
+          case "player-touched" -> Entities.PLAYER_TOUCHED;
+          default -> throw error(source, "entities 必須是 all|player-touched");
         });
   }
 
@@ -70,7 +81,7 @@ public final class WorldGitConfig {
   }
 
   public static String write(Repo config) {
-    return "track: " + config.track.yaml + "\n";
+    return "track: " + config.track.yaml + "\nentities: " + config.entities.yaml + "\n";
   }
 
   public static String write(Local config) {

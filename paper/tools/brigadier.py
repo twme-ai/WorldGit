@@ -3,6 +3,7 @@
 import argparse, hashlib, importlib.util, json, os, re, shutil, subprocess, time, traceback
 from pathlib import Path
 import harness
+from cli_compat import player_command
 from phase4 import Hub, TOKEN
 ROOT=Path(harness.ROOT)
 LABELS=['root','switch-tooltip','resolve-tooltip','restore-relative','restore-complete','pr-tooltip','integer-error','coordinate-error','no-permission-root']
@@ -46,14 +47,20 @@ def run(args):
         cred=Path(server.dir)/'plugins/WorldGit/credentials.yml';cred.write_text('credentials:\n  '+hub.base+':\n    mode: bearer\n    token: '+TOKEN+'\n');cred.chmod(0o600)
         server.start()
         def command(text,pattern,timeout=300):
-            output=server.cmd(text,pattern+'|Error:|Unknown or incomplete command|That position is not loaded',timeout)
-            if any(error in output for error in ['Error:', 'Unknown or incomplete command', 'That position is not loaded']):raise AssertionError(text+'\n'+output)
+            output=server.cmd(text,pattern+'|Error:|Hub (?:400|401|403|404|409)|Unknown or incomplete command|That position is not loaded',timeout)
+            if re.search(r'Hub (?:400|401|403|404|409)',output) or any(error in output for error in ['Error:', 'Unknown or incomplete command', 'That position is not loaded']):raise AssertionError(text+'\n'+output)
             print(text+' → '+output.splitlines()[-1],flush=True);return output
+        dimension_bots={dimension:server.bot(name) for dimension,name in [('minecraft:the_nether','WgBot3'),('minecraft:the_end','WgBot4')]}
+        for dimension,bot in dimension_bots.items():
+            server.cmd('gamemode creative '+bot.name)
+            command('wg debug comment-teleport '+bot.name+' '+dimension,'WGCOMMENTTP success=true')
+        time.sleep(10)
         command('forceload add 0 0','Marked chunk|already marked')
         time.sleep(2)
         command('wg debug freeze on','WGFREEZE frozen')
         command('wg init','Initialized|Initialization complete')
         command('wg branch topic','Branches')
+        for bot in dimension_bots.values():player_command(bot,'wg branch topic','Branches')
         command('setblock 0 224 0 gold_block','Changed the block')
         command('wg commit -m Main tooltip message','Snapshot:|overworld [a-f0-9]{8}')
         command('wg switch topic','Switched')
@@ -63,6 +70,10 @@ def run(args):
         command('wg remote add origin '+url,'updated')
         command('wg push','push complete')
         command('wg push origin topic','push complete')
+        for bot in dimension_bots.values():
+            player_command(bot,'wg remote add origin '+url,'updated')
+            player_command(bot,'wg push','push complete')
+            player_command(bot,'wg push origin topic','push complete')
         command('wg pr create --source topic --target main Brigadier tooltip PR','PR #1')
         command('wg merge topic','MERGING')
         # 以來源原點取得 ~ 座標，只做 dry-run，不改 MERGING 中的世界。

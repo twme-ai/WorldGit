@@ -2,6 +2,8 @@
 
 同一個發佈 jar 支援 Paper / Folia 的 Minecraft **1.21.11 與 26.2**。1.21.11 使用 Java 21，26.2 使用 Java 25。`common` 只引用公開 Paper API；`v1_21_11`、`v26_2` 以 paperweight-userdev 2.0.0-beta.21 各自編譯薄 NMS 轉接層，啟動時只載入符合版本的類別。
 
+Phase 5 任務 1 相容更新：主世界 repo 改為 `<world>/.worldgit/`，其他維度放各自資料目錄 `.worldgit/`，舊位置可讀並由離線 `wgit migrate` 搬移。玩家的切換／合併／remote／傳輸只作用於目前維度；console 暫以主世界為入口。init 暫保留批次建立，creative 明確使用 `entities: all`，以保留觸及事件尚未接線時的實體行為。所在維度 init／追加詢問、別名、graph／ignore GUI、完整進度／完成結果／錯誤複製及實體事件由任務 3 實作；下文 Phase 4 語意中有衝突的部分以 [Phase 5 設計](../docs/16-phase5-design.md) 為準。
+
 ```bash
 GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers=1 :paper:plugin:build
 ```
@@ -15,13 +17,13 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 | `/wg init [--template creative\|survival]` | 建立各維度 repo、初始快照與 ignore 範本 | `worldgit.command.init`（op） |
 | `/wg status [--full] [--show]` | HEAD 與活世界摘要；full 為全量掃描 | `worldgit.command.status`（op） |
 | `/wg commit -m 訊息` | 手動存檔點；沒有變動就不寫 commit | `worldgit.command.commit`（op） |
-| `/wg log [數量]` | 依共享 snapshot 分組的歷史 | `worldgit.command.log`（所有人） |
+| `/wg log [數量]` | 各維度獨立的 snapshot 歷史；graph 介面待任務 3 | `worldgit.command.log`（所有人） |
 | `/wg diff [--show] [--radius 6]` | 玩家附近的方塊明細，hover 前後狀態、點擊填入傳送指令 | `worldgit.command.diff`（op） |
 | `/wg clear` | 清除自己的客戶端預覽 | `worldgit.command.clear`（所有人） |
 | `/wg reload` | 重新載入語言覆寫 | `worldgit.command.reload`（op） |
 | `/wg restore <rev> [--selection\|--chunks r\|--box x1 y1 z1 x2 y2 z2] [--dry-run]` | 原地還原；局部裁切方塊／BE，不移動 HEAD | `worldgit.command.restore`（op） |
-| `/wg switch <branch\|rev> [--stash\|--force]` | 全維度原地切換；驗證成功後才移動 HEAD | `worldgit.command.switch`（op） |
-| `/wg branch [-d] [name]` | 全維度分支清單、建立、刪除 | `worldgit.command.branch`（op） |
+| `/wg switch <branch\|rev> [--stash\|--force]` | 所選維度原地切換；驗證成功後才移動該維度 HEAD | `worldgit.command.switch`（op） |
+| `/wg branch [-d] [name]` | 所選維度的分支清單、建立、刪除 | `worldgit.command.branch`（op） |
 | `/wg stash push [message]\|pop [index]\|list\|drop [index]` | 保存／套回未提交內容；pop 要求原基底與乾淨工作區 | `worldgit.command.stash`（op） |
 | `/wg reset --hard` | 全範圍還原 HEAD，保留 HEAD 指標 | `worldgit.command.reset`（op） |
 | `/wg cancel` | 停止派發，等待在途清理，留下 PARTIAL 供完整重套 | `worldgit.command.cancel`（op） |
@@ -67,7 +69,7 @@ GRADLE_USER_HOME=.work/gradle-home flock .work/bench.lock ./gradlew --no-daemon 
 
 ## 儲存、設定與多語言
 
-每個維度使用 CLI 可直接讀取的 bare repo：`.worldgit/<世界>/<namespace>.<dimension>/`。`.wgignore` 與 `worldgit-repo.yml` 是各 repo 的可編輯 sidecar；`.worldgit/<世界>/worldgit.yml` 是與 CLI 共用的本機設定（色票、實體黏性距離）。`modified-only` 目前只記錄設定，仍追蹤所有 full chunk。
+每個維度使用 CLI 可直接讀取的 bare repo：主世界 `<world>/.worldgit/`，其他維度的資料目錄內 `.worldgit/`。`.wgignore`、`worldgit-repo.yml` 與本機 `worldgit.yml` 跟著各 repo 攜帶；平台目前由主世界讀取色票／實體黏性距離，完整逐維度設定 UX 待任務 3。`modified-only` 尚未接平台的持久玩家編輯集合，缺集合時保守追蹤所有 full chunk。
 
 `plugins/WorldGit/config.yml` 管理輪詢、每 tick 複製鏈數、滑動視窗、timeout、自動 commit 與預覽半徑。整數、布林值與身分字串會驗證；錯誤設定會明確停用插件。
 

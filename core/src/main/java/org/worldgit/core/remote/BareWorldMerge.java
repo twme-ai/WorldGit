@@ -42,6 +42,9 @@ public final class BareWorldMerge implements AutoCloseable {
   private final RepositoryGroup group;
   private final EntitySemantics semantics;
 
+  /** 單維度正式入口；Hub 舊 map 入口保留作過渡。 */
+  public BareWorldMerge(Path repository, DimensionId dimension) throws IOException { this(repository, Map.of(dimension, repository)); }
+
   public BareWorldMerge(Path root, Map<DimensionId, Path> paths) throws IOException {
     this(root, paths, EntitySemantics.OFFLINE);
   }
@@ -188,6 +191,7 @@ public final class BareWorldMerge implements AutoCloseable {
         tree = MergeEngine.select(repo.objects(), tree, source, region);
         regions.add(region.selected(choice, true));
       }
+      tree = org.worldgit.core.capture.PlayerTouchedEntities.reconcile(repo.objects(), tree, List.of(c.baseTree(),c.oursTree(),c.theirsTree()));
       trees.put(e.getKey(), tree);
       reports.put(
           e.getKey(),
@@ -247,11 +251,11 @@ public final class BareWorldMerge implements AutoCloseable {
       String id = repo.refs().createCommit(e.getValue(), parents, m, extra);
       commits.put(e.getKey(), id);
       change(changes, e.getKey(), "refs/heads/" + fresh.oursBranch(), c.ours(), id);
-      change(changes, e.getKey(), "refs/worldgit/groups/" + snapshot, null, id);
+      if (group.repos().size() > 1) change(changes, e.getKey(), "refs/worldgit/groups/" + snapshot, null, id);
     }
     var commitMap = new TreeMap<String, String>();
     commits.forEach((d, c) -> commitMap.put(d.value(), c));
-    for (var e : group.repos().entrySet()) {
+    if (group.repos().size() > 1) for (var e : group.repos().entrySet()) {
       var tree = new TreeEditor(e.getValue().objects(), null);
       tree.putBlob(
           "publication.yml",

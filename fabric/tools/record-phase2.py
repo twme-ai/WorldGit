@@ -8,9 +8,12 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "paper/tools"))
+from cli_compat import cli_data, repository, verify_all
 
 
 def record(args):
@@ -39,17 +42,15 @@ def record(args):
                 (evidence / f"cli-{label}.stderr").write_text(p.stderr)
                 if p.returncode:
                     raise AssertionError(f"wgit {label} failed ({p.returncode}): {p.stdout} {p.stderr}")
-                return json.loads(p.stdout)
+                return cli_data(p.stdout)
 
             verifies = {}
             for label, revision in (("B-before-preview", "B"), ("B-after-preview", "B"),
                                     ("A-switched", "A"), ("A-recovered", "A")):
-                value = cli(f"verify-{label}", artifacts / label / "world", "verify", revision)
-                assert value["state"] == "COMPLETE", value
-                for dimension, stats in value["dimensions"].items():
-                    assert not any(stats[k] for k in ("chunks", "sections", "biomeSections", "entityPuts",
-                                                     "entityRemoves", "chunkDeletes", "metaFiles")), stats
-                verifies[label] = value
+                verifies[label] = verify_all(
+                    lambda world, *words: cli(f"verify-{label}-{words[1].split(':')[1]}", world, *words),
+                    artifacts / label / "world",
+                    {"minecraft:overworld": revision, "minecraft:the_nether": revision})
             result["verify"] = verifies
             diff = cli("diff-B-A", artifacts / "B-before-preview/world", "diff", "B", "A", "--blocks")
             # The request window was chunk (0,-1), radius 1; CLI covers the whole commit.

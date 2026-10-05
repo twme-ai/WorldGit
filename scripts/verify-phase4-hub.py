@@ -5,6 +5,7 @@ import fcntl
 import importlib.util
 import hashlib
 import json
+import sys
 import os
 from pathlib import Path
 import secrets
@@ -14,6 +15,8 @@ import urllib.request
 import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'paper/tools'))
+from cli_compat import cli_data, repository, DIMENSIONS, verify_all, prepare_all_entities
 spec=importlib.util.spec_from_file_location('p4',ROOT/'scripts/verify-phase4.py');p4=importlib.util.module_from_spec(spec);spec.loader.exec_module(p4)
 WORK=None
 BOOT=secrets.token_urlsafe(32)
@@ -27,11 +30,12 @@ def api(method,path,body=None,actor=None):
     with urllib.request.urlopen(request,timeout=90) as response:return json.load(response)
 
 def cli(world,*args,actor='a',anonymous=False,auth='basic'):
+    if args and args[0]=='init':prepare_all_entities(world)
     env=os.environ.copy();env.pop('WGIT_TOKEN',None);env.pop('WGIT_CREDENTIALS_FILE',None)
     if not anonymous:env.update(WGIT_TOKEN=TOKENS[actor],WGIT_AUTH=auth)
     start=time.monotonic()
     output=p4.run([p4.JAVA['1.21.11'],'-Xmx1500m','-jar',str(WORK/'wgit.jar'),'--world',str(world),'--format=json',*map(str,args)],env=env,allow_merging=True)
-    value=json.loads(output)
+    value=cli_data(output)
     with (WORK/'cli.log').open('a') as log:log.write(' '.join(map(str,args))+'\n'+output+'\n')
     return value,time.monotonic()-start
 
@@ -74,37 +78,42 @@ def version_case(version):
     before=p4.p2.manifest(ROOT/'.work/worlds'/version/'baseline');source=None;result={};slug='hub-'+version.replace('.','-');a=WORK/('a-'+version);b=WORK/('b-'+version);exported=WORK/('release-'+version);zip_path=WORK/('release-'+version+'.zip')
     owner=USERS['a']['username'];base=f'/worlds/{owner}/{slug}';url=f'http://127.0.0.1:8097/{owner}/{slug}'
     try:
-        source=p4.paper_source(version);cli(source,'init');api('POST','/worlds',{'name':slug,'isPublic':False},'a');api('PUT',base+'/permissions/users/'+USERS['b']['username'],{'role':'write'},'a')
-        cli(source,'remote','add','origin',url);result['push']=cli(source,'push',actor='a')[0]
+        source=p4.paper_source(version);cli(source,'init','--with-dimensions','all');api('POST','/worlds',{'name':slug,'isPublic':False},'a');api('PUT',base+'/permissions/users/'+USERS['b']['username'],{'role':'write'},'a')
+        cli(source,'remote','add','origin',url);result['push']=cli(source,'push','--all',actor='a')[0]
         result['clone_a']=cli('.','clone',url,a,actor='a')[0];result['clone_b']=cli('.','clone',url,b,actor='b')[0]
-        cli(a,'branch','topic-a');cli(a,'switch','topic-a');p4.tool('edit',a,0,'gold_block');cli(a,'commit','-m','A disjoint edit');cli(a,'push','origin','topic-a',actor='a')
-        cli(b,'branch','topic-b');cli(b,'switch','topic-b');p4.tool('edit',b,8,'diamond_block');cli(b,'commit','-m','B disjoint edit');cli(b,'push','origin','topic-b',actor='b')
+        cli(a,'branch','topic-a','--all');cli(a,'switch','topic-a','--all');p4.tool('edit',a,0,'gold_block');cli(a,'commit','-m','A disjoint edit');cli(a,'push','origin','topic-a','--all',actor='a')
+        cli(b,'branch','topic-b','--all');cli(b,'switch','topic-b','--all');p4.tool('edit',b,8,'diamond_block');cli(b,'commit','-m','B disjoint edit');cli(b,'push','origin','topic-b','--all',actor='b')
         api('PUT',base+'/protected-branches',{'branch':'main','prOnly':True,'reviews':1},'a')
         result['first_pr']=web('pr',slug,version+'-first',author=USERS['a'],reviewer=USERS['b'],source='topic-a',title='A initial building',conflict=False)
         result['clean_pr']=web('pr',slug,version+'-clean',author=USERS['b'],reviewer=USERS['a'],source='topic-b',title='B disjoint building',conflict=False)
-        cli(a,'switch','main');result['clean_pull']=cli(a,'pull',actor='a')[0];assert result['clean_pull']['fastForward'];assert cli(a,'verify')[0]['state']=='COMPLETE'
+        cli(a,'switch','main','--all');result['clean_pull']=cli(a,'pull',actor='a')[0];assert result['clean_pull']['fastForward']
+        for dimension in DIMENSIONS[1:]:assert cli(a,'--dimension',dimension,'pull',actor='a')[0]['fastForward']
+        result['clean_verify']=verify_all(lambda world,*words:cli(world,*words)[0],a)
         result['clean_paper']=p4.load_world(version,a,'clean-paper-'+version,'paper')
-        cli(b,'switch','main');cli(b,'pull',actor='b')
-        cli(a,'branch','conflict-a');cli(a,'switch','conflict-a');p4.tool('edit',a,3,'gold_block');cli(a,'commit','-m','A conflicting edit');cli(a,'push','origin','conflict-a',actor='a')
-        cli(b,'branch','conflict-b');cli(b,'switch','conflict-b');p4.tool('edit',b,3,'diamond_block');cli(b,'commit','-m','B conflicting edit');cli(b,'push','origin','conflict-b',actor='b')
+        cli(b,'switch','main','--all');cli(b,'pull','--all',actor='b')
+        cli(a,'branch','conflict-a','--all');cli(a,'switch','conflict-a','--all');p4.tool('edit',a,3,'gold_block');cli(a,'commit','-m','A conflicting edit');cli(a,'push','origin','conflict-a','--all',actor='a')
+        cli(b,'branch','conflict-b','--all');cli(b,'switch','conflict-b','--all');p4.tool('edit',b,3,'diamond_block');cli(b,'commit','-m','B conflicting edit');cli(b,'push','origin','conflict-b','--all',actor='b')
         result['conflict_first']=web('pr',slug,version+'-conflict-first',author=USERS['a'],reviewer=USERS['b'],source='conflict-a',title='A roof proposal',conflict=False)
         result['conflict_pr']=web('pr',slug,version+'-conflict',author=USERS['b'],reviewer=USERS['a'],source='conflict-b',title='B roof conflict resolved',conflict=True)
-        cli(a,'switch','main');result['conflict_pull']=cli(a,'pull',actor='a')[0];assert result['conflict_pull']['fastForward'];assert cli(a,'verify')[0]['state']=='COMPLETE'
+        cli(a,'switch','main','--all');result['conflict_pull']=cli(a,'pull',actor='a')[0];assert result['conflict_pull']['fastForward']
+        for dimension in DIMENSIONS[1:]:assert cli(a,'--dimension',dimension,'pull',actor='a')[0]['fastForward']
+        result['conflict_verify']=verify_all(lambda world,*words:cli(world,*words)[0],a)
         # CLI 拉下的全維度 HEAD／tree 與 PR 合併結果一致。
         detail=result['conflict_pr']['detail'];heads={}
         for dim in detail['pr']['commits']:
-            path=a/'.worldgit'/dim.replace(':','.');heads[dim]=p4.run(['git','--git-dir='+str(path),'rev-parse','refs/heads/main']).strip()
+            path=repository(a,dim,version);heads[dim]=p4.run(['git','--git-dir='+str(path),'rev-parse','refs/heads/main']).strip()
         assert heads==detail['pr']['commits'],(heads,detail['pr']['commits']);result['heads_match']=True
         result['conflict_paper']=p4.load_world(version,a,'conflict-paper-'+version,'paper')
-        cli(a,'tag','v-final','-m','Full merged release');cli(a,'push','--tags',actor='a')
+        cli(a,'tag','v-final','-m','Full merged release','--all');cli(a,'push','--tags','--all',actor='a')
         result['release']=web('release',slug,version+'-release',author=USERS['a'],tag='v-final',title='Merged world '+version,zip=str(zip_path))
         with zipfile.ZipFile(zip_path) as archive:
-            assert all(not name.startswith('.worldgit') and 'playerdata' not in name and name!='session.lock' for name in archive.namelist());assert 'level.dat' in archive.namelist();archive.extractall(exported)
+            assert all('.worldgit' not in Path(name).parts and 'playerdata' not in name and name!='session.lock' for name in archive.namelist());assert 'level.dat' in archive.namelist();archive.extractall(exported)
         # ZIP 本身不帶歷史，為開服前後的逐格驗證另建本機 baseline；解壓世界不經還原或修改。
-        (exported/'.worldgit').mkdir();initialized=cli(exported,'init')[0]
+        initialized=cli(exported,'init','--with-dimensions','all')[0]
         assert set(initialized['dimensions'])==set(detail['pr']['commits']),initialized
         assert initialized.get('snapshot') and all(d.get('error') is None and d.get('value',{}).get('commit') for d in initialized['dimensions'].values()),initialized
-        assert cli(exported,'verify')[0]['state']=='COMPLETE';result['release_paper']=p4.load_world(version,exported,'release-paper-'+version,'paper')
+        graphs=cli(exported,'log')[0];assert set(graphs)==set(detail['pr']['commits']) and len({graph['nodes'][0]['snapshot'] for graph in graphs.values()})==len(graphs)
+        result['release_verify']=verify_all(lambda world,*words:cli(world,*words)[0],exported);result['release_paper']=p4.load_world(version,exported,'release-paper-'+version,'paper')
         result['baseline_unchanged']=p4.p2.manifest(ROOT/'.work/worlds'/version/'baseline')==before;assert result['baseline_unchanged']
         print(version+' Hub PR / CLI pull / Paper / release PASS',flush=True);return result
     finally:
@@ -130,6 +139,6 @@ def main():
     finally:
         if hub:hub.stop()
         (WORK/'results.json').write_text(json.dumps(results,ensure_ascii=False,indent=2))
-        for name in ['wgit.jar','acceptance-tools.jar','hub.jar']:(WORK/name).unlink(missing_ok=True)
+        for name in ['wgit.jar','acceptance-tools.jar','hub.jar','freeze-fixture.jar']:(WORK/name).unlink(missing_ok=True)
         shutil.rmtree(WORK/'hub-data',ignore_errors=True)
 if __name__=='__main__':main()

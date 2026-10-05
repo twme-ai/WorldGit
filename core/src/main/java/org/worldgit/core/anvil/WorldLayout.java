@@ -23,6 +23,8 @@ public final class WorldLayout {
   }
 
   private final Path world, server;
+  private DimensionId current = DimensionId.OVERWORLD;
+  private int standaloneVersion;
   private final SortedMap<DimensionId, Dimension> dimensions;
 
   private WorldLayout(Path world, Path server, SortedMap<DimensionId, Dimension> dimensions) {
@@ -34,7 +36,37 @@ public final class WorldLayout {
   public static WorldLayout discover(Path supplied) throws IOException {
     Path p = supplied.toAbsolutePath().normalize();
     Path w = Files.isRegularFile(p.resolve("level.dat")) ? p : p.resolve("world");
-    if (!Files.isRegularFile(w.resolve("level.dat"))) throw new IOException("找不到世界 level.dat：" + p);
+    if (!Files.isRegularFile(w.resolve("level.dat"))) {
+      for (Path ancestor = p; ancestor != null; ancestor = ancestor.getParent()) {
+        if (Files.isRegularFile(ancestor.resolve("level.dat"))) { w = ancestor; break; }
+      }
+    }
+    // Paper 的分離維度資料夾可能另有 level.dat；世界級資料仍由主世界提供。
+    for (Path candidate : List.of(p, p.getParent() == null ? p : p.getParent())) {
+      String name = candidate.getFileName() == null ? "" : candidate.getFileName().toString();
+      String suffix = name.endsWith("_nether") ? "_nether" : name.endsWith("_the_end") ? "_the_end" : null;
+      if (suffix != null) {
+        Path main = candidate.resolveSibling(name.substring(0, name.length() - suffix.length()));
+        if (Files.isRegularFile(main.resolve("level.dat"))) { w = main; break; }
+      }
+    }
+    if (!Files.isRegularFile(w.resolve("level.dat"))) {
+      // 單獨壓縮的非主世界維度可從自己的已初始化 repo 得知 id／版本，不需要主世界資料。
+      Path own = p.resolve(".worldgit");
+      if (Files.isRegularFile(own.resolve("HEAD"))) try (var repo = new org.worldgit.core.store.JGitStore(own,false)) {
+        String head = repo.head();
+        if (head != null) {
+          var metadata=repo.readCommit(head).metadata();
+          if (!metadata.dimension().equals(DimensionId.OVERWORLD)) {
+            var only=new TreeMap<DimensionId,Dimension>();add(only,metadata.dimension(),p);
+            if (!only.isEmpty()) {
+              var standalone=new WorldLayout(p,p.getParent(),only);standalone.current=metadata.dimension();standalone.standaloneVersion=metadata.mcDataVersion();return standalone;
+            }
+          }
+        }
+      }
+      throw new IOException("找不到世界 level.dat，且沒有可辨識的獨立維度 repo："+p);
+    }
     Path server = w.getParent();
     var dims = new TreeMap<DimensionId, Dimension>();
     add(dims, DimensionId.OVERWORLD, w);
@@ -56,6 +88,7 @@ public final class WorldLayout {
         for (Path dir :
             stream
                 .filter(Files::isDirectory)
+                .filter(d -> !excluded(d))
                 .filter(
                     d ->
                         Files.isDirectory(d.resolve("region"))
@@ -75,7 +108,16 @@ public final class WorldLayout {
         }
       }
     if (dims.isEmpty()) throw new IOException("世界沒有 region 目錄：" + w);
-    return new WorldLayout(w, server, dims);
+    var layout = new WorldLayout(w, server, dims);
+    int depth = -1;
+    for (var dim : dims.values()) {
+      if (p.startsWith(dim.directory()) && dim.directory().getNameCount() > depth) {
+        layout.current = dim.id(); depth = dim.directory().getNameCount();
+      }
+      if (!dim.id().equals(DimensionId.OVERWORLD) && p.equals(dim.directory().getParent())
+          && !p.equals(w) && Set.of("DIM-1", "DIM1").contains(dim.directory().getFileName().toString())) layout.current = dim.id();
+    }
+    return layout;
   }
 
   private static void add(Map<DimensionId, Dimension> dims, DimensionId id, Path dir) {
@@ -92,9 +134,25 @@ public final class WorldLayout {
     return server;
   }
 
-  public Path repositoryRoot() {
-    if (Files.isDirectory(world.resolve(".worldgit"))) return world.resolve(".worldgit");
-    return server.resolve(".worldgit").resolve(world.getFileName().toString());
+  public Path repositoryRoot() { return world.resolve(".worldgit"); }
+
+  public DimensionId currentDimension() { return current; }
+
+  public Path repository(DimensionId id) {
+    var dimension = dimensions.get(id);
+    if (dimension == null) throw new IllegalArgumentException("找不到維度：" + id);
+    return (id.equals(DimensionId.OVERWORLD) ? world : dimension.directory()).resolve(".worldgit");
+  }
+
+  public List<Path> legacyRepositories(DimensionId id) {
+    return List.of(world.resolve(".worldgit").resolve(id.directoryName()),
+        world.resolve(".worldgit-legacy").resolve(id.directoryName()),
+        server.resolve(".worldgit").resolve(world.getFileName().toString()).resolve(id.directoryName()));
+  }
+
+  public static boolean excluded(Path path) {
+    for (Path part : path) if (part.toString().equals(".worldgit")) return true;
+    return false;
   }
 
   public SortedMap<DimensionId, Dimension> dimensions() {
@@ -102,6 +160,7 @@ public final class WorldLayout {
   }
 
   public int dataVersion() throws IOException {
+    if (standaloneVersion != 0) return standaloneVersion;
     return readGzip(world.resolve("level.dat")).compound("Data").integer("DataVersion", 0);
   }
 
@@ -109,6 +168,18 @@ public final class WorldLayout {
     try (var in = new GZIPInputStream(Files.newInputStream(path))) {
       return Nbt.read(in.readNBytes(Nbt.MAX_BYTES + 1));
     }
+  }
+
+  public Map<String, byte[]> dimensionMetadata(DimensionId id) throws IOException {
+    var result = new TreeMap<String, byte[]>();
+    var dimension = dimensions.get(id);
+    if (dimension == null) throw new IOException("找不到維度：" + id);
+    for (String name : List.of("game_rules.dat", "world_border.dat", "world_gen_settings.dat")) {
+      Path file = dimension.directory().resolve("data/minecraft/" + name);
+      if (Files.isRegularFile(file)) result.put(id.directoryName() + "." + name + ".nbt", Nbt.write(readGzip(file)));
+    }
+    if (dataVersion() >= 4903) result.putAll(SavedData.capture(dimension.directory(), id.directoryName() + "."));
+    return result;
   }
 
   /** 世界級 metadata，移除時鐘/天氣等暫態欄位；地圖/記分板原始 NBT 另存。 */
@@ -153,12 +224,21 @@ public final class WorldLayout {
       if (endData.containsKey("DragonFight"))
         tracked.put("DragonFight", Nbt.copy(endData.get("DragonFight")));
     }
+    // 未進入過終界的存檔會省略 Gateways；遊戲第一次開啟會依種子填入相同的預設順序。
+    // 將缺省值具體化，避免 clone 首次開服產生假的差異；已消耗的 gateway 清單完整保留。
+    if (dataVersion() < 4903 && tracked.containsKey("DragonFight")
+        && !tracked.compound("DragonFight").containsKey("Gateways")
+        && tracked.compound("WorldGenSettings").get("seed") instanceof Number seed) {
+      var gateways = new ArrayList<Object>(); for (int i=0; i<20; i++) gateways.add(i);
+      Collections.shuffle(gateways, new Random(seed.longValue()));
+      tracked.compound("DragonFight").put("Gateways", new Nbt.ListTag(3, gateways));
+    }
     result.put("level.nbt", Nbt.write(tracked));
     Path packs = world.resolve("datapacks");
     long assets = 0;
     if (Files.isDirectory(packs))
       try (var files = Files.walk(packs)) {
-        for (Path f : files.filter(Files::isRegularFile).sorted().toList()) {
+        for (Path f : files.filter(Files::isRegularFile).filter(f -> !excluded(f)).sorted().toList()) {
           if (Files.isSymbolicLink(f) || !f.toRealPath().startsWith(packs.toRealPath()))
             throw new IOException("資料包包含符號連結");
           long n = Files.size(f);
@@ -192,7 +272,7 @@ public final class WorldLayout {
     }
     // 26.2 的 gamerule/邊界/生成設定在每個維度自己的 data/minecraft。
     for (var dimension : dimensions.values())
-      for (String n : List.of("game_rules.dat", "world_border.dat", "world_gen_settings.dat")) {
+      if (dimension.id().equals(DimensionId.OVERWORLD)) for (String n : List.of("game_rules.dat", "world_border.dat", "world_gen_settings.dat")) {
         Path file = dimension.directory().resolve("data/minecraft/" + n);
         if (Files.isRegularFile(file))
           result.put(dimension.id().directoryName() + "." + n + ".nbt", Nbt.write(readGzip(file)));
@@ -217,6 +297,11 @@ public final class WorldLayout {
                 .filter(p -> p.getFileName().toString().matches("map_\\d+\\.dat"))
                 .toList()) result.put(f.getFileName() + ".nbt", Nbt.write(readGzip(f)));
       }
+    if (dataVersion() >= 4903) {
+      result.putAll(SavedData.capture(world, ""));
+      var main = dimensions.get(DimensionId.OVERWORLD);
+      if (!main.directory().equals(world)) result.putAll(SavedData.capture(main.directory(), DimensionId.OVERWORLD.directoryName() + "."));
+    }
     return result;
   }
 }

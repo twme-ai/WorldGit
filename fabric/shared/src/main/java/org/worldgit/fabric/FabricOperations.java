@@ -84,6 +84,7 @@ final class FabricOperations implements WorldOperations.LiveAccess {
         }
         // Disk reads only locate old UUIDs. Owner ticket loading makes pending entity IO authoritative.
         if(!ids.isEmpty()) for(var dimension:layout.dimensions().values()) {
+            if(plans.stream().noneMatch(p->p.dimension().equals(dimension.id()))) continue;
             var positions=new TreeSet<ChunkPos>();
             for(var path:RegionFile.list(dimension.entities())) try(var region=new RegionFile(path)) {
                 for(int i=0;i<1024;i++) if(region.has(i) && contains(region.read(i).list("Entities"),ids)) positions.add(region.pos(i));

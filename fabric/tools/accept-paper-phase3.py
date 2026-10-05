@@ -19,6 +19,7 @@ import traceback
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'paper/tools'))
 import harness
+from cli_compat import cli_data, complete_verification_batch, repository
 spec=importlib.util.spec_from_file_location('phase1',Path(__file__).with_name('accept-paper.py'))
 phase1=importlib.util.module_from_spec(spec);spec.loader.exec_module(phase1)
 
@@ -103,8 +104,11 @@ def run(args):
         try:
             # fixture helper 與正式 plugin 必須同步；在本腳本持有的鎖內建置，沒有第二層 flock。
             with phase1.zipfile.ZipFile(args.plugin) as jar: fixture_ready=b'WGCONTAINER' in jar.read('org/worldgit/paper/Debug.class')
-            if not fixture_ready:
-                if args.plugin.resolve()!=(ROOT/'paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar').resolve(): raise RuntimeError("指定的 plugin 缺少 fixture helper；請使用新版建置產物")
+            plugin_time=args.plugin.stat().st_mtime_ns
+            default_plugin=args.plugin.resolve()==(ROOT/'paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar').resolve()
+            plugin_stale=default_plugin and any(path.stat().st_mtime_ns>plugin_time for path in (ROOT/'paper').rglob('*.java') if '/src/main/' in str(path))
+            if not fixture_ready or plugin_stale:
+                if not default_plugin: raise RuntimeError("指定的 plugin 缺少 fixture helper；請使用新版建置產物")
                 with (evidence/'fixture-build.log').open('w') as out:
                     subprocess.run(['./gradlew','--no-daemon','--configure-on-demand','--max-workers=1',':paper:plugin:build'],cwd=ROOT,env=dict(os.environ,JAVA_HOME='/usr/lib/jvm/java-21-openjdk-amd64',GRADLE_USER_HOME=str(ROOT/'.work/gradle-home')),stdout=out,stderr=subprocess.STDOUT,check=True)
 
@@ -131,7 +135,9 @@ def run(args):
             server.cmd('op '+player);server.cmd('gamemode creative '+player)
             server.cmd(f'tp {player} 15.5 66 -4 0 20');server.cmd('forceload add 0 0 31 15')
             server.cmd('wg debug freeze on',r'WGFREEZE frozen');server.cmd('kill @e[type=!player]')
-            variant('oak','oak',1,'diamond');cmd('wg init',r'init 完成|Initialized|Initialization|失敗',900);branch('pair-base');branch('pair-theirs')
+            variant('oak','oak',1,'diamond')
+            if args.platform=='paper':server.cmd('save-all flush',r'Saved the game',180)
+            cmd('wg init',r'init 完成|Initialized|Initialization|失敗',900);branch('pair-base');branch('pair-theirs')
             variant('spruce','spruce',2,'emerald');commit('pair ours');branch('pair-ours');switch('pair-theirs')
             variant('birch','birch',3,'gold_ingot');commit('pair theirs');switch('pair-ours');cmd('wg merge pair-theirs')
             expected=inspect(True)
@@ -152,8 +158,9 @@ def run(args):
             client.wait('WGPAIR small_done',900);check('continue clears durable list',inspect()['regions']==[])
             # 200 個分散於既存乾淨地形的 atoms：不探索自然世界，不引入 vault。
             branch('pair-many-theirs');branch('pair-many-ours')
-            switch('pair-many-ours');server.cmd('wg debug fill 16 emerald_block 200 10',r'debug fill 完成',900);commit('many ours');server.cmd('wg debug release',r'已釋放')
-            switch('pair-many-theirs');server.cmd('wg debug fill 16 lapis_block 200 10',r'debug fill 完成',900);commit('many theirs');server.cmd('wg debug release',r'已釋放')
+            # 26.2 保存 chunk tickets；fixture 的暫時 plugin tickets 不屬於受測分支內容。
+            switch('pair-many-ours');server.cmd('wg debug fill 16 emerald_block 200 10',r'debug fill 完成',900);server.cmd('wg debug release',r'已釋放');commit('many ours')
+            switch('pair-many-theirs');server.cmd('wg debug fill 16 lapis_block 200 10',r'debug fill 完成',900);server.cmd('wg debug release',r'已釋放');commit('many theirs')
             switch('pair-many-ours');cmd('wg merge pair-many-theirs');many=inspect();check('server 200 regions',len(many['regions'])==200)
             signal_client('many.json',many)
             client.wait('WGPAIR reconnected regions=200',900)
@@ -182,9 +189,20 @@ def run(args):
                     with socket.socket() as probe: result['port_closed']=probe.connect_ex(('127.0.0.1',server.port))!=0
                     with socket.socket() as probe: result['client_port_closed']=probe.connect_ex(('127.0.0.1',server.port+10))!=0
                     if result['success']:
-                        proc=subprocess.run([harness.JAVA['1.21.11'],'-jar',str(cli),'-w',server.world,'--format=json','verify','HEAD'],text=True,capture_output=True,timeout=900)
+                        proc=subprocess.run([harness.JAVA['1.21.11'],'-jar',str(cli),'-w',server.world,'--format=json','verify','HEAD','--all'],text=True,capture_output=True,timeout=900)
                         (evidence/'verify.json').write_text(proc.stdout);(evidence/'verify.stderr').write_text(proc.stderr)
-                        check('final offline verify',proc.returncode==0 and json.loads(proc.stdout)['state']=='COMPLETE')
+                        if proc.returncode:
+                            diff=subprocess.run([harness.JAVA['1.21.11'],'-jar',str(cli),'-w',server.world,'--format=json','diff','--blocks'],text=True,capture_output=True,timeout=900)
+                            (evidence/'final-difference.json').write_text(diff.stdout)
+                            result['final_difference_path']=str((evidence/'final-difference.json').relative_to(ROOT))
+                            for dimension,changes in cli_data(diff.stdout).items():
+                                for change in changes.get('metadata',[]):
+                                    for side in ['beforeId','afterId']:
+                                        oid=change.get(side)
+                                        if oid:
+                                            blob=subprocess.check_output(['git','--git-dir',str(repository(server.world,dimension,args.version,paper=True)),'cat-file','blob',oid])
+                                            (evidence/(oid+'.blob')).write_bytes(blob)
+                        check('final offline verify',proc.returncode==0 and complete_verification_batch(proc.stdout))
                 except BaseException:
                     result['success']=False;result['cleanup_error']=traceback.format_exc()
                 finally: shutil.rmtree(server.dir,ignore_errors=True)

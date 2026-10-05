@@ -31,7 +31,8 @@ public final class Phase4DisplayGameTest implements FabricClientGameTest {
     log.info("PAPER4 flying=true");
     // 先把飛行送給伺服器，再讓伺服器 teleport；不得 local setPos 跳 160 格觸發位置回復。
     ctx.waitFor(c->Files.isRegularFile(viewReady) && Math.abs(c.player.getY()-224)<.1,2400);
-    ctx.runOnClient(c->{c.player.setYRot(0);c.player.setXRot(0);c.getConnection().sendCommand("wg comments show 1");});
+    // 原版 Display.tick 要先初始化 render state；只讓客戶端繼續渲染，不能推進伺服器世界。
+    ctx.runOnClient(c->{c.level.tickRateManager().setFrozen(false);c.player.setYRot(0);c.player.setXRot(0);c.getConnection().sendCommand("wg comments show 1");});
     ctx.waitFor(c->{for(var e:c.level.entitiesForRendering())if(e instanceof Display.TextDisplay)return true;return false;},2400);
     ctx.waitTicks(40);
     String text=ctx.computeOnClient(c->{

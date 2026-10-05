@@ -20,7 +20,7 @@ class WorldOperationsTest {
   static final CommitMetadata.Identity AUTHOR=new CommitMetadata.Identity("test","test@example.com");
   private WorldLayout init(String version) throws Exception {
     Path target=temp.resolve(version);TestWorlds.copy(TestWorlds.fixture(version),target);
-    var layout=WorldLayout.discover(target);assertTrue(new WorldRepositories(layout).init(null,"creative",WorldGitConfig.Track.ALL,AUTHOR).success());return layout;
+    var layout=WorldLayout.discover(target);assertTrue(new WorldRepositories(layout).initAll("creative", WorldGitConfig.Track.ALL, AUTHOR, WorldGitConfig.Entities.ALL).success());return layout;
   }
   @Test void branchesDetachedStashResetAndTwoVersionRoundTrip() throws Exception {
     for(String version:List.of("1.21.11","26.2")) {
@@ -54,7 +54,7 @@ class WorldOperationsTest {
         ops.createBranch("detached-saved",null);
         assertTrue(ops.switchTo("main",false,false,false,false).success());
         ops.createBranch("temporary",null);ops.deleteBranch("temporary");
-        assertEquals(3,ops.branches().getFirst().commits().size());
+        assertEquals(Set.of(DimensionId.OVERWORLD),ops.branches().getFirst().commits().keySet());
       }
     }
   }
@@ -66,7 +66,7 @@ class WorldOperationsTest {
     Nbt.Compound before;try(var r=new RegionFile(path)) { before=r.read(0); }
     var beforeSnapshot=new ChunkNormalizer(IgnoreRules.none(),EntitySemantics.OFFLINE).normalize(pos,before,List.of());
     String head;
-    try(var repo=new DimensionRepository(layout.repositoryRoot().resolve(DimensionId.OVERWORLD.directoryName()),DimensionId.OVERWORLD,false)) { head=repo.refs().head(); }
+    try(var repo=new DimensionRepository(layout.repository(DimensionId.OVERWORLD),DimensionId.OVERWORLD,false)) { head=repo.refs().head(); }
     try(var ops=new WorldOperations(layout)) {
       assertTrue(ops.restore("HEAD",DimensionId.OVERWORLD,Scope.box(0,144,0,0,144,0),false,false).success());
       assertFalse(ops.verify("HEAD",DimensionId.OVERWORLD,Scope.all(),true).success());
@@ -75,7 +75,7 @@ class WorldOperationsTest {
     Nbt.Compound after;try(var r=new RegionFile(path)) { after=r.read(0); }
     var afterSnapshot=new ChunkNormalizer(IgnoreRules.none(),EntitySemantics.OFFLINE).normalize(pos,after,List.of());
     for(var e:beforeSnapshot.sections().entrySet()) for(int i=0;i<4096;i++) if(e.getKey()!=9 || i!=0) assertEquals(e.getValue().block(i),afterSnapshot.sections().getOrDefault(e.getKey(),Section.air()).block(i));
-    try(var repo=new DimensionRepository(layout.repositoryRoot().resolve(DimensionId.OVERWORLD.directoryName()),DimensionId.OVERWORLD,false)) { assertEquals(head,repo.refs().head()); }
+    try(var repo=new DimensionRepository(layout.repository(DimensionId.OVERWORLD),DimensionId.OVERWORLD,false)) { assertEquals(head,repo.refs().head()); }
     assertEquals(0,after.integer("isLightOn",1));assertFalse(after.containsKey("Heightmaps"));
   }
   @Test void partialLeavesHeadsAndCanRecover() throws Exception {
@@ -84,7 +84,7 @@ class WorldOperationsTest {
     TestWorlds.oneBlock(layout,DimensionId.OVERWORLD,new ChunkPos(0,0),9,0);
     assertTrue(new WorldRepositories(layout).commit(null,"B",AUTHOR,2).success());
     var count=new AtomicInteger();var writer=new OfflineApplier(layout);
-    try(var ops=new WorldOperations(layout,(plan,lock)-> { if(count.incrementAndGet()==2) throw new IOException("injected second dimension failure");writer.apply(plan,lock); })) {
+    try(var ops=new WorldOperations(layout,(plan,lock)-> { writer.apply(plan,lock); if(count.incrementAndGet()==1) throw new IOException("injected after dimension write"); })) {
       var result=ops.switchTo("A",false,false,false,false);
       assertEquals(WorldOperations.State.PARTIAL,result.state());assertEquals("PARTIAL",ops.journal().get("state"));
       assertTrue(ops.branches().stream().anyMatch(b->b.name().equals("main") && b.current()));
@@ -96,7 +96,7 @@ class WorldOperationsTest {
   @Test void sessionLockPreventsAllMutatingWork() throws Exception {
     var layout=init("26.2");try(var lock=WorldSessionLock.acquire(layout)) { assertThrows(IOException.class,()->new WorldOperations(layout)); }
   }
-  @Test void hashPairsDimensionThatChangedWhileAnchorWasUnchanged() throws Exception {
+  @Test void hashCreatesBranchOnlyInOwningDimension() throws Exception {
     var layout=init("26.2");var worlds=new WorldRepositories(layout);
     var nether=new DimensionId("minecraft:the_nether");
     try(var region=new RegionFile(RegionFile.list(layout.dimensions().get(nether).region()).getFirst())) {
@@ -115,7 +115,10 @@ class WorldOperationsTest {
     try(var repo=new DimensionRepository(worlds.tracked().get(DimensionId.OVERWORLD),DimensionId.OVERWORLD,false)) { hash=repo.refs().head(); }
     try(var ops=new WorldOperations(layout)) {
       ops.createBranch("hash-group",hash);
-      assertEquals(netherHead,ops.branches().stream().filter(b->b.name().equals("hash-group")).findFirst().orElseThrow().commits().get(nether));
+      assertEquals(Map.of(DimensionId.OVERWORLD, hash),ops.branches().stream().filter(b->b.name().equals("hash-group")).findFirst().orElseThrow().commits());
+    }
+    try(var repo=new DimensionRepository(worlds.tracked().get(nether),nether,false)) {
+      assertEquals(netherHead, repo.refs().head()); assertFalse(repo.refs().branches().containsKey("hash-group"));
     }
   }
   @Test void untrackedSurvivesAutoCommitAndStashIncludesNewChunks() throws Exception {

@@ -195,6 +195,8 @@ def run(args):
             with socket.socket() as probe:
                 result["port_closed"] = probe.connect_ex(("127.0.0.1", port)) != 0
             (evidence / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+            shutil.rmtree(serverdir, ignore_errors=True)
+            shutil.rmtree(worlds, ignore_errors=True)
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
     return result["success"] and result["port_closed"]
 

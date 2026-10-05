@@ -28,7 +28,7 @@ class WorldMergeTest {
     var layout = WorldLayout.discover(p);
     assertTrue(
         new WorldRepositories(layout)
-            .init(null, "creative", WorldGitConfig.Track.ALL, AUTHOR)
+            .initAll("creative", WorldGitConfig.Track.ALL, AUTHOR, WorldGitConfig.Entities.ALL)
             .success());
     return layout;
   }
@@ -97,7 +97,7 @@ class WorldMergeTest {
   }
 
   @Test
-  void cleanMergeTwoParentsSameSnapshotAndVerifyBothVersions() throws Exception {
+  void cleanMergeTwoParentsIndependentSnapshotsAndVerifyBothVersions() throws Exception {
     for (String v : List.of("1.21.11", "26.2")) {
       var layout = init(v);
       branches(layout, false);
@@ -119,14 +119,14 @@ class WorldMergeTest {
         assertTrue(result.reports().values().stream().allMatch(r -> r.regions().isEmpty()));
         assertTrue(ops.verify("HEAD", null, Scope.all(), true).success());
       }
-      UUID snapshot = null;
+      var snapshots = new HashSet<UUID>();
       for (var e : new WorldRepositories(layout).tracked().entrySet())
         try (var repo = new DimensionRepository(e.getValue(), e.getKey(), false)) {
           var c = repo.refs().readCommit(repo.refs().head());
           if (e.getKey().equals(DimensionId.OVERWORLD)) assertEquals(2, c.parents().size());
-          if (snapshot == null) snapshot = c.metadata().snapshot();
-          else assertEquals(snapshot, c.metadata().snapshot());
-          assertTrue(repo.refs().resolve("refs/worldgit/groups/" + snapshot).equals(c.id()));
+          assertTrue(snapshots.add(c.metadata().snapshot()));
+          assertTrue(repo.refs().refsByPrefix("refs/worldgit/groups/").isEmpty());
+          if (!e.getKey().equals(DimensionId.OVERWORLD)) assertEquals(1, repo.log(20).size());
         }
     }
   }
@@ -239,8 +239,8 @@ class WorldMergeTest {
         new WorldOperations(
             layout,
             (plan, lock) -> {
-              if (count.incrementAndGet() == 2) throw new IOException("injected");
               actual.apply(plan, lock);
+              if (count.incrementAndGet() == 1) throw new IOException("injected after apply");
             })) {
       assertEquals("PARTIAL", ops.merge("B", opts(false, null, false)).state());
       assertNotNull(ops.merging());
@@ -302,7 +302,7 @@ class WorldMergeTest {
     try (var ops = new WorldOperations(layout)) {
       var result = ops.merge("B", opts(true, null, false));
       assertEquals("MERGING", result.state(), result.error());
-      assertTrue(result.reports().get(nether).regions().isEmpty());
+      assertEquals(Set.of(DimensionId.OVERWORLD), result.reports().keySet());
       assertTrue(ops.abortMerge(false).success());
     }
     try (var repo = new DimensionRepository(worlds.tracked().get(nether), nether, false)) {
@@ -325,7 +325,7 @@ class WorldMergeTest {
                       List.of()));
       repo.refs().updateRef("refs/heads/B", null, fresh);
     }
-    try (var ops = new WorldOperations(layout)) {
+    try (var ops = WorldOperations.inDimension(layout, nether)) {
       assertEquals("MERGING", ops.merge("B", opts(true, Choice.OURS, false)).state());
       assertNull(ops.merging().dimensions().get(nether).baseCommit());
       assertTrue(ops.abortMerge(false).success());
@@ -450,7 +450,7 @@ class WorldMergeTest {
   }
 
   @Test
-  void resolvingAllVerifiesEveryAffectedDimension() throws Exception {
+  void resolvingAllVerifiesOnlyOwningDimension() throws Exception {
     var layout = init("26.2");
     var nether = new DimensionId("minecraft:the_nether");
     try (var ops = new WorldOperations(layout)) {
@@ -469,18 +469,18 @@ class WorldMergeTest {
     try (var ops = new WorldOperations(layout)) {
       ops.switchTo("A", false, false, false, false);
       assertEquals("MERGING", ops.merge("B", opts(true, null, false)).state());
-      assertEquals(2, ops.merging().remaining());
+      assertEquals(1, ops.merging().remaining());
     }
     var actual = new OfflineApplier(layout);
     try (var ops =
         new WorldOperations(
             layout,
             (plan, lock) -> {
-              if (plan.dimension().equals(DimensionId.OVERWORLD)) actual.apply(plan, lock);
+              assertEquals(DimensionId.OVERWORLD, plan.dimension()); // 故意不套用，驗證目標維度仍會偵測失敗。
             })) {
       var result = ops.selectRegion(0, Choice.THEIRS, true, false);
       assertEquals("PARTIAL", result.state());
-      assertTrue(result.error().contains("minecraft:the_nether"), result.error());
+      assertTrue(result.error().contains("minecraft:overworld"), result.error());
     }
     try (var ops = new WorldOperations(layout)) {
       assertTrue(ops.abortMerge(false).success());
@@ -489,17 +489,14 @@ class WorldMergeTest {
   }
 
   @Test
-  void onlyNetherChangedPatchByBranchAndHashSkipsOldOverworldCommit() throws Exception {
-    var layout = init("26.2");
-    var nether = new DimensionId("minecraft:the_nether");
-    try (var ops = new WorldOperations(layout)) {
-      ops.createBranch("base", null);
-    }
-    // 使用 baseline 已追蹤的 chunk；switch 依 Phase 2 契約保留新增 chunk 為 untracked。
-    set(layout, nether, -32, 144, -32, "gold_block");
-    commit(layout, "nether only");
+  void onlyNetherChangedPatchByBranchAndHashLeavesOverworldUnchanged() throws Exception {
+    var layout = init("26.2"); var nether = new DimensionId("minecraft:the_nether");
+    String main = head(layout, DimensionId.OVERWORLD);
+    byte[] level = Files.readAllBytes(layout.world().resolve("level.dat"));
+    try (var ops = WorldOperations.inDimension(layout, nether)) { ops.createBranch("base", null); }
+    set(layout, nether, -32, 144, -32, "gold_block"); commit(layout, "nether only");
     String hash = head(layout, nether);
-    try (var ops = new WorldOperations(layout)) {
+    try (var ops = WorldOperations.inDimension(layout, nether)) {
       ops.createBranch("N", null);
       assertTrue(ops.switchTo("base", false, false, false, false).success());
       var picked = ops.cherryPick("N", opts(false, null, false));
@@ -508,16 +505,8 @@ class WorldMergeTest {
       var reverted = ops.revert(hash, opts(false, null, false));
       assertEquals("COMPLETE", reverted.state(), reverted.error());
     }
-    // base 指標已被 patch 提交推進，驗證 snapshot 中只有 Nether 被反向套用。
-    try (var repo =
-        new DimensionRepository(
-            new WorldRepositories(layout).tracked().get(DimensionId.OVERWORLD),
-            DimensionId.OVERWORLD,
-            false)) {
-      var head = repo.refs().readCommit(repo.refs().head());
-      var parent = repo.refs().readCommit(head.parents().getFirst());
-      assertEquals(parent.tree(), head.tree());
-    }
+    assertEquals(main, head(layout, DimensionId.OVERWORLD));
+    assertArrayEquals(level, Files.readAllBytes(layout.world().resolve("level.dat")));
   }
 
   @Test
@@ -539,7 +528,7 @@ class WorldMergeTest {
     try (var ops = new WorldOperations(layout)) {
       ops.createBranch("legacy", original);
       assertEquals(
-          3,
+          1,
           ops.branches().stream()
               .filter(b -> b.name().equals("legacy"))
               .findFirst()

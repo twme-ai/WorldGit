@@ -72,7 +72,11 @@ public final class RepoService implements AutoCloseable {
   }
   <T> CompletableFuture<T> mergeOperation(String target,Operation<T> work) { return operation(target,work,true,false); }
   <T> CompletableFuture<T> regionOperation(String target,Operation<T> work) { return operation(target,work,true,true); }
-  private <T> CompletableFuture<T> operation(String target,Operation<T> work,boolean merge,boolean region) {
+  <T> CompletableFuture<T> operation(DimensionId dimension,String target,Operation<T> work) { return operation(target,work,false,false,dimension); }
+  <T> CompletableFuture<T> mergeOperation(DimensionId dimension,String target,Operation<T> work) { return operation(target,work,true,false,dimension); }
+  <T> CompletableFuture<T> regionOperation(DimensionId dimension,String target,Operation<T> work) { return operation(target,work,true,true,dimension); }
+  private <T> CompletableFuture<T> operation(String target,Operation<T> work,boolean merge,boolean region) { return operation(target,work,merge,region,DimensionId.OVERWORLD); }
+  private <T> CompletableFuture<T> operation(String target,Operation<T> work,boolean merge,boolean region,DimensionId dimension) {
     if(active!=null) return CompletableFuture.failedFuture(new IOException("已有進行中的操作；可用 /wg cancel 取消"));
     return submit(()->{
       var q=new ApplyQueue(plugin); active=q;
@@ -80,10 +84,11 @@ public final class RepoService implements AutoCloseable {
       try {
         try(var timing=OperationTimings.start(target)) {
         var mapping=WorldMapper.map(); applyUi.start(q,target);
-        try(var ops=new PaperOperations(plugin,mapping,q,merge)) {
+        try(var ops=new PaperOperations(plugin,mapping,q,merge,dimension)) {
           // capture、stash 保存、計畫、驗證、HEAD 均在同一編輯鎖內。
           try(var lockTiming=OperationTimings.stage("lock")) {
           if(!region) for(var entry:mapping.worlds().entrySet()) {
+            if(!entry.getKey().equals(dimension)) continue;
             var live=new PaperLiveWorld(plugin,plugin.state(entry.getKey(),entry.getValue()),entry.getValue(),mapping.layout(),false);
             locks.add(live.lockEdits(Set.of(),"WorldGit "+target));
             live.close();
@@ -205,13 +210,14 @@ public final class RepoService implements AutoCloseable {
     UUID snapshot = UUID.randomUUID();
     var result = new TreeMap<DimensionId, Outcome<DimensionRepository.CommitResult>>();
     var selected = new TreeMap<DimensionId, Path>();
+    var existing = c.repos().tracked();
     for (DimensionId id : c.mapping().worlds().keySet())
-      selected.put(id, c.layout().repositoryRoot().resolve(id.directoryName()));
+      selected.put(id, existing.getOrDefault(id, c.layout().repository(id)));
     if (selected.isEmpty()) throw new IOException("沒有可追蹤的維度");
     // 先建立全部 repo，讓主世界 commit 內的 dimensions 清單完整。
     for (var e : selected.entrySet())
       try (var repo = new DimensionRepository(e.getValue(), e.getKey(), true)) {
-        repo.initialize(template, track);
+        repo.initialize(template, track, WorldGitConfig.Entities.ALL); // 觸及事件由 Phase 5 平台任務接線；過渡期保留既有實體行為。
       } catch (Exception ex) {
         result.put(e.getKey(), new Outcome<>(null, error(ex)));
       }
@@ -225,7 +231,7 @@ public final class RepoService implements AutoCloseable {
       var batch = state.dirty().capture();
       try (var repo = new DimensionRepository(e.getValue(), e.getKey(), false);
           var live = live(c, e.getKey(), false)) {
-        var metadata = metadata(actor, actor, "初始化世界", snapshot, e.getKey(), live.dataVersion(), false, List.of());
+        var metadata = metadata(actor, actor, "初始化世界", UUID.randomUUID(), e.getKey(), live.dataVersion(), false, List.of());
         var r = repo.commit(live, manifest, metadata, c.local().entityTolerance());
         record(e.getKey(), r.status(), live, t0);
         state.dirty().acknowledge(batch);
@@ -235,7 +241,7 @@ public final class RepoService implements AutoCloseable {
         result.put(e.getKey(), new Outcome<>(null, error(ex)));
       }
     }
-    pinGroup(c,snapshot,result);
+
     lastCommitMillis = System.currentTimeMillis();
     return new Batch<>(snapshot, result);
   }
@@ -254,7 +260,6 @@ public final class RepoService implements AutoCloseable {
   private Batch<DimensionRepository.Status> doStatus(
       boolean full, DiffEngine.Detail detail, Map<DimensionId, Set<ChunkPos>> windows) throws IOException {
     Context c = context();
-    if(org.worldgit.core.service.OperationState.partial(c.layout().repositoryRoot())) throw new IOException("世界為 PARTIAL；請用 /wg switch <目標> --force 或 /wg reset --hard 恢復");
     var tracked = trackedLive(c);
     if (tracked.isEmpty()) throw new IOException("世界尚未 init（/wg init）");
     var manifest = c.repos().manifest();
@@ -295,8 +300,6 @@ public final class RepoService implements AutoCloseable {
 
   private Batch<DimensionRepository.CommitResult> doCommit(CommitRequest request, boolean inline) throws IOException {
     Context c = context();
-    if(org.worldgit.core.merge.MergeState.read(c.layout().repositoryRoot().resolve("merge-state.bin"))!=null) throw new IOException("世界為 MERGING；請 resolve 後 merge --continue，或 merge --abort");
-    if(org.worldgit.core.service.OperationState.partial(c.layout().repositoryRoot())) throw new IOException("世界為 PARTIAL；請用 /wg switch <目標> --force 或 /wg reset --hard 恢復");
     var tracked = trackedLive(c);
     if (tracked.isEmpty()) throw new IOException("世界尚未 init（/wg init）");
     var manifest = c.repos().manifest();
@@ -321,7 +324,7 @@ public final class RepoService implements AutoCloseable {
                 author,
                 committer,
                 request.message(),
-                snapshot,
+                UUID.randomUUID(),
                 id,
                 live.dataVersion(),
                 request.auto(),
@@ -337,7 +340,11 @@ public final class RepoService implements AutoCloseable {
         }
         result.put(id, new Outcome<>(r, null));
       } catch (Exception ex) {
-        plugin.getLogger().log(Level.WARNING, "commit " + id + " 失敗", ex);
+        String reason=error(ex);
+        // 單維度批次把正常的狀態拒絕保留在 Outcome；和 Commands.fail 一樣不當成未處理例外。
+        if(ex instanceof IOException && (reason.startsWith("世界為 PARTIAL") || reason.startsWith("世界為 MERGING")))
+          plugin.getLogger().warning("commit " + id + " 失敗：" + reason);
+        else plugin.getLogger().log(Level.WARNING, "commit " + id + " 失敗", ex);
         result.put(id, new Outcome<>(null, error(ex)));
       }
       if (keep) restore.put(id, drained.of(id));
@@ -345,16 +352,11 @@ public final class RepoService implements AutoCloseable {
     if (!restore.isEmpty()) plugin.attribution().restore(new Attribution.Drained(restore));
     if (result.values().stream().anyMatch(o -> o.success() && o.value().changed()))
       lastCommitMillis = System.currentTimeMillis();
-    pinGroup(c,snapshot,result);
+
     return new Batch<>(snapshot, result);
   }
 
-  private void pinGroup(Context c,UUID snapshot,Map<DimensionId,Outcome<DimensionRepository.CommitResult>> result) throws IOException {
-    if(result.values().stream().anyMatch(o->!o.success())) return;
-    for(var entry:trackedLive(c).entrySet()) try(var repo=new DimensionRepository(entry.getValue(),entry.getKey(),false)) {
-      String head=repo.refs().head(); if(head!=null) repo.refs().updateRef("refs/worldgit/groups/"+snapshot,null,head);
-    }
-  }
+
 
   private CommitMetadata metadata(
       CommitMetadata.Identity author,

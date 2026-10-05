@@ -4,6 +4,7 @@ import argparse,http.server,threading,hashlib,importlib.util,json,os,re,secrets,
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2];sys.path.insert(0,str(ROOT/'paper/tools'))
 import harness
+from cli_compat import DIMENSIONS, cli_data, heads as world_heads, hub_heads, verify_all
 import phase4 as hub_fixture
 import dedicated_harness
 from phase4_harness import Client,BenchLock,retain_difference
@@ -22,9 +23,9 @@ def run(args):
         p=subprocess.run([JAVA['1.21.11'],'-Xmx900m','-jar',str(work/'wgit.jar'),'--world',str(world),'--format=json',*words],text=True,capture_output=True,env={**os.environ,'WGIT_TOKEN':TOKEN,'WGIT_AUTH':'bearer'},timeout=900)
         (work/'cli.log').open('a').write(str(words)+'\n'+p.stdout+p.stderr)
         if p.returncode:raise RuntimeError(p.stdout+p.stderr)
-        return json.loads(p.stdout)
+        return cli_data(p.stdout)
     def botcmd(text,pattern,expected=True,who=None):
-        target=who or bot;since=len(target.lines);target.ask('chat /wg '+text,'chat_sent');rx=re.compile(pattern);end=time.monotonic()+300
+        target=who or remote_bot;since=len(target.lines);target.ask('chat /wg '+text,'chat_sent');rx=re.compile(pattern);end=time.monotonic()+300
         while time.monotonic()<end:
             with target.lock:events=list(target.lines[since:])
             rows=[e['t'] for e in events if e.get('ev')=='chat'];out='\n'.join(rows)
@@ -40,8 +41,11 @@ def run(args):
         return out
     def commit(label):return cmd('wg commit -m '+label,r'Snapshot:|Snapshot |snapshot|No changes, so no commit|Error:')
     def edit(x,block):cmd(f'setblock {x} 224 0 {block}',r'Changed the block|Could not set')
-    def heads():
-        candidates=[p for p in Path(server.dir).rglob('HEAD') if p.parent.name.startswith('minecraft.')];return {p.parent.name.replace('.',':',1):subprocess.check_output(['git','--git-dir',str(p.parent),'rev-parse','HEAD'],text=True).strip() for p in candidates}
+    def heads():return world_heads(server.world,args.version)
+    def move(dimension):
+        nonlocal remote_bot
+        remote_bot=remote_bots[dimension]
+
     def clone():
         shutil.rmtree(work/'b',ignore_errors=True);cli('.', 'clone',url,str(work/'b'));return work/'b'
     def remote_edit(world,x,block):subprocess.run([JAVA['1.21.11'],'-Xmx512m','-cp',str(work/'tools.jar'),'org.worldgit.core.Phase4AcceptanceTool','edit',str(world),str(x),block],check=True,timeout=90)
@@ -65,7 +69,9 @@ def run(args):
         data=Path(server.dir)/'config';cred=data/'credentials.yml';cred.write_text('credentials:\n  '+hub.base+':\n    mode: bearer\n    token: '+TOKEN+'\n');cred.chmod(0o600)
         secret=data/'webhook.secret';secret.write_text(SECRET);secret.chmod(0o600);webhook_port=25761 if v=='1.21.11' else 25762
         (data/'worldgit-server.yml').write_text('locale: en_us\npermission-level: 2\nread-permission-level: 0\nauto-commit:\n  on-logout: false\n  on-stop: false\n  interval-minutes: 0\nremote:\n  timeout-seconds: 3\n  webhook:\n    enabled: true\n    port: '+str(webhook_port)+'\n')
-        server.start();bot=server.bot('WgBot');viewer=server.bot('WgViewer');server.cmd('op WgBot');server.cmd('gamemode creative WgBot');server.cmd('tp WgBot 8 225 8');cmd('tick freeze',r'froze')
+        server.start();bot=server.bot('WgBot');viewer=server.bot('WgViewer');remote_bots=dict(zip(DIMENSIONS,[bot,server.bot('WgBot3'),server.bot('WgBot4')]));remote_bot=bot;
+        for player in remote_bots.values():server.cmd('op '+player.name);server.cmd('gamemode creative '+player.name)
+        server.cmd('op WgBot');server.cmd('gamemode creative WgBot');server.cmd('tp WgBot 8 225 8');cmd('tick freeze',r'froze')
         if v=='1.21.11':
             # Paper fixture 的 strider 含 Paper-only AgeLocked；先由真正 Fabric 載入，
             # 再建立初始快照，避免後面的換維度檢查才觸發普通原版序列化變化。
@@ -81,26 +87,40 @@ def run(args):
                 time.sleep(.5)
             cmd('execute in minecraft:overworld run tp WgBot 8 225 8',r'Teleported')
             result['fixture_preload']='Paper strider AgeLocked removed by vanilla serialization before initial snapshot'
+        for dimension,player in remote_bots.items():cmd('execute in '+dimension+' run tp '+player.name+' 8 '+('225' if dimension=='minecraft:overworld' else '65')+' 8',r'Teleported')
+        move('minecraft:overworld');time.sleep(10)
         cmd('wg init',r'Initialization complete|Error:',True)
-        botcmd('remote add origin '+url,r'updated|Error:');botcmd('remote list',r'origin →|Error:');botcmd('push',r'push complete|Error:')
-        initial=heads();check('player remote add/list/push all dimensions',len(initial)==3)
+        for dimension in DIMENSIONS:
+            move(dimension);botcmd('remote add origin '+url,r'updated|Error:');botcmd('remote list',r'origin →|Error:')
+            out=botcmd('push',r'push complete|Error:');check('player push only '+dimension,'push complete (1 dimensions)' in out)
+        move('minecraft:overworld')
+        initial=heads();check('player remote add/list/push all dimensions',len(initial)==3 and initial==hub_heads(work,'admin',slug),local=initial,remote=hub_heads(work,'admin',slug))
         if args.visual_only:
             result['mode']='dedicated-visual'
             edit(8,'diamond_block');commit('visual anchor');botcmd('push',r'push complete|Error:')
-            cmd('wg branch create topic',r'Branch updated:|Error:');botcmd('push origin topic',r'push complete|Error:')
+            cmd('wg branch create topic',r'Branch updated:|Error:')
+            for dimension in DIMENSIONS:
+                move(dimension)
+                if dimension!='minecraft:overworld':botcmd('branch create topic',r'Branch updated:|Error:')
+                botcmd('push origin topic',r'push complete|Error:')
+            move('minecraft:overworld')
             botcmd('pr create visual marker --source topic --target main',r'PR #\d+|Error:');pr=hub.api('GET',base+'/pulls')['items'][0]
             spec=importlib.util.spec_from_file_location('pair_fixture',ROOT/'fabric/tools/accept-paper-phase3.py');pair=importlib.util.module_from_spec(spec);spec.loader.exec_module(pair);relay=pair.TcpRelay(server.port+10,server.port)
             client=Client(work,v,port=server.port+10);result['client_artifact']=hashlib.sha256(Path(client.ready['productionJar']).read_bytes()).hexdigest();player=client.ready['player'];server.cmd('op '+player);server.cmd('gamemode creative '+player)
         else:
             hub.api('POST',base+'/webhooks',{'url':'http://127.0.0.1:'+str(webhook_port)+'/worldgit/webhook','secret':SECRET,'events':['pr.merged','push'],'enabled':True})
-            b=clone();cli(b,'branch','topic');cli(b,'switch','topic');remote_edit(b,8,'diamond_block');cli(b,'commit','-m','remote disjoint');cli(b,'push','origin','topic')
-            edit(0,'gold_block');commit('local disjoint');botcmd('push',r'push complete|Error:')
+            b=clone();cli(b,'branch','topic','--all');cli(b,'switch','topic','--all');remote_edit(b,8,'diamond_block');cli(b,'commit','-m','remote disjoint');cli(b,'push','origin','topic','--all')
+            edit(0,'gold_block');commit('local disjoint')
+            for dimension in DIMENSIONS:move(dimension);botcmd('push',r'push complete|Error:')
+            move('minecraft:overworld')
             botcmd('pr create remote building --source topic --target main',r'PR #\d+|Error:');pr=hub.api('GET',base+'/pulls')['items'][0];detail=hub.api('GET',base+'/pulls/'+pr['id'])
             hub.api('PUT',base+'/protected-branches',{'branch':'main','prOnly':True,'reviews':1});hub.api('POST',base+'/pulls/'+pr['id']+'/reviews',{'fingerprint':detail['pr']['fingerprint'],'decision':'approve'},hub.reviewer)
             mark=server.mark();hub.api('POST',base+'/pulls/'+pr['id']+'/merge',{'fingerprint':detail['pr']['fingerprint']});merged=hub.api('GET',base+'/pulls/'+pr['id']);server.wait('has a new version',120,mark)
             check('signed webhook notification never auto applies',sample(8)=='air' and heads()!=merged['pr']['commits'])
             botcmd('pr list',r'PR #1|Error:');botcmd('pr view 1',r'approvals|Error:')
-            code,out=preview();check('FF preview keeps world unchanged',sample(8)=='air' and 'FF' in out);botcmd('pull confirm '+code,r'COMPLETE:|Error:|PARTIAL');check('live FF equals Hub merge',sample(8)=='diamond_block' and heads()==merged['pr']['commits'])
+            code,out=preview();check('FF preview keeps world unchanged',sample(8)=='air' and 'FF' in out);botcmd('pull confirm '+code,r'COMPLETE:|Error:|PARTIAL')
+            for dimension in DIMENSIONS[1:]:move(dimension);pull()
+            move('minecraft:overworld');check('live FF equals Hub merge',sample(8)=='diamond_block' and heads()==merged['pr']['commits'],local=heads(),remote=merged['pr']['commits'])
             out=botcmd('pull confirm '+code,r'No valid preview|Error:',False);check('confirmation one use','No valid preview' in out)
             hub.api('DELETE',base+'/protected-branches?branch=main');b=clone();remote_edit(b,2,'emerald_block');cli(b,'commit','-m','remote2');cli(b,'push');code,_=preview();remote_edit(b,3,'lapis_block');cli(b,'commit','-m','remote3');cli(b,'push');old=heads()
             out=botcmd('pull confirm '+code,r'Pull preview changed|Error:',False);check('changed remote tip rejected',heads()==old and sample(2)=='air' and 'preview changed' in out);pull()
@@ -110,7 +130,9 @@ def run(args):
             b=clone();edit(4,'gold_block');commit('local conflict');remote_edit(b,4,'diamond_block');cli(b,'commit','-m','remote conflict');cli(b,'push')
             out=botcmd('push',r'non fast-forward|Error:',False);check('non FF push rejected','/wg pull' in out)
             code,out=preview();check('3-way conflict preview exact chunk','3-way' in out and '1 conflict' in out and '1 affected chunks' in out);out=botcmd('pull confirm '+code,r'MERGING:|Error:|PARTIAL');check('pull enters MERGING','MERGING' in out)
-            ui=client.action('conflict');check('real client conflict list and resolve',ui['regions']==1);cmd('wg merge --continue');botcmd('push',r'push complete|Error:');cli(b,'fetch');cli(b,'pull');check('resolved Hub equals clone',cli(b,'verify')['state']=='COMPLETE')
+            ui=client.action('conflict');check('real client conflict list and resolve',ui['regions']==1);cmd('wg merge --continue')
+            for dimension in DIMENSIONS:move(dimension);botcmd('push',r'push complete|Error:')
+            move('minecraft:overworld');cli(b,'fetch','--all');cli(b,'pull','--all');check('resolved Hub equals clone',heads()==world_heads(b,v) and bool(verify_all(cli,b)))
             denied=botcmd('push',r'Insufficient permission|Error:',False,viewer);check('read/write op permission split','Insufficient permission' in denied);botcmd('pr list',r'PR #1|Error:',who=viewer)
         body='<red><click:run_command:/op bad><script>alert(1)</script> literal §c color';pin={'dimension':'minecraft:overworld','x':8,'y':224,'z':0,'maxX':10,'maxY':226,'maxZ':2};hub.api('POST',base+'/pulls/'+pr['id']+'/comments',{'body':body,'pin':pin})
         botcmd('comments show pr 1',r'require a WorldGit Fabric client|Error:');check('vanilla fallback explicitly explained',True)
@@ -155,7 +177,7 @@ def run(args):
         if server:
           try:
             server.stop();result['server_exit']=server.proc.returncode
-            if result['success']:check('final offline verify zero differences',cli(server.world,'verify')['state']=='COMPLETE')
+            if result['success']:check('final offline verify zero differences',len(verify_all(cli,server.world))==3)
             result['problems']=[l for l in server.lines_since() if re.search(r'\bERROR\b|ClassNotFound|NoClassDefFound|thread check',l)]
           except BaseException:
             result['cleanup_error']=traceback.format_exc();result['success']=False

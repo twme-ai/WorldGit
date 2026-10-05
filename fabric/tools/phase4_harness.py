@@ -1,20 +1,20 @@
 """Phase 4 共用真客戶端控制；呼叫端已持 bench.lock，無秘密 command line。"""
-import fcntl,importlib.util,json,os,shutil,subprocess,time
+import fcntl,importlib.util,json,os,shutil,subprocess,time,sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT/'paper/tools'))
+from cli_compat import repository
 
 def retain_difference(world,work,cli):
     """刪除失敗副本前保留完整 diff 與變動 metadata blob，不放寬 verify。"""
     difference=cli(world,'diff','--blocks')
     (work/'final-difference.json').write_text(json.dumps(difference,ensure_ascii=False,indent=2)+'\n')
-    repository=Path(world)/'.worldgit'
-    if not repository.is_dir():repository=Path(world).parent/'.worldgit'/Path(world).name
     for dimension,data in difference.items():
         for change in data.get('metadata',[]):
             for side in ['beforeId','afterId']:
                 oid=change.get(side)
                 if not oid:continue
-                blob=subprocess.check_output(['git','--git-dir',str(repository/dimension.replace(':','.')),'cat-file','blob',oid])
+                blob=subprocess.check_output(['git','--git-dir',str(repository(world,dimension,'1.21.11' if (Path(world)/'DIM-1').is_dir() else '26.2')),'cat-file','blob',oid])
                 (work/(oid+'.blob')).write_bytes(blob)
     return difference
 spec=importlib.util.spec_from_file_location('phase4_process',ROOT/'fabric/tools/accept-paper.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)

@@ -4,6 +4,8 @@ Minecraft 世界的 git 式版本控制。世界是 working tree，每個維度�
 
 目前已完成 Phase 4：四端共用的遠端協作（remote／fetch／push／pull／clone／tag／release ZIP），Hub 帳號與權限、受保護分支、PR 審核與網頁合併、3D 座標釘選留言、webhook；Paper／Folia 與 Fabric（單人／專用伺服器）遊戲內 push／pull 預覽確認、PR 與留言顯示。各平台結果與限制見 [Phase 4 紀錄](docs/14-phase4-progress.md)。
 
+Phase 5 任務 1 已實作 core／CLI 的維度獨立、世界內 repo、安全遷移、init 範圍、分支圖、進度、ignore 編輯及完成／錯誤結果。介面、驗收與任務 2（Hub）／3（Paper／Folia）／4（Fabric）的交接見 [Phase 5 設計](docs/16-phase5-design.md)。遊戲內 creative init 在玩家觸及事件接線前仍使用 `entities: all`；core／CLI 新 creative repo 使用 `player-touched`，離線初始集合為空。
+
 **使用方式請看 [使用手冊](docs/15-user-guide.md)**：依單人玩家、伺服器管理員、建築者、CLI、Hub 使用者與架站者分章說明。
 
 | 模組 | 責任 | Java |
@@ -34,7 +36,9 @@ flock .work/bench.lock ./gradlew --no-daemon --configure-on-demand --max-workers
 ./wgit --world /srv/minecraft/world diff HEAD~1 HEAD --blocks
 ```
 
-可指定世界資料夾或含 `world/` 的伺服器資料夾；預設目前目錄。支援 1.21.11 的 Paper 三資料夾／原版 DIM-1、DIM1，以及 26.2 的 `dimensions/<namespace>/<path>/`。repo 放在世界外的 `<server>/.worldgit/<world>/<namespace>.<path>/`。
+可指定世界資料夾或含 `world/` 的伺服器資料夾；預設目前目錄。支援 1.21.11 的 Paper 三資料夾／原版 DIM-1、DIM1，以及 26.2 的 `dimensions/<namespace>/<path>/`。主世界 repo 在 `<world>/.worldgit/`；其他維度在自己的地形資料目錄 `.worldgit/`。自行壓縮世界／維度會攜帶歷史，release ZIP／export 不帶 repo。舊外置與單人巢狀 repo 可讀，世界停止後以 `wgit migrate` 搬移。
+
+`init` 只初始化路徑所在維度，主世界可用 `--with-dimensions nether,end` 追加；變更用 `--dimension` 選維度、`--all` 逐維度獨立執行。1.21.11 clone／export 即使只選部分維度，也保留空的 `DIM-1/`、`DIM1/`，讓 Paper 沿用主世界生成與終界設定。
 
 發佈產物是 `cli/build/libs/wgit.jar`，也可 `java -jar wgit.jar …`；根 `wgit` 可用 `WGIT_JAR` 指向發佈 jar。運行中的世界會因 `session.lock` 警告並拒絕離線操作。
 
@@ -64,4 +68,4 @@ python3 scripts/benchmark-scale.py
 
 ## 設計文件
 
-[概念](docs/01-concept-mapping.md)、[資料模型](docs/02-data-model.md)、[儲存](docs/03-storage-backend.md)、[commit/status](docs/04-commit-and-status.md)、[diff](docs/06-diff-merge.md)、[架構](docs/08-architecture.md)、[決策與路線圖](docs/09-roadmap-open-questions.md)、[Phase 1 實作與驗收](docs/11-phase1-progress.md)、[Phase 4 進度](docs/14-phase4-progress.md)、[使用手冊](docs/15-user-guide.md)。Phase 0 原型保留於 `experiments/`，正式程式不依賴它們。
+[概念](docs/01-concept-mapping.md)、[資料模型](docs/02-data-model.md)、[儲存](docs/03-storage-backend.md)、[commit/status](docs/04-commit-and-status.md)、[diff](docs/06-diff-merge.md)、[架構](docs/08-architecture.md)、[決策與路線圖](docs/09-roadmap-open-questions.md)、[Phase 1 實作與驗收](docs/11-phase1-progress.md)、[Phase 4 進度](docs/14-phase4-progress.md)、[Phase 5 設計與驗收](docs/16-phase5-design.md)、[使用手冊](docs/15-user-guide.md)。Phase 0 原型保留於 `experiments/`，正式程式不依賴它們。

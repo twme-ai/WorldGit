@@ -53,6 +53,15 @@ public final class HubClient implements AutoCloseable {
       if(!Set.of("https","http").contains(uri.getScheme()) || uri.getHost()==null || uri.getUserInfo()!=null
           || uri.getQuery()!=null || uri.getFragment()!=null) throw new IllegalArgumentException();
       String path=uri.getRawPath(); String[] bits=path.split("/");
+      // Phase 5 remote 設定儲存各維度的 smart HTTP URL；REST／網頁仍屬世界。
+      if(bits.length>=5 && bits[bits.length-4].equals("git") && bits[bits.length-1].endsWith(".git")) {
+        String dimension=bits[bits.length-1];
+        new DimensionId(URLDecoder.decode(dimension.substring(0,dimension.length()-4).replaceFirst("\\.",":"),StandardCharsets.UTF_8));
+        String prefix=String.join("/",Arrays.copyOf(bits,bits.length-4));
+        path=prefix+"/"+bits[bits.length-3]+"/"+bits[bits.length-2];
+        uri=URI.create(uri.getScheme()+"://"+uri.getRawAuthority()+path);
+        bits=path.split("/");
+      }
       if(bits.length<3) throw new IllegalArgumentException();
       String owner=bits[bits.length-2],world=bits[bits.length-1];
       if(!owner.matches("[A-Za-z0-9_-]{1,64}") || !world.matches("[A-Za-z0-9_.-]{1,128}") || world.equals(".") || world.equals("..")) throw new IllegalArgumentException();

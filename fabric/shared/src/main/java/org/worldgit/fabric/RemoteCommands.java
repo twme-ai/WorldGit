@@ -50,8 +50,12 @@ final class RemoteCommands implements AutoCloseable {
     }
     if(settings.fetchIntervalSeconds()>0)notifications.scheduleWithFixedDelay(()->poll(0),settings.fetchIntervalSeconds(),settings.fetchIntervalSeconds(),TimeUnit.SECONDS);
   }
-  private WorldRemotes open() throws IOException {
-    var r=new WorldRemotes(WorldLayout.discover(rt.worldRoot()),secrets.credentials(),settings.timeoutSeconds());
+  private WorldRemotes open() throws IOException { return open(DimensionId.OVERWORLD); }
+  private WorldRemotes open(DimensionId dimension) throws IOException {
+    var layout=WorldLayout.discover(rt.worldRoot());
+    var paths=new WorldRepositories(layout).tracked();
+    var primary=paths.get(dimension);if(primary==null)throw new IOException("維度尚未 init："+dimension);
+    var r=new WorldRemotes(layout.repositoryRoot(),Map.of(dimension,primary),secrets.credentials(),d->{},settings.timeoutSeconds());
     try {
       if(!settings.hubUrl().isEmpty() && !r.remotes().containsKey(settings.defaultRemote()))r.configure("add",settings.defaultRemote(),settings.hubUrl(),false);
       return r;
@@ -63,6 +67,7 @@ final class RemoteCommands implements AutoCloseable {
       return new HubClient(spec.url(),secrets.credentials().resolve(settings.defaultRemote(),spec.url()),settings.timeout());
     }
   }
+  private DimensionId dimension(CommandSourceStack sender) { return ServerRuntime.dimensionId(sender.getLevel()); }
   private static String key(CommandSourceStack sender) {return sender.getPlayer()!=null?sender.getPlayer().getUUID().toString():"console";}
   private static CommitMetadata.Identity author(CommandSourceStack sender,ServerRuntime rt) {
     var p=sender.getPlayer();return p==null?Identities.server(rt.config()):Identities.player(p.nameAndId().name(),p.getUUID(),rt.config().identity().playerEmailDomain());
@@ -138,31 +143,32 @@ final class RemoteCommands implements AutoCloseable {
     if(s.isBlank() || s.startsWith("-") || !s.matches("[A-Za-z0-9_][A-Za-z0-9_./-]{0,127}") || s.contains("..") || s.contains("//") || s.endsWith("/") || s.endsWith(".") || s.endsWith(".lock"))throw new IllegalArgumentException();return s;
   }
   private void remote(CommandSourceStack sender,String[] args) {
+    var dimension=dimension(sender);
     if(args.length==0)throw new IllegalArgumentException();String action=args[0];
-    if(action.equals("list") && args.length==1) {async(sender,()->{try(var r=open()) {return r.remotes();}},rows->{
+    if(action.equals("list") && args.length==1) {async(sender,()->{try(var r=open(dimension)) {return r.remotes();}},rows->{
       if(rows.isEmpty())reply(sender,"empty");rows.forEach((name,spec)->reply(sender,"remote-row","name",name,"url",spec.url()));
     });return;}
     if(!Set.of("add","remove","set-url").contains(action) || args.length!=(action.equals("remove")?2:3))throw new IllegalArgumentException();
     // core URL validation never includes userinfo/PAT in error.
-    async(sender,()->{try(var r=open()) {r.configure(action,args[1],args.length==3?args[2]:null,false);return true;}},ignored->{pending.clear();announced=Map.of();reply(sender,"configured");});
+    async(sender,()->{try(var r=open(dimension)) {r.configure(action,args[1],args.length==3?args[2]:null,false);return true;}},ignored->{pending.clear();announced=Map.of();reply(sender,"configured");});
   }
   private void transfer(CommandSourceStack sender,String sub,String[] args) {
     boolean tags=false;var words=new ArrayList<String>();
     for(String arg:args) {if(sub.equals("push") && arg.equals("--tags") && !tags)tags=true;else if(arg.startsWith("--"))throw new IllegalArgumentException();else words.add(arg);}
     if(words.size()>(sub.equals("push")?2:1))throw new IllegalArgumentException();
     String remote=words.isEmpty()?settings.defaultRemote():words.getFirst();String b=words.size()==2?branch(words.get(1)):null;boolean t=tags;
-    var identity=author(sender,rt);
-    async(sender,()->{try(var r=open()) {
+    var identity=author(sender,rt); var dimension=dimension(sender);
+    async(sender,()->{try(var r=open(dimension)) {
       var result=sub.equals("fetch")?r.fetch(remote,false):r.push(remote,b,t,false,false,identity);
       if(!result.success())throw new IOException(result.error());return result;
     }},result->reply(sender,"transferred","mode",sub,"dimensions",result.commits().size()));
   }
-  private Target fetch(String remote,String b) throws IOException {
-    try(var r=open()) {var result=r.fetch(remote,false);if(!result.success())throw new IOException(result.error());
+  private Target fetch(String remote,String b,DimensionId dimension) throws IOException {
+    try(var r=open(dimension)) {var result=r.fetch(remote,false);if(!result.success())throw new IOException(result.error());
       String target=b==null?r.branch():b;return new Target(remote,target,r.remotes().get(remote).url(),r.trackingHeads(remote,target));}
   }
   private void pull(CommandSourceStack sender,String[] args) {
-    String id=key(sender);var identity=author(sender,rt);
+    String id=key(sender);var identity=author(sender,rt); var dimension=dimension(sender);
     if(args.length==2 && args[0].equals("confirm")) {
       Pending p=pending.get(id);
       if(p==null || !p.code().equals(args[1]) || System.currentTimeMillis()>p.expires()) {reply(sender,"expired");return;}
@@ -170,10 +176,10 @@ final class RemoteCommands implements AutoCloseable {
       pending.remove(id,p);reply(sender,"start");
       // 先 fetch 網路，不持編輯鎖；再在 coordinator 同一 repo queue 內檢查固定 targets/HEAD。
       rt.runRepo(()->{
-        var target=fetch(p.remote(),p.branch());
+        var target=fetch(p.remote(),p.branch(),p.preview().targets().firstKey());
         if(!target.url().equals(p.url()) || !target.heads().equals(p.preview().targets()))throw new IOException("pull preview 已過期；遠端 tip 改變，請重新 /wg pull");return target;
-      }).thenCompose(target->rt.live(ops->{
-        var spec=RemoteSpec.read(WorldLayout.discover(rt.worldRoot()).repositoryRoot()).get(p.remote());
+      }).thenCompose(target->rt.live(p.preview().targets().firstKey(),ops->{
+        var spec=RemoteSpec.read(new WorldRepositories(WorldLayout.discover(rt.worldRoot())).tracked().get(p.preview().targets().firstKey())).get(p.remote());
         if(spec==null || !spec.url().equals(p.url()))throw new IOException("pull preview 已過期；remote 設定改變，請重新 /wg pull");
         if(!Objects.equals(p.localBranch(),currentBranch(ops)))throw new IOException("pull preview 已過期；本地分支改變，請重新 /wg pull");
         var result=ops.pull(p.preview().targets(),p.preview().expectedHeads(),false,
@@ -188,7 +194,7 @@ final class RemoteCommands implements AutoCloseable {
     pending.remove(id);
     if(!busy.add(id)) {reply(sender,"busy");return;}
     reply(sender,"start");
-    rt.runRepo(()->fetch(remote,b)).thenCompose(target->rt.live(ops->{
+    rt.runRepo(()->fetch(remote,b,dimension)).thenCompose(target->rt.live(dimension,ops->{
       var preview=ops.pull(target.heads(),null,false,new WorldOperations.MergeOptions(true,null,1,true,identity,CommitMetadata.Source.MOD));
       return new Pending(UUID.randomUUID().toString().substring(0,8),remote,target.branch(),currentBranch(ops),target.url(),System.currentTimeMillis()+120000,preview);
     })).whenComplete((p,e)->{

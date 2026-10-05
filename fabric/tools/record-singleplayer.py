@@ -9,9 +9,12 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "paper/tools"))
+from cli_compat import cli_data, repository
 
 
 def run(args):
@@ -44,12 +47,12 @@ def run(args):
                 p = subprocess.run(["/usr/lib/jvm/java-21-openjdk-amd64/bin/java", "-jar", str(jar),
                                     "-w", str(world), "--format=json", *command], text=True, capture_output=True, check=True)
                 (evidence / f"cli-{name}.json").write_text(p.stdout)
-                return json.loads(p.stdout)
-            history = cli("log", "log")
+                return cli_data(p.stdout)
+            history = cli("log", "log")["minecraft:overworld"]["nodes"]
             manual = next(row for row in history if "client game test" in row["message"])
-            initial = next(row for row in history if row["message"] == "Initialize world")
+            initial = next(row for row in history if row["message"] in ("Initialize world", "初始化世界"))
             dimension = "minecraft:overworld"
-            before, after = initial["dimensions"][dimension], manual["dimensions"][dimension]
+            before, after = initial["id"], manual["id"]
             diff = cli("diff", "diff", before, after, "--blocks")[dimension]
             blocks = [block for section in diff["sections"] for block in section["blocks"]]
             counts = dict(collections.Counter(block["kind"] for block in blocks))

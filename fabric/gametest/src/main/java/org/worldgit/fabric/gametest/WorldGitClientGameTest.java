@@ -242,7 +242,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
     for (int attempt = 0; attempt < 120; attempt++) {
       int commits = 0;
       try {
-        commits = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).log(10)), 600).size();
+        commits = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).log(10)), 600).stream().filter(row -> row.commits().containsKey(DimensionId.OVERWORLD)).toList().size();
       } catch (java.util.concurrent.CompletionException notYet) {
         // repo 尚未建立完成
       }

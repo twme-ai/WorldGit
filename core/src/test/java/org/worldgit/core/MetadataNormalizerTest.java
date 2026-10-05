@@ -63,6 +63,60 @@ class MetadataNormalizerTest {
   }
 
   @Test
+  void chunkTicketHashMapOrderDoesNotChangeTrackedContents() throws Exception {
+    var first = ticket(0, 1, 31);
+    var second = ticket(-5, 4, 32);
+    String key = savedKey("data/minecraft/chunk_tickets.dat");
+    byte[] before = tickets(List.of(first, second, first));
+    byte[] after = tickets(List.of(first, first, second));
+    byte[] normalized = normalized(key, before);
+    assertArrayEquals(normalized, normalized(key, after));
+    String customKey = "example.saved.dimension." + key.substring(key.lastIndexOf("saved."));
+    assertArrayEquals(normalized(customKey, before), normalized(customKey, after));
+    var preserved = Nbt.read(normalized).compound("data");
+    assertEquals(3, preserved.list("tickets").values().size(), "duplicates must remain tracked");
+    assertEquals("tracked", preserved.get("future_field"));
+    assertArrayEquals(before, tickets(List.of(first, second, first)), "input must remain unchanged");
+    for (String field : List.of("level", "type", "chunk_pos", "future_field")) {
+      var changed = Nbt.copy(first);
+      changed.put(field, switch (field) {
+        case "level" -> 30;
+        case "type" -> "minecraft:another";
+        case "chunk_pos" -> new int[] {0, 2};
+        default -> "changed";
+      });
+      assertFalse(Arrays.equals(normalized, normalized(key, tickets(List.of(changed, second, first)))), field);
+    }
+  }
+
+  @Test
+  void otherSavedDataListsKeepTheirMeaningfulOrder() throws Exception {
+    String key = savedKey("data/example/chronology.dat");
+    byte[] first = tickets(List.of(ticket(0, 0, 31), ticket(1, 0, 31)));
+    byte[] reversed = tickets(List.of(ticket(1, 0, 31), ticket(0, 0, 31)));
+    assertFalse(Arrays.equals(normalized(key, first), normalized(key, reversed)));
+  }
+
+  private static Nbt.Compound ticket(int x, int z, int level) {
+    return new Nbt.Compound().with("chunk_pos", new int[] {x, z}).with("level", level)
+        .with("type", "minecraft:forced").with("future_field", "preserved");
+  }
+
+  private static byte[] tickets(List<Object> values) throws Exception {
+    return Nbt.write(new Nbt.Compound().with("DataVersion", 4903).with("data",
+        new Nbt.Compound().with("tickets", new Nbt.ListTag(10, values)).with("future_field", "tracked")));
+  }
+
+  private static String savedKey(String path) {
+    return "minecraft.the_nether.saved." + Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(path.getBytes(java.nio.charset.StandardCharsets.UTF_8)) + ".nbt";
+  }
+
+  private static byte[] normalized(String key, byte[] value) throws Exception {
+    return MetadataNormalizer.normalize(Map.of(key, value), IgnoreRules.parse("")).get(key);
+  }
+
+  @Test
   void ignoreChangeRemovesAlreadyTrackedMapFromNextCommit() throws Exception {
     TestWorlds.copy(TestWorlds.fixture("26.2"), temp);
     var layout = WorldLayout.discover(temp);

@@ -3,6 +3,7 @@
 import collections
 import fcntl
 import json
+import sys
 import math
 import os
 from pathlib import Path
@@ -12,6 +13,8 @@ import threading
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'paper/tools'))
+from cli_compat import cli_data, repository, DIMENSIONS, verify_all, prepare_all_entities
 WORK = Path(os.environ.get('WGIT_VERIFY_DIR', str(ROOT / '.work/phase1/paper')))
 JAVA = {'1.21.11': '/usr/lib/jvm/java-21-openjdk-amd64/bin/java', '26.2': '/usr/lib/jvm/java-25-openjdk-amd64/bin/java'}
 
@@ -54,9 +57,10 @@ class Server:
         self.log.close()
 
 def cli(directory, *args):
+    if args and args[0]=='init':prepare_all_entities(directory)
     result = subprocess.run([JAVA['1.21.11'], '-jar', str(WORK/'wgit.jar'), '--world', str(directory), '--format=json', *args], text=True, capture_output=True)
     if result.returncode: raise RuntimeError(result.stderr)
-    return json.loads(result.stdout)
+    return cli_data(result.stdout)
 
 def tool(command, directory):
     cp = str(WORK/'acceptance-tools.jar')
@@ -99,7 +103,7 @@ def run(version):
     (directory/'server.properties').write_text('\n'.join(k+'='+v for k,v in properties.items())+'\n')
     initial_chunks = tool('chunks', ROOT/'.work/worlds'/version/'baseline' if stable_root else directory).splitlines()
     before_headers = {tuple(line.split()[:3]):line.split()[3] for line in tool('chunks',directory).splitlines()}
-    cli(directory,'init')
+    cli(directory,'init','--with-dimensions','all')
     report = {'initial_chunks':len(initial_chunks), 'source':'已穩定的 baseline 複本' if stable_root else '原始 baseline 複本', 'passes':[]}
     for pass_number in range(2 if stable_root else 4):
         server=Server(version,directory,directory/('verify-'+str(pass_number)+'.log'))

@@ -164,6 +164,7 @@ class EntityTagRegistryTest {
     raw.put("Entities", new Nbt.ListTag(10, entities));
     RegionFile.update(entityFile, Map.of(0, raw), (int) (System.currentTimeMillis() / 1000));
     var repos = new WorldRepositories(layout);
+    WorldGitConfig.write(layout.repository(DimensionId.OVERWORLD).resolve("worldgit-repo.yml"), "track: all\nentities: all\n");
     assertTrue(
         repos
             .init(

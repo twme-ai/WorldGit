@@ -1,5 +1,7 @@
 # WorldGit Hub
 
+Phase 5 任務 1 保留 Hub 的既有 URL 與介面，core／CLI 已採每維度獨立歷史，不再要求全組 snapshot／publication。不同維度分支的網頁比較、PR／release 與權限模型由任務 2 更新；目前下文跨維度功能是 Phase 4 介面，不能把一次單維度 push 視為世界整組發布。單維度 `BareWorldMerge`、共用 graph lane、progress／result／錯誤報告與組裝介面見 [Phase 5 設計](../docs/16-phase5-design.md)。
+
 Phase 1–4 的 Hub：Spring Boot（Java 25）後端 + TypeScript/Vite 前端，單一 jar／單一容器。提供
 
 - **Git smart HTTP**（JGit `GitServlet`）：`git clone/push` 一個「世界」的各維度 repo，路徑 `/git/{owner}/{world}/{維度目錄}.git`，例如 `/git/alice/castle/minecraft.overworld.git`。push 需要 token（Basic：任意使用者名 + token 當密碼，或 `Authorization: Bearer`）；公開世界允許以 `anonymous`／空密碼 clone（例如 `git clone https://anonymous:@hub.example.org/git/alice/castle/minecraft.overworld.git`）。未帶認證時所有有效 repo 路徑先回相同的 401 challenge，認證後無權與不存在皆回 404，避免列舉私人世界；這會讓沒有明確匿名帳密的公開 clone 出現帳密提示。
@@ -19,7 +21,7 @@ WORLDGIT_HUB_DATA_DIR=./hub-data WORLDGIT_HUB_BOOTSTRAP_ADMIN_TOKEN=dev-token \
   java -jar hub/build/libs/worldgit-hub.jar --server.address=127.0.0.1 --server.port=8091
 
 # 推送世界（wgit 先 init／commit；對每個維度 repo）
-cd server/.worldgit/world/minecraft.overworld
+cd server/world/.worldgit
 git push http://admin:dev-token@127.0.0.1:8091/git/admin/castle/minecraft.overworld.git main
 ```
 

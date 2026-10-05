@@ -153,13 +153,14 @@ class WorldOpsTest {
     assertTrue(commit.success());
     assertEquals(1, commit.dimensions().values().stream().filter(o -> o.value().changed()).count());
     var log = ops.log(null, 10);
-    assertEquals(2, log.size());
+    assertEquals(4, log.size(), "獨立初始 commit 不再依共同 snapshot 合併成一列");
     assertEquals("auto: 一格", log.get(0).message());
     assertTrue(log.get(0).auto());
     assertEquals("Alice", log.get(0).author());
     assertEquals(Set.of(DimensionId.OVERWORLD), log.get(0).commits().keySet());
     assertEquals("init", log.get(1).message());
-    assertEquals(3, log.get(1).commits().size());
+    assertTrue(log.stream().allMatch(row -> row.commits().size() == 1));
+    assertEquals(3, log.stream().filter(row -> row.message().equals("init")).count());
     assertTrue(new Messages().log(log).stream().anyMatch(l -> l.key().equals(MessageKeys.LOG_ROW_AUTO)));
     // 歷史 diff（兩個 revision）以及 --blocks 視窗
     try (var repo = new org.worldgit.core.service.DimensionRepository(ops.tracked().get(DimensionId.OVERWORLD), DimensionId.OVERWORLD, false)) {

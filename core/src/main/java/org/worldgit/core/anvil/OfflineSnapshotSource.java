@@ -61,7 +61,7 @@ public final class OfflineSnapshotSource implements SnapshotSource {
 
   @Override
   public Map<String, byte[]> worldMetadata() throws IOException {
-    return dimension().equals(DimensionId.OVERWORLD) ? layout.worldMetadata() : Map.of();
+    return dimension().equals(DimensionId.OVERWORLD) ? layout.worldMetadata() : layout.dimensionMetadata(dimension());
   }
 
   private RegionFile region(Path path) throws IOException {
@@ -126,6 +126,7 @@ public final class OfflineSnapshotSource implements SnapshotSource {
       RegionFile r = region(path);
       for (int i = 0; i < 1024; i++)
         if (r.has(i)) {
+          org.worldgit.core.operation.OperationProgress.report(dimension(), entity ? "scan-entities" : "scan-terrain", result.size(), null, org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
           ChunkPos pos = r.pos(i);
           (entity ? entityPaths : terrainPaths).put(pos, path);
           var old = previous.chunks().get(pos);

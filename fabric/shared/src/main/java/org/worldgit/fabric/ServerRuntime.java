@@ -191,8 +191,7 @@ public final class ServerRuntime {
     /** 與 WorldLayout.repositoryRoot() 相同的規則，但不需要 level.dat 已存在。 */
     public Path repositoryRoot() {
         Path world = worldRoot();
-        if(java.nio.file.Files.isDirectory(world.resolve(".worldgit")))return world.resolve(".worldgit");
-        return world.getParent().resolve(".worldgit").resolve(world.getFileName().toString());
+        return world.resolve(".worldgit");
     }
 
     public WorldOps ops() throws IOException {
@@ -425,7 +424,10 @@ public final class ServerRuntime {
     @FunctionalInterface public interface LiveAction<T> { T run(WorldOperations operations) throws IOException; }
     public <T> CompletableFuture<T> live(LiveAction<T> action) { return live(action,false); }
     public <T> CompletableFuture<T> region(LiveAction<T> action) { return live(action,true); }
-    private <T> CompletableFuture<T> live(LiveAction<T> action,boolean region) {
+    public <T> CompletableFuture<T> live(DimensionId dimension,LiveAction<T> action) { return live(action,false,dimension); }
+    public <T> CompletableFuture<T> region(DimensionId dimension,LiveAction<T> action) { return live(action,true,dimension); }
+    private <T> CompletableFuture<T> live(LiveAction<T> action,boolean region) { return live(action,region,DimensionId.OVERWORLD); }
+    private <T> CompletableFuture<T> live(LiveAction<T> action,boolean region,DimensionId dimension) {
         synchronized(this) {
             if(operation!=null) return CompletableFuture.failedFuture(new IOException("已有套用作業；可用 /wg cancel 取消"));
             operation=UUID.randomUUID(); cancel.set(false); lastProgress=null;
@@ -437,7 +439,7 @@ public final class ServerRuntime {
                 if(cancel.get()) throw new IOException("作業已取消，尚未寫入世界");
                 var layout=WorldLayout.discover(worldRoot());
                 T result;
-                try(var ops=WorldOperations.live(layout,new FabricOperations(this,layout))) { result=action.run(ops); }
+                try(var ops=WorldOperations.live(layout,new FabricOperations(this,layout),dimension)) { result=action.run(ops); }
                 boolean partial=result instanceof WorldOperations.Result r && !r.success()
                     || result instanceof WorldOperations.MergeResult m && !m.success();
                 if(result instanceof WorldOperations.Result r && r.state()!=WorldOperations.State.DRY_RUN) onServer(()->{

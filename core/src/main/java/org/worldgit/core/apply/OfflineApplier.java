@@ -60,7 +60,9 @@ public final class OfflineApplier {
     var byRegion = new TreeMap<String, List<ApplyPlan.ChunkOp>>();
     for (var op : plan.chunks().values())
       byRegion.computeIfAbsent(op.pos().regionName(), k -> new ArrayList<>()).add(op);
+    long completed = 0;
     for (var entry : byRegion.entrySet()) {
+      org.worldgit.core.operation.OperationProgress.report(plan.dimension(), "apply-terrain", completed++, (long)byRegion.size(), org.worldgit.core.operation.OperationProgress.Unit.OBJECT);
       Path terrain = dim.region().resolve(entry.getKey() + ".mca");
       try (var writer = new RegionWriter(terrain);
           var poi = new RegionWriter(dim.poi().resolve(entry.getKey() + ".mca"))) {
@@ -97,13 +99,17 @@ public final class OfflineApplier {
     var old = new HashMap<UUID, Nbt.Compound>();
     // 必須先完整移除，再寫目標；跨 chunk 與 passenger 的 UUID 都納入 barrier。
     for (var dim : layout.dimensions().values()) {
+      if (!rulesByDimension.containsKey(dim.id())) continue;
       var removedChunks = deleted.getOrDefault(dim.id(), Set.of());
+      var repo = new org.worldgit.core.service.WorldRepositories(layout).tracked().get(dim.id());
+      boolean touchedOnly = repo != null && WorldGitConfig.readRepo(repo.resolve("worldgit-repo.yml")).entities() == WorldGitConfig.Entities.PLAYER_TOUCHED;
       if (ids.isEmpty() && removedChunks.isEmpty()) continue;
       var rules = rulesByDimension.getOrDefault(dim.id(), IgnoreRules.none());
       for (Path path : RegionFile.list(dim.entities()))
         try (var writer = new RegionWriter(path)) {
           for (int i = 0; i < 1024; i++)
             if (writer.has(i)) {
+              org.worldgit.core.operation.OperationProgress.check();
               var root = writer.read(i);
               var before = root.list("Entities");
               var after = new ArrayList<Object>();
@@ -113,7 +119,7 @@ public final class OfflineApplier {
                 var copy = Nbt.copy(entity);
                 boolean remove = removeIds(copy, ids, old);
                 if (removedChunks.contains(writer.pos(i))
-                    && !rules.ignoredEntity(entity, semantics)) remove = true;
+                    && !touchedOnly && !rules.ignoredEntity(entity, semantics)) remove = true;
                 if (!remove) after.add(copy);
                 changed |= remove || !Nbt.equal(entity, copy);
               }
@@ -210,8 +216,9 @@ public final class OfflineApplier {
   }
 
   public void validateMetadata(ApplyPlan plan) throws IOException {
-    if (!plan.worldMeta().isEmpty() && !plan.dimension().equals(DimensionId.OVERWORLD))
-      throw new IOException("world-meta 只能由主世界 repo 套用");
+    if (!plan.dimension().equals(DimensionId.OVERWORLD))
+      for (String name : plan.worldMeta().keySet())
+        if (!name.startsWith(plan.dimension().directoryName() + ".")) throw new IOException("非主世界只能套用自己的 dimension-meta");
     for (var entry : plan.worldMeta().entrySet()) {
       metadataPath(entry.getKey());
       if (entry.getKey().equals("level.nbt") && entry.getValue() != null) {
@@ -268,6 +275,8 @@ public final class OfflineApplier {
               if (type != null && rules.ignoredField(type, k, false)) target.put(k, Nbt.copy(v));
             });
       }
+      if (name.contains("saved.")) SavedData.materialize(path, target,
+          Files.isRegularFile(path) ? WorldLayout.readGzip(path) : new Nbt.Compound());
       writeGzip(path, target);
     }
   }
@@ -302,6 +311,13 @@ public final class OfflineApplier {
           "LevelName");
 
   private Path metadataPath(String name) throws IOException {
+    if (name.endsWith(".nbt")) {
+      if (name.startsWith("saved.")) return SavedData.path(layout.world(), name.substring(6, name.length() - 4));
+      for (var dim : layout.dimensions().values()) {
+        String prefix = dim.id().directoryName() + ".saved.";
+        if (name.startsWith(prefix)) return SavedData.path(dim.directory(), name.substring(prefix.length(), name.length() - 4));
+      }
+    }
     if (name.equals("level.nbt")) return layout.world().resolve("level.dat");
     if (name.startsWith("asset.")) {
       String relative;
@@ -318,7 +334,7 @@ public final class OfflineApplier {
       Path target = layout.world().resolve(relative).normalize();
       if (!target.startsWith(layout.world().resolve("datapacks"))
           || relative.contains("../")
-          || Path.of(relative).isAbsolute()) throw new IOException("asset 路徑穿越");
+          || Path.of(relative).isAbsolute() || WorldLayout.excluded(Path.of(relative))) throw new IOException("asset 路徑穿越");
       for (Path parent = target;
           parent != null && parent.startsWith(layout.world());
           parent = parent.getParent())

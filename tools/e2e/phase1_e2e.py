@@ -13,6 +13,7 @@ import argparse, glob, json, os, re, shutil, signal, subprocess, sys, time, trac
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 sys.path.insert(0, os.path.join(ROOT, 'paper/tools'))
 from harness import *  # noqa
+from cli_compat import repository
 
 OUT = os.path.join(WORK, 'phase1-e2e')
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
@@ -53,7 +54,7 @@ class Target:
 
 
 def git_dir(t, dim):
-    return os.path.join(t.server_dir, '.worldgit', 'world', dim)
+    return str(repository(os.path.join(t.server_dir,'world'),dim,t.version,paper=True))
 
 
 def git(t, dim, *args):

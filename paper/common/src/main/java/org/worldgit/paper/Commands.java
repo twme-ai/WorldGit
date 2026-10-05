@@ -206,7 +206,7 @@ final class Commands implements CommandTree.Actions {
   private void commit(CommandSender sender, String message) {
     if (message.isBlank()) throw bad("paper.error.commit-empty");
     if(plugin.merges().state()!=null) {
-      plugin.repo().mergeOperation("merge commit",ops->ops.core().commitMerge(identity(sender),CommitMetadata.Source.PLUGIN,message,false))
+      plugin.repo().mergeOperation(operationDimension(sender),"merge commit",ops->ops.core().commitMerge(identity(sender),CommitMetadata.Source.PLUGIN,message,false))
           .whenComplete((result,error)->plugin.merges().feedback(sender,result,error)); return;
     }
     Messages.inLocale(sender, () -> reply(sender, Messages.line("paper.commit.start")));
@@ -317,13 +317,16 @@ final class Commands implements CommandTree.Actions {
     reply(sender, Messages.line("paper.reload.done"));
   }
 
+  private DimensionId operationDimension(CommandSender sender) {
+    return sender instanceof Player player ? plugin.dimensionOf(player.getWorld()).orElseThrow(() -> bad("paper.error.diff-not-tracked")) : DimensionId.OVERWORLD;
+  }
   private record Applied(PaperOperations.Result result,String head) {}
   private void operation(CommandSender sender, CommandRequest request, Scope scope) {
     String command = request.command();
     String sub = command.contains(".") ? command.substring(0, command.indexOf('.')) : command;
     if (sub.equals("branch")) {
       String name = request.text("branch");
-      plugin.repo().operation("branch", ops -> {
+      plugin.repo().operation(operationDimension(sender),"branch", ops -> {
         if (command.equals("branch.list")) return ops.branches().stream().map(b -> (b.current() ? "* " : "  ") + b.name() + " " + b.commits()).toList();
         if (command.equals("branch.delete")) ops.deleteBranch(name); else ops.createBranch(name, null);
         return List.of(name);
@@ -335,7 +338,7 @@ final class Commands implements CommandTree.Actions {
     }
     if (Set.of("stash.list", "stash.drop").contains(command)) {
       int index = request.number("index", 0);
-      plugin.repo().operation("stash", ops -> {
+      plugin.repo().operation(operationDimension(sender),"stash", ops -> {
         if (command.equals("stash.drop")) { ops.stashDrop(index); return List.of("stash@{" + index + "}"); }
         var list = ops.stashes(); var rows = new ArrayList<String>();
         for (int i = 0; i < list.size(); i++) rows.add("stash@{" + i + "} " + list.get(i).time() + " " + list.get(i).message());
@@ -362,7 +365,7 @@ final class Commands implements CommandTree.Actions {
     }
     final String rev=revision; final boolean d=dry,f=force,st=stash; final Scope selected=scope; final DimensionId dim=dimension;
     reply(sender,Messages.line("paper.apply.start","target",rev==null ? sub : rev));
-    plugin.repo().operation(rev==null ? sub : rev,ops->{
+    plugin.repo().operation(operationDimension(sender),rev==null ? sub : rev,ops->{
       var result=switch(sub) {
         case "restore"->ops.restore(rev,dim,selected,d,false);
         case "switch"->ops.switchTo(rev,st,f,d,false);
@@ -394,14 +397,14 @@ final class Commands implements CommandTree.Actions {
       var state = plugin.merges().state();
       if (state == null) throw bad("paper.merge.none");
       if (id != 0 && state.regions().stream().noneMatch(r -> r.id() == id)) throw bad("paper.merge.unknown-region", "id", id);
-      plugin.repo().regionOperation(sub, ops -> ops.core().selectRegion(id, choice, sub.equals("resolve"), false))
+      plugin.repo().regionOperation(operationDimension(sender),sub, ops -> ops.core().selectRegion(id, choice, sub.equals("resolve"), false))
           .whenComplete((result, error) -> plugin.merges().feedback(sender, result, error));
       return;
     }
     String revision = command.equals("merge.abort") ? "--abort" : command.equals("merge.continue") ? "--continue" : request.text("revision");
     var author=identity(sender);
     reply(sender,Messages.line("paper.merge.start","mode",sub,"target",revision));
-    plugin.repo().mergeOperation(sub,ops->{
+    plugin.repo().mergeOperation(operationDimension(sender),sub,ops->{
       var core=ops.core();
       if(revision.equals("--abort")) return core.abortMerge(false);
       if(revision.equals("--continue")) return core.continueMerge(author,CommitMetadata.Source.PLUGIN,false);

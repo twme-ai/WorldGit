@@ -10,7 +10,7 @@ import org.worldgit.core.model.*;
 import org.worldgit.core.service.*;
 import org.worldgit.core.store.*;
 
-/** fetch/push 不讀寫活世界；成功 fetch 才發布全組 tracking refs，PARTIAL push 可依原 journal 重試。 */
+/** fetch/push 不讀寫活世界；tracking、journal 與恢復都屬單一維度，批次逐維度執行。 */
 public final class WorldRemotes implements AutoCloseable {
   public record TransferResult(
       String state,
@@ -23,7 +23,7 @@ public final class WorldRemotes implements AutoCloseable {
     }
   }
 
-  public record Tracking(String remote, String branch, int ahead, int behind, boolean estimated) {}
+  public record Tracking(String remote, String branch, int ahead, int behind, boolean estimated, DimensionId dimension) {}
 
   @FunctionalInterface
   public interface Observer {
@@ -62,11 +62,50 @@ public final class WorldRemotes implements AutoCloseable {
     this.observer = observer;
   }
 
+  private WorldRemotes(RepositoryGroup group, Credentials credentials, Observer observer, int timeoutSeconds) {
+    this.group = group; this.credentials = credentials; this.observer = observer; this.timeoutSeconds = timeoutSeconds;
+  }
+
+  private WorldRemotes one(DimensionId id) { return new WorldRemotes(group.dimension(id), credentials, observer, timeoutSeconds); }
+
+  @FunctionalInterface private interface Transfer { TransferResult run(WorldRemotes remote) throws IOException; }
+  private TransferResult independently(Transfer transfer, boolean dryRun) throws IOException {
+    var commits = new TreeMap<DimensionId, String>(); var packs = new TreeMap<DimensionId, List<GitTransfer.PackSize>>();
+    var errors = new ArrayList<String>();
+    for (var id : group.repos().keySet()) try {
+      var result = transfer.run(one(id)); commits.putAll(result.commits()); packs.putAll(result.packs());
+      if (!result.success()) errors.add(id + ": " + result.error());
+    } catch (IOException ex) { errors.add(id + ": " + ex.getMessage()); }
+    return new TransferResult(errors.isEmpty() ? dryRun ? "DRY_RUN" : "COMPLETE" : "PARTIAL", org.worldgit.core.operation.OperationProgress.operationId().toString(), commits, packs, errors.isEmpty() ? null : String.join("; ", errors));
+  }
+
   public SortedMap<String, RemoteSpec> remotes() throws IOException {
-    return RemoteSpec.read(group.root());
+    if (group.repos().size() == 1) {
+      var local = RemoteSpec.read(group.root());
+      var id = group.repos().firstKey();
+      if (!Files.exists(group.root().resolve("remotes.yml"))
+          && group.root().getFileName().toString().equals(id.directoryName())) {
+        var legacy = RemoteSpec.read(group.root().getParent());
+        for (var entry : legacy.entrySet()) local.put(entry.getKey(), new RemoteSpec(entry.getValue().expand(id), new TreeMap<>()));
+      }
+      return local;
+    }
+    var dimensions = new TreeMap<String, SortedMap<DimensionId, String>>();
+    for (var id : group.repos().keySet()) for (var remote : one(id).remotes().entrySet())
+      dimensions.computeIfAbsent(remote.getKey(), k -> new TreeMap<>()).put(id, remote.getValue().expand(id));
+    var result = new TreeMap<String, RemoteSpec>();
+    dimensions.forEach((name, urls) -> result.put(name, new RemoteSpec("manifest", urls))); return result;
   }
 
   public void configure(String action, String name, String url, boolean dryRun) throws IOException {
+    if (group.repos().size() > 1) {
+      var errors = new ArrayList<String>();
+      for (var id : group.repos().keySet()) try { one(id).configure(action, name, url, dryRun); }
+        catch (IOException ex) { errors.add(id + ": " + ex.getMessage()); }
+      if (!errors.isEmpty()) throw new IOException("部分維度 remote 設定失敗：" + String.join("; ", errors));
+      return;
+    }
+    for (var repo : group.repos().values()) repo.requireLegacyComplete();
     RemoteSpec.validateName(name);
     var pending = OperationState.read(group.root().resolve("push-state.yml"));
     if (name.equals(pending.get("remote")) && !"COMPLETE".equals(pending.get("state")))
@@ -74,10 +113,10 @@ public final class WorldRemotes implements AutoCloseable {
     var remotes = remotes();
     if (action.equals("add")) {
       if (remotes.containsKey(name)) throw new IOException("remote 已存在");
-      remotes.put(name, RemoteSpec.parse(url));
+      remotes.put(name, new RemoteSpec(RemoteSpec.parse(url).expand(group.repos().firstKey()), new TreeMap<>()));
     } else if (action.equals("set-url")) {
       if (!remotes.containsKey(name)) throw new IOException("remote 不存在");
-      remotes.put(name, RemoteSpec.parse(url));
+      remotes.put(name, new RemoteSpec(RemoteSpec.parse(url).expand(group.repos().firstKey()), new TreeMap<>()));
     } else if (action.equals("remove")) {
       if (remotes.remove(name) == null) throw new IOException("remote 不存在");
     } else throw new IOException("remote 動作無效");
@@ -97,27 +136,43 @@ public final class WorldRemotes implements AutoCloseable {
 
   /** 供平台判斷 PR 來源是否為本機分支；不建立或切換分支。 */
   public boolean hasBranch(String branch) throws IOException {
-    for(var r:group.repos().values()) if(!r.refs().branches().containsKey(branch)) return false;
-    return !group.repos().isEmpty();
+    return entryRepository().refs().branches().containsKey(branch);
+  }
+
+  public boolean hasBranch(DimensionId dimension, String branch) throws IOException {
+    return repository(dimension).refs().branches().containsKey(branch);
   }
 
   public String branch() throws IOException {
     return currentBranch();
   }
 
-  private String currentBranch() throws IOException {
-    String branch = null;
-    for (var r : group.repos().values()) {
-      String b = r.refs().headState().branch();
-      if (b == null || branch != null && !branch.equals(b))
-        throw new IOException("需要全組同名分支，不能 detached");
-      branch = b;
-    }
+  public String branch(DimensionId dimension) throws IOException {
+    var repo=repository(dimension);String branch=repo.refs().headState().branch();
+    if(branch==null) throw new IOException("維度為 detached HEAD："+dimension);
     return branch;
   }
 
+  private DimensionRepository repository(DimensionId dimension) throws IOException {
+    var repo=group.repos().get(dimension);
+    if(repo==null) throw new IOException("維度未 init："+dimension);
+    return repo;
+  }
+
+  private DimensionRepository entryRepository() throws IOException {
+    if(group.repos().isEmpty()) throw new IOException("沒有已 init 的維度");
+    return group.repos().getOrDefault(DimensionId.OVERWORLD,group.repos().get(group.repos().firstKey()));
+  }
+
+  private String currentBranch() throws IOException {
+    return branch(entryRepository().dimension());
+  }
+
   public TransferResult fetch(String name, boolean dryRun) throws IOException {
+    if (group.repos().size() > 1) return independently(r -> r.fetch(name, dryRun), dryRun);
+    for (var repo : group.repos().values()) repo.requireLegacyComplete();
     var remote = remote(name);
+    org.worldgit.core.operation.OperationProgress.report(group.repos().firstKey(), "fetch", 0, null, org.worldgit.core.operation.OperationProgress.Unit.BYTES);
     String operation = UUID.randomUUID().toString();
     var packs = new TreeMap<DimensionId, List<GitTransfer.PackSize>>();
     var heads = new TreeMap<DimensionId, String>();
@@ -142,13 +197,12 @@ public final class WorldRemotes implements AutoCloseable {
           for (var ref : advertised.entrySet())
             if (ref.getKey().startsWith("refs/heads/")
                 || ref.getKey().startsWith("refs/tags/")
-                || ref.getKey().startsWith("refs/worldgit/groups/")
-                || ref.getKey().startsWith("refs/worldgit/publications/"))
+)
               t.fetch(ref.getKey(), prefix + ref.getKey().substring(5));
           packs.put(e.getKey(), t.sizes());
         }
       if (dryRun) return new TransferResult("DRY_RUN", operation, heads, packs, null);
-      validatePublications(refs);
+
       var changes = new ArrayList<RefChange>();
       for (var e : refs.entrySet()) {
         var repo = group.repos().get(e.getKey());
@@ -157,7 +211,7 @@ public final class WorldRemotes implements AutoCloseable {
           String target = ref.getKey();
           if (target.startsWith("refs/heads/"))
             target = "refs/remotes/" + name + "/" + target.substring(11);
-          else if (!target.startsWith("refs/tags/") && !target.startsWith("refs/worldgit/groups/"))
+          else if (!target.startsWith("refs/tags/"))
             continue;
           String old = store.refsByPrefix(target).get(target);
           if ((target.startsWith("refs/tags/") || target.startsWith("refs/worldgit/groups/"))
@@ -251,48 +305,6 @@ public final class WorldRemotes implements AutoCloseable {
     }
   }
 
-  private void validatePublications(Map<DimensionId, SortedMap<String, String>> refs)
-      throws IOException {
-    var branches = new TreeSet<String>();
-    for (var r : refs.values())
-      for (String name : r.keySet())
-        if (name.startsWith("refs/heads/")) branches.add(name.substring(11));
-    for (String branch : branches) {
-      Map<String, Object> publication = null;
-      boolean has = false, missing = false;
-      for (var e : refs.entrySet()) {
-        String marker = e.getValue().get("refs/worldgit/publications/" + branch);
-        String tip = e.getValue().get("refs/heads/" + branch);
-        if (tip == null) throw new IOException("遠端分支缺少維度：" + branch + " " + e.getKey());
-        if (marker == null) {
-          missing = true;
-          continue;
-        }
-        has = true;
-        var repo = group.repos().get(e.getKey());
-        var commit = repo.refs().readCommit(marker);
-        var blob = TreeEditor.find(repo.objects(), commit.tree(), "publication.yml");
-        if (blob == null) throw new IOException("publication 格式無效");
-        var map =
-            SafeYaml.parse(new String(repo.objects().readBlob(blob.id()), StandardCharsets.UTF_8));
-        if (publication != null && !publication.equals(map))
-          throw new IOException("遠端 PARTIAL push：publication 不一致；請原推送端重試 push");
-        publication = map;
-        if (!(map.get("commits") instanceof Map<?, ?> targets)
-            || !tip.equals(targets.get(e.getKey().value())))
-          throw new IOException("遠端 PARTIAL push：分支未完成；請原推送端重試 push");
-      }
-      if (has && missing) throw new IOException("遠端 PARTIAL push：缺少 publication；請原推送端重試 push");
-      var commits = new TreeMap<DimensionId, RefStore.Commit>();
-      for (var e : refs.entrySet()) {
-        var repo = group.repos().get(e.getKey());
-        commits.put(e.getKey(), repo.refs().readCommit(e.getValue().get("refs/heads/" + branch)));
-      }
-      RepositoryGroup.validateSnapshot(
-          commits, (d, snapshot) -> refs.get(d).get("refs/worldgit/groups/" + snapshot));
-    }
-  }
-
   public TransferResult push(
       String name,
       String requestedBranch,
@@ -301,10 +313,9 @@ public final class WorldRemotes implements AutoCloseable {
       boolean dryRun,
       CommitMetadata.Identity author)
       throws IOException {
-    var selection = OperationState.read(group.root().resolve("clone-selection.yml"));
-    if (selection.get("world-dimensions") instanceof List<?> dimensions
-        && dimensions.size() > group.repos().size())
-      throw new IOException("部分維度 clone 不能發布完整世界；請先 clone 全維度以維持 snapshot group");
+    if (group.repos().size() > 1) return independently(r -> r.push(name, requestedBranch, tags, forceLease, dryRun, author), dryRun);
+    for (var repo : group.repos().values()) repo.requireLegacyComplete();
+    org.worldgit.core.operation.OperationProgress.report(group.repos().firstKey(), "push", 0, null, org.worldgit.core.operation.OperationProgress.Unit.BYTES);
     var remote = remote(name);
     String branch = requestedBranch == null ? currentBranch() : requestedBranch;
     JGitStore.validateBranch(branch);
@@ -344,8 +355,6 @@ public final class WorldRemotes implements AutoCloseable {
         expected.put(e.getKey(), new TreeMap<>(x));
       }
     } else {
-      var publicationTips = new TreeMap<String, String>();
-      tips.forEach((d, c) -> publicationTips.put(d.value(), c));
       for (var e : group.repos().entrySet())
         try (var t = transport(name, remote, e.getKey())) {
           var advertised = t.advertised(true);
@@ -369,64 +378,12 @@ public final class WorldRemotes implements AutoCloseable {
           }
           var to = new TreeMap<String, String>();
           to.put("refs/heads/" + branch, tip);
-          to.putAll(r.refs().refsByPrefix("refs/worldgit/groups/"));
-          for (var pin : to.entrySet())
-            if (pin.getKey().startsWith("refs/worldgit/groups/")
-                && advertised.containsKey(pin.getKey())
-                && !advertised.get(pin.getKey()).equals(pin.getValue()))
-              throw new IOException("遠端 snapshot group 已存在且不同");
           if (tags) to.putAll(r.refs().refsByPrefix("refs/tags/"));
           for (var tag : to.entrySet())
             if (tag.getKey().startsWith("refs/tags/")
                 && advertised.containsKey(tag.getKey())
                 && !advertised.get(tag.getKey()).equals(tag.getValue()))
               throw new IOException("遠端 tag 已存在且不同");
-          if (!dryRun) {
-            String markerRef = "refs/worldgit/publications/" + branch;
-            String oldMarker = advertised.get(markerRef);
-            if (oldMarker != null) {
-              try {
-                r.refs().readCommit(oldMarker);
-              } catch (IOException absent) {
-                t.fetch(
-                    markerRef, "refs/worldgit/incoming/" + name + "/publication-parent/" + branch);
-              }
-            }
-            String text =
-                new org.yaml.snakeyaml.Yaml()
-                    .dump(
-                        Map.of(
-                            "operation",
-                            operation.toString(),
-                            "branch",
-                            branch,
-                            "commits",
-                            publicationTips));
-            var tree = new TreeEditor(r.objects(), null);
-            tree.putBlob("publication.yml", text.getBytes(StandardCharsets.UTF_8));
-            String treeId = tree.write();
-            r.objects().flush();
-            var meta =
-                new CommitMetadata(
-                    author,
-                    author,
-                    "WorldGit publication",
-                    Instant.now(),
-                    r.refs().readCommit(tip).metadata().mcDataVersion(),
-                    e.getKey(),
-                    CommitMetadata.Source.CLI,
-                    false,
-                    UUID.randomUUID(),
-                    List.of());
-            to.put(
-                markerRef,
-                r.refs()
-                    .createCommit(
-                        treeId,
-                        oldMarker == null ? List.of() : List.of(oldMarker),
-                        meta,
-                        Map.of()));
-          }
           var ex = new TreeMap<String, String>();
           for (String ref : to.keySet()) ex.put(ref, advertised.getOrDefault(ref, ""));
           targets.put(e.getKey(), to);
@@ -526,6 +483,10 @@ public final class WorldRemotes implements AutoCloseable {
 
   public List<Tracking> tracking() throws IOException {
     var result = new ArrayList<Tracking>();
+    if (group.repos().size() > 1) {
+      for (var id : group.repos().keySet()) result.addAll(one(id).tracking());
+      return result;
+    }
     String branch;
     try {
       branch = currentBranch();
@@ -533,8 +494,8 @@ public final class WorldRemotes implements AutoCloseable {
       return result;
     }
     for (String remote : remotes().keySet()) {
-      var ours = new HashSet<UUID>();
-      var theirs = new HashSet<UUID>();
+      var ours = new HashSet<String>();
+      var theirs = new HashSet<String>();
       boolean estimated = false, missing = false;
       for (var repo : group.repos().values()) {
         String target;
@@ -552,13 +513,13 @@ public final class WorldRemotes implements AutoCloseable {
         a.removeAll(theirs);
         var b = new HashSet<>(theirs);
         b.removeAll(ours);
-        result.add(new Tracking(remote, branch, a.size(), b.size(), estimated));
+        result.add(new Tracking(remote, branch, a.size(), b.size(), estimated, group.repos().firstKey()));
       }
     }
     return result;
   }
 
-  private static boolean snapshots(RefStore refs, String tip, Set<UUID> out) throws IOException {
+  private static boolean snapshots(RefStore refs, String tip, Set<String> out) throws IOException {
     var seen = new HashSet<String>();
     var queue = new ArrayDeque<String>();
     queue.add(tip);
@@ -568,7 +529,7 @@ public final class WorldRemotes implements AutoCloseable {
       if (!seen.add(id)) continue;
       if (++count > 20000) return true;
       var c = refs.readCommit(id);
-      out.add(c.metadata().snapshot());
+      out.add(c.id());
       queue.addAll(c.parents());
     }
     return false;

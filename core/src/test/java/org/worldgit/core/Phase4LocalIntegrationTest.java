@@ -32,7 +32,7 @@ class Phase4LocalIntegrationTest {
       var layout = WorldLayout.discover(source);
       assertTrue(
           new WorldRepositories(layout)
-              .init(null, "creative", WorldGitConfig.Track.ALL, author)
+              .initAll("creative", WorldGitConfig.Track.ALL, author, WorldGitConfig.Entities.ALL)
               .success());
       Path hosted = work.resolve("remote");
       Files.createDirectories(hosted);

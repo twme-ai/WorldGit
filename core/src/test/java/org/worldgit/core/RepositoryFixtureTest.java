@@ -24,12 +24,14 @@ class RepositoryFixtureTest {
       TestWorlds.copy(TestWorlds.fixture(version), dir);
       var layout = WorldLayout.discover(dir);
       var world = new WorldRepositories(layout);
-      var init = world.init(null, "creative", WorldGitConfig.Track.ALL, AUTHOR);
+      var init = world.initAll("creative", WorldGitConfig.Track.ALL, AUTHOR, WorldGitConfig.Entities.ALL);
       assertTrue(init.success(), init.toString());
       assertEquals(3, init.dimensions().size());
+      var snapshots = new HashSet<UUID>();
       for (var e : world.tracked().entrySet())
         try (var repo = new DimensionRepository(e.getValue(), e.getKey(), false)) {
-          assertEquals(init.snapshot(), repo.log(1).getFirst().metadata().snapshot());
+          assertTrue(snapshots.add(repo.log(1).getFirst().metadata().snapshot()), "每維度獨立 snapshot 身分");
+          assertEquals(layout.repository(e.getKey()), e.getValue());
           assertTrue(
               repo.objects().readTree(repo.log(1).getFirst().tree()).keySet().stream()
                   .noneMatch(k -> k.equals("minecraft")));
@@ -161,7 +163,7 @@ class RepositoryFixtureTest {
     TestWorlds.copy(TestWorlds.fixture("26.2"), temp);
     var layout = WorldLayout.discover(temp);
     var world = new WorldRepositories(layout);
-    assertTrue(world.init(null, "creative", WorldGitConfig.Track.ALL, AUTHOR).success());
+    assertTrue(world.initAll("creative", WorldGitConfig.Track.ALL, AUTHOR, WorldGitConfig.Entities.ALL).success());
     for (Path file : RegionFile.list(layout.dimensions().get(DimensionId.OVERWORLD).region()))
       Files.delete(file);
     Files.delete(world.tracked().get(DimensionId.OVERWORLD).resolve("worldgit.index"));
@@ -187,7 +189,7 @@ class RepositoryFixtureTest {
   void partialFailureAndModifiedOnlyConfig() throws Exception {
     TestWorlds.copy(TestWorlds.fixture("26.2"), temp);
     var world = new WorldRepositories(WorldLayout.discover(temp));
-    assertTrue(world.init(null, "survival", WorldGitConfig.Track.MODIFIED_ONLY, AUTHOR).success());
+    assertTrue(world.initAll("survival", WorldGitConfig.Track.MODIFIED_ONLY, AUTHOR, WorldGitConfig.Entities.ALL).success());
     Files.writeString(
         world.tracked().get(new DimensionId("minecraft:the_nether")).resolve(".wgignore"),
         "bad syntax");

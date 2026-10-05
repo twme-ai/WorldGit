@@ -1,6 +1,6 @@
 # 15 — WorldGit 使用手冊
 
-本手冊依「你是誰」與「你用哪個平台」整理 WorldGit 的實際用法，內容以 2026-10-04（Phase 4 完成，main `089e76b`）的實作為準。設計理由見 [09 決定表](09-roadmap-open-questions.md)，各平台細節與驗收見各模組 README 與 [11](11-phase1-progress.md)–[14](14-phase4-progress.md) 進度報告。
+本手冊依「你是誰」與「你用哪個平臺」整理 WorldGit 的實際用法。共通規則及 CLI 章節已更新至 2026-10-04 的 Phase 5 任務 1；平臺／Hub 章節保留 Phase 4 用法並標示過渡限制。設計理由見 [09 決定表](09-roadmap-open-questions.md)，驗收與交接見 [16](16-phase5-design.md) 及各模組 README。
 
 ---
 
@@ -24,6 +24,8 @@
 
 ---
 
+> Phase 5 core／CLI 介面已實作。平臺／Hub 章節將於任務 2–4 更新：遊戲內 init 暫保留既有批次範圍，creative init 仍用 `entities: all`，玩家觸及事件尚未接線；完整契約與驗收狀態見 [16](16-phase5-design.md)。
+
 ## 1. WorldGit 是什麼
 
 WorldGit 把 Minecraft 世界當成 git 的工作區（working tree）：
@@ -31,9 +33,9 @@ WorldGit 把 Minecraft 世界當成 git 的工作區（working tree）：
 | git 概念 | WorldGit 中的意義 |
 |---|---|
 | repo | **每個維度一個 git repo**（主世界、地獄、終界、資料包維度各一個）；主世界 repo 另存 level.dat 等世界層級資料 |
-| commit（存檔點） | 一次快照。所有維度共用同一個 snapshot UUID，網頁與 log 會把同一次存檔合併成一列 |
+| commit（存檔點） | 單維度快照，各維度有自己的 snapshot UUID／歷史；批次 commit 只是便利操作 |
 | working tree | 正在玩的世界本身 |
-| branch | 同名分支同時存在於所有維度，例如 `main`、`castle-v2` |
+| branch | 各維度獨立，例如主世界留在 `main`，地獄使用 `cavern` |
 | diff | 方塊、方塊實體（箱子內容等）、實體、生態域、世界設定的差異；綠＝新增、紅＝移除、黃＝修改、紫＝衝突 |
 | merge | 方塊級三方合併；不同位置的修改自動合併，同位置不同修改成為「衝突區域」，可逐區選 ours／theirs／base |
 | remote／push／pull | 推送到 WorldGit Hub（或一般 git 主機），與他人協作 |
@@ -56,7 +58,7 @@ WorldGit 把 Minecraft 世界當成 git 的工作區（working tree）：
 
 ## 2. 我該看哪一節
 
-| 你是… | 主要平台 | 先讀 | 再讀 |
+| 你是… | 主要平臺 | 先讀 | 再讀 |
 |---|---|---|---|
 | 自己玩單人、想要存檔點／試驗分支 | Fabric 客戶端 | [§5](#5-單人玩家fabric-客戶端) | [§4](#4-所有人都要知道的共通規則)、[§12.1](#121-單人存檔點與試驗分支) |
 | 經營 Paper／Folia 伺服器 | Paper 插件 | [§6](#6-伺服器管理員paperfolia) | [§12.2](#122-伺服器事故回滾)、[§12.3](#123-團隊建造與-pr) |
@@ -103,19 +105,20 @@ WorldGit 的 Fabric jar 已內嵌 core、JGit、Jackson、Adventure 等依賴，
 
 ### 4.1 世界資料存在哪裡
 
-| 情況 | repo 位置 |
+每個維度具有自己的 HEAD、分支、tag、stash、MERGING 與 remote，repo 位於該世界／維度資料夾內：
+
+| 版面 | repo 位置 |
 |---|---|
-| Paper／Folia、Fabric 專用伺服器、CLI 對伺服器世界 | 世界資料夾**旁邊**：`<伺服器>/.worldgit/<世界名>/<namespace>.<維度>/`，例如 `.worldgit/world/minecraft.overworld/` |
-| Fabric 新建的單人存檔、`wgit clone` 下來的世界 | 世界資料夾**裡面**：`<存檔>/.worldgit/<維度>/`（世界資料夾可整包搬移） |
+| 主世界（兩版） | `<world>/.worldgit/`；26.2 地形在 dimensions 底下仍如此 |
+| 1.21.11 原版／單人 | `<world>/DIM-1/.worldgit/`、`<world>/DIM1/.worldgit/` |
+| 1.21.11 Paper | `<world>_nether/DIM-1/.worldgit/`、`<world>_the_end/DIM1/.worldgit/` |
+| 26.2／自訂維度 | 該維度 `dimensions/<ns>/<path>/.worldgit/` |
 
-每個 repo 都是標準 bare git repo，可用原生 `git log` 唯讀檢視。相關設定檔：
+壓縮該世界／維度資料夾就會帶 repo；release ZIP／export 是發布副本，仍不帶歷史。舊外置 `<server>/.worldgit/<world>/<dim>` 與舊單人 `<world>/.worldgit/<dim>` 可讀，世界停止後用 `wgit migrate` 搬移。
 
-| 檔案 | 用途 | 會被 push 嗎 |
-|---|---|---|
-| `<repo>/.wgignore` | 該維度忽略規則（類似 .gitignore） | 會 |
-| `<repo>/worldgit-repo.yml` | `track: all` 或 `track: modified-only` | 會 |
-| `.worldgit/<世界>/worldgit.yml` | 本機設定：`palette`（色票）、`entity-tolerance`（實體位置容許距離） | 不會 |
-| `.worldgit/<世界>/remotes.yml` | remote 名稱與 URL（不含任何密碼） | 不會 |
+1.21.11 clone／export 即使未選地獄或終界，也保留空的 `DIM-1/`、`DIM1/`，不建立其地形或 repo；Paper 初次開啟會沿用主世界生成與終界設定。ZIP 也保存這些空目錄。
+
+每 repo 的 `.wgignore`、worldgit-repo.yml 與 player-touched.yml 隨 commit／push 分享；worldgit.yml（palette／entity-tolerance）及 remotes.yml 是本機非秘密設定，不推送。apply／MERGING／stash／transfer 狀態也屬各 repo。玩家、secret 不得放進世界 repo。
 
 ### 4.2 「乾淨的工作區」
 
@@ -295,7 +298,7 @@ clone 出來的資料夾就是完整的單人世界（光照與 POI 由遊戲重
 ### 6.1 安裝
 
 1. 把 `worldgit-paper-0.1.0-SNAPSHOT.jar` 放進 `plugins/`（1.21.11 與 26.2、Paper 與 Folia 共用同一個 jar；版本不符會明確停用插件）。
-2. 啟動伺服器，在遊戲或主控台執行 `/wg init`（生存服建議 `/wg init --template survival`）。
+2. 啟動伺服器，在遊戲或主控臺執行 `/wg init`（生存服建議 `/wg init --template survival`）。
 3. 依需要調整 `plugins/WorldGit/config.yml`。
 
 ### 6.2 權限
@@ -312,7 +315,7 @@ clone 出來的資料夾就是完整的單人世界（光照與 POI 由遊戲重
 | `worldgit.command.restore`／`switch`／`branch`／`stash`／`reset`／`cancel` | Phase 2 復原與切換 | op |
 | `worldgit.command.merge`／`resolve`／`conflicts`／`tool`／`revert`／`cherry-pick` | Phase 3 合併（`conflict-select` 與 `resolve` 共用權限） | op |
 | `worldgit.command.remote`／`fetch`／`push`／`pull`／`pr`／`comment` | Phase 4 遠端協作 | op |
-| `worldgit.debug` | `/wg debug`（開發用，預設只有主控台） | false |
+| `worldgit.debug` | `/wg debug`（開發用，預設只有主控臺） | false |
 
 Paper／Folia 會依權限把完整指令樹傳給客戶端；預設非 op 玩家只看得到 `/wg log`、`/wg clear`、`/wg help`。`/wg help [子指令]` 只列出你可用的指令，點擊用法可填入聊天列。tool、diff、clear 與衝突預覽限玩家；debug 對玩家另需明確授予 `worldgit.debug`。
 
@@ -324,7 +327,7 @@ Paper／Folia 會依權限把完整指令樹傳給客戶端；預設非 op 玩�
 | `auto-commit.min-changed-sections` | 生存服可調高，避免自然變化（作物、水流）頻繁產生 commit |
 | `dirty-poll-interval-ticks` 等 | 掃描頻率、每 tick 複製量、timeout |
 | `show.*` | 無模組玩家的 BlockDisplay 描邊上限與顯示秒數 |
-| `language` | 主控台語言（預設 zh_tw）；玩家依客戶端語言顯示 |
+| `language` | 主控臺語言（預設 zh_tw）；玩家依客戶端語言顯示 |
 | `remote.*` | 遠端協作，見 [§6.7](#67-遠端協作與-hub) |
 
 訊息可在 `plugins/WorldGit/lang/zh_tw.yml`、`en_us.yml` 覆寫個別鍵，`/wg reload` 生效。
@@ -456,9 +459,9 @@ remote:
     requests-per-minute: 60
 ```
 
-然後在 Hub 世界設定頁新增 webhook：URL 指向上述位址、填同一個 secret（Hub 要求 32–256 字元，插件接受 32–4096，請取兩者交集）、事件勾 `push` 與 `pr.merged`。Hub 預設拒絕內網與 loopback 位址，自架在同一台機器時要在 Hub 設定精確的 `allowed-hosts`（[§11.4](#114-webhook-與-ssrf)）。對外公開時請放在 TLS 反向代理後面。
+然後在 Hub 世界設定頁新增 webhook：URL 指向上述位址、填同一個 secret（Hub 要求 32–256 字元，插件接受 32–4096，請取兩者交集）、事件勾 `push` 與 `pr.merged`。Hub 預設拒絕內網與 loopback 位址，自架在同一臺機器時要在 Hub 設定精確的 `allowed-hosts`（[§11.4](#114-webhook-與-ssrf)）。對外公開時請放在 TLS 反向代理後面。
 
-收到通知後插件會在背景 fetch、確認完整發布，然後提示有 pull 權限的線上玩家與主控台「遠端有新版本，`/wg pull` 檢視」。**永遠不會自動套用**。無法對外開 port 的伺服器可改用 `fetch-interval-seconds` 定時 fetch。
+收到通知後插件會在背景 fetch、確認完整發布，然後提示有 pull 權限的線上玩家與主控臺「遠端有新版本，`/wg pull` 檢視」。**永遠不會自動套用**。無法對外開 port 的伺服器可改用 `fetch-interval-seconds` 定時 fetch。
 
 **座標留言**
 
@@ -491,7 +494,7 @@ Fabric 專用伺服器與 Paper 插件**功能對等**：存檔點、復原、�
 ### 7.1 安裝與權限
 
 - 伺服器與玩家客戶端使用同一個 WorldGit Fabric jar；伺服器需 Fabric API。
-- 權限以 op 等級控制：**讀取類預設等級 0**（status、log、diff、remote list、fetch、pr list/view、comments），**寫入類預設等級 2**；主控台可執行全部指令。可在 `config/worldgit-server.yml` 調整。
+- 權限以 op 等級控制：**讀取類預設等級 0**（status、log、diff、remote list、fetch、pr list/view、comments），**寫入類預設等級 2**；主控臺可執行全部指令。可在 `config/worldgit-server.yml` 調整。
 
 ### 7.2 設定檔
 
@@ -525,7 +528,7 @@ remote:
 ### 7.3 指令差異
 
 - 指令與 Paper 幾乎相同；Fabric 多了 `/wg preview <版本> [--radius r]`、`/wg info`、`/wg conflict-preview`，合併工具用客戶端的衝突清單畫面（`G` 鍵）取代 Paper 的指南針與箱子 GUI。
-- 主控台執行局部 restore 時以指令來源的維度與座標為準。
+- 主控臺執行局部 restore 時以指令來源的維度與座標為準。
 - 自動 commit 在玩家登出、定時與關機時觸發；MERGING 期間全部跳過。
 
 ### 7.4 玩家客戶端
@@ -578,138 +581,65 @@ remote:
 
 ## 9. CLI 使用者（離線、備份、腳本）
 
-CLI 在**世界關閉時**操作世界資料夾，也能完全不碰世界地處理 remote、tag 與 export。
+Java 21+，只在世界停止時寫世界或 migrate。完整旗標見 [CLI README](../cli/README.md)；平臺／Hub 章節待後續 Phase 5 任務更新。
+
+### 9.1 範圍與結果
+
+`--world` 預設目前目錄：世界根指主世界，DIM-1／world_nether／dimensions/ns/path 指該維度；--dimension 可覆寫。變更預設單一維度，--all 逐維度獨立執行；commit 默認對有變動的已 init 維度各自提交，唯讀預設列全部。
+
+`--format=json` 回傳 `{result,data}`，每個動作明確終止。SUCCESS／NO_OP／PARTIAL／FAILED／CANCELLED 的 exit code 是 0／0／2／1／130；結果含操作 id、摘要、耗時與遮罩後的錯誤報告。TTY 有進度動畫，非 TTY／JSON／NO_COLOR／color=never 沒有動畫。
+
+### 9.2 初始化與分支圖
 
 ```sh
-alias wgit='java -jar /path/to/wgit.jar'
-wgit --world /srv/minecraft/world status   # --world 可指定世界或含 world/ 的伺服器資料夾；預設目前目錄
+wgit --world world init --only
+wgit --world world init --with-dimensions nether,end
+wgit --world world/DIM-1 init
+wgit --world world status --full
+wgit --world world commit -m '完成入口'
+wgit --world world --dimension minecraft:the_nether branch cavern
+wgit --world world --dimension minecraft:the_nether switch cavern
+wgit --world world log --graph --all
 ```
 
-### 9.1 共通選項
+主世界互動詢問既存未 init 的地獄／終界；無 TTY／CI／JSON 不追加，自訂維度不詢問。--with-dimensions all 明確選全部既存維度；--only 不詢問。每維度 graph 有自己的 branch／tag／HEAD／tracking 與共用 lane，截斷會提示。
 
-| 選項 | 說明 |
-|---|---|
-| `--world <路徑>` | 世界資料夾或伺服器資料夾 |
-| `--dimension minecraft:the_nether` | 只操作某維度（restore／verify／diff 等適用；switch／merge 等全維度操作會拒絕） |
-| `--format=json` | 結構化輸出、無 ANSI，適合腳本 |
-| `--color=auto\|always\|never` | 色彩；`NO_COLOR` 存在時停用 |
-| `--dry-run` | 套用類指令只預估、不改世界 |
-
-作者預設為 OS 使用者，可用 `GIT_AUTHOR_NAME`／`GIT_AUTHOR_EMAIL` 指定。exit code：0 成功；部分維度失敗 1；`verify` 有差異 1。
-
-### 9.2 快照
+### 9.3 復原、合併與遠端
 
 ```sh
-wgit init --template creative|survival [--track all|modified-only]
-wgit status [--full]
-wgit commit -m '完成第一層'
-wgit log -n 10
-wgit diff                       # HEAD → 世界
-wgit diff HEAD~1                # HEAD~1 → 世界
-wgit diff HEAD~1 HEAD --blocks [--format=json]
-```
-
-### 9.3 復原與切換
-
-```sh
-wgit branch before-edit
-wgit restore HEAD~1 --chunks 0,0,3 --dry-run            # chunk x,z,半徑
-wgit restore before-edit --box 0,60,0,31,80,31 --dimension minecraft:overworld
-wgit restore HEAD~1 --chunks 0,0,3 --delete-untracked   # 也刪掉目標沒有的 chunk
-wgit switch before-edit --stash
-wgit stash push -m '暫存'; wgit stash list; wgit stash pop 0
-wgit reset --hard                    # 還原到 HEAD
-wgit reset --hard HEAD~2 --force     # 改寫分支指標（不要對已 push 的歷史使用）
-wgit verify HEAD                     # 全量比對世界與版本，一致 exit 0
-```
-
-CLI 可以刪除 chunk、還原世界層級設定（地圖、記分板等），是處理線上拒絕情況的工具。玩家資料、時鐘、天氣不還原。
-
-### 9.4 合併
-
-```sh
-wgit merge castle-v2 [--no-commit] [--strategy-option=theirs] [--distance=1]
-wgit conflicts --format=json
-wgit resolve 1 --theirs
-wgit resolve all --manual
+wgit restore HEAD~1 --box 0,60,0,31,80,31 --dry-run
+wgit stash push -m '暫存'
+wgit reset --hard
+wgit merge feature
+wgit conflicts
+wgit resolve all --theirs
 wgit merge --continue
-wgit merge --abort
-wgit revert HEAD~2
-wgit cherry-pick feature
+wgit verify HEAD
+wgit remote add origin https://hub.example/alice/castle
+wgit --dimension minecraft:the_nether push origin cavern
+wgit clone https://hub.example/alice/castle copy --branch minecraft:the_nether=cavern
+wgit clone https://hub.example/alice/castle selected --dimension minecraft:overworld,minecraft:the_nether
+wgit export --rev minecraft:overworld=v1 --rev minecraft:the_nether=cavern release.zip
 ```
 
-離線合併同樣保持方塊原狀，報告會列出需要開服後檢查的交界格。
+switch／merge／stash／pull 只影響所選維度，其他維度可留在不同分支。MERGING／PARTIAL 也獨立；跨版本／資料包不一致仍拒絕。remote add 世界 URL 是批次便利，其他修改預設一維度。clone 各維度默認分支，組世界仍需要主世界 metadata。
 
-### 9.5 遠端、clone、tag、export
+### 9.4 忽略規則與遷移
 
 ```sh
-wgit remote add origin https://hub.example.com/alice/castle
-wgit remote set-url origin 'https://git.example/team/castle-{dimension}.git'   # 一般 git 主機：每維度一個 repo 的 URL 樣板
-wgit remote add backup manifest+file:///srv/worlds/castle.yml                  # 或世界清單檔
-wgit remote list --format=json
-wgit fetch origin
-wgit status                         # 顯示 ahead／behind（依最近一次 fetch）
-wgit push origin main --tags
-wgit push --force-with-lease        # 只在確定時使用；Hub 受保護分支仍會拒絕
-wgit pull origin main [--ff-only]   # 衝突進入 MERGING，用 resolve／merge --continue
-wgit clone https://hub.example.com/alice/castle castle [--branch main]
-wgit clone https://hub.example.com/alice/castle nether-only --dimension minecraft:the_nether
-wgit tag v1 HEAD -m '城堡完成'; wgit tag -l; wgit tag -d v1
-wgit export v1 castle.zip --max-bytes 2147483648 --max-seconds 900
+wgit ignore list
+wgit ignore add 'entity minecraft:item' --dry-run
+wgit ignore remove 8
+wgit ignore move 8 3
+wgit ignore test 'block 0,64,0'
+wgit ignore check --format=json
+wgit migrate --dry-run
+wgit migrate
 ```
 
-**憑證**（優先順序）：
+ignore 使用檔案行號，保留註解、空行與順序；修改在下一 commit 記歷史，MERGING 期間禁止。creative 新 repo 的 entities: player-touched 只追蹤 UUID 集合中的實體，離線 init 集合為空且提示；地形／方塊／BE／biome 仍完整，survival 與舊 repo 維持 all。
 
-1. 環境變數 `WGIT_TOKEN`，搭配 `WGIT_AUTH=basic|bearer`、可選 `WGIT_USERNAME`。
-2. `~/.config/worldgit/credentials.yml`（或 `WGIT_CREDENTIALS_FILE`），權限 600：
-
-   ```yaml
-   credentials:
-     https://hub.example.com:
-       mode: bearer
-       token: YOUR_PAT
-   ```
-
-3. 都沒有時以匿名身分存取（公開世界可 clone，私人世界會被拒）。
-
-注意事項：
-
-- 支援 HTTP(S) 與 file，**尚無 SSH**。
-- `remote`／`fetch`／`push`／`tag`／`export` 不碰世界，伺服器運行中也能用；`pull` 與世界操作要求世界關閉。
-- `pull --dry-run` 仍會真的 fetch，只是不套用到世界。
-- 只 clone 部分維度的世界不能 push 整個世界。
-- `export` 產出的 ZIP 是發布用副本，不含 `.worldgit`、玩家資料與 session.lock。
-
-### 9.6 忽略規則與設定
-
-編輯 `.worldgit/<世界>/<維度>/.wgignore` 後，`status` 會提示將被移除追蹤的內容，下一次 commit 生效。常用：
-
-```text
-field worldgit:map *          # 不追蹤地圖
-field worldgit:scoreboard *   # 不追蹤記分板
-```
-
-完整 selector 語法見 [core README](../core/README.md)。本機設定 `.worldgit/<世界>/worldgit.yml`：
-
-```yaml
-palette: colorblind
-entity-tolerance: 2
-```
-
-### 9.7 腳本與備份範例
-
-```sh
-# 每晚關服後備份並推送
-systemctl stop minecraft
-wgit --world /srv/mc commit -m "nightly $(date +%F)" --format=json
-wgit --world /srv/mc push origin main
-systemctl start minecraft
-
-# CI：確認世界與 main 一致
-wgit --world ./world verify main --format=json || echo "世界與 main 不一致"
-```
-
----
+migrate 必須世界停止，先複製驗證、再原子發布，保留舊備份且可重跑。舊版有未完成 journal 時先用舊版恢復，不猜測拆分。自行備份世界時要包含 `.worldgit`；export／release ZIP 不含 repo。PAT 用 WGIT_TOKEN 或權限 600 的使用者 credentials YAML，不放世界或 URL。
 
 ## 10. Hub 網頁使用者（協作者、審核者）
 
@@ -752,7 +682,7 @@ wgit --world ./world verify main --format=json || echo "世界與 main 不一致
    |---|---|
    | ff／clean | 可直接合併 |
    | conflicts | 有衝突區域尚未選擇 |
-   | needs-review | 受保護分支要求的核准數未達 |
+   | needs-review | 受保護分支要求的核準數未達 |
    | changes-requested | 有人要求修改 |
    | unmergeable | 無法合併（例如版本不一致） |
 
@@ -768,7 +698,7 @@ wgit --world ./world verify main --format=json || echo "世界與 main 不一致
 
 - 禁止 force push 與刪除；
 - 「只能經 PR 合併」：直接 push 會被拒；
-- 需要的核准數（0–10）。
+- 需要的核準數（0–10）。
 
 owner／admin 也不能繞過。
 
@@ -835,7 +765,7 @@ hub/scripts/container-smoke.sh            # 冒煙測試；DB=postgres 測 Postg
 
 ### 11.4 Webhook 與 SSRF
 
-世界 webhook 預設只能投遞到 **HTTPS 且所有 DNS 位址都是公網** 的目標，禁止 redirect。若遊戲伺服器與 Hub 在同一台機器或內網，需設定精確的允許清單（沒有萬用字元）：
+世界 webhook 預設只能投遞到 **HTTPS 且所有 DNS 位址都是公網** 的目標，禁止 redirect。若遊戲伺服器與 Hub 在同一臺機器或內網，需設定精確的允許清單（沒有萬用字元）：
 
 ```yaml
 worldgit:
@@ -964,16 +894,17 @@ wgit push origin main --tags
 
 ## 14. 已知限制
 
+- **Phase 5 平臺過渡**：遊戲內 init 仍保留既有批次入口，creative 使用 `entities: all`；玩家目前維度詢問、wgit／git 別名、graph／ignore GUI、完整進度／完成提示／錯誤複製及觸及事件由任務 3／4 更新。Hub 的維度專案／PR／release 介面由任務 2 更新。
 - **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理；跨 DataVersion 不支援（沒有 DataFixer）。
 - **作者歸屬**是 chunk 粒度，沒有逐格 blame；玩家登出提交的是整個世界，沒有 per-player staging。
-- **`modified-only`** 目前只記錄設定，平台尚未自動蒐集玩家編輯集合，實際仍追蹤全部 chunk。
+- **`modified-only`** 目前只記錄設定，平臺尚未自動蒐集玩家編輯集合，實際仍追蹤全部 chunk。
 - **遠端**：沒有 SSH；沒有 fork PR、squash／rebase；遊戲內不能合併或核准 PR；真實 GitHub／Gitea 未實測（URL 樣板以 JGit 與 git http-backend 驗證）。
 - **座標留言**只顯示當下已載入的 chunk，移動到新區域需重新 show。
 - **Hub**：單一實例；儲存只支援本機磁碟；遠景尚未嵌入 BlueMap；只實測 amd64、Podman；公開註冊的治理政策尚未完成。
 - **客戶端渲染**：沒有流體、特殊方塊實體、實體模型 renderer；未驗證 Sodium／Iris 與硬體 GPU。
 - 量測數字來自受控平坦世界與凍結 tick，不代表大型自然世界或大量真實玩家的負載。
 
-各項詳細原因與證據見 [14 Phase 4 進度](14-phase4-progress.md) 的「未完成事項」與各平台 README。
+各項詳細原因與證據見 [14 Phase 4 進度](14-phase4-progress.md) 的「未完成事項」與各平臺 README。
 
 ---
 

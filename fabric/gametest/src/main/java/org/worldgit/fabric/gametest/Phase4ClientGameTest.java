@@ -20,15 +20,25 @@ final class Phase4ClientGameTest {
   private static final class Session {
     TestSingleplayerContext initial;
     void disconnect(ClientGameTestContext ctx) {
+      var server=ctx.<net.minecraft.server.MinecraftServer,RuntimeException>computeOnClient(c->c.getSingleplayerServer());
       if(initial!=null) {initial.close();initial=null;}
       else ctx.runOnClient(c->{if(c.level!=null)c.disconnectFromWorld(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);});
-      ctx.waitFor(c->c.level==null,1200);
+      // Client teardown precedes integrated-server saving and session.lock release.
+      // Keep driving client ticks until the owner thread has finished all shutdown work.
+      ctx.waitFor(c->c.level==null && (server==null || !server.getRunningThread().isAlive()),1200);
     }
   }
   static void run(ClientGameTestContext ctx) {
     directory=Path.of(System.getProperty("wgtest.phase4Dir"));
     ctx.runOnClient(c->{c.options.renderDistance().set(3);c.options.enableVsync().set(false);c.options.framerateLimit().set(60);c.options.languageCode="en_us";});
     boolean single=Boolean.getBoolean("wgtest.phase4Single");
+    if(single) net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTING.register(server->{
+      if(!server.isDedicatedServer()) {
+        // Clones retain forced Nether chunks and pending fluid ticks. Freeze before any world tick.
+        server.tickRateManager().setFrozen(true);
+        WorldGitClientGameTest.LOG.info("FABRIC4 integrated server frozen before world ticks");
+      }
+    });
     var session=new Session();
     try {
       if(single) {
@@ -63,6 +73,33 @@ final class Phase4ClientGameTest {
       ctx.waitFor(c->Files.exists(directory.resolve(name)),24000);
       var request=read(name);String action=request.get("action").getAsString();var out=new JsonObject();
       switch(action) {
+        case "prepare-dimension" -> {
+          if(!single)throw new AssertionError("prepare dimension requires singleplayer");
+          String dimension=request.get("dimension").getAsString();
+          if(!Set.of("minecraft:overworld","minecraft:the_nether","minecraft:the_end").contains(dimension))throw new AssertionError(dimension);
+          var server=ctx.<net.minecraft.server.MinecraftServer,RuntimeException>computeOnClient(c->c.getSingleplayerServer());
+          var key=dimension.equals("minecraft:overworld")?net.minecraft.world.level.Level.OVERWORLD:
+              dimension.equals("minecraft:the_nether")?net.minecraft.world.level.Level.NETHER:net.minecraft.world.level.Level.END;
+          // Test thread must keep driving client ticks while the integrated server executes tasks.
+          var force=server.submit(()->server.getCommands().performPrefixedCommand(server.createCommandSourceStack(),
+              "execute in "+dimension+" run forceload add -80 -80 95 95"));
+          ctx.waitFor(c->force.isDone(),2400);force.join();
+          int loaded=0;
+          for(int tick=0;tick<2400;tick++) {
+            var counted=server.submit(()->{
+              var source=server.getLevel(key).getChunkSource();int count=0;
+              for(int x=-5;x<=5;x++)for(int z=-5;z<=5;z++)if(source.getChunkNow(x,z)!=null)count++;
+              return count;
+            });
+            ctx.waitFor(c->counted.isDone(),2400);loaded=counted.join();
+            if(loaded==121)break;
+            ctx.waitTick();
+          }
+          if(loaded!=121)throw new AssertionError(dimension+" fixture chunks not loaded: "+loaded);
+          var saved=server.submit(()->server.saveEverything(true,true,true));
+          ctx.waitFor(c->saved.isDone(),6000);saved.join();
+          out.addProperty("loadedChunks",loaded);
+        }
         case "command" -> {
           String command=request.get("command").getAsString();
           if(single) {
@@ -118,7 +155,7 @@ final class Phase4ClientGameTest {
         case "open-clone" -> {
           String nameWorld=request.get("world").getAsString();ctx.runOnClient(c->c.createWorldOpenFlows().openWorld(nameWorld,()->{}));
           waitForClone(ctx,"世界載入及 Screen／overlay 關閉",Phase4ClientGameTest::inWorld);
-          ctx.runOnClient(c->{var s=c.getSingleplayerServer();s.execute(()->s.tickRateManager().setFrozen(true));});
+          ctx.runOnClient(c->{if(!c.getSingleplayerServer().tickRateManager().isFrozen())throw new AssertionError("clone must be frozen before world ticks");});
           out=ctx.computeOnClient(c->{var rt=WorldGitMod.runtime(c.getSingleplayerServer());var v=new JsonObject();v.addProperty("world",rt.worldRoot().toString());v.addProperty("repository",rt.repositoryRoot().toString());return v;});
         }
         case "clone-screenshot" -> {

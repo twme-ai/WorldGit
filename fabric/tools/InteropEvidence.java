@@ -17,7 +17,7 @@ class InteropEvidence {
     var previews=new TreeMap<String,Object>();
     if(state!=null) for(var r:state.regions()) {
       rows.add(new MergeProtocol.RegionInfo(r.id(),r.bounds(),r.blockCount(),r.choice(),r.resolved(),r.redstone(),r.oursAuthors(),r.theirsAuthors()));
-      if(args.length>1) try(var store=new JGitStore(root.resolve(r.dimension().directoryName()),false)) {
+      if(args.length>1) try(var store=new JGitStore(WorldLayout.discover(Path.of(args[0])).repository(r.dimension()),false)) {
         var d=state.dimensions().get(r.dimension());
         var candidates=Map.of("OURS",d.oursTree(),"THEIRS",d.theirsTree(),"BASE",d.baseTree());
         for(var e:candidates.entrySet()) {
@@ -36,7 +36,7 @@ class InteropEvidence {
     out.put("regions",rows); out.put("previews",previews);
     var heads=new TreeMap<String,Object>();
     for(var dimension:WorldLayout.discover(Path.of(args[0])).dimensions().keySet()) {
-      var directory=root.resolve(dimension.directoryName());
+      var directory=WorldLayout.discover(Path.of(args[0])).repository(dimension);
       if(!Files.exists(directory.resolve("HEAD"))) continue;
       try(var store=new JGitStore(directory,false)) {
         var commit=store.readCommit(store.head());

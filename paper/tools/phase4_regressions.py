@@ -27,7 +27,6 @@ def run(args):
         with log.open('w') as f:p=subprocess.run(command,cwd=ROOT,stdout=f,stderr=subprocess.STDOUT,env={**os.environ,'GRADLE_USER_HOME':str(ROOT/'.work/gradle-home'),'npm_config_cache':str(ROOT/'.work/npm-cache'),'PLAYWRIGHT_BROWSERS_PATH':str(ROOT/'.work/ms-playwright')})
         result['cases'].append({'name':name,'exit':p.returncode,'seconds':time.monotonic()-start,'log':str(log.relative_to(ROOT))});(out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
         print(('PASS ' if p.returncode==0 else 'FAIL ')+name,flush=True)
-        if p.returncode and phase in ('phase4','polling'):print(out/'results.json',flush=True);return False
     result['success']=all(c['exit']==0 for c in result['cases']);(out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2));print(out/'results.json',flush=True);return result['success']
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--phase4',action='store_true',help='先驗四種 Phase4／通知組合，再跑 Phase2/3/interop')

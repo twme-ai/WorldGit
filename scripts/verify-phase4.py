@@ -6,6 +6,7 @@ import hashlib
 import http.server
 import importlib.util
 import json
+import sys
 import os
 from pathlib import Path
 import re
@@ -15,8 +16,11 @@ import subprocess
 import threading
 import time
 import urllib.request
+import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'paper/tools'))
+from cli_compat import cli_data, repository, DIMENSIONS, verify_all, prepare_all_entities
 _spec=importlib.util.spec_from_file_location('phase2',ROOT/'scripts/verify-phase2.py')
 p2=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(p2)
 JAVA=p2.JAVA
@@ -29,17 +33,18 @@ def run(command,**kwargs):
     if p.returncode and allow_merging:
         try:
             value=json.loads(p.stdout)
-            if value.get('state')=='MERGING' or value.get('result',{}).get('state')=='MERGING':return p.stdout
+            if value['data'].get('state')=='MERGING' or value['data'].get('result',{}).get('state')=='MERGING':return p.stdout
         except (ValueError,AttributeError):pass
     if p.returncode: raise RuntimeError((p.stderr+p.stdout).replace(TOKEN,'[REDACTED]'))
     return p.stdout
 
 def cli(world,*args,anonymous=False,auth='basic'):
+    if args and args[0]=='init':prepare_all_entities(world)
     env=os.environ.copy();env.pop('WGIT_TOKEN',None);env.pop('WGIT_CREDENTIALS_FILE',None)
     if not anonymous:env.update(WGIT_TOKEN=TOKEN,WGIT_AUTH=auth)
     began=time.monotonic()
     output=run([JAVA['1.21.11'],'-Xmx1500m','-jar',str(WORK/'wgit.jar'),'--world',str(world),'--format=json',*map(str,args)],env=env,allow_merging=True)
-    value=json.loads(output)
+    value=cli_data(output)
     with (WORK/'cli.log').open('a') as log:
         log.write(' '.join(map(str,args))+'\n')
         if len(output)>8*1024*1024:
@@ -106,6 +111,21 @@ class Hub:
         return 'http://127.0.0.1:8097/admin/'+name
     def stop(self):self.process.stop()
 
+def freeze_paper(directory):
+    """沿用 Phase 5 fixture：第一個 tick 前凍結，不忽略自然流體／ticks 的差異。"""
+    fixture=WORK/'freeze-fixture.jar'
+    if not fixture.exists():
+        source=ROOT/'.work/servers/paper-1.21.11';classes=WORK/'freeze-classes';classes.mkdir()
+        try:
+            jars=sorted(source.glob('libraries/**/*.jar'))+sorted(source.glob('versions/**/*.jar'))
+            run([str(Path(JAVA['1.21.11']).with_name('javac')),'--release','21','-proc:none','-cp',os.pathsep.join(map(str,jars)),'-d',str(classes),str(ROOT/'cli/tools/Phase5Freeze.java')],timeout=120)
+            with zipfile.ZipFile(fixture,'w') as archive:
+                archive.write(classes/'Phase5Freeze.class','Phase5Freeze.class')
+                archive.writestr('plugin.yml','name: Phase5Freeze\nversion: 1.0\nmain: Phase5Freeze\napi-version: "1.21"\nload: POSTWORLD\n')
+        finally:shutil.rmtree(classes,ignore_errors=True)
+    plugins=directory/'plugins';plugins.mkdir(exist_ok=True)
+    shutil.copy2(fixture,plugins/'phase5-freeze.jar')
+
 def stage_server(version,clone,label,platform):
     dest=WORK/label;dest.mkdir();shutil.copytree(clone,dest/'world')
     if platform=='paper':
@@ -115,6 +135,7 @@ def stage_server(version,clone,label,platform):
             if p.is_dir():shutil.copytree(p,dest/name)
             elif p.exists():shutil.copy2(p,dest/name)
         jar='server.jar'
+        freeze_paper(dest)
     else:
         source=ROOT/'.work/fabric-srv'/version
         for name in ['libraries','versions']:
@@ -135,7 +156,7 @@ def load_world(version,clone,label,platform):
             if process:process.stop(True)
         text=log.read_text();errors=[l for l in text.splitlines() if re.search(r'\bERROR\b|Exception|Watchdog',l)]
         assert not errors,errors[:8]
-        verify,_=cli(directory,'verify');assert verify['state']=='COMPLETE',verify
+        verify=verify_all(lambda world,*words:cli(world,*words)[0],directory)
         inspect=tool('inspect',directory,phase2=True)
         assert int(re.search(r'blockLightSections=(\d+)',inspect)[1])>0,inspect
         assert int(re.search(r'skyLightSections=(\d+)',inspect)[1])>0,inspect
@@ -148,6 +169,7 @@ def load_world(version,clone,label,platform):
 def paper_source(version):
     p2.WORK=WORK;directory=p2.stage(version,'source-'+version)
     tool('synthetic',directory,441,phase2=True);tool('mutate',directory,4,phase2=True)
+    freeze_paper(directory)
     p=p2.Server(version,directory,WORK/('source-'+version+'.log'))
     try:
         p.wait('Done (');p.command('tick freeze');p.command('forceload add 0 0 31 15');time.sleep(5);p.command('save-all flush','Saved the game')
@@ -160,7 +182,7 @@ def version_case(hub,version):
     before=p2.manifest(baseline);source=paper_source(version);url=hub.world('phase4-'+version.replace('.','-'));a=WORK/('a-'+version);b=WORK/('b-'+version)
     result={}
     try:
-        cli(source,'init');cli(source,'remote','add','origin',url);cli(source,'tag','v1','-m','release');push,seconds=cli(source,'push','--tags',auth='bearer');result['push']={'seconds':seconds,'transfer':push}
+        cli(source,'init','--with-dimensions','all');cli(source,'remote','add','origin',url);cli(source,'tag','v1','-m','release','--all');push,seconds=cli(source,'push','--tags','--all',auth='bearer');result['push']={'seconds':seconds,'transfer':push}
         result['clone'],seconds=cli('.', 'clone',url,a,anonymous=True);result['clone_seconds']=seconds
         result['paper']=load_world(version,a,'paper-'+version,'paper')
         if (ROOT/'.work/fabric-srv'/version/'fabric-server-launch.jar').exists():result['fabric']=load_world(version,a,'fabric-'+version,'fabric')
@@ -169,11 +191,11 @@ def version_case(hub,version):
         tool('edit',a,0,'gold_block');cli(a,'commit','-m','A');tool('edit',b,8,'diamond_block');cli(b,'commit','-m','B');cli(a,'push')
         merge,_=cli(b,'pull');assert merge['result']['state']=='COMPLETE' and not merge['fastForward'],merge;cli(b,'push');ff,_=cli(a,'pull','--ff-only');assert ff['fastForward'];result['pull_merge']=merge;result['pull_ff']=ff
         for world in [a,b]:assert cli(world,'verify')[0]['state']=='COMPLETE'
-        # 同一 snapshot 的完整 trees 必須相同。
+        # 各維度完整 commit graph 必須相同（snapshot UUID 不做跨維度配對）。
         la=cli(a,'log')[0];lb=cli(b,'log')[0];assert la==lb
         tool('edit',a,2,'stone');cli(a,'commit','-m','conflict A');tool('edit',b,2,'dirt');cli(b,'commit','-m','conflict B');cli(a,'push');conflict,_=cli(b,'pull');assert conflict['result']['state']=='MERGING';cli(b,'resolve','all','--theirs');cli(b,'merge','--continue');cli(b,'push');cli(a,'pull');result['conflict']=conflict
         # 在本地與 Hub 裸 repo 上用相同 tips 合併，clone 結果與本地 merge 的世界逐格比較。
-        cli(a,'branch','topic');tool('edit',a,10,'emerald_block');cli(a,'commit','-m','main');cli(a,'switch','topic');tool('edit',a,12,'lapis_block');cli(a,'commit','-m','topic');cli(a,'push','origin','topic');cli(a,'push','origin','main');cli(a,'switch','main');cli(a,'merge','topic')
+        cli(a,'branch','topic','--all');tool('edit',a,10,'emerald_block');cli(a,'commit','-m','main');cli(a,'switch','topic','--all');tool('edit',a,12,'lapis_block');cli(a,'commit','-m','topic');cli(a,'push','origin','topic','--all');cli(a,'push','origin','main','--all');cli(a,'switch','main','--all');cli(a,'merge','topic')
         bare=WORK/'hub-data/repos/admin'/('phase4-'+version.replace('.','-'));result['bare_clean']=tool('bare-merge',bare,'main','topic')
         merged=WORK/('merged-'+version);cli('.', 'clone',url,merged,anonymous=True)
         # CLI 合併與 Hub 合併的 commit identity 可不同；中性 tree ids 必須完全一致。
@@ -181,7 +203,7 @@ def version_case(hub,version):
         remotetrees=json.loads(tool('trees',merged))
         assert localtrees==remotetrees,(localtrees,remotetrees)
         result['bare_loaded']=load_world(version,merged,'bare-paper-'+version,'paper');shutil.rmtree(merged)
-        cli(b,'pull');cli(b,'branch','topic-conflict');tool('edit',b,3,'gold_block');cli(b,'commit','-m','main conflict');cli(b,'switch','topic-conflict');tool('edit',b,3,'diamond_block');cli(b,'commit','-m','topic conflict');cli(b,'push','origin','topic-conflict');cli(b,'push','origin','main');cli(b,'switch','main');cli(b,'merge','topic-conflict');cli(b,'resolve','all','--base');cli(b,'merge','--continue')
+        cli(b,'pull');cli(b,'branch','topic-conflict');tool('edit',b,3,'gold_block');cli(b,'commit','-m','main conflict');cli(b,'switch','topic-conflict','--all');tool('edit',b,3,'diamond_block');cli(b,'commit','-m','topic conflict');cli(b,'push','origin','topic-conflict','--all');cli(b,'push','origin','main','--all');cli(b,'switch','main','--all');cli(b,'merge','topic-conflict');cli(b,'resolve','all','--base');cli(b,'merge','--continue')
         result['bare_conflict']=tool('bare-merge',bare,'main','topic-conflict','base');cli('.', 'clone',url,merged,anonymous=True)
         localtrees=json.loads(tool('trees',b));remotetrees=json.loads(tool('trees',merged));assert localtrees==remotetrees
         result['bare_conflict_loaded']=load_world(version,merged,'bare-conflict-paper-'+version,'paper');shutil.rmtree(merged)
@@ -227,7 +249,7 @@ def generic_http():
     server=http.server.ThreadingHTTPServer(('127.0.0.1',8098),GitHttp);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     source=WORK/'generic-source';clone=WORK/'generic-clone'
     try:
-        shutil.copytree(ROOT/'core/src/test/resources/fixtures/1.21.11',source);cli(source,'init');url='http://127.0.0.1:8098/{dimension}.git';cli(source,'remote','add','origin',url);result,_=cli(source,'push');cli('.', 'clone',url,clone,anonymous=True);assert cli(clone,'verify')[0]['state']=='COMPLETE';return {'transfer':result,'template':url,'verify':'COMPLETE'}
+        shutil.copytree(ROOT/'core/src/test/resources/fixtures/1.21.11',source);cli(source,'init','--with-dimensions','all');url='http://127.0.0.1:8098/{dimension}.git';cli(source,'remote','add','origin',url);result,_=cli(source,'push','--all');cli('.', 'clone',url,clone,anonymous=True);assert cli(clone,'verify')[0]['state']=='COMPLETE';return {'transfer':result,'template':url,'verify':'COMPLETE'}
     finally:server.shutdown();server.server_close();thread.join();shutil.rmtree(source,ignore_errors=True);shutil.rmtree(clone,ignore_errors=True)
 
 def scale(hub):
@@ -250,12 +272,13 @@ def scale(hub):
             run(['/usr/lib/jvm/java-21-openjdk-amd64/bin/javac','-cp',str(WORK/'wgit.jar'),'-d',str(classes),str(ROOT/'paper/tools/ScaleFixture.java')])
             fixture=run([JAVA['1.21.11'],'-Xmx1500m','-cp',str(classes)+':'+str(WORK/'wgit.jar'),'ScaleFixture','26.2',str(baseline),str(source),'122'],timeout=900)
         if not (prepared/'source').exists():
-            init,init_seconds=cli(source,'init')
+            init,init_seconds=cli(source,'init','--with-dimensions','all')
             prepared.mkdir();shutil.copytree(source,prepared/'source');(prepared/'metadata.json').write_text(json.dumps({'fixture':fixture,'init_seconds':init_seconds}))
-        cli(source,'remote','add','origin',url);first,seconds=cli(source,'push');cloned,clone_seconds=cli('.', 'clone',url,clone,anonymous=True)
-        tool('edit',source,5,'gold_block');cli(source,'commit','-m','incremental');incremental,incremental_seconds=cli(source,'push');cli(clone,'pull');assert cli(clone,'verify')[0]['state']=='COMPLETE'
+        cli(source,'remote','add','origin',url);first,seconds=cli(source,'push','--all');cloned,clone_seconds=cli('.', 'clone',url,clone,anonymous=True)
+        tool('edit',source,5,'gold_block');cli(source,'commit','-m','incremental');incremental,incremental_seconds=cli(source,'push','--all');cli(clone,'pull');assert cli(clone,'verify')[0]['state']=='COMPLETE'
         for transfer in [first,cloned,incremental]:
-            assert all(p['preparedBytes']<=95000000 and (p['wireBytes'] is None or p['wireBytes']<=95000000) for ps in transfer['packs'].values() for p in ps)
+            entries=transfer.values() if 'packs' not in transfer else [{'data':transfer}]
+            assert all(p['preparedBytes']<=95000000 and (p['wireBytes'] is None or p['wireBytes']<=95000000) for entry in entries for ps in entry['data']['packs'].values() for p in ps)
         # 失敗保留已初始化複本以便重跑；成功後清除本次中間產物。
         shutil.rmtree(prepared)
         return {'fixture':fixture,'init_seconds':init_seconds,'first_push_seconds':seconds,'first_push':first,'clone_seconds':clone_seconds,'clone':cloned,'incremental_seconds':incremental_seconds,'incremental':incremental}
@@ -277,5 +300,5 @@ def main():
     finally:
         if hub:hub.stop()
         (WORK/'results.json').write_text(json.dumps(results,ensure_ascii=False,indent=2))
-        for name in ['wgit.jar','acceptance-tools.jar','hub.jar']: (WORK/name).unlink(missing_ok=True)
+        for name in ['wgit.jar','acceptance-tools.jar','hub.jar','freeze-fixture.jar']: (WORK/name).unlink(missing_ok=True)
 if __name__=='__main__':main()

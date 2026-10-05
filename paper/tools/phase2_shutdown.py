@@ -1,6 +1,7 @@
 """在已寫入的 switch 中關服、重開並 force 恢復；acceptance.py 自取 bench.lock。"""
 import json, os, re, shutil, time, traceback
 import harness
+from cli_compat import cli_data, verify_all
 from harness import BenchLock, Server, ROOT, WORK, wgit
 
 
@@ -19,13 +20,13 @@ def run(platform,version,shutdown=True):
         return out
     def head(s):
         import subprocess
-        return subprocess.check_output(['git','--git-dir',os.path.join(s.dir,'.worldgit','world','minecraft.overworld'),'rev-parse','HEAD'],text=True).strip()
+        return subprocess.check_output(['git','--git-dir',os.path.join(s.world,'.worldgit'),'rev-parse','HEAD'],text=True).strip()
     with BenchLock():
         harness.RUN=os.path.join(WORK,'paper-phase2','run')
         baseline=os.path.join(WORK,'paper-delivery','fixtures','acceptance-flat-'+version)
         s=Server(platform,version,baseline=baseline,run_label=f'{scenario}-{platform}-{version}',view=2,
                  config={'auto-commit':{'enabled':False,'on-shutdown':False},'commit':{'timeout-seconds':900}})
-        journal=os.path.join(s.dir,'.worldgit','world','apply-state.yml')
+        journal=os.path.join(s.world,'.worldgit','apply-state.yml')
         try:
             s.start(); result['console_logs'].append(os.path.relpath(s.evidence_log,ROOT))
             bots=[s.bot('WgBot',mod=True),s.bot('WgBot2',mod=True)]
@@ -84,8 +85,8 @@ def run(platform,version,shutdown=True):
         finally:
             s.stop()
             try:
-                output=wgit(['--world',s.world,'verify','A'],check=False)
-                check('恢復後離線 verify 差異 0','COMPLETE' in output and 'PARTIAL' not in output,output=output)
+                output=verify_all(lambda world,*words:cli_data(wgit(['--world',world,'--format=json',*words])),s.world,{'minecraft:overworld':'A'})
+                check('恢復後離線 verify 差異 0',len(output)==3,output=output)
             except Exception: check('verify 例外',False,trace=traceback.format_exc())
             errors=[l for l in s.lines_since() if 'ERROR' in l or 'Exception' in l]
             check(scenario+' log 無 ERROR／Exception',not errors,errors=errors[-25:])

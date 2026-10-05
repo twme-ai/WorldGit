@@ -14,7 +14,7 @@ import org.worldgit.core.model.*;
 import org.worldgit.core.normalize.SnapshotCodec;
 import org.worldgit.core.store.RefStore;
 
-/** 一個世界組一份 durable MERGING；bounded binary NBT/zstd，原始與候選 tree 另由 repo refs pin。 */
+/** 一個維度一份 durable MERGING；bounded binary NBT/zstd，原始與候選 tree 另由 repo refs pin。 */
 public record MergeState(
     UUID operation,
     String mode,

@@ -15,7 +15,7 @@ import org.worldgit.core.model.*;
 import org.worldgit.core.normalize.SnapshotCodec;
 import org.worldgit.core.store.*;
 
-/** 一組維度的離線復原入口。全組 repo/session 鎖、預檢、journal、寫回、驗證、HEAD barrier。 */
+/** 單維度復原入口。自己的 repo、journal、預檢、寫回、驗證與 HEAD barrier；session 鎖防止離線寫入運行中的世界。 */
 public final class WorldOperations implements AutoCloseable {
   public enum State {
     COMPLETE,
@@ -50,7 +50,7 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   /**
-   * 線上平台持有遊戲的 session；全組套用必須有跨維度 UUID removal barrier。 呼叫端在建構之前鎖定編輯並 flush，直到 close 之後才解鎖。禁止在遊戲
+   * 線上平台持有遊戲的 session；UUID removal barrier 僅處理所選維度。呼叫端在建構之前鎖定編輯並 flush，直到 close 之後才解鎖。禁止在遊戲
    * owner 執行緒呼叫。區域選擇另由 lockChunks／局部 source／applyRegions 管理短暫的 chunk 屏障。
    */
   public interface LiveAccess {
@@ -108,7 +108,7 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   public static WorldOperations live(WorldLayout layout, LiveAccess access) throws IOException {
-    return new WorldOperations(layout, null, Objects.requireNonNull(access));
+    return new WorldOperations(layout, null, Objects.requireNonNull(access), layout.currentDimension());
   }
 
   private record Prepared(
@@ -117,7 +117,7 @@ public final class WorldOperations implements AutoCloseable {
   private final WorldLayout layout;
   private final WorldRepositories worlds;
   private final SortedMap<DimensionId, DimensionRepository> repos = new TreeMap<>();
-  private final RepoLock groupLock;
+  private final Path stateRoot;
   private final WorldSessionLock session;
   private final OfflineApplier applier;
   private final Writer writer;
@@ -131,40 +131,48 @@ public final class WorldOperations implements AutoCloseable {
 
   /** writer 注入用於平台以外的離線 adapter／故障驗證；預設正式 Anvil writer。 */
   public WorldOperations(WorldLayout layout, Writer writer) throws IOException {
-    this(layout, writer, null);
+    this(layout, writer, null, layout.currentDimension());
   }
 
-  private WorldOperations(WorldLayout layout, Writer writer, LiveAccess live) throws IOException {
+  public static WorldOperations inDimension(WorldLayout layout, DimensionId dimension) throws IOException {
+    return new WorldOperations(layout, null, null, Objects.requireNonNull(dimension));
+  }
+
+  public static WorldOperations live(WorldLayout layout, LiveAccess access, DimensionId dimension) throws IOException {
+    return new WorldOperations(layout, null, Objects.requireNonNull(access), Objects.requireNonNull(dimension));
+  }
+
+  private WorldOperations(WorldLayout layout, Writer writer, LiveAccess live, DimensionId dimension) throws IOException {
     this.layout = layout;
     worlds = new WorldRepositories(layout);
     applier = new OfflineApplier(layout);
     this.live = live;
     this.writer = writer == null ? applier::apply : writer;
     groupedWriter = writer == null;
-    tolerance = WorldGitConfig.readLocal(worlds.root().resolve("worldgit.yml")).entityTolerance();
-    groupLock = RepoLock.acquire(worlds.root());
+    stateRoot = worlds.tracked().get(dimension);
+    if (stateRoot == null) throw new IOException("維度尚未 init：" + dimension);
+    tolerance = WorldGitConfig.readLocal(stateRoot.resolve("worldgit.yml")).entityTolerance();
     WorldSessionLock acquired = null;
     try {
       if (live == null) acquired = WorldSessionLock.acquire(layout);
-      for (var entry : worlds.tracked().entrySet())
-        repos.put(entry.getKey(), new DimensionRepository(entry.getValue(), entry.getKey(), false));
+      repos.put(dimension, new DimensionRepository(stateRoot, dimension, false));
       if (repos.isEmpty()) throw new IOException("世界尚未 init");
       session = acquired;
     } catch (Exception ex) {
       for (var repo : repos.values()) repo.close();
       if (acquired != null) acquired.close();
-      groupLock.close();
+
       throw ex;
     }
   }
 
   public Map<String, Object> journal() throws IOException {
-    return OperationState.read(worlds.root().resolve("apply-state.yml"));
+    return OperationState.read(stateRoot.resolve("apply-state.yml"));
   }
 
   private void requireComplete() throws IOException {
     requireNotMerging();
-    if (OperationState.partial(worlds.root()))
+    if (OperationState.partial(stateRoot))
       throw new IOException("世界為 PARTIAL；請用 switch --force 或 reset --hard 全範圍重新套用以恢復。");
   }
 
@@ -179,77 +187,12 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   private SortedMap<DimensionId, RefStore.Commit> resolve(String revision) throws IOException {
-    // 分支名稱在全維度同步。單一 hash／HEAD~n 由入口維度的 snapshot 及祖先配對不變維度。
-    boolean branch = false;
-    for (var repo : repos.values()) branch |= repo.refs().branches().containsKey(revision);
     var result = new TreeMap<DimensionId, RefStore.Commit>();
-    if (branch || revision.equals("HEAD")) {
-      for (var entry : repos.entrySet()) {
-        String id =
-            branch
-                ? entry.getValue().refs().branches().get(revision)
-                : entry.getValue().refs().head();
-        if (id == null) throw new IOException("維度缺少目標分支／HEAD：" + entry.getKey());
-        result.put(entry.getKey(), entry.getValue().refs().readCommit(id));
-      }
-      return result;
-    }
-    DimensionId anchor =
-        repos.containsKey(DimensionId.OVERWORLD) ? DimensionId.OVERWORLD : repos.firstKey();
-    RefStore.Commit commit;
-    try {
-      var refs = repos.get(anchor).refs();
-      commit = refs.readCommit(refs.resolve(revision));
-    } catch (IOException ex) {
-      // 接受另一維度的 commit hash 作為 snapshot 入口。
-      commit = null;
-      for (var entry : repos.entrySet())
-        try {
-          commit = entry.getValue().refs().readCommit(entry.getValue().refs().resolve(revision));
-          anchor = entry.getKey();
-          break;
-        } catch (IOException ignored) {
-        }
-      if (commit == null) throw ex;
-    }
-    var snapshots = new ArrayList<UUID>();
-    var refs = repos.get(anchor).refs();
-    var cursor = commit;
-    while (true) {
-      snapshots.add(cursor.metadata().snapshot());
-      if (cursor.parents().isEmpty()) break;
-      cursor = refs.readCommit(cursor.parents().getFirst());
-    }
     for (var entry : repos.entrySet()) {
-      if (entry.getKey().equals(anchor)) {
-        result.put(anchor, commit);
-        continue;
-      }
-      try {
-        var other = entry.getValue().refs();
-        result.put(
-            entry.getKey(),
-            other.readCommit(
-                other.resolve("refs/worldgit/groups/" + commit.metadata().snapshot())));
-        continue;
-      } catch (IOException missingGroup) {
-        /* Phase 1 repo：退回 anchor 的 first-parent snapshot 配對。 */
-      }
-      var bySnapshot = new HashMap<UUID, RefStore.Commit>();
-      for (var candidate : entry.getValue().refs().allCommits()) {
-        var existing = bySnapshot.putIfAbsent(candidate.metadata().snapshot(), candidate);
-        if (existing != null && !existing.id().equals(candidate.id()))
-          throw new IOException("snapshot 對應多個 commit：" + candidate.metadata().snapshot());
-      }
-      RefStore.Commit chosen = null;
-      for (UUID snapshot : snapshots)
-        if (bySnapshot.containsKey(snapshot)) {
-          chosen = bySnapshot.get(snapshot);
-          break;
-        }
-      if (chosen == null)
-        throw new IOException("無法將 snapshot 配對到維度：" + entry.getKey() + "；請改用同步分支名稱。");
-      result.put(entry.getKey(), chosen);
+      var refs = entry.getValue().refs();
+      var commit = refs.readCommit(refs.resolve(revision));
+      if (!commit.metadata().dimension().equals(entry.getKey())) throw new IOException("目標 commit 維度不符");
+      result.put(entry.getKey(), commit);
     }
     return result;
   }
@@ -315,7 +258,7 @@ public final class WorldOperations implements AutoCloseable {
           options(
               entry.getValue(),
               target,
-              meta && entry.getKey().equals(DimensionId.OVERWORLD),
+              meta,
               delete);
       var plan =
           ApplyPlanner.plan(
@@ -449,11 +392,12 @@ public final class WorldOperations implements AutoCloseable {
       boolean dryRun,
       PersistCompletion persistence)
       throws IOException {
+    org.worldgit.core.operation.OperationProgress.report(repos.firstKey(), "preflight", 0, null, org.worldgit.core.operation.OperationProgress.Unit.SECTION);
     if (dryRun) return new Result(State.DRY_RUN, stats(prepared), null);
     var old = new TreeMap<DimensionId, RefStore.Head>();
     var journal = new LinkedHashMap<String, Object>();
     journal.put("version", 1);
-    journal.put("operation", UUID.randomUUID().toString());
+    journal.put("operation", org.worldgit.core.operation.OperationProgress.operationId().toString());
     journal.put("mode", mode);
     journal.put("state", "APPLYING");
     journal.put("time", Instant.now().toString());
@@ -510,18 +454,26 @@ public final class WorldOperations implements AutoCloseable {
               repo.ignorePath(), TreeFilter.rules(repo.objects(), entry.getValue().tree()));
           restoreConfig(repo, entry.getValue());
         }
+      org.worldgit.core.operation.OperationProgress.report(repos.firstKey(), "apply", 0, null, org.worldgit.core.operation.OperationProgress.Unit.SECTION);
       try (var timing = OperationTimings.stage("apply-and-barrier")) {
         if (live != null) live.applyAll(prepared.plans.values());
         else if (groupedWriter) applier.applyAll(prepared.plans.values(), session);
       }
       for (var entry : prepared.plans.entrySet()) {
         if (live == null && !groupedWriter) writer.apply(entry.getValue(), session);
+        var repo = repos.get(entry.getKey());
+        var target = prepared.commits.get(entry.getKey());
+        if (entry.getValue().scope().kind() == Scope.Kind.ALL) restoreConfig(repo, target);
+        else {
+          updateTouched(repo, entry.getValue());
+        }
         repos.get(entry.getKey()).invalidateIndex();
         @SuppressWarnings("unchecked")
         var row = (Map<String, Object>) rows.get(entry.getKey().value());
         row.put("applied", true);
         writeJournal(journal);
       }
+      org.worldgit.core.operation.OperationProgress.report(repos.firstKey(), "verify", 0, null, org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
       try (var timing = OperationTimings.stage("verify")) {
         var checked =
             prepare(
@@ -585,6 +537,7 @@ public final class WorldOperations implements AutoCloseable {
   private void restoreConfig(DimensionRepository repo, RefStore.Commit target) throws IOException {
     String path =
         repo.dimension().equals(DimensionId.OVERWORLD) ? "world-meta/worldgit.yml" : "worldgit.yml";
+    org.worldgit.core.capture.PlayerTouchedEntities.restore(repo.objects(), target.tree(), repo.directory());
     var config = TreeEditor.find(repo.objects(), target.tree(), path);
     if (config != null) {
       var bytes = repo.objects().readBlob(config.id());
@@ -593,9 +546,19 @@ public final class WorldOperations implements AutoCloseable {
     }
   }
 
+  private void updateTouched(DimensionRepository repo, ApplyPlan plan) throws IOException {
+    if (WorldGitConfig.readRepo(repo.configPath()).entities() != WorldGitConfig.Entities.PLAYER_TOUCHED) return;
+    var touched = org.worldgit.core.capture.PlayerTouchedEntities.read(repo.directory());
+    for(var entity : plan.entities()) {
+      touched.remove(entity.uuid());
+      if(entity.target() != null) org.worldgit.core.capture.PlayerTouchedEntities.collect(entity.target().data(),touched);
+    }
+    org.worldgit.core.capture.PlayerTouchedEntities.write(repo.directory(), touched);
+  }
+
   private void writeJournal(Map<String, Object> journal) throws IOException {
     try (var timing = OperationTimings.stage("journal")) {
-      OperationState.write(worlds.root().resolve("apply-state.yml"), journal);
+      OperationState.write(stateRoot.resolve("apply-state.yml"), journal);
     }
   }
 
@@ -686,7 +649,7 @@ public final class WorldOperations implements AutoCloseable {
 
   @SuppressWarnings("unchecked")
   public List<Stash> stashes() throws IOException {
-    var state = OperationState.read(worlds.root().resolve("stash.yml"));
+    var state = OperationState.read(stateRoot.resolve("stash.yml"));
     var result = new ArrayList<Stash>();
     for (var value : (List<Map<String, Object>>) state.getOrDefault("entries", List.of())) {
       var commits = new TreeMap<DimensionId, String>();
@@ -727,7 +690,7 @@ public final class WorldOperations implements AutoCloseable {
               bases));
     }
     OperationState.write(
-        worlds.root().resolve("stash.yml"), Map.of("version", 1, "entries", entries));
+        stateRoot.resolve("stash.yml"), Map.of("version", 1, "entries", entries));
   }
 
   private Stash saveStash(String message) throws IOException {
@@ -736,7 +699,7 @@ public final class WorldOperations implements AutoCloseable {
     var bases = new TreeMap<DimensionId, String>();
     var author = new CommitMetadata.Identity("WorldGit stash", "worldgit@localhost");
     var now = Instant.now();
-    // capture 全組完成才發布清單；失敗留下 dangling/pinned 物件，但不丟失工作區。
+    // capture 完成才發布清單；失敗留下 dangling/pinned 物件，但不丟失工作區。
     var trees = new TreeMap<DimensionId, String>();
     for (var entry : repos.entrySet()) trees.put(entry.getKey(), capture(entry.getValue()));
     for (var entry : repos.entrySet()) {
@@ -877,15 +840,16 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   public MergeState merging() throws IOException {
-    return MergeState.read(worlds.root().resolve("merge-state.bin"));
+    return MergeState.read(stateRoot.resolve("merge-state.bin"));
   }
 
   public SortedMap<DimensionId, MergeReport> lastMergeReports() throws IOException {
     return Collections.unmodifiableSortedMap(
-        reports(MergeState.read(worlds.root().resolve("last-merge-report.bin"))));
+        reports(MergeState.read(stateRoot.resolve("last-merge-report.bin"))));
   }
 
   private void requireNotMerging() throws IOException {
+    for (var repo : repos.values()) repo.requireLegacyComplete();
     if (merging() != null)
       throw new IOException("世界為 MERGING；請 resolve 後 merge --continue，或 merge --abort。");
   }
@@ -904,7 +868,7 @@ public final class WorldOperations implements AutoCloseable {
       MergeOptions opts)
       throws IOException {
     requireComplete();
-    if (!targets.keySet().equals(repos.keySet())) throw new IOException("pull 必須涵蓋所有已追蹤維度");
+    if (!targets.keySet().equals(repos.keySet())) throw new IOException("pull 目標必須只包含目前維度");
     if (dirty(true)) throw new IOException("pull 要求乾淨工作區（含 untracked）；請先 commit 或 stash push");
     var prior = new TreeMap<DimensionId, String>();
     var commits = new TreeMap<DimensionId, RefStore.Commit>();
@@ -914,7 +878,7 @@ public final class WorldOperations implements AutoCloseable {
       var refs = e.getValue().refs();
       var head = refs.headState();
       if (head.branch() == null || branch != null && !branch.equals(head.branch()))
-        throw new IOException("pull 需要全組同名分支");
+        throw new IOException("pull 需要目前維度位於分支");
       branch = head.branch();
       prior.put(e.getKey(), head.commit());
       if (expectedHeads != null && !Objects.equals(expectedHeads.get(e.getKey()), head.commit()))
@@ -926,8 +890,7 @@ public final class WorldOperations implements AutoCloseable {
       ff &= refs.isAncestor(head.commit(), target);
       already &= refs.isAncestor(target, head.commit());
     }
-    org.worldgit.core.remote.RepositoryGroup.validateSnapshot(
-        commits, (d, snapshot) -> repos.get(d).refs().resolve("refs/worldgit/groups/" + snapshot));
+
     MergeResult result;
     if (already)
       result =
@@ -982,7 +945,7 @@ public final class WorldOperations implements AutoCloseable {
     requireComplete();
     if (dirty(true)) throw new IOException("合併要求乾淨工作區（含 untracked）；請先 commit 或 stash push。");
     var targets = mergeOverride == null ? resolveForMerge(revision) : mergeOverride;
-    var operation = UUID.randomUUID();
+    var operation = org.worldgit.core.operation.OperationProgress.operationId();
     var dimensions = new TreeMap<DimensionId, MergeState.Dimension>();
     var plans = new TreeMap<DimensionId, ApplyPlan>();
     var commits = new TreeMap<DimensionId, RefStore.Commit>();
@@ -1010,7 +973,7 @@ public final class WorldOperations implements AutoCloseable {
       } else {
         // revision 是 snapshot group；未變動維度的目標 head 可能是更早的 commit，該維度的 patch 必須為零。
         if (target == null) throw new IOException("patch 來源維度缺少歷史：" + id);
-        boolean unchanged = groupUnchanged(revision, id, target, targets);
+        boolean unchanged = false;
         if (unchanged) {
           baseCommit = target;
           theirs = target;
@@ -1225,35 +1188,11 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   private String captureRules(DimensionRepository repo, String text) throws IOException {
-    var rules = IgnoreRules.parse(text);
-    var editor = new TreeEditor(repo.objects(), null);
-    try (var source =
-        live == null
-            ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()))
-            : live.source(layout.dimensions().get(repo.dimension()))) {
-      var scan = source.scan(org.worldgit.core.capture.ScanIndex.empty(), true);
-      for (var pos : new TreeSet<>(scan.candidates()))
-        try {
-          var snapshot = source.snapshot(pos, rules).toCompletableFuture().join();
-          if (snapshot.isPresent())
-            editor.replaceTree(
-                pos.treePath(),
-                org.worldgit.core.normalize.SnapshotCodec.chunkFiles(snapshot.get()));
-        } catch (java.util.concurrent.CompletionException ex) {
-          throw new IOException("合併規則 capture 失敗", ex.getCause());
-        }
-      if (repo.dimension().equals(DimensionId.OVERWORLD)) {
-        var metadata =
-            org.worldgit.core.normalize.MetadataNormalizer.normalize(source.worldMetadata(), rules);
-        metadata.put("worldgit.yml", Files.readAllBytes(repo.configPath()));
-        editor.replaceTree("world-meta", metadata);
-        var original = capture(repo);
-        var manifest = TreeEditor.find(repo.objects(), original, "dimensions");
-        if (manifest != null) editor.putBlob("dimensions", repo.objects().readBlob(manifest.id()));
-      } else editor.putBlob("worldgit.yml", Files.readAllBytes(repo.configPath()));
+    try (var source = live == null
+        ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()))
+        : live.source(layout.dimensions().get(repo.dimension()))) {
+      return repo.workingTree(source, worlds.manifest(), tolerance, text);
     }
-    editor.putBlob(".wgignore", text.getBytes(StandardCharsets.UTF_8));
-    return editor.write();
   }
 
   private ApplyPlan mergePlan(DimensionRepository repo, String current, String target)
@@ -1268,7 +1207,7 @@ public final class WorldOperations implements AutoCloseable {
                 layout.world(), layout.dataVersion(), live == null ? null : live.packs()),
             tolerance,
             !parsed.hasAreas(),
-            repo.dimension().equals(DimensionId.OVERWORLD),
+            true,
             layout.dataVersion());
     var plan =
         ApplyPlanner.plan(repo.objects(), repo.dimension(), current, target, Scope.all(), opts);
@@ -1279,7 +1218,7 @@ public final class WorldOperations implements AutoCloseable {
 
   private void saveMerge(MergeState state) throws IOException {
     try (var timing = OperationTimings.stage("merge-state")) {
-      state.write(worlds.root().resolve("merge-state.bin"));
+      state.write(stateRoot.resolve("merge-state.bin"));
       for (var e : state.dimensions().entrySet())
         RegionFile.atomicWrite(
             repos.get(e.getKey()).directory().resolve("MERGE_HEAD"),
@@ -1289,8 +1228,8 @@ public final class WorldOperations implements AutoCloseable {
 
   private void clearMerge() throws IOException {
     for (var repo : repos.values()) Files.deleteIfExists(repo.directory().resolve("MERGE_HEAD"));
-    Files.deleteIfExists(worlds.root().resolve("merge-state.bin"));
-    Files.deleteIfExists(MergeState.updatesPath(worlds.root().resolve("merge-state.bin")));
+    Files.deleteIfExists(stateRoot.resolve("merge-state.bin"));
+    Files.deleteIfExists(MergeState.updatesPath(stateRoot.resolve("merge-state.bin")));
   }
 
   private MergeState activeMerge() throws IOException {
@@ -1306,7 +1245,7 @@ public final class WorldOperations implements AutoCloseable {
   public MergeResult selectRegion(
       int regionId, MergeReport.Choice choice, boolean resolved, boolean dryRun)
       throws IOException {
-    if (OperationState.partial(worlds.root()))
+    if (OperationState.partial(stateRoot))
       throw new IOException("合併為 PARTIAL；請先 merge --abort");
     var state = activeMerge();
     var selectedRegions =
@@ -1462,7 +1401,12 @@ public final class WorldOperations implements AutoCloseable {
           var snapshot = source.snapshot(pos, rules).toCompletableFuture().join();
           if (snapshot.isPresent()) {
             if (!snapshot.get().pos().equals(pos)) throw new IOException("来源回傳錯誤 chunk 座標");
-            editor.replaceTree(pos.treePath(), SnapshotCodec.chunkFiles(snapshot.get()));
+            var chunk = snapshot.get();
+            if (WorldGitConfig.readRepo(repo.configPath()).entities() == WorldGitConfig.Entities.PLAYER_TOUCHED) {
+              var touched = org.worldgit.core.capture.PlayerTouchedEntities.read(repo.directory());
+              chunk = org.worldgit.core.capture.PlayerTouchedEntities.filter(chunk, touched);
+            }
+            editor.replaceTree(pos.treePath(), SnapshotCodec.chunkFiles(chunk));
           }
         } catch (java.util.concurrent.CompletionException ex) {
           throw new IOException("局部 capture 失敗：" + pos, ex.getCause());
@@ -1586,7 +1530,7 @@ public final class WorldOperations implements AutoCloseable {
     var ds = new TreeMap<>(state.dimensions());
     var journal = new LinkedHashMap<String, Object>();
     journal.put("version", 2);
-    journal.put("operation", UUID.randomUUID().toString());
+    journal.put("operation", org.worldgit.core.operation.OperationProgress.operationId().toString());
     journal.put("merge", state.operation().toString());
     journal.put("mode", "merge-select");
     journal.put("state", "APPLYING");
@@ -1640,6 +1584,7 @@ public final class WorldOperations implements AutoCloseable {
           targets.put(entry.getKey(), target);
           var prior = repo.refs().readCommit(d.resultCommit());
           String fullTarget = overlayChunks(repo, prior.tree(), target, entry.getValue());
+          fullTarget = org.worldgit.core.capture.PlayerTouchedEntities.reconcile(repo.objects(), fullTarget, List.of(d.baseTree(), d.oursTree(), d.theirsTree()));
           var cells =
               selected.stream()
                   .filter(r -> r.dimension().equals(entry.getKey()))
@@ -1697,6 +1642,7 @@ public final class WorldOperations implements AutoCloseable {
         else if (groupedWriter) applier.applyAll(plans.values(), session);
         else for (var plan : plans.values()) writer.apply(plan, session);
       }
+      for(var entry : plans.entrySet()) updateTouched(repos.get(entry.getKey()),entry.getValue());
       try (var timing = OperationTimings.stage("verify")) {
         for (var entry : affected.entrySet()) {
           var repo = repos.get(entry.getKey());
@@ -1714,7 +1660,7 @@ public final class WorldOperations implements AutoCloseable {
       if (live != null) live.beforeComplete();
       // journal 一直到增量狀態 force 完成才 COMPLETE；崩潰或保存失敗可 abort。
       try (var timing = OperationTimings.stage("merge-state")) {
-        MergeState.append(worlds.root().resolve("merge-state.bin"), state, updated);
+        MergeState.append(stateRoot.resolve("merge-state.bin"), state, updated);
       }
       journal.put("state", "COMPLETE");
       writeJournal(journal);
@@ -1777,7 +1723,7 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   public MergeResult markResolved(int regionId, boolean manual, boolean dryRun) throws IOException {
-    if (OperationState.partial(worlds.root()))
+    if (OperationState.partial(stateRoot))
       throw new IOException("合併為 PARTIAL；請先 merge --abort");
     var state = activeMerge();
     if (manual) return selectRegion(regionId, MergeReport.Choice.MANUAL, true, dryRun);
@@ -1809,14 +1755,14 @@ public final class WorldOperations implements AutoCloseable {
     if (!dryRun) {
       var journal = new LinkedHashMap<String, Object>();
       journal.put("version", 2);
-      journal.put("operation", UUID.randomUUID().toString());
+      journal.put("operation", org.worldgit.core.operation.OperationProgress.operationId().toString());
       journal.put("merge", state.operation().toString());
       journal.put("mode", "merge-mark-resolved");
       journal.put("state", "APPLYING");
       writeJournal(journal);
       try {
         if (live != null) live.beforeComplete();
-        MergeState.append(worlds.root().resolve("merge-state.bin"), state, updated);
+        MergeState.append(stateRoot.resolve("merge-state.bin"), state, updated);
         journal.put("state", "COMPLETE");
         writeJournal(journal);
       } catch (IOException ex) {
@@ -1839,7 +1785,7 @@ public final class WorldOperations implements AutoCloseable {
   public MergeResult commitMerge(
       CommitMetadata.Identity author, CommitMetadata.Source source, String message, boolean dryRun)
       throws IOException {
-    if (OperationState.partial(worlds.root()))
+    if (OperationState.partial(stateRoot))
       throw new IOException("合併為 PARTIAL；請先 merge --abort");
     var state = activeMerge();
     if (state.remaining() != 0) throw new IOException("尚有 " + state.remaining() + " 個衝突區域未解決");
@@ -1921,7 +1867,7 @@ public final class WorldOperations implements AutoCloseable {
         for (var e : repos.entrySet()) {
           var checked = mergePlan(e.getValue(), capture(e.getValue()), trees.get(e.getKey()));
           if (!checked.empty())
-            throw new IOException("提交前全組驗證失敗：" + e.getKey() + " " + checked.stats());
+            throw new IOException("提交前維度驗證失敗：" + e.getKey() + " " + checked.stats());
         }
       }
       if (live != null) live.beforeComplete();
@@ -1934,14 +1880,11 @@ public final class WorldOperations implements AutoCloseable {
         completed.add(e.getKey());
       }
       for (var e : targets.entrySet()) {
-        repos
-            .get(e.getKey())
-            .refs()
-            .updateRef("refs/worldgit/groups/" + snapshot, null, e.getValue());
+        org.worldgit.core.capture.PlayerTouchedEntities.restore(repos.get(e.getKey()).objects(), trees.get(e.getKey()), repos.get(e.getKey()).directory());
         repos.get(e.getKey()).invalidateIndex();
         Files.deleteIfExists(repos.get(e.getKey()).directory().resolve("untracked.yml"));
       }
-      state.write(worlds.root().resolve("last-merge-report.bin"));
+      state.write(stateRoot.resolve("last-merge-report.bin"));
       clearMerge();
       return mergeResult("COMPLETE", null, reports(state), new TreeMap<>(), targets, null);
     } catch (IOException ex) {
@@ -2053,11 +1996,7 @@ public final class WorldOperations implements AutoCloseable {
     } catch (IOException ex) {
       error = ex;
     }
-    try {
-      groupLock.close();
-    } catch (IOException ex) {
-      error = ex;
-    }
+
     if (error != null) throw error;
   }
 }

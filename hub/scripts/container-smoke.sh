@@ -40,8 +40,20 @@ if [ -z "${REPOS_DIR:-}" ]; then
   WORLD_DIR=${WORLD_DIR:-$ROOT/core/src/test/resources/fixtures/26.2/world}
   step "以 wgit 建立測試 repo（$WORLD_DIR）"
   cp -r "$WORLD_DIR" "$TMP/world"
-  "$ROOT/wgit" -w "$TMP/world" init
-  REPOS_DIR=$(dirname "$(find "$TMP" -type d -path '*/.worldgit/*' -name 'minecraft.overworld' | head -1)")
+  "$ROOT/wgit" -w "$TMP/world" init --with-dimensions all
+  # 將世界內 repo 映射為冒煙測試輸入，symlink 不搬動或修改歷史。
+  REPOS_DIR="$TMP/repos"
+  mkdir -p "$REPOS_DIR"
+  ln -s "$TMP/world/.worldgit" "$REPOS_DIR/minecraft.overworld"
+  for DIM in the_nether the_end; do
+    if [ -d "$TMP/world/dimensions/minecraft/$DIM/.worldgit" ]; then
+      ln -s "$TMP/world/dimensions/minecraft/$DIM/.worldgit" "$REPOS_DIR/minecraft.$DIM"
+    elif [ "$DIM" = the_nether ] && [ -d "$TMP/world/DIM-1/.worldgit" ]; then
+      ln -s "$TMP/world/DIM-1/.worldgit" "$REPOS_DIR/minecraft.$DIM"
+    elif [ "$DIM" = the_end ] && [ -d "$TMP/world/DIM1/.worldgit" ]; then
+      ln -s "$TMP/world/DIM1/.worldgit" "$REPOS_DIR/minecraft.$DIM"
+    fi
+  done
 fi
 [ -d "$REPOS_DIR/minecraft.overworld" ] || { echo "找不到維度 repo：$REPOS_DIR/minecraft.overworld（設定 REPOS_DIR 或 WORLD_DIR）" >&2; exit 2; }
 

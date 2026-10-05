@@ -9,9 +9,12 @@ import re
 import statistics
 import shutil
 import subprocess
+import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "paper/tools"))
+from cli_compat import cli_data, repository, verify_all
 JAVA = "/usr/lib/jvm/java-21-openjdk-amd64/bin/java"
 
 
@@ -42,20 +45,17 @@ def record(args):
                 (evidence / f"cli-{label}.stderr").write_text(p.stderr)
                 if check and p.returncode:
                     raise AssertionError(f"wgit {label} failed ({p.returncode}): {p.stdout} {p.stderr}")
-                return json.loads(p.stdout) if p.stdout.strip() else None
+                return cli_data(p.stdout) if p.stdout.strip() else None
 
             verifies = {}
             for label in ("clean-merge", "after-abort", "final"):
-                value = cli(f"verify-{label}", artifacts / label / "world", "verify", branch)
-                assert value["state"] == "COMPLETE", value
-                for stats in value["dimensions"].values():
-                    assert not any(stats[k] for k in ("chunks", "sections", "biomeSections", "entityPuts",
-                                                     "entityRemoves", "chunkDeletes", "metaFiles")), stats
-                verifies[label] = value
+                verifies[label] = verify_all(
+                    lambda world, *words: cli(f"verify-{label}-{words[1].split(':')[1]}", world, *words),
+                    artifacts / label / "world", {"minecraft:overworld": branch})
             result["verify"] = verifies
 
             # MERGING 中途：wgit conflicts 與客戶端／伺服器看到的清單必須一致。
-            cli_regions = cli("conflicts-merging", artifacts / "merging-initial/world", "conflicts")
+            cli_regions = cli("conflicts-merging", artifacts / "merging-initial/world", "conflicts", "--dimension", "minecraft:overworld")
             game = json.loads((artifacts / "regions.json").read_text())
             def norm_cli(r):
                 b = r["bounds"]
@@ -65,13 +65,13 @@ def record(args):
             assert expected == actual, {"game": expected, "cli": actual}
             result["conflicts_match_cli"] = True
             result["regions"] = actual
-            after = cli("conflicts-after-abort", artifacts / "after-abort/world", "conflicts")
+            after = cli("conflicts-after-abort", artifacts / "after-abort/world", "conflicts", "--dimension", "minecraft:overworld")
             assert after == [], after
-            final_conflicts = cli("conflicts-final", artifacts / "final/world", "conflicts")
+            final_conflicts = cli("conflicts-final", artifacts / "final/world", "conflicts", "--dimension", "minecraft:overworld")
             assert final_conflicts == [], final_conflicts
 
             # 兩個 parent：直接讀 bare repo 的 HEAD commit。
-            repo = next((artifacts / ("final/world/.worldgit" if (artifacts / "final/world/.worldgit").is_dir() else "final/.worldgit/world")).glob("minecraft.overworld"))
+            repo = repository(artifacts / "final/world")
             head = subprocess.run(["git", "--git-dir", str(repo), "cat-file", "-p", f"refs/heads/{branch}"],
                                   text=True, capture_output=True)
             if head.returncode:
@@ -80,7 +80,7 @@ def record(args):
             parents = [l for l in head.stdout.splitlines() if l.startswith("parent ")]
             assert len(parents) == 2, head.stdout + head.stderr
             result["final_parents"] = len(parents)
-            clean_repo = next((artifacts / ("clean-merge/world/.worldgit" if (artifacts / "clean-merge/world/.worldgit").is_dir() else "clean-merge/.worldgit/world")).glob("minecraft.overworld"))
+            clean_repo = repository(artifacts / "clean-merge/world")
             clean_head = subprocess.run(["git", "--git-dir", str(clean_repo), "cat-file", "-p", f"refs/heads/{branch}"],
                                         text=True, capture_output=True)
             assert len([l for l in clean_head.stdout.splitlines() if l.startswith("parent ")]) == 2, clean_head.stdout

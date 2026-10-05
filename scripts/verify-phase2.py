@@ -8,6 +8,7 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import sys
 import os
 from pathlib import Path
 import re
@@ -21,6 +22,8 @@ _spec.loader.exec_module(_module)
 Server, JAVA = _module.Server, _module.JAVA
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'paper/tools'))
+from cli_compat import cli_data, repository, DIMENSIONS, verify_all, prepare_all_entities
 WORK = ROOT / '.work/phase2-core'
 
 
@@ -30,17 +33,18 @@ def manifest(path):
 
 
 def cli(directory, *args, reject=False):
+    if args and args[0]=='init':prepare_all_entities(directory)
     result = subprocess.run([JAVA['1.21.11'], '-Xmx1g', '-jar', str(WORK/'wgit.jar'),
                              '--world', str(directory), '--format=json', *args],
                             text=True, capture_output=True, timeout=240)
     with (WORK/'cli.log').open('a') as out:
         out.write(' '.join(args)+'\n'+result.stdout+result.stderr+'\n')
     if reject:
-        assert result.returncode != 0 and 'session.lock' in result.stderr, result.stderr
+        assert result.returncode != 0 and 'session.lock' in result.stderr+result.stdout, result.stderr+result.stdout
         return
     if result.returncode:
         raise RuntimeError(result.stderr+result.stdout)
-    return json.loads(result.stdout)
+    return cli_data(result.stdout)
 
 
 def tool(directory, command, *args):
@@ -103,7 +107,7 @@ def paper(version):
     try:
         tool(directory,'synthetic',441)
         restart(version,directory,'warmup')
-        cli(directory,'init')
+        cli(directory,'init','--with-dimensions','all')
         cli(directory,'branch','A')
         tool(directory,'mutate',4)
         # 先讓新 BE 補上原版預設欄位，B 才是能在真伺服器上穩定往返的快照。
