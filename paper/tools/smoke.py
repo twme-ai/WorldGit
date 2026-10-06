@@ -9,7 +9,7 @@ with BenchLock():
     try:
         s.start()
         print('\n'.join(l for l in s.lines_since(0) if 'WorldGit' in l or 'ERROR' in l)[:3000])
-        print(s.cmd('wg init', r'init 完成|失敗|尚未', 600))
+        print(s.cmd('wg init --world world --all', r'init 完成|失敗|尚未', 600))
         print(s.cmd('wg status', r'沒有變動|section', 120))
         print(s.cmd('wg commit -m smoke', r'沒有變動|失敗|[0-9a-f]{8} ', 120))
         print(s.cmd('wg log', r'初始化世界|還沒有', 60))

@@ -1,6 +1,6 @@
 # 15 — WorldGit 使用手冊
 
-本手冊依「你是誰」與「你用哪個平臺」整理 WorldGit 的實際用法。共通規則及 CLI 章節已更新至 2026-10-04 的 Phase 5 任務 1；平臺／Hub 章節保留 Phase 4 用法並標示過渡限制。設計理由見 [09 決定表](09-roadmap-open-questions.md)，驗收與交接見 [16](16-phase5-design.md) 及各模組 README。
+本手冊依「你是誰」與「你用哪個平臺」整理 WorldGit 的實際用法。共通規則、CLI、Hub 與 Paper／Folia 已更新至 2026-10-05 的 Phase 5 任務 1–3；Fabric 保留相容過渡，UX 在任務 4 完成。設計理由見 [09 決定表](09-roadmap-open-questions.md)，驗收與交接見 [16](16-phase5-design.md) 及各模組 README。
 
 ---
 
@@ -24,7 +24,7 @@
 
 ---
 
-> Phase 5 core／CLI 介面已實作。平臺／Hub 章節將於任務 2–4 更新：遊戲內 init 暫保留既有批次範圍，creative init 仍用 `entities: all`，玩家觸及事件尚未接線；完整契約與驗收狀態見 [16](16-phase5-design.md)。
+> Phase 5 core／CLI、Hub 與 Paper／Folia 已接線。Paper 玩家 init 只取所在維度、新 creative 使用 player-touched；Fabric 的對應玩家範圍／事件與畫面由任務 4 接線，完整契約與驗收狀態見 [16](16-phase5-design.md)。
 
 ## 1. WorldGit 是什麼
 
@@ -298,7 +298,7 @@ clone 出來的資料夾就是完整的單人世界（光照與 POI 由遊戲重
 ### 6.1 安裝
 
 1. 把 `worldgit-paper-0.1.0-SNAPSHOT.jar` 放進 `plugins/`（1.21.11 與 26.2、Paper 與 Folia 共用同一個 jar；版本不符會明確停用插件）。
-2. 啟動伺服器，在遊戲或主控臺執行 `/wg init`（生存服建議 `/wg init --template survival`）。
+2. 啟動伺服器，玩家在目前維度執行 `/wg init`（生存服用 `/wg init --template survival`）；主控臺必須用 `/wg init --world world --dimension minecraft:overworld`，或以 `--all` 明確初始化世界群。
 3. 依需要調整 `plugins/WorldGit/config.yml`。
 
 ### 6.2 權限
@@ -315,6 +315,7 @@ clone 出來的資料夾就是完整的單人世界（光照與 POI 由遊戲重
 | `worldgit.command.restore`／`switch`／`branch`／`stash`／`reset`／`cancel` | Phase 2 復原與切換 | op |
 | `worldgit.command.merge`／`resolve`／`conflicts`／`tool`／`revert`／`cherry-pick` | Phase 3 合併（`conflict-select` 與 `resolve` 共用權限） | op |
 | `worldgit.command.remote`／`fetch`／`push`／`pull`／`pr`／`comment` | Phase 4 遠端協作 | op |
+| `worldgit.command.ignore`／`tag`／`verify` | 規則編輯、標籤、驗證 | op |
 | `worldgit.debug` | `/wg debug`（開發用，預設只有主控臺） | false |
 
 Paper／Folia 會依權限把完整指令樹傳給客戶端；預設非 op 玩家只看得到 `/wg log`、`/wg clear`、`/wg help`。`/wg help [子指令]` 只列出你可用的指令，點擊用法可填入聊天列。tool、diff、clear 與衝突預覽限玩家；debug 對玩家另需明確授予 `worldgit.debug`。
@@ -329,12 +330,14 @@ Paper／Folia 會依權限把完整指令樹傳給客戶端；預設非 op 玩�
 | `show.*` | 無模組玩家的 BlockDisplay 描邊上限與顯示秒數 |
 | `language` | 主控臺語言（預設 zh_tw）；玩家依客戶端語言顯示 |
 | `remote.*` | 遠端協作，見 [§6.7](#67-遠端協作與-hub) |
+| `aliases.git`／`aliases.wgit` | 裸別名開關（預設 true）；worldgit:git 一直保留，衝突不覆蓋 |
+| `feedback.*` | 終態預設停留 3 秒；title／sound 預設關，auto-notify 預設 true |
 
 訊息可在 `plugins/WorldGit/lang/zh_tw.yml`、`en_us.yml` 覆寫個別鍵，`/wg reload` 生效。
 
 **自動 commit 的觸發**：定時、玩家登出（提交的是**整個世界**目前的改動，不只該玩家）、伺服器關閉。Paper 在關閉流程內提交；Folia 在所有世界存檔完成後以離線路徑提交，結果寫在 `plugins/WorldGit/shutdown-commit.log`。kill -9 或崩潰不會有關閉前 commit。
 
-**作者歸屬**：玩家放置／破壞、WorldEdit 操作會以 chunk 為單位記錄作者，commit 帶 `Co-authored-by`。
+**作者歸屬**：依世界群、維度、玩家、chunk 記錄，commit 帶 `Co-authored-by`；單維度 commit 不消耗其他維度的記錄。
 
 ### 6.4 WorldEdit／FAWE
 
@@ -365,7 +368,7 @@ extent:
 /wg cancel
 ```
 
-`/wg`（別名 `/worldgit`）使用 Paper Brigadier：聊天列會上色、逐參數提示，錯誤型別會以紅字指出位置。補全分支／revision 可查看短 hash 與訊息，stash 可查看訊息；log 數量限 1–100、diff 半徑限 1–32、restore 的 chunks 半徑限 0–256。既有 `--xxx` 旗標可任意排列，selection／chunks／box 擇一。含特殊字元的分支／revision 補全會加雙引號，舊未加引號寫法仍可執行。
+`/wg`、`/wgit`、`/git`、`/worldgit`（另有 `/worldgit:git`）使用 Paper Brigadier：聊天列會上色、逐參數提示，錯誤型別會以紅字指出位置。補全分支／revision 可查看短 hash 與訊息，stash 可查看訊息；log 數量限 1–100、diff 半徑限 1–32、restore 的 chunks 半徑限 0–256。既有 `--xxx` 旗標可任意排列，selection／chunks／box 擇一。含特殊字元的分支／revision 補全會加雙引號，舊未加引號寫法仍可執行。
 
 commit 的 `-m` 與 stash 訊息取後面全部文字；PR 建議 `/wg pr create --source topic --target main 標題`，原本標題後放旗標也可用。若標題／留言本身含 `--source`、`--target` 或 `--here`，以雙引號括住文字，避免當成選項。PR／衝突編號建議用純數字（如 `/wg resolve 1 ours`）；`#1` 仍相容，但原生整數提示會標紅。
 
@@ -376,6 +379,32 @@ commit 的 `-m` 與 stash 訊息取後面全部文字；PR 建議 `/wg pr create
 **線上套用的保護**：操作期間全伺服器 tick freeze（玩家仍可移動）、攔截玩家編輯／活塞／爆炸／流體／紅石／WorldEdit；範圍內玩家受保護不受摔落、窒息、溺水傷害。只有全部驗證成功才廣播「已切換到 X」。直接改 NMS 的第三方插件需自行呼叫 `WorldGitPlugin.isEditLocked(world)` 配合。
 
 量測參考：1,000 chunk 切換，Paper 約 48 秒、Folia 約 34–37 秒，TPS 維持約 19.6–20。
+
+### 6.5.1 維度、分支圖與排除規則
+
+所有 repo 指令預設玩家目前世界群的所在維度；`--dimension <id>` 指定其他維度，`--all` 逐維度完成並各自回報，不回滾已成功的維度。`--world <載入世界名>` 可補全並指定世界群。console 的 init 必須明確指定世界與維度／all；其他 repo 指令預設伺服器第一個世界的主世界。commit／stash／PR／留言的目標旗標放在 greedy 文字前。
+
+```text
+/wg init                         # 玩家只初始化所在維度；主世界結果可點「也 init 地獄／終界／全部」
+/wg status --dimension minecraft:the_nether --full
+/wg commit --all -m 各維度存檔
+/wg log --graph                   # 文字 lane、branch／tag／HEAD；hover 完整 commit，點選填入 diff
+/wg log --graph --page 2
+/wg ignore                       # 箱子清單；左鍵刪除，右鍵啟停，Shift 點擊上移，新增用聊天
+/wg ignore add entity minecraft:cow
+/wg ignore confirm <預覽代碼>      # 或點聊天確認按鈕；120 秒內綁定執行者／目標／HEAD／原文
+/wg commit -m 更新排除規則
+/wg ignore test target           # 準星方塊／實體；test hand 測手持物品欄位
+/wg ignore check
+/wg tag 活動完成
+/wg verify HEAD
+```
+
+每次修改先以 HEAD 顯示會排除的數量和樣本，再確認。MERGING 禁止修改；檔案行號是規則 ID，註解／空行會保留。確認只寫工作區 `.wgignore`，下一 commit 記錄規則歷史。未提交世界內容不在 HEAD preview 的統計中。
+
+新 creative repo 只存玩家觸及實體：自然牛不入庫，命名後入庫；蛋、summon／data entity、放置／互動、WE／FAWE、乘客／載具、UUID 轉換與跨維度傳送保留資格。init 前觸及於本次開服期間暫存並在 init 繼承。restore 保留集合外自然實體；如果目標 UUID 已在另一維度，套用前拒絕並指出維度。survival 與舊 repo 維持原 entities 設定。
+
+每個正式動作都有 SUCCESS／NO_OP／PARTIAL／FAILED／CANCELLED 終態與摘要、目標及耗時；耗時操作以 BossBar 顯示階段／比例／ETA，console 節流文字。執行者與有 `worldgit.notify` 的觀察者可見，成功綠／失敗紅終態預設三秒後移除。錯誤後的獨立 `[複製]` 可複製已遮罩的版本／UTC／維度／operation id 報告，hover 來自語言檔。
 
 ### 6.6 線上合併
 
@@ -461,7 +490,7 @@ remote:
 
 然後在 Hub 世界設定頁新增 webhook：URL 指向上述位址、填同一個 secret（Hub 要求 32–256 字元，插件接受 32–4096，請取兩者交集）、事件勾 `push` 與 `pr.merged`。Hub 預設拒絕內網與 loopback 位址，自架在同一臺機器時要在 Hub 設定精確的 `allowed-hosts`（[§11.4](#114-webhook-與-ssrf)）。對外公開時請放在 TLS 反向代理後面。
 
-收到通知後插件會在背景 fetch、確認完整發布，然後提示有 pull 權限的線上玩家與主控臺「遠端有新版本，`/wg pull` 檢視」。**永遠不會自動套用**。無法對外開 port 的伺服器可改用 `fetch-interval-seconds` 定時 fetch。
+收到通知後插件會在背景逐維度 fetch、驗證各自傳輸，然後提示有 pull 權限的線上玩家與主控臺「遠端有新版本，`/wg pull` 檢視」。**永遠不會自動套用**。無法對外開 port 的伺服器可改用 `fetch-interval-seconds` 定時 fetch。
 
 **座標留言**
 
@@ -905,7 +934,7 @@ wgit push origin main --tags
 
 ## 14. 已知限制
 
-- **Phase 5 平臺過渡**：遊戲內 init 仍保留既有批次入口，creative 使用 `entities: all`；玩家目前維度詢問、wgit／git 別名、graph／ignore GUI、完整進度／完成提示／錯誤複製及觸及事件由任務 3／4 更新。Hub 的維度專案／PR／release、graph、進度與通知已完成任務 2。
+- **Phase 5 Fabric 過渡**：Fabric 的玩家維度 init、別名、畫面／HUD、ignore、完整進度／結果／複製及觸及事件在任務 4 更新；Paper／Folia 已接任務 3，Hub 已完成任務 2。
 - **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理；跨 DataVersion 不支援（沒有 DataFixer）。
 - **作者歸屬**是 chunk 粒度，沒有逐格 blame；玩家登出提交的是整個世界，沒有 per-player staging。
 - **`modified-only`** 目前只記錄設定，平臺尚未自動蒐集玩家編輯集合，實際仍追蹤全部 chunk。

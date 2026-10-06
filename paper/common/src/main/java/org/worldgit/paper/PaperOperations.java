@@ -292,6 +292,7 @@ final class PaperOperations implements AutoCloseable {
         @SuppressWarnings("unchecked") var row=(Map<String,Object>)rows.get(entry.getKey().value());
         row.put("applied",true); writeJournal(journal);
       }
+      org.worldgit.core.operation.OperationProgress.report(selectedDimension,"verify",0,null,org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
       var checked=prepare(prepared.commits,nullForSelection(prepared),prepared.plans.get(prepared.plans.firstKey()).scope(),
           prepared.plans.values().stream().anyMatch(p->!p.worldMeta().isEmpty()),false);
       for(var entry:checked.plans.entrySet()) if(!entry.getValue().empty()) throw new IOException("套用驗證失敗："+entry.getKey()+" "+entry.getValue().stats());
@@ -317,7 +318,13 @@ final class PaperOperations implements AutoCloseable {
       }
       return new Result(State.COMPLETE,stats(prepared),null);
     } catch(Exception ex) {
-      if(queue.stopping) return new Result(State.PARTIAL,stats(prepared),"插件關閉中"); // shutdownApply 已先持久化 journal，region 不再可用。
+      if(queue.stopping) {
+        // 停服 journal 仍由持 repo lock 的 worker 寫，owner 不做磁碟 IO。
+        boolean interrupted=Thread.interrupted();
+        try {journal.put("state","PARTIAL");journal.put("error","插件關閉中");writeJournal(journal);}
+        finally {if(interrupted)Thread.currentThread().interrupt();}
+        return new Result(State.PARTIAL,stats(prepared),"插件關閉中");
+      }
       var errors=new ArrayList<String>(); errors.add(message(ex));
       for(var entry:old.entrySet()) try {
         var refs=repos.get(entry.getKey()).refs(); var current=refs.headState(); var prior=entry.getValue();
@@ -461,11 +468,32 @@ final class PaperOperations implements AutoCloseable {
 
   private void validateOnline(ApplyPlan plan) throws IOException {
     applier.validateMetadata(plan);
+    var targetIds=new HashSet<UUID>();for(var entity:plan.entities())if(entity.target()!=null)collectIds(entity.target().data(),targetIds);
+    if(!targetIds.isEmpty())for(var entry:mapping.worlds().entrySet()) {
+      if(entry.getKey().equals(plan.dimension()))continue;
+      var world=entry.getValue();var state=plugin.state(entry.getKey(),world);
+      try(var source=new PaperLiveWorld(plugin,state,world,layout,false)) {
+        var census=state.refresh(plugin.bridge(),world);var stored=source.storedEntityChunks(targetIds);var candidates=new TreeSet<>(stored);candidates.addAll(census.entityChunks());
+        for(var pos:candidates) {
+          if(!census.loaded().contains(pos)) {
+            if(stored.contains(pos))throw new IOException("實體 UUID 已存在另一維度："+entry.getKey()+" chunk="+pos);
+            continue;
+          }
+          var found=new CompletableFuture<Set<UUID>>();
+          plugin.platform().region(world,pos.x(),pos.z(),()->{
+            try {var ids=new HashSet<UUID>();var raw=plugin.bridge().copy(world,pos.x(),pos.z());if(raw!=null)for(var n:raw.entities())collectIds(n,ids);ids.retainAll(targetIds);found.complete(ids);}
+            catch(Throwable error) {found.completeExceptionally(error);}
+          });
+          var duplicate=await(found);if(!duplicate.isEmpty())throw new IOException("實體 UUID "+duplicate+" 已存在另一維度："+entry.getKey());
+        }
+      }
+    }
     for(var op:plan.chunks().values()) if(op.delete()) throw new IOException("線上不刪除 chunk；stash 請先 commit 新增地形，或離線清理");
     if(!plan.worldMeta().isEmpty()) throw new IOException("線上 world-meta 還原尚不支援："+plan.worldMeta().keySet()+"；請離線還原設定");
   }
   private ApplyBudget budget() { return plugin.getServer().getOnlinePlayers().isEmpty() ? ApplyBudget.DEFAULT : ApplyBudget.WITH_PLAYERS; }
   private void applyAll(SortedMap<DimensionId,ApplyPlan> plans) throws IOException {
+    org.worldgit.core.operation.OperationProgress.report(selectedDimension,"apply",0,null,org.worldgit.core.operation.OperationProgress.Unit.SECTION);
     var timings=OperationTimings.current();
     var ids=new HashSet<UUID>();
     for(var plan:plans.values()) for(var op:plan.entities()) collectIds(op.target()==null ? null : op.target().data(),ids);

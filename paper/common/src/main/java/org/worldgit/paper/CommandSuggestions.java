@@ -36,6 +36,9 @@ final class CommandSuggestions implements AutoCloseable {
   private final Supplier<MergeState> merging;
   private final long timeoutMillis, localTtlMillis, hubTtlMillis;
   private volatile boolean stopped;
+  private WorldGitPlugin plugin;
+  private record Query(java.nio.file.Path world,org.worldgit.core.model.DimensionId dimension,Kind kind) {}
+  private final Map<Query,Cached> scoped=new HashMap<>();
 
   CommandSuggestions(Function<Kind, CompletableFuture<List<Entry>>> loader, Supplier<MergeState> merging) {
     this(loader, merging, Duration.ofMillis(750), Duration.ofSeconds(2), Duration.ofSeconds(10));
@@ -46,9 +49,10 @@ final class CommandSuggestions implements AutoCloseable {
     timeoutMillis = timeout.toMillis(); localTtlMillis = localTtl.toMillis(); hubTtlMillis = hubTtl.toMillis();
   }
   static CommandSuggestions forPlugin(WorldGitPlugin plugin) {
-    return new CommandSuggestions(kind -> plugin.repo().submit(() -> kind == Kind.PRS
-        ? plugin.remote().suggestionPulls() : RepositorySuggestions.read(WorldMapper.map().layout(), kind,
+    var suggestions=new CommandSuggestions(kind -> plugin.repo().submit(() -> kind == Kind.PRS
+        ? plugin.remote().suggestionPulls() : RepositorySuggestions.read(plugin.mapping().layout(), kind,
             plugin.remote().suggestionDefaults())), () -> plugin.merges().state());
+    suggestions.plugin=plugin;return suggestions;
   }
 
   CompletableFuture<List<Entry>> entries(Kind kind) {
@@ -91,8 +95,65 @@ final class CommandSuggestions implements AutoCloseable {
       if (!authorized(context)) return builder.buildFuture();
       String locale = Messages.language(context.getSource().getSender());
       if (prefixed && !builder.getRemaining().startsWith("#")) return builder.buildFuture();
-      return entries(kind).thenApply(rows -> render(rows, builder, locale, prefixed, kind == Kind.BRANCHES || kind == Kind.REVISIONS));
+      return scopedEntries(context,kind).thenApply(rows -> render(rows, builder, locale, prefixed, kind == Kind.BRANCHES || kind == Kind.REVISIONS));
     };
+  }
+  SuggestionProvider<CommandSourceStack> worlds() {
+    return (context,builder)->{
+      for(var world:org.bukkit.Bukkit.getWorlds())if(world.getName().toLowerCase(Locale.ROOT).startsWith(builder.getRemainingLowerCase()))builder.suggest(CommandArguments.quote(world.getName()));
+      return builder.buildFuture();
+    };
+  }
+  SuggestionProvider<CommandSourceStack> ignoreLines() {
+    return (context,builder)->{
+      if(plugin==null || !authorized(context))return builder.buildFuture();
+      var sender=context.getSource().getSender();
+      var world=sender instanceof org.bukkit.entity.Player p?p.getWorld():plugin.getServer().getWorlds().getFirst();
+      try {world=plugin.getServer().getWorld(context.getArgument("world",String.class));}catch(IllegalArgumentException ignored) {}
+      if(world==null)return builder.buildFuture();
+      var mapping=plugin.mapping(world);var dimension=plugin.dimensionOf(world).orElse(org.worldgit.core.model.DimensionId.OVERWORLD);
+      try {dimension=new org.worldgit.core.model.DimensionId(context.getArgument("dimension",net.kyori.adventure.key.Key.class).asString());}catch(IllegalArgumentException ignored) {}
+      var selected=dimension;
+      return plugin.repo().submit(()->{
+        var path=new org.worldgit.core.service.WorldRepositories(mapping.layout()).tracked().get(selected);
+        if(path==null)return builder.build();
+        for(var line:org.worldgit.core.config.IgnoreEditor.read(path.resolve(".wgignore")).entries())if(Integer.toString(line.number()).startsWith(builder.getRemaining()))builder.suggest(Integer.toString(line.number()));
+        return builder.build();
+      }).completeOnTimeout(builder.build(),750,TimeUnit.MILLISECONDS);
+    };
+  }
+  SuggestionProvider<CommandSourceStack> ignoreRules() {
+    return (context,builder)->{
+      for(String value:List.of("entity ","field ","area ","biome "))if(value.startsWith(builder.getRemainingLowerCase()))builder.suggest(value);
+      if(builder.getRemaining().startsWith("entity ")) {
+        var offset=builder.createOffset(builder.getStart()+7);
+        for(var type:org.bukkit.entity.EntityType.values())if(type.getKey().toString().startsWith(offset.getRemainingLowerCase()))offset.suggest(type.getKey().toString());
+        return offset.buildFuture();
+      }
+      return builder.buildFuture();
+    };
+  }
+  private CompletableFuture<List<Entry>> scopedEntries(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context,Kind kind) {
+    if(plugin==null)return entries(kind);
+    var sender=context.getSource().getSender();
+    var world=sender instanceof org.bukkit.entity.Player player?player.getWorld():plugin.getServer().getWorlds().getFirst();
+    try {var name=context.getArgument("world",String.class);world=plugin.getServer().getWorld(name);}catch(IllegalArgumentException ignored) {}
+    if(world==null)return CompletableFuture.completedFuture(List.of());
+    var mapping=plugin.mapping(world);if(mapping==null)return CompletableFuture.completedFuture(List.of());
+    var dimension=plugin.dimensionOf(world).orElse(org.worldgit.core.model.DimensionId.OVERWORLD);
+    try {var key=context.getArgument("dimension",net.kyori.adventure.key.Key.class);dimension=new org.worldgit.core.model.DimensionId(key.asString());}catch(IllegalArgumentException ignored) {}
+    if(kind==Kind.REGIONS) {var state=plugin.merges().state(mapping.worlds().get(dimension));return CompletableFuture.completedFuture(regions(state));}
+    var key=new Query(mapping.layout().world(),dimension,kind);Cached slot;
+    synchronized(scoped) {
+      slot=scoped.get(key);
+      if(slot==null || System.nanoTime()>=slot.expires) {
+        if(scoped.size()>=128)scoped.clear();slot=new Cached();scoped.put(key,slot);var selected=dimension;var current=slot;
+        plugin.repo().submit(()->kind==Kind.PRS?plugin.remote().suggestionPulls(mapping,selected):RepositorySuggestions.read(mapping.layout(),selected,kind,plugin.remote().suggestionDefaults())).whenComplete((rows,error)->{
+          current.expires=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(kind==Kind.PRS?hubTtlMillis:localTtlMillis);current.result.complete(error==null && !stopped?rows:List.of());
+        });
+      }
+    }
+    return slot.result.copy().completeOnTimeout(List.of(),timeoutMillis,TimeUnit.MILLISECONDS);
   }
   static Suggestions render(List<Entry> rows, SuggestionsBuilder builder, String locale, boolean prefixed, boolean quoted) {
     String remaining = builder.getRemainingLowerCase();
@@ -124,7 +185,7 @@ final class CommandSuggestions implements AutoCloseable {
       } catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) { return builder.buildFuture(); }
       var offset = builder.createOffset(builder.getStart() + last);
       if (pr && !quoted && Set.of("--source", "--target").contains(word))
-        return entries(Kind.BRANCHES).thenApply(rows -> render(rows, offset, locale, false, true));
+        return scopedEntries(context,Kind.BRANCHES).thenApply(rows -> render(rows, offset, locale, false, true));
       for (String flag : pr ? List.of("--source", "--target") : List.of("--here")) {
         if (!seen.contains(flag) && flag.startsWith(offset.getRemaining()) && (pr || context.getSource().getSender() instanceof org.bukkit.entity.Player))
           offset.suggest(flag, MessageComponentSerializer.message().serialize(Messages.inLocale(locale, () -> Messages.text("paper.command.tip." + flag.substring(2)))));
@@ -137,7 +198,7 @@ final class CommandSuggestions implements AutoCloseable {
     return CommandTree.allowed(context.getSource(), context.getNodes().get(1).getNode().getName());
   }
   static String plain(String value, int limit) { return CommentText.plain(value, limit); }
-  void invalidateLocal() { synchronized (cache) { cache.keySet().removeIf(k -> k != Kind.PRS); } }
-  void invalidateHub() { synchronized (cache) { cache.remove(Kind.PRS); cache.remove(Kind.REMOTES); } }
-  public void close() { stopped = true; synchronized (cache) { cache.values().forEach(v -> v.result.complete(List.of())); cache.clear(); } }
+  void invalidateLocal() { synchronized(scoped) {scoped.clear();} synchronized (cache) { cache.keySet().removeIf(k -> k != Kind.PRS); } }
+  void invalidateHub() { synchronized(scoped) {scoped.clear();} synchronized (cache) { cache.remove(Kind.PRS); cache.remove(Kind.REMOTES); } }
+  public void close() { stopped = true;synchronized(scoped) {scoped.values().forEach(v->v.result.complete(List.of()));scoped.clear();} synchronized (cache) { cache.values().forEach(v -> v.result.complete(List.of())); cache.clear(); } }
 }

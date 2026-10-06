@@ -137,7 +137,7 @@ def run(args):
             server.cmd('wg debug freeze on',r'WGFREEZE frozen');server.cmd('kill @e[type=!player]')
             variant('oak','oak',1,'diamond')
             if args.platform=='paper':server.cmd('save-all flush',r'Saved the game',180)
-            cmd('wg init',r'init 完成|Initialized|Initialization|失敗',900);branch('pair-base');branch('pair-theirs')
+            cmd('wg init --world world --all',r'init 完成|Initialized|Initialization|失敗',900);branch('pair-base');branch('pair-theirs')
             variant('spruce','spruce',2,'emerald');commit('pair ours');branch('pair-ours');switch('pair-theirs')
             variant('birch','birch',3,'gold_ingot');commit('pair theirs');switch('pair-ours');cmd('wg merge pair-theirs')
             expected=inspect(True)

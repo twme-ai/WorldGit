@@ -69,3 +69,13 @@ remote:
     secret-file: webhook.secret
     max-body-bytes: 65536
     requests-per-minute: 60
+
+# Phase 5：worldgit:git 永遠保留；裸 git 衝突時不覆蓋。需重啟生效。
+aliases:
+  git: true
+  wgit: true
+feedback:
+  terminal-seconds: 3
+  title: false
+  sound: false
+  auto-notify: true

@@ -30,7 +30,7 @@ with BenchLock():
         s.start(); result['console']=s.evidence_log
         b=s.bot('WgBot',mod=True);s.cmd('tp WgBot 17.5 66 2.5');time.sleep(4)
         s.cmd('wg debug freeze on',r'WGFREEZE frozen');s.cmd('kill @e[type=!player]')
-        variant('oak','oak',1);s.cmd('wg init',r'init 完成|失敗',900)
+        variant('oak','oak',1);s.cmd('wg init --world world --all',r'init 完成|失敗',900)
         cmd('wg branch base',r'分支：|Branches|錯誤|Error');cmd('wg branch theirs',r'分支：|Branches|錯誤|Error')
         variant('spruce','spruce',2);cmd('wg commit -m ours',r'世界存檔點|World snapshot|overworld [0-9a-f]{8}|錯誤|Error')
         cmd('wg switch theirs',r'已切換到|Switched|錯誤|Error|PARTIAL')

@@ -71,6 +71,8 @@ public final class HubClient implements AutoCloseable {
   }
   public String link(Pull pr) { return endpoint.web()+"/pulls/"+pr.id(); }
   public Endpoint endpoint() { return endpoint; }
+  public List<Pull> pulls(DimensionId dimension) throws IOException { var out=new ArrayList<Pull>();for(var n:pages("/pulls?dimension="+enc(dimension.value()),1000))out.add(pull(n));return List.copyOf(out); }
+  public Pull find(int number,DimensionId dimension) throws IOException {return pulls(dimension).stream().filter(p->p.number()==number).findFirst().orElseThrow(()->new Error(Failure.NOT_FOUND));}
   public List<Pull> pulls() throws IOException { var out=new ArrayList<Pull>(); for(var n:pages("/pulls",1000)) out.add(pull(n)); return List.copyOf(out); }
   public Pull find(int number) throws IOException {
     if(number<1) throw new Error(Failure.INVALID);
@@ -79,6 +81,10 @@ public final class HubClient implements AutoCloseable {
   public Detail view(Pull pr) throws IOException {
     var n=request("GET","/pulls/"+id(pr.id()),null);
     return new Detail(pull(n.path("pr")),required(n,"mergeability"),integer(n,"approvals"),integer(n,"requiredReviews"));
+  }
+  public Pull create(String title,String source,String target,DimensionId dimension) throws IOException {
+    if(title.isBlank() || title.length()>200)throw new Error(Failure.INVALID);
+    return pull(request("POST","/pulls",Map.of("title",title,"source",source,"target",target,"description","","dimension",dimension.value())));
   }
   public Pull create(String title,String source,String target) throws IOException {
     if(title.isBlank() || title.length()>200) throw new Error(Failure.INVALID);

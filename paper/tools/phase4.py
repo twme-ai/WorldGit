@@ -116,7 +116,7 @@ def run(args):
         move('minecraft:overworld');time.sleep(10)
         # init 前固定首次載入的 DragonFight／saved-data 與 forceload 設定；仍完整追蹤 metadata。
         if args.platform=='paper':server.cmd('save-all flush',r'Saved the game',180)
-        cmd('wg init',r'Initialization|Initialized|init 完成|Error:',True)
+        cmd('wg init --world world --all',r'Initialization|Initialized|init 完成|Error:',True)
         for dimension in DIMENSIONS:
             move(dimension)
             cmd('wg remote add origin '+url,r'updated|Error:');cmd('wg remote list',r'origin →|Error:')
@@ -140,7 +140,10 @@ def run(args):
         cmd('wg pull confirm '+code,r'Merge operation complete|Error:|PARTIAL');time.sleep(2)
         for dimension in DIMENSIONS[1:]:move(dimension);pull()
         move('minecraft:overworld')
-        check('confirmed live FF equals Hub group',sample(bots[0],8)=='diamond_block' and heads()==merged['pr']['commits'],local=heads(),remote=merged['pr']['commits'])
+        remote=hub_heads(work,'admin',slug)
+        check('confirmed live FF equals Hub group',sample(bots[0],8)=='diamond_block' and heads()==remote
+              and merged['pr']['commits']=={'minecraft:overworld':remote['minecraft:overworld']}
+              and all(remote[dimension]==initial[dimension] for dimension in DIMENSIONS[1:]),local=heads(),remote=remote,pr_commits=merged['pr']['commits'])
         # 舊預覽的遠端 lease 拒絕；先暫時移除 branch policy，以便真 CLI 推送競爭變動。
         hub.api('DELETE',base+'/protected-branches?branch=main')
         b=clone();remote_edit(b,2,'emerald_block');cli(b,'commit','-m','remote v2');cli(b,'push')

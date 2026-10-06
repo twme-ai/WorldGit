@@ -39,10 +39,16 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   private RemoteCommands remote;
   private CommentDisplays comments;
   private CommandSuggestions suggestions;
+  private OperationUi operations;
+  private IgnoreUi ignore;
+  private TouchedEntities touched;
+  private volatile Map<UUID, WorldMapper.Mapping> mappings = Map.of();
+  private boolean gitConflictLogged;
+  private boolean gitRegistered;
   private org.worldgit.platform.remote.RemoteSettings remoteSettings;
   private OfflineShutdownCommit offlineShutdown;
-  private final Attribution attribution = new Attribution();
-  private final ConcurrentMap<DimensionId, DimensionState> states = new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID,Attribution> attributions = new ConcurrentHashMap<>();
+  private final ConcurrentMap<UUID, DimensionState> states = new ConcurrentHashMap<>();
   private final ConcurrentMap<UUID, DimensionId> dimensionByWorld = new ConcurrentHashMap<>();
   private volatile List<World> worlds = List.of();
   private volatile boolean enabledOk;
@@ -71,6 +77,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     }
     edits = new EditGuard(this);
     getServer().getPluginManager().registerEvents(edits,this);
+    operations = new OperationUi(this);
+    Messages.ui = operations;
     repo = new RepoService(this);
     refreshWorlds();
     getServer().getPluginManager().registerEvents(new ChangeListener(this), this);
@@ -82,15 +90,27 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     comments = new CommentDisplays(this);
     remote = new RemoteCommands(this,remoteSettings);
     merges.refresh();
+    ignore = new IgnoreUi(this);
+    touched = new TouchedEntities(this);
     suggestions = CommandSuggestions.forPlugin(this);
     var commands = new Commands(this);
-    getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
-        event.registrar().register(new CommandTree(commands, suggestions).build().build(),
-            "WorldGit", List.of("worldgit")));
+    getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+      var registrar = event.registrar();
+      registrar.register(new CommandTree(commands, suggestions).build().build(), "WorldGit", List.of("worldgit"));
+      registrar.register(new CommandTree(commands, suggestions).build("worldgit:git").build(), "WorldGit", List.of());
+      if (getConfig().getBoolean("aliases.wgit", true)) registrar.register(new CommandTree(commands, suggestions).build("wgit").build(), "WorldGit", List.of());
+      if (getConfig().getBoolean("aliases.git", true)) {
+        if (registrar.getDispatcher().getRoot().getChild("git") == null) {
+          registrar.register(new CommandTree(commands, suggestions).build("git").build(), "WorldGit", List.of());
+          gitRegistered=true;
+        }
+        else if (!gitConflictLogged) { gitConflictLogged = true; getLogger().info("/git 已由其他插件註冊；請用 /wg 或 /worldgit:git"); }
+      }
+    });
     hookWorldEdit();
     repo.submit(() -> {
       try {
-        var root=WorldMapper.map().layout().repositoryRoot();
+        var root=mapping().layout().repositoryRoot();
         var journal=org.worldgit.core.service.OperationState.read(root.resolve("apply-state.yml"));
         if("APPLYING".equals(journal.get("state"))) {
           journal.put("state","PARTIAL"); journal.put("error","上次套用未完成，可能因插件停用或伺服器中斷");
@@ -125,6 +145,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   public void onDisable() {
     if (!enabledOk) return;
     enabledOk = false;
+    if(operations!=null) operations.close();
     if(suggestions!=null) suggestions.close();
     if(remote!=null) remote.close();
     if(comments!=null) comments.shutdown();
@@ -136,8 +157,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     platform.shuttingDown();
     if (autoCommit != null) autoCommit.shutdown();
     if(!wasApplying) repo.awaitIdle(); // 等待進行中的背景操作；之後才能在目前執行緒內聯 commit（repo lock 同一時間只有一個持有者）
-    if (!wasApplying && settings.autoOnShutdown() && merges.state()==null) shutdownCommit();
-    if (offlineShutdown != null) offlineShutdown.prepare(!wasApplying && settings.autoOnShutdown() && merges.state()==null);
+    if (!wasApplying && settings.autoOnShutdown()) shutdownCommit();
+    if (offlineShutdown != null) offlineShutdown.prepare(!wasApplying && settings.autoOnShutdown());
     repo.close();
   }
 
@@ -146,7 +167,21 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
       // Folia：disable 時沒有單一擁有執行緒；改由 OfflineShutdownCommit 在世界存檔完成後以離線路徑提交（JVM 關閉鉤子）。
       return;
     }
-    try {
+    for(var mapping:mappings()) {
+    var action=operations.begin(getServer().getConsoleSender(),"shutdown.commit",mapping,null);
+    var last=new java.util.concurrent.atomic.AtomicLong();
+    var finished=new java.util.concurrent.atomic.AtomicBoolean();
+    OperationUi.within(action,()->{try(var progress=new org.worldgit.core.operation.OperationProgress(action.id,action.operation,event->{
+      long now=System.currentTimeMillis();
+      if(!finished.get() && now-last.get()>=1000) {
+        last.set(now);
+        getLogger().info(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(OperationUi.progressText(event)));
+      }
+    })) {
+      if(new org.worldgit.core.service.WorldRepositories(mapping.layout()).tracked().isEmpty()) {
+        action.status=org.worldgit.core.operation.OperationResult.Status.NO_OP;
+        return null;
+      }
       var batch =
           repo.commitInline(
               new RepoService.CommitRequest("伺服器關閉前自動存檔點", serverIdentity(), true, status -> true));
@@ -154,9 +189,18 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
         if (!o.success()) getLogger().warning("關閉前 commit " + id + " 失敗：" + o.error());
         else if (o.value().changed()) getLogger().info("關閉前 commit " + id + " → " + o.value().commit().substring(0, 8));
       });
+      action.observe(batch);
     } catch (IOException | RuntimeException e) {
       // 世界尚未 init 時是正常情況
       getLogger().log(Level.FINE, "關閉前 commit 略過：" + e.getMessage());
+      action.failed(e);
+    } finally {
+      finished.set(true);
+      var result=new org.worldgit.core.operation.OperationResult(action.id,action.operation,action.status,null,action.summary,(System.nanoTime()-action.started)/1_000_000,List.of(),action.error);
+      getServer().getConsoleSender().sendMessage(operations.completion(result));
+      if(action.error!=null)getLogger().warning(action.error.text().replace("\n"," | "));
+      action.release();
+    }return null;});
     }
   }
 
@@ -184,8 +228,13 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   }
 
   Attribution attribution() {
-    return attribution;
+    try {return attribution(mapping());}catch(IOException error){throw new IllegalStateException(error);}
   }
+  Attribution attribution(WorldMapper.Mapping mapping) {
+    var world=mapping.worlds().getOrDefault(DimensionId.OVERWORLD,mapping.worlds().values().iterator().next());
+    return attributions.computeIfAbsent(world.getUID(),id->new Attribution());
+  }
+  boolean hasAttribution() {return attributions.values().stream().anyMatch(a->!a.peek().empty());}
 
   FabricLink fabric() {
     return fabric;
@@ -221,10 +270,23 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   }
 
   DimensionState state(DimensionId id, World world) {
-    var existing = states.get(id);
-    if (existing != null) return existing;
-    return states.computeIfAbsent(id, k -> new DimensionState(id, Objects.requireNonNull(world, "世界尚未登錄：" + id)));
+    World target = world == null ? world(id) : world;
+    return states.computeIfAbsent(Objects.requireNonNull(target).getUID(), k -> new DimensionState(id, target));
   }
+
+  OperationUi operations() { return operations; }
+  IgnoreUi ignore() { return ignore; }
+  TouchedEntities touched() { return touched; }
+  WorldMapper.Mapping mapping() throws IOException {
+    var action = OperationUi.current();
+    if (action != null && action.mapping != null) return action.mapping;
+    World first = getServer().getWorlds().getFirst();
+    var mapping = mappings.get(first.getUID());
+    if (mapping == null) throw new IOException("世界尚未登錄");
+    return mapping;
+  }
+  WorldMapper.Mapping mapping(World world) { return mappings.get(world.getUID()); }
+  Collection<WorldMapper.Mapping> mappings() {return mappings.values().stream().distinct().toList();}
 
   Optional<DimensionId> dimensionOf(World world) {
     return Optional.ofNullable(dimensionByWorld.get(world.getUID()));
@@ -235,17 +297,19 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   /** 重建世界對應與狀態；啟動及世界載入/卸載時呼叫（只在全域/主執行緒讀 Bukkit 世界清單）。 */
   private void refreshWorlds() {
     try {
-      var mapping = WorldMapper.map();
       var map = new HashMap<UUID, DimensionId>();
-      mapping.worlds().forEach((id, world) -> {
-        map.put(world.getUID(), id);
-        state(id, world);
-      });
+      var groups = new HashMap<UUID, WorldMapper.Mapping>();
+      for (World anchor : getServer().getWorlds()) {
+        if (groups.containsKey(anchor.getUID())) continue;
+        var mapping = WorldMapper.map(anchor);
+        mapping.worlds().forEach((id, world) -> {
+          map.put(world.getUID(), id); groups.put(world.getUID(), mapping); state(id, world);
+        });
+      }
+      mappings = Map.copyOf(groups);
       dimensionByWorld.clear();
       dimensionByWorld.putAll(map);
-      worlds = List.copyOf(mapping.worlds().values());
-      if (!mapping.unsupported().isEmpty())
-        getLogger().warning("下列世界在磁碟上找不到對應的維度目錄，不會被追蹤：" + mapping.unsupported());
+      worlds = getServer().getWorlds().stream().filter(w -> map.containsKey(w.getUID())).toList();
     } catch (IOException e) {
       getLogger().log(Level.WARNING, "無法判斷世界版面：" + e.getMessage());
     }
@@ -272,7 +336,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   @EventHandler(ignoreCancelled = true)
   public void onCommandPermission(org.bukkit.event.player.PlayerCommandPreprocessEvent event) {
     String[] words = event.getMessage().split(" +", 3);
-    if (words.length < 2 || !Set.of("/wg", "/worldgit", "/worldgit:wg", "/worldgit:worldgit").contains(words[0].toLowerCase(Locale.ROOT))) return;
+    if (words.length < 2 || !Set.of("/wg", "/worldgit", "/worldgit:wg", "/worldgit:worldgit", "/git", "/wgit", "/worldgit:git", "/worldgit:wgit").contains(words[0].toLowerCase(Locale.ROOT))) return;
+    if(words[0].equalsIgnoreCase("/git") && !gitRegistered)return;
     String sub = words[1].toLowerCase(Locale.ROOT);
     var player = event.getPlayer();
     if (!CommandTree.SUBS.contains(sub) || sub.equals("help")) return;
@@ -280,7 +345,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
         : player.hasPermission("worldgit.command." + CommandTree.permission(sub)) || player.hasPermission("worldgit.admin");
     if (!allowed) {
       event.setCancelled(true);
-      Messages.inLocale(player, () -> player.sendMessage(sub.equals("debug") ? Messages.debugPermission() : Messages.permission(CommandTree.permission(sub))));
+      var action=operations.begin(player,sub,mapping(player.getWorld()),dimensionOf(player.getWorld()).orElse(null));
+      OperationUi.within(action,()->{Messages.inLocale(player,()->player.sendMessage(sub.equals("debug")?Messages.debugPermission():Messages.permission(CommandTree.permission(sub))));action.status=org.worldgit.core.operation.OperationResult.Status.FAILED;action.release();return null;});
     }
   }
 
@@ -290,7 +356,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     if (id == null) return;
     var pos = new ChunkPos(chunkX, chunkZ);
     state(id, world).markEvent(pos);
-    if (player != null) attribution.record(id, player.getUniqueId(), player.getName(), pos, cause);
+    if (player != null) attribution(mapping(world)).record(id, player.getUniqueId(), player.getName(), pos, cause);
   }
 
   void touchByName(String worldName, int chunkX, int chunkZ, UUID player, String playerName, String cause) {
@@ -300,7 +366,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     if (id == null) return;
     var pos = new ChunkPos(chunkX, chunkZ);
     state(id, world).markEvent(pos);
-    if (player != null) attribution.record(id, player, playerName == null ? player.toString() : playerName, pos, cause);
+    if (player != null) attribution(mapping(world)).record(id, player, playerName == null ? player.toString() : playerName, pos, cause);
   }
 
   /** 背景普查：讀 unsaved 旗標（volatile）與 chunk holder，不進入任何 region 執行緒。 */

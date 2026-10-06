@@ -7,6 +7,7 @@ import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.*;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.worldgit.core.config.WorldGitConfig;
 import org.worldgit.core.diff.WorldDiff;
@@ -43,13 +44,18 @@ final class Commands implements CommandTree.Actions {
   }
 
   private void reply(CommandSender sender, List<Component> lines) {
-    Runnable send = () -> lines.forEach(sender::sendMessage);
+    var action=OperationUi.current();
+    Runnable send = () -> {lines.forEach(sender::sendMessage);if(!(sender instanceof Player) && action!=null && action.error!=null)sender.sendMessage(action.error.text().replace("\n"," | "));};
     if (sender instanceof Player p) plugin.platform().entity(p, send, () -> {});
-    else send.run();
+    else plugin.platform().global(send);
   }
 
   @Override
   public void run(io.papermc.paper.command.brigadier.CommandSourceStack source, CommandRequest request)
+      throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    execute(source,request);
+  }
+  private OperationUi.Action execute(io.papermc.paper.command.brigadier.CommandSourceStack source, CommandRequest request)
       throws com.mojang.brigadier.exceptions.CommandSyntaxException {
     CommandSender sender = source.getSender();
     // 原生 resolver 的型別錯誤交回 Brigadier；業務錯誤仍使用既有 i18n。
@@ -59,9 +65,39 @@ final class Commands implements CommandTree.Actions {
       var to = request.value("to", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class).resolve(source);
       scope = Scope.box(from.blockX(), from.blockY(), from.blockZ(), to.blockX(), to.blockY(), to.blockZ());
     }
-    if (request.command().startsWith("debug.")) { debug.run(source, request); return; }
+    if (request.command().startsWith("debug.")) { debug.run(source, request); return null; }
+    if(request.command().startsWith("init") && !(sender instanceof Player) && request.text("world")==null) {
+      return earlyFailure(sender,request.command(),"paper.phase5.console-init");
+    }
+    if(request.flag("--all") && request.values().containsKey("dimension")) {
+      return earlyFailure(sender,request.command(),"paper.phase5.target-exclusive");
+    }
+    if(request.flag("--all")) {
+      World world=request.text("world")==null ? sender instanceof Player p?p.getWorld():plugin.getServer().getWorlds().getFirst():plugin.getServer().getWorld(request.text("world"));
+      if(world==null) return earlyFailure(sender,request.command(),"paper.phase5.world-missing");
+      var mapping=plugin.mapping(world);
+      if(mapping==null)return earlyFailure(sender,request.command(),"paper.error.diff-not-tracked");
+      var batch=plugin.operations().begin(sender,request.command(),mapping,null);
+      OperationUi.within(batch,()->{plugin.repo().submit(()->{
+        var repositories=new WorldRepositories(mapping.layout());
+        return request.command().startsWith("init")?repositories.initializable().stream().filter(d->!d.initialized()).map(WorldRepositories.Initializable::dimension).toList():List.copyOf(repositories.tracked().keySet());
+      }).whenComplete((ids,error)->{
+        if(error!=null) {fail(sender,error);return;}
+        batch.retain();
+        nextDimension(source,request,world,ids,0,batch);
+      });
+      batch.release();return null;});
+      return batch;
+    }
+    World anchor=request.text("world")==null ? sender instanceof Player p?p.getWorld():plugin.getServer().getWorlds().getFirst():plugin.getServer().getWorld(request.text("world"));
+    if(anchor==null) return earlyFailure(sender,request.command(),"paper.phase5.world-missing");
+    var mapping=plugin.mapping(anchor);
+    if(mapping==null) return earlyFailure(sender,request.command(),"paper.error.diff-not-tracked");
+    var key=request.value("dimension",net.kyori.adventure.key.Key.class);
+    DimensionId target=key==null ? plugin.dimensionOf(anchor).orElse(DimensionId.OVERWORLD) : new DimensionId(key.asString());
+    var action=plugin.operations().begin(sender,request.command(),mapping,target);
     Scope selected = scope;
-    Messages.inLocale(sender, () -> {
+    OperationUi.within(action, () -> { Messages.inLocale(sender, () -> {
       String command = request.command();
       String sub = command.contains(".") ? command.substring(0, command.indexOf('.')) : command;
       try {
@@ -70,25 +106,81 @@ final class Commands implements CommandTree.Actions {
           case "merge", "resolve", "conflict-select", "revert", "cherry-pick" -> merge(sender, request);
           case "tool" -> plugin.merges().tool((Player) sender);
           case "conflicts", "conflict-preview" -> conflicts(sender, request);
-          case "init" -> init(sender, command.equals("init.survival") ? "survival" : "creative");
+          case "init" -> {
+            if(!(sender instanceof Player) && (key==null || request.text("world")==null))throw bad("paper.phase5.console-init");
+            init(sender, command.equals("init.survival") ? "survival" : "creative");
+          }
+          case "ignore" -> plugin.ignore().run(sender,request);
+          case "tag", "verify" -> extra(sender,request);
           case "status" -> status(sender, request.flag("--show"), request.flag("--full"));
           case "commit" -> commit(sender, request.text("text").trim());
-          case "log" -> log(sender, request.number("limit", 10));
-          case "diff" -> diff(sender, request.flag("--show"), request.number("radius", plugin.settings().showRadiusChunks()));
+          case "log" -> log(sender, request);
+          case "diff" -> diff(sender, request.flag("--show"), request.number("radius", plugin.settings().showRadiusChunks()),request.text("revision"));
           case "clear" -> clear(sender);
           case "reload" -> reload(sender);
           case "restore", "switch", "branch", "stash", "reset" -> operation(sender, request, selected);
-          case "cancel" -> reply(sender, Messages.line(plugin.repo().cancel() ? "paper.apply.cancel-requested" : "paper.apply.no-operation"));
+          case "cancel" -> reply(sender, Messages.line((plugin.repo().cancel() | plugin.operations().cancel(sender)) ? "paper.apply.cancel-requested" : "paper.apply.no-operation"));
           case "help" -> help(source, request.text("topic"));
           default -> throw new IllegalArgumentException(command);
         }
-      } catch (UserError e) { reply(sender, Messages.line(e.key, e.args)); }
-      catch (IllegalArgumentException e) { reply(sender, Messages.error(e.getMessage())); }
+      } catch (UserError e) { action.failed(e);reply(sender, plugin.operations().error(Messages.line(e.key, e.args))); }
+      catch (IllegalArgumentException e) {action.failed(e);reply(sender, Messages.error(e.getMessage())); }
       catch (RuntimeException e) {
+        action.failed(e);
         plugin.getLogger().log(Level.WARNING, "指令 /wg " + sub + " 失敗", e);
         reply(sender, Messages.error(e.toString()));
       }
+    }); action.release();return null; });
+    return action;
+  }
+  private void nextDimension(io.papermc.paper.command.brigadier.CommandSourceStack source,CommandRequest request,World world,
+      List<DimensionId> ids,int index,OperationUi.Action batch) {
+    if(index==ids.size()) {
+      if(ids.isEmpty())batch.status=org.worldgit.core.operation.OperationResult.Status.NO_OP;
+      batch.release();return;
+    }
+    Runnable next=()->OperationUi.within(batch,()->{
+      var values=new HashMap<>(request.values());values.put("dimension",net.kyori.adventure.key.Key.key(ids.get(index).value()));values.put("world",world.getName());
+      var flags=new HashSet<>(request.flags());flags.remove("--all");if(request.flag("--graph"))flags.add("--graph-all");
+      try {
+        var child=execute(source,new CommandRequest(request.command(),values,flags));
+        if(child==null)nextDimension(source,request,world,ids,index+1,batch);
+        else child.completion.whenComplete((result,error)->{
+          if(result.status()==org.worldgit.core.operation.OperationResult.Status.CANCELLED) {batch.status=result.status();batch.release();}
+          else nextDimension(source,request,world,ids,index+1,batch);
+        });
+      } catch(com.mojang.brigadier.exceptions.CommandSyntaxException failure) {
+        fail(source.getSender(),failure);nextDimension(source,request,world,ids,index+1,batch);
+      }
+      return null;
     });
+    if(source.getSender() instanceof Player player)plugin.platform().entity(player,next,batch::release);else plugin.platform().global(next);
+  }
+  private OperationUi.Action earlyFailure(CommandSender sender,String operation,String key) {
+    var action=plugin.operations().begin(sender,operation,null,null);
+    OperationUi.within(action,()->{action.failed(new IOException(key));reply(sender,plugin.operations().error(Messages.line(key)));action.release();return null;});
+    return action;
+  }
+
+  private void extra(CommandSender sender,CommandRequest request) {
+    if(request.command().equals("verify")) {
+      var dimension=operationDimension(sender);
+      plugin.repo().operation(dimension,"verify",ops->ops.verify(request.text("revision","HEAD"),dimension,Scope.all(),true))
+        .whenComplete((value,error)->{if(error!=null)fail(sender,error);else reply(sender,value.success()?Messages.info(String.valueOf(value)):Messages.error(value.error()));});
+      return;
+    }
+    plugin.repo().submit(()->{
+      var mapping=plugin.mapping();var dim=operationDimension(sender);
+      var path=new WorldRepositories(mapping.layout()).tracked().get(dim);
+      if(path==null)throw new IOException("維度尚未 init："+dim);
+      try(var repo=new DimensionRepository(path,dim,false)) {
+        var refs=repo.refs();String tag=request.text("tag");
+        if(request.command().equals("tag.list"))return refs.refsByPrefix("refs/tags/");
+        if(request.command().equals("tag.delete")) {String old=refs.refsByPrefix("refs/tags/").get("refs/tags/"+tag);if(old==null)throw new IOException("tag 不存在");refs.updateRef("refs/tags/"+tag,old,null);}
+        else {org.worldgit.core.store.JGitStore.validateBranch(tag);refs.updateRef("refs/tags/"+tag,null,refs.head());}
+        return tag;
+      }
+    }).whenComplete((value,error)->{if(error!=null)fail(sender,error);else reply(sender,Messages.info(String.valueOf(value)));});
   }
 
   private void help(io.papermc.paper.command.brigadier.CommandSourceStack source, String topic) {
@@ -118,7 +210,8 @@ final class Commands implements CommandTree.Actions {
 
   private <T> void fail(CommandSender sender, Throwable error) {
     Throwable root = error instanceof java.util.concurrent.CompletionException && error.getCause() != null ? error.getCause() : error;
-    if(root instanceof UserError user) { reply(sender,Messages.line(user.key,user.args)); return; }
+    if(OperationUi.current()!=null)OperationUi.current().failed(root);
+    if(root instanceof UserError user) { reply(sender,plugin.operations().error(Messages.line(user.key,user.args))); return; }
     reply(sender, Messages.error(root.getMessage() == null ? root.toString() : root.getMessage()));
     if (!(root instanceof IOException)) plugin.getLogger().log(Level.WARNING, "WorldGit 指令失敗", root);
   }
@@ -134,6 +227,14 @@ final class Commands implements CommandTree.Actions {
       plugin.suggestions().invalidateLocal();
       lines.add(Messages.line("paper.init.done"));
       lines.addAll(Messages.commit(batch, palette()));
+      var current=OperationUi.current();
+      if(current!=null && DimensionId.OVERWORLD.equals(current.dimension)) {
+        var repositories=new WorldRepositories(current.mapping.layout());
+        var missing=repositories.initializable().stream().filter(d->!d.initialized() && Set.of("minecraft:the_nether","minecraft:the_end").contains(d.dimension().value())).toList();
+        for(var d:missing)lines.add(Messages.line(d.dimension().path().equals("the_nether")?"paper.phase5.init-nether":"paper.phase5.init-end")
+            .clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand("/wg init --world "+CommandArguments.quote(current.mapping.worlds().get(DimensionId.OVERWORLD).getName())+" --dimension "+d.dimension().value()+" --template "+template)));
+        if(!missing.isEmpty())lines.add(Messages.line("paper.phase5.init-all").clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand("/wg init --world "+CommandArguments.quote(current.mapping.worlds().get(DimensionId.OVERWORLD).getName())+" --all --template "+template)));
+      }
       reply(sender, lines);
     }));
   }
@@ -226,8 +327,30 @@ final class Commands implements CommandTree.Actions {
 
   // ---------------------------------------------------------------- log
 
-  private void log(CommandSender sender, int limit) {
-    final int n = limit;
+  private void log(CommandSender sender, CommandRequest request) {
+    final int n = request.number("limit",10);
+    if(request.flag("--graph")) {
+      int page=request.number("page",1);
+      var dim=operationDimension(sender);
+      plugin.repo().submit(()->{
+        var path=new WorldRepositories(plugin.mapping().layout()).tracked().get(dim);
+        if(path==null)throw new IOException("維度尚未 init："+dim);
+        try(var repo=new DimensionRepository(path,dim,false)) {return org.worldgit.core.graph.CommitGraph.read(repo.refs(),Math.min(10000,page*n+1),request.flag("--graph-all"));}
+      }).whenComplete((graph,error)->Messages.inLocale(sender,()->{
+        if(error!=null) {fail(sender,error);return;}
+        var lines=new ArrayList<Component>();lines.add(Messages.line("paper.phase5.graph","dimension",dim,"page",page));
+        for(var node:graph.nodes().stream().skip((long)(page-1)*n).limit(n).toList()) {
+          var row=Component.text(org.worldgit.core.graph.GraphText.node(node),NamedTextColor.GRAY).font(net.kyori.adventure.key.Key.key("minecraft:uniform"))
+              .append(Component.text(Messages.shortId(node.id())+" ",NamedTextColor.YELLOW));
+          for(var label:node.labels())row=row.append(Component.text("["+label.name()+"] ",label.kind().equals("HEAD")?NamedTextColor.RED:label.kind().equals("tag")?NamedTextColor.GOLD:NamedTextColor.GREEN));
+          row=row.append(Component.text(node.message(),NamedTextColor.WHITE)).hoverEvent(Component.text(node.id()+"\n"+node.author()+"\n"+node.time()+"\n"+node.message()+"\nparents="+node.parents()+"\nsnapshot="+node.snapshot()))
+              .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/wg diff "+node.id()+" --dimension "+dim));lines.add(row);
+          org.worldgit.core.graph.GraphText.transition(node).ifPresent(t->lines.add(Component.text(t,NamedTextColor.GRAY).font(net.kyori.adventure.key.Key.key("minecraft:uniform"))));
+        }
+        if(graph.truncated() || graph.nodes().size()>page*n)lines.add(Messages.line("paper.phase5.graph-more","page",page+1).clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/wg log --dimension "+dim+" --graph --page "+(page+1))));
+        reply(sender,lines);
+      }));return;
+    }
     plugin.repo().log(n).whenComplete((logs, error) -> Messages.inLocale(sender, () -> {
       if (error != null) {
         fail(sender, error);
@@ -242,13 +365,13 @@ final class Commands implements CommandTree.Actions {
 
   // ---------------------------------------------------------------- diff
 
-  private void diff(CommandSender sender, boolean show, int radius) {
+  private void diff(CommandSender sender, boolean show, int radius,String revision) {
     Player player = (Player) sender;
     final boolean fShow = show;
-    var dimension = plugin.dimensionOf(player.getWorld()).orElseThrow(() -> bad("paper.error.diff-not-tracked"));
+    var dimension = operationDimension(sender);
     Set<ChunkPos> window = WorldGitPlugin.window(player, radius);
     final int r = radius;
-    plugin.repo().diff(Map.of(dimension, window), false).whenComplete((batch, error) -> Messages.inLocale(sender, () -> {
+    (revision==null?plugin.repo().diff(Map.of(dimension, window), false):plugin.repo().diffRevision(dimension,revision,window)).whenComplete((batch, error) -> Messages.inLocale(sender, () -> {
       if (error != null) {
         fail(sender, error);
         return;
@@ -318,7 +441,8 @@ final class Commands implements CommandTree.Actions {
   }
 
   private DimensionId operationDimension(CommandSender sender) {
-    return sender instanceof Player player ? plugin.dimensionOf(player.getWorld()).orElseThrow(() -> bad("paper.error.diff-not-tracked")) : DimensionId.OVERWORLD;
+    var action=OperationUi.current();
+    return action!=null && action.dimension!=null ? action.dimension : sender instanceof Player player ? plugin.dimensionOf(player.getWorld()).orElseThrow(() -> bad("paper.error.diff-not-tracked")) : DimensionId.OVERWORLD;
   }
   private record Applied(PaperOperations.Result result,String head) {}
   private void operation(CommandSender sender, CommandRequest request, Scope scope) {
@@ -354,14 +478,15 @@ final class Commands implements CommandTree.Actions {
     DimensionId dimension = null;
     if (request.flag("--selection")) {
       Player player = (Player) sender; scope = WorldEditHook.selection(player);
-      dimension = plugin.dimensionOf(player.getWorld()).orElseThrow(() -> bad("paper.error.diff-not-tracked"));
+      dimension = operationDimension(sender);
+      if(!dimension.equals(plugin.dimensionOf(player.getWorld()).orElse(null)))throw bad("paper.error.diff-not-tracked");
     } else if (request.values().containsKey("chunks") || request.values().containsKey("from")) {
       var world = sender instanceof Player p ? p.getWorld() : plugin.getServer().getWorlds().getFirst();
       if (request.values().containsKey("chunks")) {
         var loc = sender instanceof Player p ? p.getLocation() : world.getSpawnLocation();
         scope = Scope.chunkRadius(loc.getBlockX() >> 4, loc.getBlockZ() >> 4, request.number("chunks", 0));
       }
-      dimension = plugin.dimensionOf(world).orElseThrow(() -> bad("paper.error.diff-not-tracked"));
+      dimension = operationDimension(sender);
     }
     final String rev=revision; final boolean d=dry,f=force,st=stash; final Scope selected=scope; final DimensionId dim=dimension;
     reply(sender,Messages.line("paper.apply.start","target",rev==null ? sub : rev));
@@ -378,7 +503,7 @@ final class Commands implements CommandTree.Actions {
       if(plugin.repo().stopping()) return;
       if(error!=null) { fail(sender,error); return; }
       plugin.suggestions().invalidateLocal();
-      var r=applied.result();
+      var r=applied.result();if(OperationUi.current()!=null) {OperationUi.current().observe(r);OperationUi.current().summary.put("head",Messages.shortId(applied.head()));}
       if(r.state()==PaperOperations.State.PARTIAL) reply(sender,Messages.line("paper.apply.partial","message",r.error()));
       else if(r.state()==PaperOperations.State.DRY_RUN) reply(sender,Messages.line("paper.apply.dry-run","stats",r.dimensions()));
       else if(sub.equals("switch")) {
@@ -425,8 +550,8 @@ final class Commands implements CommandTree.Actions {
       if(!plugin.fabric().supports(p,org.worldgit.protocol.MergeProtocol.CAPABILITY)) throw bad("paper.diff.no-mod");
       // 查詢不需要 freeze；仍以 repo executor 序列化並拿 core 的持久化候選。
       plugin.repo().submit(()->{
-        var mapping=WorldMapper.map();
-        try(var ops=new PaperOperations(plugin,mapping,new ApplyQueue(plugin),true)) {
+        var mapping=plugin.mapping();
+        try(var ops=new PaperOperations(plugin,mapping,new ApplyQueue(plugin),true,operationDimension(sender))) {
           var state=ops.core().merging();
           if(state==null) throw bad("paper.merge.none");
           var region=state.regions().stream().filter(r->r.id()==id).findFirst().orElseThrow(()->bad("paper.merge.unknown-region","id",id));

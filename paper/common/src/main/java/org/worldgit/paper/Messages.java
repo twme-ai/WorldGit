@@ -30,6 +30,7 @@ final class Messages {
   private static final ThreadLocal<String> LOCALE = new ThreadLocal<>();
   private static volatile MessageCatalog catalog = MessageCatalog.bundled();
   private static volatile String defaultLocale = MessageCatalog.FALLBACK_LOCALE;
+  static OperationUi ui;
   private static volatile DiffPalette currentPalette = DiffPalette.DEFAULT;
   static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
   private Messages() {}
@@ -69,7 +70,10 @@ final class Messages {
     for (int i = 0; i < args.length; i += 2) map.put(String.valueOf(args[i]), args[i + 1]);
     return map;
   }
-  static Component line(String key, Object... args) { return raw("common.prefix", currentPalette, Map.of()).append(raw(key, currentPalette, pairs(args))); }
+  static Component line(String key, Object... args) {
+    var result=raw("common.prefix", currentPalette, Map.of()).append(raw(key, currentPalette, pairs(args)));
+    return ui!=null && (key.equals("common.error") || key.contains(".error.") || key.endsWith("-failed") || key.endsWith(".partial") || key.endsWith(".expired") || key.endsWith(".busy")) ? ui.error(result) : result;
+  }
   static Component text(String key, Object... args) { return raw(key, currentPalette, pairs(args)); }
   static Component prefix() { return raw("common.prefix", currentPalette, Map.of()); }
   static Component info(String text) { return prefix().append(Component.text(text, NamedTextColor.GRAY)); }
@@ -140,14 +144,18 @@ final class Messages {
     return parts.isEmpty() ? null : line(auto ? "paper.commit.summary-auto" : "paper.commit.summary", "items", String.join("、", parts));
   }
   static List<Component> log(Map<DimensionId, WorldRepositories.Outcome<List<RefStore.Commit>>> logs, int limit) {
-    record Row(RefStore.Commit commit, Map<DimensionId, String> ids, Set<String> authors) {}
-    var bySnapshot = new LinkedHashMap<UUID, Row>(); var all = new ArrayList<Map.Entry<DimensionId, RefStore.Commit>>(); var lines = new ArrayList<Component>();
-    logs.forEach((id, outcome) -> { if (!outcome.success()) lines.add(line("paper.log.dimension-failed", "dimension", id.value(), "message", outcome.error())); else outcome.value().forEach(c -> all.add(Map.entry(id, c))); });
-    all.sort(Comparator.comparing((Map.Entry<DimensionId, RefStore.Commit> e) -> e.getValue().metadata().time()).reversed());
-    for (var e : all) { var m = e.getValue().metadata(); var row = bySnapshot.computeIfAbsent(m.snapshot(), k -> new Row(e.getValue(), new TreeMap<>(), new TreeSet<>())); row.ids().put(e.getKey(), e.getValue().id()); row.authors().add(m.author().name()); m.contributions().forEach(c -> row.authors().add(c.author().name())); }
-    int n = 0;
-    for (var row : bySnapshot.values()) { if (n++ >= limit) break; var m = row.commit().metadata(); var ids = new ArrayList<Component>(); row.ids().forEach((dim, id) -> ids.add(Component.text(dim.path() + ":" + shortId(id), NamedTextColor.YELLOW).hoverEvent(HoverEvent.showText(Component.text(id))).clickEvent(ClickEvent.copyToClipboard(id)))); var out = raw("paper.log.row", currentPalette, Map.of("time", TIME.format(m.time()), "message", m.message(), "author", m.author().name())); out = out.append(Component.space()).append(Component.join(net.kyori.adventure.text.JoinConfiguration.separator(Component.text(" ")), ids)); if (m.auto()) out = out.append(raw("paper.log.auto", currentPalette, Map.of())); lines.add(out.hoverEvent(HoverEvent.showText(raw("paper.log.hover", currentPalette, Map.of("committer", m.committer().name(), "source", m.source(), "snapshot", m.snapshot()))))); }
-    if (bySnapshot.isEmpty() && lines.isEmpty()) lines.add(line("paper.log.empty"));
+    var lines=new ArrayList<Component>();
+    logs.forEach((dim,outcome)->{
+      if(!outcome.success()) {lines.add(line("paper.log.dimension-failed","dimension",dim,"message",outcome.error()));return;}
+      for(var commit:outcome.value()) {
+        var m=commit.metadata();
+        lines.add(raw("paper.log.row",currentPalette,Map.of("time",TIME.format(m.time()),"message",m.message(),"author",m.author().name()))
+            .append(Component.text(" "+dim+":"+shortId(commit.id()),NamedTextColor.YELLOW))
+            .hoverEvent(Component.text(commit.id()+"\n"+m.author().git()+"\n"+m.time()+"\n"+m.message()+"\nparents="+commit.parents()+"\nsnapshot="+m.snapshot()))
+            .clickEvent(ClickEvent.suggestCommand("/wg diff "+commit.id()+" --dimension "+dim.value())));
+      }
+    });
+    if(lines.isEmpty())lines.add(line("paper.log.empty"));
     return lines;
   }
 }

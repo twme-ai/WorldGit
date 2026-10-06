@@ -56,7 +56,7 @@ final class AutoCommit {
   }
 
   private boolean hasCandidates() {
-    return !plugin.attribution().peek().empty() || plugin.hasDirty();
+    return plugin.hasAttribution() || plugin.hasDirty();
   }
 
   void onQuit(String player) {
@@ -70,15 +70,17 @@ final class AutoCommit {
   }
 
   private void run(String message, java.util.function.Predicate<DimensionRepository.Status> gate, boolean timer) {
-    if(plugin.merges().state()!=null) return;
+
     if (!running.compareAndSet(false, true)) return;
     if (timer) lastAttempt = System.currentTimeMillis();
-    plugin
+    var jobs=new java.util.ArrayList<java.util.concurrent.CompletableFuture<?>>();
+    for(var mapping:plugin.mappings()) {
+    var action=plugin.operations().begin(plugin.getServer().getConsoleSender(),timer?"auto.commit":"logout.commit",mapping,null);
+    OperationUi.within(action,()->{jobs.add(plugin
         .repo()
         .commit(new RepoService.CommitRequest(message, plugin.serverIdentity(), true, gate))
         .whenComplete(
             (batch, error) -> {
-              running.set(false);
               if (error != null) {
                 // 尚未 init 是正常情況，不當成錯誤噴 log
                 if (!String.valueOf(error.getMessage()).contains("尚未 init"))
@@ -91,6 +93,8 @@ final class AutoCommit {
                   plugin.getLogger().info("自動 commit " + id + " → " + o.value().commit().substring(0, 8) + "（" + message + "）");
               });
               plugin.notifyCommit(batch, true);
-            });
+            }));action.release();return null;});
+    }
+    java.util.concurrent.CompletableFuture.allOf(jobs.toArray(java.util.concurrent.CompletableFuture[]::new)).whenComplete((result,error)->running.set(false));
   }
 }

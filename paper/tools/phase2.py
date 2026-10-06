@@ -39,7 +39,7 @@ def run(platform, version):
                 s.cmd(f'tp {b.name} {8+i*2} 65 8'); s.cmd(f'gamemode creative {b.name}')
             time.sleep(5)
             s.cmd('kill @e[type=!player]'); s.cmd('gamerule natural_health_regeneration false'); time.sleep(2)
-            s.cmd('wg init',r'init 完成|失敗',900)
+            s.cmd('wg init --world world --all',r'init 完成|失敗',900)
             # 兩版在真正伺服器建完 NBT 預設欄位後 commit；無物理 tick 雜訊。
             s.cmd('fill 7 84 7 10 84 9 stone'); s.cmd('fill 11 64 7 13 64 9 stone'); s.cmd('setblock 4 68 4 sea_lantern'); s.cmd('setblock 6 65 6 chest'); s.cmd('setblock 3 65 3 lectern')
             s.cmd('data merge block 6 65 6 {Items:[{Slot:0b,id:"minecraft:diamond",count:3}]}')

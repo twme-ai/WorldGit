@@ -168,7 +168,20 @@ capture、diff、merge、clone 的樹只包含集合內實體；apply 只移除�
 
 本檔案規定全部 A–J 的目標。
 
-相容過渡：Paper／Fabric 的遊戲內 init 暫保留既有批次入口；玩家範圍與追加詢問由任務 3／4 更新，CLI 與 core 已採新範圍。遊戲內 init 在觸及事件接線前明確使用 entities: all，避免既有放置實體失去追蹤。core／CLI 的新 creative 預設已改為 player-touched；任務 3／4 接事件後，平臺預設才一併切換。Paper／Fabric 的 fetch／push／pull 與 remote 指令暫以玩家目前維度執行，console 使用主世界；Hub PR 與背景通知仍保有主世界入口，任務 3／4 再接完整 UX。Phase 5 任務 1 的實測見下方最終驗收表；仍未接線的項目依後續任務表交接，不以設計目標代替完成狀態。
+### 任務 3：Paper／Folia 動作盤點（2026-10-05，實作前）
+
+| 類別 | 必須有終止結果的動作 |
+|---|---|
+| 快照 | init、追加 init、status、full status、commit、定時／登出／停服 commit、log／graph、diff |
+| 歷史與套用 | restore、switch、reset、verify、branch list/create/delete、tag list/create/delete、stash push/pop/list/drop |
+| 合併 | merge/start/continue/abort、revert、cherry-pick、conflict-select、resolve、工具選擇／解決、conflicts 清單／GUI／preview |
+| 遠端 | remote list/add/remove/set-url、fetch、push（含 tags）、pull preview/confirm、背景 fetch、PR create/list/view、comment、comments list/show/hide |
+| ignore | list／GUI、add/remove/move/enable/disable 的 preview 與 confirm、test/check/preview、聊天新增、GUI 分頁及編輯 |
+| 操作與介面 | cancel、reload、clear、help、tool、GUI 傳送；開發 debug 保留開發用途 |
+
+遊戲沒有 clone/export/migrate 寫入入口：需要停止世界的動作仍由 CLI 執行；不能以遊戲指令繞過 session lock。全部非同步工作由 repo queue 收斂結果，owner scheduler 僅呈現 UI。
+
+任務 3 後的相容狀態：Paper／Folia 的玩家 init 與 repo 指令已使用目前維度，追加維度需明確操作；觸及事件已接線，新 creative 預設 player-touched。Paper 的 Hub PR／留言與背景通知明確帶目標維度。Fabric 的遊戲內 init 仍保留批次入口及 entities: all，玩家範圍、追加詢問與觸及事件由任務 4 接續；fetch／push／pull／remote 沿用目前維度、console 主世界的入口。CLI／core 已採新範圍。Phase 5 任務 1 的歷史實測保留於下方驗收表，各任務的最新實作與驗證分別記錄於後續節。
 
 26.2 `data/minecraft/chunk_tickets.dat` 的 tickets 為無順序的集合，capture 依完整 NBT 固定排序，保留每筆座標、type、level、額外欄位與重複項；只消除 hash map rehash 的序列化順序差異，不排序其他 saved-data 清單，也不忽略票券內容。差異證據見 `.work/fabric-phase4/single-26.2-1791183422/final-difference.json` 與 `.work/phase5-complete-regression/single-26.2-ticket-lists.txt`。
 
@@ -198,7 +211,7 @@ CLI 完成、init 詢問與規則狀態文字使用共用 YAML MiniMessage 純�
 | 任務 | 可直接使用的介面 | 待接功能與驗收 |
 |---|---|---|
 | 2：Hub（已實作） | 單維度 BareWorldMerge、core 圖／progress／result；graph／operations／revisions REST；schema v5 | 每維度 PR／policy／預設分支／圖、SSE／輪詢、ZIP、全部動作結果／錯誤複製與舊資料遷移已接線；驗收狀態見下方任務 2 實作紀錄。 |
-| 3：Paper／Folia | `WorldRepositories.initializable/initDimensions`、`WorldOperations.live(layout, access, id)`、`IgnoreEditor`、共用 graph／progress／result、`PlayerTouchedEntities.touch` | 玩家所在維度 init、主世界追加按鈕、console 明確維度、wgit／git 別名與衝突開關、ignore GUI／Brigadier、bossbar 與完成／複製；觸及事件依 owner／repo queue 串行寫 sidecar，完整覆蓋 WE／FAWE／指令／互動／乘客／UUID 轉換及跨維度；事件完成前保持 entities: all。驗自然牛不入庫、命名後入庫、盔甲座可還原且自然實體不刪除，補 Folia owner／停服回歸。 |
+| 3：Paper／Folia（已接線，驗收見文末） | `WorldRepositories.initializable/initDimensions`、`WorldOperations.live(layout, access, id)`、`IgnoreEditor`、共用 graph／progress／result、`PlayerTouchedEntities.touch` | 上述 Paper 介面已接線：玩家維度／追加 init／別名、graph、ignore GUI、BossBar／完成／複製、事件／UUID 預檢；新 creative player-touched。矩陣、既有 16 案例、停服／owner 與真客戶端截圖證據見文末。 |
 | 4：Fabric | 同上，另有 `ServerRuntime.live(id, action)`／`region(id, action)` 的單維度相容入口 | 單人／dedicated 的玩家／console 範圍、別名、HUD／bossbar、ignore 畫面及聊天 graph（另評估圖形畫面）、完成／複製；伺服器驗證與權限不依賴 client。接觸及 mixin／事件、第三方編輯與跨維度 UUID 預檢後再切 creative 預設，補單人及 dedicated 真客戶端驗收。 |
 
 三個後續任務都應在原本的 repo executor 建立 `OperationProgress` context，讓同一操作的 capture／merge／transfer／assemble 沿同 operation id 回報；callback 回平台 owner 或網頁 dispatcher 呈現，不能在世界鎖內寫聊天／HTTP。`PlayerTouchedEntities.touch` 要由平台串行化呼叫，與完整 capture／commit 共用 repo 作業順序，不能直接在各 Folia region 並行改檔。單維度傳輸可用 `WorldRemotes(layout.repository(id), Map.of(id, path), credentials)`，必須 close 後才開 `WorldOperations`，避免重入 repo 鎖。
@@ -342,3 +355,42 @@ schema v5 冪等 transaction 保留 world ACL、merged PR／release 的固定 co
 整批補跑曾因 SIGTERM（exit 143）中斷；另一輪 1.21.11 出現單次瀏覽器 HTTP 400，原始日誌及失敗 JSON 都保留。Phase 4 瀏覽器腳本補上至多 50 筆失敗 request 的 URL／status／已遮罩 ErrorReport 診斷，沒有排除錯誤或放寬零 console／JS／CSP 的斷言；之後完整 1.21.11 與兩版最終 jar 驗收沒有再現，未把無法重現的情況宣稱為已修正。先前整批兩版成功證據也保留在 `.work/phase5-phase4-acceptance2/`。
 
 最終 Hub 8091–8099、Paper 25691／25692 均確認無 listener，bench.lock 可取得；所有本輪驗收 sessions 已退出，世界／SQLite／複製 jar／ZIP／私有瀏覽器設定已清理。只保留日誌、結果、雜湊及截圖，不清除既有快取／baseline。未修改 Paper／Fabric 或 experiments，未 commit。容器映像與 container-smoke 留給主對話；本輪只確認 Containerfile／compose 不需改動，SQLite 通過不代表 PostgreSQL 實機驗收已跑。
+
+
+## 任務 3：Paper／Folia 實作紀錄（2026-10-05）
+
+C–J 的 Paper 入口已接線；A／B 沿用任務 1 的獨立 repo。決定 #129–#134。所有 repo 指令由 operation context 固定世界群／維度，作者記錄依世界群隔離；--all 依序完成每維度再開始下一維度，保持各自成功／失敗結果與聚合狀態，取消不繼續後續維度。console init 必須 --world 加 --dimension 或 --all，其他 repo 指令預設伺服器第一個世界的主世界。主世界追加按鈕綁明確世界與維度，重驗相同 init 權限。
+
+Lifecycle 保留 wg／worldgit，增加 wgit／git，worldgit:git 直接註冊；已有裸 git 時跳過並提示一次。graph 使用 core CommitGraph／GraphText、uniform 字型 lane、彩色標籤、完整 hover／suggest diff、分頁及截斷提示。--all 同時列各維度全部 refs；greedy 文字參數後不解析目標旗標。
+
+RepoService 建立與動作相同 id 的 OperationProgress，callback 只排 UI；耗時階段及未知比例／ETA 沿 core 模型，console 一秒節流。OperationUi 等所有 async 子工作釋放後才完成，彙整 hash／變動／分支／剩餘衝突／bytes／耗時，含 auto／logout／shutdown、工具與 GUI 傳送；工具無所在區域回 NO_OP，背包滿或作業忙碌附失敗複製，過期 GUI 拒絕操作。成功綠／失敗紅 bar 預設三秒，title／sound 預設關。Folia 停服仍在全部世界 IO 完成後以離線來源 commit，每世界群各自記錄終態。
+
+Messages 的錯誤／failure／partial 元件附獨立 copyToClipboard；ErrorReport 先經平台 masker（環境、普通 600 credentials YAML 的已知秘密），再經 core URL／PAT／敏感鍵遮罩。原文字的 click 不被覆蓋，console 保留同欄位一行。Brigadier 自己產生的語法 cursor／紅字仍由原版處理，沒有攔截成另一個字串 parser。
+
+IgnoreUi 所有命令、聊天輸入和 GUI 走 IgnoreEditor；54 格箱子每頁 45 行，左刪除／右啟停／Shift 上移。HEAD preview 數量／樣本後，120 秒綁執行者、世界群、維度、原文與 HEAD 確認，再驗權限／MERGING；GUI 編輯也綁開啟時的規則文字，避免過期行號刪除其他規則；下一 commit 保存規則歷史。target 使用實際 entity NBT／tag registry，hand 測手持物品欄位。
+
+TouchedEntities 在事件 owner 收集純 UUID 閉包，repo queue 串行寫 sidecar；蛋／command spawn、data entity、EntityPlace／HangingPlace、命名／拴繩／馴服／裝備／染色／繁殖／騎乘／展示框互動、WE createEntity／FAWE postProcess、EntityTransform／傳送／AddToWorld 已接線。init 前的本次開服暫存在 source factory 持鎖時繼承；restore／merge 的目標 sidecar 重新加入事件資格。新 creative 使用 player-touched，survival／舊 repo 不變；集合外自然實體不移除。UUID 預檢分辨含目標 UUID 的磁碟 chunk 與其他已載入 entity chunk，拒絕跨維度重複，避免把無關卸載 chunk 誤認為重複。
+
+### 相容測試語意與限制
+
+舊 fixture 明確設 entities: all，console init 改為 --world world --all，等待聚合終態再讀三維度 refs；逐格／UUID／光照／POI／metadata／MERGING／傳輸／權限斷言保留。Phase4 的 PR merge 現只回傳 PR 維度 commit：FF 案例仍比對本地與 Hub 全部三維度 HEAD，另要求 PR 僅含主世界及其他兩維度維持初始 HEAD，避免沿用舊 publication map 的錯誤期望。新 creative 預設另由未預置 repo 設定的 Phase5 runner 驗證。驗收 bot 保留原始聊天 JSON（封包物件無 toJSON 方法）；GUI 新增等待明確完成後再斷言 preview。真客戶端 hover 使用兩版實際 ActiveTextCollector 命中 API，BossBar 截圖等待本次 status 的終態，不能用上一個 init 的終態代替。
+
+世界仍用既有全伺服器 tick freeze，repo／編輯鎖只屬指定維度；並非同 tick 跨維度 transaction。線上拒絕刪 chunk 與 world-meta 差異，clone／export／migrate 沒有遊戲寫入入口。第三方直接 NMS 寫入或繞過 WE／FAWE hooks 沒有通用玩家來源事件；init 前集合只存在本次開服記憶體。原版語法錯誤由 Brigadier 呈現，正式業務錯誤才帶插件 ErrorReport／複製。Folia 第三方熱卸載仍未驗收；原版 `/data` 命令未由 Folia 提供，Folia 命名案例以真命名牌互動驗證，Paper 另保留 data 命令覆蓋。
+
+### 任務 3 最終驗收（2026-10-06）
+
+同一個 Paper 插件 jar（SHA-256 555b6130…354cf，`.work/final/jar-before.sha`）全程驗收，jar 在驗收期間沒有變動，因此不需重跑已通過的案例。測試伺服器、bot 與 Hub 均已關閉。
+
+| 命令 | 結果 | 證據 |
+|---|---|---|
+| `python3 paper/tools/phase5.py paper 1.21.11` ／ `paper 26.2` ／ `folia 1.21.11` ／ `folia 26.2` | 四組合 success=true（別名、地獄單獨 init、追加按鈕、觸及繼承、creative 預設 player-touched、graph、--all remote、真命名牌、ignore 預覽／確認／GUI、錯誤複製、UUID 預檢與維度傳輸） | `.work/paper-phase5/paper-1.21.11-1791286255`、`paper-26.2-1791286642`、`folia-1.21.11-1791250265`、`folia-26.2-1791285647`；日誌 `.work/final/phase5-*.log` |
+| `python3 paper/tools/phase4_regressions.py --case paper-1.21.11-phase4 --case paper-26.2-phase4 --case folia-1.21.11-phase4 --case folia-26.2-polling` | 4 案例全部 exit 0（各約 550 秒） | `.work/paper-phase4/regressions-1791287016/results.json` |
+| `python3 paper/tools/acceptance.py <paper\|folia> <1.21.11\|26.2>` 四組合 | 每組 32 步全部 PASS，`FAILED: none` | `.work/final/acc-*.log`、`.work/paper-delivery/results/{paper,folia}-{1.21.11,26.2}.json` |
+| `python3 paper/tools/brigadier.py 1.21.11` ／ `26.2` | 兩版 success=true（9 檔、16 筆證據） | `.work/brigadier/paper-1.21.11-1791291122`、`paper-26.2-1791291345` |
+| `./gradlew --no-daemon --configure-on-demand --max-workers=1 build`（bench.lock） | BUILD SUCCESSFUL，JUnit 320 項 0 失敗 | `.work/final/build.log` |
+
+截圖：`paper/docs/screenshots/phase5/` 有 Paper 1.21.11 真客戶端八張（init 追加按鈕、graph、BossBar 進度與終態、完成訊息、錯誤 hover［複製］、ignore GUI、ignore preview）；26.2／Folia 的行為由 phase5.py 的聊天／BossBar 原始證據驗證，未另拍截圖（`phase5_screenshots.py` 可指定其他組合補拍）。
+
+### 留給任務 4
+
+Fabric 可直接使用 WorldRepositories.initDimensions、WorldOperations.live(layout, access, id)、CommitGraph／GraphText、OperationProgress／OperationResult／ErrorReport、IgnoreEditor 與 PlayerTouchedEntities。Paper OperationUi／IgnoreUi／TouchedEntities 是 Bukkit 專用，不能直接搬入 Fabric；需另接 server owner executor、事件／mixin、觸及 sidecar 串行佇列、UUID 預檢、單人／dedicated 的世界選擇及 native 畫面／HUD。先完成事件，再切換 Fabric creative 預設；Hub PR／留言明確傳專案維度，沿共用 HubClient／credential masker。此次只改 Fabric 驗收 harness 的 console init 語法，沒有加入 Fabric UX。

@@ -5,6 +5,7 @@
 - 插件 jar 在啟動時複製一份，驗收期間重新建置不會影響執行中的伺服器。
 - 用完一定要 stop()（含 bot）；呼叫端用 try/finally。
 """
+from pathlib import Path
 import fcntl, hashlib, json, os, re, shutil, signal, subprocess, sys, threading, time, uuid
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -97,13 +98,14 @@ def offline_uuid(name):
 
 
 class Server:
-    def __init__(self, platform, version, plugins=(), config=None, view=4, fresh=True, ops=('WgBot', 'WgBot2', 'WgBot3', 'WgBot4', 'WgAdmin'), extra_props=None, xmx='2G', fawe_allow=True, baseline=None, run_label=None):
+    def __init__(self, platform, version, plugins=(), config=None, view=4, fresh=True, ops=('WgBot', 'WgBot2', 'WgBot3', 'WgBot4', 'WgAdmin'), extra_props=None, xmx='2G', fawe_allow=True, baseline=None, run_label=None, all_entities=True):
         self.name = f'{platform}-{version}'
         self.platform, self.version, self.xmx = platform, version, xmx
         self.dir = os.path.join(RUN, run_label or self.name)
         self.baseline = baseline or os.path.join(WORK, 'worlds', version, 'baseline')
         self.port = PORTS[self.name]
         self.log_lines, self.lock, self.proc, self.bots = [], threading.Lock(), None, []
+        self.all_entities=all_entities
         self._prepare(plugins, config or {}, view, fresh, ops, extra_props or {}, fawe_allow)
 
     @property
@@ -149,6 +151,9 @@ class Server:
             wd = os.path.join(pd, 'WorldGit')
             os.makedirs(wd, exist_ok=True)
             open(os.path.join(wd, 'config.yml'), 'w').write(to_yaml(config))
+        from cli_compat import prepare_all_entities
+        if self.all_entities and not (Path(self.world) / '.worldgit/HEAD').exists():
+            prepare_all_entities(self.world)
         json.dump([{'uuid': offline_uuid(n), 'name': n, 'level': 4, 'bypassesPlayerLimit': False} for n in ops], open(os.path.join(self.dir, 'ops.json'), 'w'))
 
     # ---- 伺服器 ----
@@ -207,6 +212,9 @@ class Server:
         self.send(c)
         if until:
             self.wait(until, timeout, m)
+            if c.startswith('wg init ') and '--all' in c.split():
+                # 新語意逐維度獨立完成；等最後 batch 終態後才讀三維度 refs，原內容斷言不變。
+                self.wait(r'init(?:\.(?:creative|survival))? (?:finished:|完成：).* all ', timeout, m)
             time.sleep(0.3)
         return '\n'.join(self.lines_since(m))
 

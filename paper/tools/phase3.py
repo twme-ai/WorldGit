@@ -104,7 +104,7 @@ def run(platform, version):
             variant('oak','oak',0)
             out=cmd('wg conflict-select 1 ours',r'No merge is in progress|沒有 MERGING',True)
             check('非 MERGING conflict-select 被擋',state() is None,output=out)
-            s.cmd('wg init',r'init 完成|失敗',900);branch('base');branch('B')
+            s.cmd('wg init --world world --all',r'init 完成|失敗',900);branch('base');branch('B')
             builds(bots[0],2,'gold_block')
             s.cmd('setblock 4 65 6 chest');s.cmd('data merge block 4 65 6 {Items:[{Slot:0b,id:"minecraft:diamond",count:4}]}')
             s.cmd('summon cow 5 66 10 {UUID:[I;286331153,572666675,1145328981,1431655765],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b}')

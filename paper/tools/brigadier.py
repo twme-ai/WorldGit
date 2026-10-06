@@ -58,7 +58,7 @@ def run(args):
         command('forceload add 0 0','Marked chunk|already marked')
         time.sleep(2)
         command('wg debug freeze on','WGFREEZE frozen')
-        command('wg init','Initialized|Initialization complete')
+        command('wg init --world world --all','Initialized|Initialization complete')
         command('wg branch topic','Branches')
         for bot in dimension_bots.values():player_command(bot,'wg branch topic','Branches')
         command('setblock 0 224 0 gold_block','Changed the block')

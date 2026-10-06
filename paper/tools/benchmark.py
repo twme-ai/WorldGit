@@ -46,7 +46,7 @@ def main():
             result['console_log'] = os.path.relpath(s.evidence_log, ROOT)
             print(name, 'loading', flush=True)
             result['load'] = s.cmd(f'wg debug fill {side} stone {count}', r'debug fill 完成|失敗', 900)
-            result['init'] = s.cmd('wg init', r'init 完成|失敗', 900)
+            result['init'] = s.cmd('wg init --world world --all', r'init 完成|失敗', 900)
             time.sleep(10)
             s.cmd('wg debug probe start', r'probe 開始', 30)
             time.sleep(10)

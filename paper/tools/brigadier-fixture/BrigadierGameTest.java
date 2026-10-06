@@ -33,7 +33,7 @@ public final class BrigadierGameTest implements FabricClientGameTest {
     ctx.runOnClient(c -> {
       var root = c.getConnection().getCommands().getRoot().getChild("wg");
       Set<String> names = new HashSet<>(root.getChildren().stream().map(CommandNode::getName).toList());
-      Set<String> expected = Set.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "conflict-select", "conflicts", "conflict-preview", "tool", "revert", "cherry-pick", "remote", "fetch", "push", "pull", "pr", "comments", "comment", "help");
+      Set<String> expected = Set.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore", "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "conflict-select", "conflicts", "conflict-preview", "tool", "revert", "cherry-pick", "remote", "fetch", "push", "pull", "pr", "comments", "comment", "ignore", "tag", "verify", "help");
       if (!names.equals(expected)) throw new AssertionError("incorrect command tree " + names);
       if (c.getConnection().getCommands().getRoot().getChild("worldgit") == null) throw new AssertionError("missing alias");
       var from = (ArgumentCommandNode<?, ?>) root.getChild("restore").getChild("revision").getChild("--box").getChild("from");

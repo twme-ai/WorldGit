@@ -62,12 +62,13 @@ bot.once('login', () => {
   if (mode === 'mod') bot._client.write('custom_payload', { channel: 'minecraft:register', data: Buffer.from(['worldgit:hello', 'worldgit:diff', 'worldgit:status', 'worldgit:clear', 'worldgit:conflicts', 'worldgit:conflict_preview'].join('\0')) })
 })
 bot._client.on('custom_payload', (packet) => { try { onPayload(packet.channel, packet.data) } catch (e) { out({ ev: 'payload_error', channel: packet.channel, e: String(e) }) } })
+bot._client.on('boss_bar', (packet) => out({ev:'bossbar',packet}))
 bot.once('spawn', () => out({ ev: 'spawn', pos: bot.entity.position, version: bot.version }))
 bot.on('kicked', (r) => out({ ev: 'kicked', r: JSON.stringify(r) }))
 bot.on('error', (e) => out({ ev: 'error', e: String(e) }))
 bot.on('end', (r) => { out({ ev: 'end', r }); process.exit(0) })
 bot.on('health', () => out({ ev: 'health', health: bot.health, food: bot.food }))
-bot.on('message', (m) => { const t = m.toString(); if (t.trim()) out({ ev: 'chat', t }) })
+bot.on('message', (m) => { const t = m.toString(); if (t.trim()) out({ ev: 'chat', t, json: m.json }) })
 
 const rl = readline.createInterface({ input: process.stdin })
 rl.on('line', async (line) => {
@@ -77,7 +78,7 @@ rl.on('line', async (line) => {
     if (cmd === 'give') {
       const Item = require(path.join(root, 'prismarine-item'))(bot.version)
       const it = bot.registry.itemsByName[a[1]]
-      await bot.creative.setInventorySlot(36, new Item(it.id, 64)); out({ ev: 'give', item: a[1] })
+      await bot.creative.setInventorySlot(36, new Item(it.id, Math.min(64, it.stackSize))); out({ ev: 'give', item: a[1] })
     } else if (cmd === 'place') { // place rx ry rz dx dy dz
       await bot.equip(bot.inventory.slots[36].type, 'hand').catch(() => {})
       const ref = bot.blockAt(new Vec3(+a[1], +a[2], +a[3]))
@@ -102,8 +103,19 @@ rl.on('line', async (line) => {
     else if (cmd === 'pos') out({ ev: 'pos', pos: bot.entity.position, gm: bot.game.gameMode })
     else if (cmd === 'stats') out({ ev: 'stats', ready, received: { ...received, previews: Object.fromEntries(Object.entries(received.previews).map(([k, v]) => [k, { kind: v.kind, parts: v.parts, total: v.total, seen: v.seen.size }])) } })
     else if (cmd === 'entities') out({ ev: 'entities', displays: Object.values(bot.entities).filter((e) => /display/.test(e.name || e.displayName || '')).length, ids: Object.values(bot.entities).map((e) => e.id), names: [...new Set(Object.values(bot.entities).map((e) => e.name))] })
+    else if (cmd === 'interact_uuid') {
+      const entity = Object.values(bot.entities).find((e) => e.uuid === a[1])
+      if (!entity) throw new Error('entity UUID not visible: ' + a[1])
+      await bot.activateEntity(entity); out({ev:'entity_interacted', uuid:entity.uuid, id:entity.id, player:bot.entity.position, entity:entity.position, held:bot.heldItem && {name:bot.heldItem.name, components:bot.heldItem.components}})
+    }
+    else if (cmd === 'use') { await bot.equip(bot.inventory.slots[36], 'hand'); await bot.activateBlock(bot.blockAt(new Vec3(+a[1], +a[2], +a[3])), new Vec3(0, 1, 0)); out({ev:'used'}) }
+    else if (cmd === 'place_entity') {
+      const block = bot.blockAt(new Vec3(+a[1], +a[2], +a[3]))
+      if (version === '26.2') { await bot._genericPlace(block, new Vec3(0, 1, 0), {forceLook:true}); out({ev:'entity_place_sent'}) }
+      else { const entity = await bot.placeEntity(block, new Vec3(0, 1, 0)); out({ev:'entity_placed', id:entity.id, name:entity.name}) }
+    }
     else if (cmd === 'window') { const w = bot.currentWindow; out({ ev: 'window', opened: !!w, title: w && String(w.title), slots: w ? w.slots.filter((x) => x).length : 0, size: w ? w.slots.length : 0 }) }
-    else if (cmd === 'click') { const w = bot.currentWindow; if (!w) throw new Error('no window'); await bot.clickWindow(+a[1], 0, 0); out({ ev: 'clicked', slot: +a[1] }) }
+    else if (cmd === 'click') { const w = bot.currentWindow; if (!w) throw new Error('no window'); await bot.clickWindow(+a[1], +(a[2] || 0), +(a[3] || 0)); out({ ev: 'clicked', slot: +a[1] }) }
     else if (cmd === 'quit') { bot.quit(); setTimeout(() => process.exit(0), 300) }
     else out({ ev: 'unknown', cmd })
   } catch (e) { out({ ev: 'cmd_error', cmd, e: String(e) }) }

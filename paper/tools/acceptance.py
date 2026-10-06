@@ -120,7 +120,7 @@ def scenario_basic(s):
     time.sleep(2)
     s.cmd('kill @e[type=!minecraft:player]')  # 前一次 kill 產生的掉落物也要清除。
     time.sleep(2)
-    s.cmd('wg init', r'init 完成|失敗|尚未', 900)
+    s.cmd('wg init --world world --all', r'init 完成|失敗|尚未', 900)
     n0 = len(commits(s))
     step('init 建立三個維度 repo 與第一個 commit', n0 == 1 and all(len(commits(s, d)) == 1 for d in ['minecraft.the_nether', 'minecraft.the_end']), commits_overworld=n0)
     settle(s, 5)
@@ -297,7 +297,7 @@ def scenario_auto(platform, version, baseline):
     s = Server(platform, version, baseline=baseline, config={'auto-commit': {'enabled': True, 'interval-minutes': 1, 'max-wait-minutes': 1, 'min-changed-sections': 1, 'on-quit': True, 'quit-delay-seconds': 5, 'on-shutdown': False}})
     try:
         s.start()
-        s.cmd('wg init', r'init 完成|失敗', 900)
+        s.cmd('wg init --world world --all', r'init 完成|失敗', 900)
         n0 = len(commits(s))
         bot = s.bot('WgBot')
         time.sleep(8)
@@ -338,7 +338,7 @@ def scenario_sigterm(platform, version, baseline):
     s = Server(platform, version, baseline=baseline, run_label=f'sigterm-{platform}-{version}', config={'auto-commit': {'enabled': False, 'on-shutdown': True}})
     try:
         s.start()
-        s.cmd('wg init', r'init 完成|失敗', 900)
+        s.cmd('wg init --world world --all', r'init 完成|失敗', 900)
         bot = s.bot('WgBot')
         time.sleep(6)
         s.cmd('gamemode creative WgBot')
@@ -395,7 +395,7 @@ def main():
                 if 'basic' in wanted:
                     bot = scenario_basic(s)
                 if bot is None:
-                    s.cmd('wg init', r'init 完成|失敗', 900)
+                    s.cmd('wg init --world world --all', r'init 完成|失敗', 900)
                     bot = s.bot('WgBot'); time.sleep(8); s.cmd('gamemode creative WgBot')
                 if 'attribution' in wanted:
                     scenario_attribution(s, bot)

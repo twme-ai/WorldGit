@@ -40,7 +40,7 @@ def run(platform,version):
             initial=inspect(s,'overworld',12,-12)
             check('A fixture 包含三個巢狀 UUID',present(initial,IDS),output=initial)
             if not present(initial,IDS): raise RuntimeError('A fixture 未建立三個實體')
-            cmd(s,'wg init',r'init 完成')
+            cmd(s,'wg init --world world --all',r'init 完成')
             cmd(s,'wg branch A');player_command(nether_bot,'wg branch A',r'分支：|Branches')
             # 目標只留同 UUID 的 cow，移到另一維度；舊乘客不得殘留。
             cmd(s,'wg debug entities overworld 12 -12 clear')

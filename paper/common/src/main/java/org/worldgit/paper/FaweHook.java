@@ -11,7 +11,7 @@ final class FaweHook {
   private FaweHook() {}
 
   static Extent wrap(Extent extent, WorldEditHook.Sess sess) {
-    return extent.addProcessor(new Proc(sess));
+    var processor=new Proc(sess);return extent.addProcessor(processor).addPostProcessor(processor);
   }
 
   private static final class Proc implements IBatchProcessor {
@@ -37,6 +37,11 @@ final class FaweHook {
       }
       if (any) sess.blockChunk(chunk.getX(), chunk.getZ());
       return set;
+    }
+    @Override public java.util.concurrent.Future<?> postProcessSet(IChunk chunk,IChunkGet get,IChunkSet set) {
+      var ids=new java.util.HashSet<java.util.UUID>();
+      for(Object entity:set.getEntities())try {var id=(java.util.UUID)entity.getClass().getMethod("getUUID").invoke(entity);if(id!=null)ids.add(id);}catch(ReflectiveOperationException error) {throw new IllegalStateException("無法讀取 FAWE entity UUID",error);}
+      sess.entityIds(ids,chunk.getX(),chunk.getZ());return java.util.concurrent.CompletableFuture.completedFuture(null);
     }
 
     @Override

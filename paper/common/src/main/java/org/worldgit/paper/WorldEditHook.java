@@ -67,6 +67,21 @@ final class WorldEditHook {
       plugin.platform().asyncDelayed(3, () -> plugin.touchByName(world, chunkX, chunkZ, null, null, "worldedit"));
     }
 
+    void entity(com.sk89q.worldedit.entity.Entity entity,com.sk89q.worldedit.util.Location location) {
+      if(entity==null)return;
+      org.bukkit.World target=org.bukkit.Bukkit.getWorld(world);if(target==null)return;
+      UUID id=entity.getState().getUUID();
+      plugin.platform().region(target,location.getBlockX()>>4,location.getBlockZ()>>4,()->{
+        for(var live:target.getChunkAt(location.getBlockX()>>4,location.getBlockZ()>>4).getEntities())if(live.getUniqueId().equals(id))plugin.touched().touch(live);
+      });
+    }
+    void entityIds(java.util.Set<UUID> ids,int x,int z) {
+      if(ids.isEmpty())return;var target=org.bukkit.Bukkit.getWorld(world);if(target==null)return;
+      plugin.platform().regionDelayed(target,x,z,1,()->{
+        for(var live:target.getChunkAt(x,z).getEntities())if(ids.contains(live.getUniqueId()))plugin.touched().touch(live);
+      });
+    }
+
     void block(int x, int z) {
       blockChunk(x >> 4, z >> 4);
     }
@@ -113,6 +128,15 @@ final class WorldEditHook {
     Log(Extent extent, Sess sess) {
       super(extent);
       this.sess = sess;
+    }
+
+    @Override
+    public com.sk89q.worldedit.entity.Entity createEntity(com.sk89q.worldedit.util.Location location,com.sk89q.worldedit.entity.BaseEntity state) {
+      var entity=super.createEntity(location,state);sess.entity(entity,location);return entity;
+    }
+    @Override
+    public com.sk89q.worldedit.entity.Entity createEntity(com.sk89q.worldedit.util.Location location,com.sk89q.worldedit.entity.BaseEntity state,UUID uuid) {
+      var entity=super.createEntity(location,state,uuid);sess.entity(entity,location);return entity;
     }
 
     @Override

@@ -32,4 +32,15 @@ class CredentialsAndTextTest {
     Files.setPosixFilePermissions(secret,java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));assertEquals(32,c.webhookSecret().length);
     Files.setPosixFilePermissions(secret,java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));assertThrows(java.io.IOException.class,c::webhookSecret);
   }
+  @Test void clipboardMaskRemembersArbitraryTokensAndBasicAuthorizationWithoutDoingIo() throws Exception {
+    String token="arbitrary value/%+secret";
+    var credentials=new PlatformCredentials(RemoteSettings.defaults(),Map.of("WGIT_TOKEN",token),dir);
+    assertFalse(credentials.mask("bad revision "+token).contains(token));
+    Path file=dir.resolve("credentials.yml");Files.writeString(file,"credentials:\n  origin:\n    mode: basic\n    username: player\n    token: another-secret\n");
+    Files.setPosixFilePermissions(file,java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));credentials.credentials();
+    Files.delete(file);
+    String basic=Base64.getEncoder().encodeToString("player:another-secret".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    String report=credentials.mask("another-secret "+basic+" "+java.net.URLEncoder.encode(token,java.nio.charset.StandardCharsets.UTF_8));
+    assertFalse(report.contains("another-secret"));assertFalse(report.contains(basic));assertFalse(report.contains("arbitrary"));assertTrue(report.contains("[REDACTED]"));
+  }
 }

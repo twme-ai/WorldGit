@@ -7,6 +7,31 @@ common:
   error: "<red>錯誤：<message></red>"
 
 paper:
+  phase5:
+    terminal: "<operation> 完成：<status> · <dimension>（<millis> ms）"
+    recovery: "<yellow>請查 /wg status 與該維度 journal；以 switch --force 或 reset --hard 恢復後再 commit。</yellow>"
+    target-exclusive: "<red>--dimension 與 --all 請擇一使用。</red>"
+    world-missing: "<red>指定的世界尚未載入。</red>"
+    result-title: "完成：<status>"
+    progress: "<aqua><operation> · <dimension> · <phase> · <percent> · ETA <eta></aqua>"
+    result: "<aqua><operation> 完成：<status></aqua> <dimension> <summary>（<millis> ms）"
+    copy: "<yellow>[複製]</yellow>"
+    copy-hover: "<gray>點擊複製錯誤內容</gray>"
+    console-init: "<red>主控臺 init 必須指定 --world &lt;世界&gt; --dimension &lt;id&gt;（或 --all）。</red>"
+    init-nether: "<aqua>[也 init 地獄]</aqua>"
+    init-end: "<aqua>[也 init 終界]</aqua>"
+    init-all: "<aqua>[全部]</aqua>"
+    graph: "<gray><dimension> 分支圖，第 <page> 頁</gray>"
+    graph-more: "<yellow>[下一頁 <page>／歷史已截斷]</yellow>"
+    ignore-written: "<green>已更新 .wgignore；下次 commit 儲存規則歷史。</green>"
+    ignore-valid: "<green>規則驗證完成：<count> 行。</green>"
+    ignore-test: "<gray>排除=<excluded>；最後命中行 <line>：<rule></gray>"
+    ignore-preview: "<gold>預覽：方塊 <blocks>、BE <bes>、實體 <entities>、biome <biomes>、欄位 <fields>；樣本 <samples></gold>"
+    ignore-confirm: "<yellow>[確認修改 <code>]</yellow>"
+    ignore-gui: "<dark_gray>.wgignore · 第 <page> 頁</dark_gray>"
+    ignore-controls: "<gray>左鍵刪除；右鍵啟停；Shift 點擊往上移。先預覽，再確認。</gray>"
+    ignore-add: "<green>新增規則（聊天輸入）</green>"
+    ignore-chat: "<yellow>請在聊天輸入一行規則；只建立預覽，不立即修改。</yellow>"
   help:
     title: "WorldGit - Minecraft 世界的版本控制"
     init: "  /wg init [--template creative|survival]  建立 repo 並做第一次快照"
@@ -120,6 +145,9 @@ paper:
     duplicate-option: 旗標重複：<option>
     empty-text: 請輸入文字。
     help:
+      ignore: "/wg ignore list|add|remove|move|enable|disable|test|check|preview|confirm"
+      tag: "/wg tag [-d] [name]"
+      verify: "/wg verify [revision]"
       init: <gray>  /wg init [--template creative|survival]</gray>
       status: <gray>  /wg status [--full] [--show]</gray>
       commit: <gray>  /wg commit -m <message></gray>
@@ -420,3 +448,6 @@ cli.phase5.excluded: '排除'
 cli.phase5.retained: '保留'
 cli.phase5.no-rule: '：沒有命中規則'
 cli.phase5.matched-rule: '：第 <line> 行 <rule>'
+paper.phase5.tool-busy: "世界作業正在執行，請等候後再使用合併工具。"
+paper.phase5.merge-stale: "合併工作已變更，請重新開啟衝突選單。"
+paper.phase5.batch-recovery: "重試前請檢查各維度結果與可複製的錯誤報告。"

@@ -30,7 +30,7 @@ def run(platform,version,shutdown=True):
         try:
             s.start(); result['console_logs'].append(os.path.relpath(s.evidence_log,ROOT))
             bots=[s.bot('WgBot',mod=True),s.bot('WgBot2',mod=True)]
-            cmd(s,'wg init',r'init 完成')
+            cmd(s,'wg init --world world --all',r'init 完成')
             cmd(s,'wg branch A',r'分支：|Branches')
             cmd(s,'wg debug fill 32 gold_block 1000',r'debug fill 完成')
             # 各 bot 保留一種預覽，status／diff 都必須在下一次套用清掉。

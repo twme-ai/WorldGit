@@ -8,6 +8,31 @@ common:
   error: "<red>Error: <message></red>"
 
 paper:
+  phase5:
+    terminal: "<operation> finished: <status> · <dimension> (<millis> ms)"
+    recovery: "<yellow>Check /wg status and the dimension journal; recover with switch --force or reset --hard before committing.</yellow>"
+    target-exclusive: "<red>Choose --dimension or --all.</red>"
+    world-missing: "<red>The specified world is not loaded.</red>"
+    result-title: "Finished: <status>"
+    progress: "<aqua><operation> · <dimension> · <phase> · <percent> · ETA <eta></aqua>"
+    result: "<aqua><operation> finished: <status></aqua> <dimension> <summary> (<millis> ms)"
+    copy: "<yellow>[Copy]</yellow>"
+    copy-hover: "<gray>Click to copy error report</gray>"
+    console-init: "<red>Console init requires --world &lt;world&gt; --dimension &lt;id&gt; (or --all).</red>"
+    init-nether: "<aqua>[Init Nether too]</aqua>"
+    init-end: "<aqua>[Init End too]</aqua>"
+    init-all: "<aqua>[All]</aqua>"
+    graph: "<gray><dimension> graph, page <page></gray>"
+    graph-more: "<yellow>[Next page <page> / history truncated]</yellow>"
+    ignore-written: "<green>.wgignore updated; commit to save rule history.</green>"
+    ignore-valid: "<green>Rules validated: <count> lines.</green>"
+    ignore-test: "<gray>excluded=<excluded>; last matching line <line>: <rule></gray>"
+    ignore-preview: "<gold>Preview: blocks <blocks>, BE <bes>, entities <entities>, biomes <biomes>, fields <fields>; samples <samples></gold>"
+    ignore-confirm: "<yellow>[Confirm change <code>]</yellow>"
+    ignore-gui: "<dark_gray>.wgignore · page <page></dark_gray>"
+    ignore-controls: "<gray>Left: remove; right: toggle; Shift: move up. Preview before confirmation.</gray>"
+    ignore-add: "<green>Add rule (chat input)</green>"
+    ignore-chat: "<yellow>Enter one rule in chat to preview the change.</yellow>"
   help:
     title: "WorldGit - version control for Minecraft worlds"
     init: "  /wg init [--template creative|survival]  create repository and initial snapshot"
@@ -121,6 +146,9 @@ paper:
     duplicate-option: 'Duplicate option: <option>'
     empty-text: Expected nonempty text.
     help:
+      ignore: "/wg ignore list|add|remove|move|enable|disable|test|check|preview|confirm"
+      tag: "/wg tag [-d] [name]"
+      verify: "/wg verify [revision]"
       init: <gray>  /wg init [--template creative|survival]</gray>
       status: <gray>  /wg status [--full] [--show]</gray>
       commit: <gray>  /wg commit -m <message></gray>
@@ -421,3 +449,6 @@ cli.phase5.excluded: 'Excluded'
 cli.phase5.retained: 'Retained'
 cli.phase5.no-rule: ': no matching rule'
 cli.phase5.matched-rule: ': line <line> <rule>'
+paper.phase5.tool-busy: "A world operation is running. Wait before using the merge tool."
+paper.phase5.merge-stale: "The merge operation changed. Reopen the conflicts menu."
+paper.phase5.batch-recovery: "Review each dimension result and the copied error report before retrying."

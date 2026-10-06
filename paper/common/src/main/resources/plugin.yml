@@ -11,6 +11,9 @@ permissions:
     description: 所有 WorldGit 指令與通知
     default: op
     children:
+      worldgit.command.ignore: true
+      worldgit.command.tag: true
+      worldgit.command.verify: true
       worldgit.command.init: true
       worldgit.command.status: true
       worldgit.command.commit: true
@@ -121,4 +124,13 @@ permissions:
     default: op
   worldgit.command.comment:
     description: /wg comment（遠端協作）
+    default: op
+  worldgit.command.ignore:
+    description: /wg ignore（預覽與確認規則修改）
+    default: op
+  worldgit.command.tag:
+    description: /wg tag
+    default: op
+  worldgit.command.verify:
+    description: /wg verify
     default: op

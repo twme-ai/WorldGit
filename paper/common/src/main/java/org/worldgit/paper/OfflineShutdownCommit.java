@@ -11,6 +11,8 @@ import java.util.jar.JarFile;
 import org.worldgit.core.anvil.WorldLayout;
 import org.worldgit.core.model.CommitMetadata;
 import org.worldgit.core.model.DimensionId;
+import org.worldgit.core.operation.OperationProgress;
+import org.worldgit.core.operation.OperationResult;
 import org.worldgit.core.service.DimensionRepository;
 import org.worldgit.core.service.WorldRepositories;
 
@@ -37,8 +39,9 @@ final class OfflineShutdownCommit {
   private final CountDownLatch disabled = new CountDownLatch(1);
   private final Path logFile;
   private final java.util.concurrent.atomic.AtomicBoolean ioDone = new java.util.concurrent.atomic.AtomicBoolean();
-  private volatile Prepared prepared;
+  private volatile List<Prepared> prepared=List.of();
   private volatile Thread hook;
+  private String pluginVersion, minecraftVersion, platformVersion;
 
   OfflineShutdownCommit(WorldGitPlugin plugin) {
     this.plugin = plugin;
@@ -84,8 +87,15 @@ final class OfflineShutdownCommit {
   void prepare(boolean enabled) {
     try {
       if (enabled && hook != null) {
-        var mapping = WorldMapper.map();
-        var local = plugin.repo().readLocal();
+        pluginVersion=plugin.getPluginMeta().getVersion();
+        minecraftVersion=plugin.bridge().minecraftVersion();
+        platformVersion=plugin.getServer().getVersion();
+        // 在 PluginClassLoader 關閉前載入 locale 與 Adventure formatter 的資源。
+        plain(plugin.operations().completion(new OperationResult(UUID.randomUUID(),"shutdown.commit",OperationResult.Status.NO_OP,null,Map.of(),0,List.of(),null)));
+        plain(Messages.text("paper.phase5.copy"));plain(Messages.text("paper.phase5.copy-hover"));plain(Messages.text("paper.phase5.recovery"));
+        var all=new ArrayList<Prepared>();
+        for(var mapping:plugin.mappings()) {
+        var local = org.worldgit.core.config.WorldGitConfig.readLocal(mapping.layout().repositoryRoot().resolve("worldgit.yml"));
         // 離線來源在這裡先建立並載入 entity tag registry：它從 jar 讀資源，PluginClassLoader 關閉後就讀不到了。
         var sources = new TreeMap<DimensionId, org.worldgit.core.anvil.OfflineSnapshotSource>();
         for (var id : new WorldRepositories(mapping.layout()).tracked().keySet()) {
@@ -93,7 +103,9 @@ final class OfflineShutdownCommit {
           source.warnings();
           sources.put(id, source);
         }
-        prepared = new Prepared(mapping.layout(), plugin.attribution().drain(), plugin.serverIdentity(), local.entityTolerance(), sources);
+        all.add(new Prepared(mapping.layout(), plugin.attribution(mapping).drain(), plugin.serverIdentity(), local.entityTolerance(), sources));
+        }
+        prepared = List.copyOf(all);
         preloadClasses();
       }
     } catch (IOException | RuntimeException e) {
@@ -142,7 +154,7 @@ final class OfflineShutdownCommit {
       log("JVM 關閉鉤子啟動，等待插件 disable 完成");
       if (!disabled.await(WAIT_FOR_DISABLE_SECONDS, TimeUnit.SECONDS)) return; // 不是正常 disable 流程（例如崩潰），不動世界
       var p = prepared;
-      if (p == null) {
+      if (p.isEmpty()) {
         log("插件 disable 時沒有準備資料，略過");
         return;
       }
@@ -156,7 +168,7 @@ final class OfflineShutdownCommit {
         Thread.sleep(250);
       }
       log("看到世界存檔完成訊號，開始離線掃描與 commit");
-      commit(p);
+      for(var world:p)commit(world);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (Throwable t) {
@@ -164,33 +176,54 @@ final class OfflineShutdownCommit {
     }
   }
 
-  private void commit(Prepared p) throws IOException {
-    var repos = new WorldRepositories(p.layout());
-    var tracked = repos.tracked();
-    if (tracked.isEmpty()) {
-      log("世界尚未 init，略過關閉前 commit");
-      return;
-    }
-    var manifest = repos.manifest();
-    UUID snapshot = UUID.randomUUID();
-    int changed = 0;
-    for (var e : tracked.entrySet()) {
-      DimensionId id = e.getKey();
-      try (var repo = new DimensionRepository(e.getValue(), id, false);
-          var source = p.sources().get(id)) {
-        var contributors = p.drained().of(id);
-        var author = p.drained().primary(id).map(Attribution.Contributor::identity).orElse(p.committer());
-        var metadata =
-            new CommitMetadata(
-                author, p.committer(), MESSAGE, Instant.now(), p.layout().dataVersion(), id, CommitMetadata.Source.PLUGIN, true, snapshot,
+  private static String plain(net.kyori.adventure.text.Component component) {
+    return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(component);
+  }
+
+  private OperationResult.ErrorReport error(UUID id,DimensionId dimension,Throwable failure) {
+    String message=String.valueOf(failure.getMessage());
+    if(plugin.remote()!=null)message=plugin.remote().mask(message);
+    return OperationResult.ErrorReport.create("PAPER_SHUTDOWN",id,"shutdown.commit",dimension,pluginVersion,minecraftVersion,platformVersion,message,List.of());
+  }
+
+  private void commit(Prepared p) {
+    var last=new java.util.concurrent.atomic.AtomicLong();
+    var finished=new java.util.concurrent.atomic.AtomicBoolean();
+    try(var progress=new OperationProgress("shutdown.commit",event->{
+      long now=System.currentTimeMillis();
+      if(!finished.get() && now-last.get()>=1000) {last.set(now);log(plain(OperationUi.progressText(event)));}
+    })) {
+      var summary=new TreeMap<String,Object>();summary.put("world",p.layout().world().toString());
+      OperationResult.ErrorReport error=null;
+      var status=OperationResult.Status.NO_OP;
+      int changed=0,failed=0;
+      try {
+        var repos=new WorldRepositories(p.layout());var tracked=repos.tracked();var manifest=repos.manifest();
+        UUID snapshot=UUID.randomUUID();
+        for(var e:tracked.entrySet()) {
+          DimensionId dimension=e.getKey();
+          try(var repo=new DimensionRepository(e.getValue(),dimension,false);var source=p.sources().get(dimension)) {
+            var contributors=p.drained().of(dimension);
+            var author=p.drained().primary(dimension).map(Attribution.Contributor::identity).orElse(p.committer());
+            var metadata=new CommitMetadata(author,p.committer(),MESSAGE,Instant.now(),p.layout().dataVersion(),dimension,CommitMetadata.Source.PLUGIN,true,snapshot,
                 contributors.stream().map(Attribution.Contributor::toContribution).toList());
-        var r = repo.commit(source, manifest, metadata, p.tolerance());
-        if (r.changed()) changed++;
-        log("關閉前離線 commit " + id + " → " + (r.changed() ? r.commit().substring(0, 8) : "沒有變動"));
-      } catch (Exception ex) {
-        log("關閉前離線 commit " + id + " 失敗：" + ex);
-      }
+            var r=repo.commit(source,manifest,metadata,p.tolerance());
+            if(r.changed())changed++;
+            summary.put(dimension.value(),Messages.shortId(r.commit())+" sections="+r.status().diff().sections().size()+" entities="+r.status().diff().entities().size());
+            log("關閉前離線 commit "+dimension+" → "+(r.changed()?Messages.shortId(r.commit()):"沒有變動"));
+          } catch(Exception failure) {
+            failed++;error=error(progress.id(),dimension,failure);summary.put(dimension.value(),"FAILED");
+            log("關閉前離線 commit "+dimension+" 失敗："+error.message());
+            if(failure instanceof java.io.InterruptedIOException) {status=OperationResult.Status.CANCELLED;break;}
+          }
+        }
+        if(status!=OperationResult.Status.CANCELLED)status=failed>0?(failed==tracked.size()?OperationResult.Status.FAILED:OperationResult.Status.PARTIAL):changed>0?OperationResult.Status.SUCCESS:OperationResult.Status.NO_OP;
+      } catch(Exception failure) {status=OperationResult.Status.FAILED;error=error(progress.id(),null,failure);}
+      summary.put("changed",changed);summary.put("failed",failed);
+      var result=progress.result(status,null,summary,List.of(),error);
+      finished.set(true);
+      log(plain(plugin.operations().completion(result)));
+      if(error!=null)log(error.text().replace("\n"," | "));
     }
-    log("關閉前離線 commit 完成，" + changed + " 個維度有新 commit");
   }
 }

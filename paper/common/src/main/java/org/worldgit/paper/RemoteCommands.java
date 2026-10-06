@@ -16,7 +16,7 @@ import org.worldgit.platform.remote.*;
 
 /** 網路走 repo 背景 queue；所有 sender/玩家 API 回到 global/entity owner。 */
 final class RemoteCommands implements AutoCloseable {
-  private record Pending(String code,String remote,String branch,String url,long expires,WorldOperations.PullPreview preview) {}
+  private record Pending(String code,String remote,String branch,String url,java.nio.file.Path world,DimensionId dimension,long expires,WorldOperations.PullPreview preview) {}
   private record Target(String remote,String branch,String url,SortedMap<DimensionId,String> heads) {}
   private final WorldGitPlugin plugin;
   private final RemoteSettings settings;
@@ -25,7 +25,7 @@ final class RemoteCommands implements AutoCloseable {
   private final Set<String> busy=ConcurrentHashMap.newKeySet();
   private final AtomicBoolean fetching=new AtomicBoolean();
   private volatile boolean stopped;
-  private volatile Map<DimensionId,String> announced=Map.of();
+  private final Map<java.nio.file.Path,Map<DimensionId,String>> announced=new ConcurrentHashMap<>();
   private WebhookReceiver webhook;
   RemoteCommands(WorldGitPlugin plugin,RemoteSettings settings) {
     this.plugin=plugin;this.settings=settings;secrets=new PlatformCredentials(settings,System.getenv(),plugin.getDataFolder().toPath());
@@ -34,24 +34,17 @@ final class RemoteCommands implements AutoCloseable {
     if(settings.webhook().enabled()) {
       webhook=new WebhookReceiver(settings.webhook(),secrets.webhookSecret(),plugin.getDataFolder().toPath().resolve("webhook-replays.yml"),e->{
         if(stopped)return false;
-        plugin.repo().submit(()->{
-          try(var r=open()) {
-            var spec=r.remotes().get(settings.defaultRemote()); if(spec==null)return null;
-            var endpoint=HubClient.endpoint(spec.url());
-            if(endpoint.owner().equals(e.owner()) && endpoint.world().equals(e.world()) && r.branch().equals(e.branch())) poll(0);
-          }
-          return null;
-        }); return true;
+        poll(0);return true;
       });
     }
     if(settings.fetchIntervalSeconds()>0) plugin.platform().asyncRepeating(settings.fetchIntervalSeconds(),settings.fetchIntervalSeconds()*1000L,()->poll(0));
   }
-  private WorldRemotes open() throws IOException { return open(DimensionId.OVERWORLD); }
+  private WorldRemotes open() throws IOException {return open(OperationUi.current()==null || OperationUi.current().dimension==null?DimensionId.OVERWORLD:OperationUi.current().dimension);}
   private WorldRemotes open(DimensionId dimension) throws IOException {
-    var layout=WorldMapper.map().layout();
+    var layout=plugin.mapping().layout();
     var paths=new WorldRepositories(layout).tracked();
     var primary=paths.get(dimension);if(primary==null)throw new IOException("維度尚未 init："+dimension);
-    var r=new WorldRemotes(layout.repositoryRoot(),Map.of(dimension,primary),secrets.credentials(),d->{},settings.timeoutSeconds());
+    var r=new WorldRemotes(primary,Map.of(dimension,primary),secrets.credentials(),d->{},settings.timeoutSeconds());
     try {
       if(!settings.hubUrl().isEmpty() && !r.remotes().containsKey(settings.defaultRemote()))r.configure("add",settings.defaultRemote(),settings.hubUrl(),false);
       return r;
@@ -63,23 +56,31 @@ final class RemoteCommands implements AutoCloseable {
       return new HubClient(spec.url(),secrets.credentials().resolve(settings.defaultRemote(),spec.url()),settings.timeout());
     }
   }
-  private DimensionId dimension(CommandSender sender) { return sender instanceof org.bukkit.entity.Player player ? plugin.dimensionOf(player.getWorld()).orElseThrow(()->new IllegalArgumentException("維度未追蹤")) : DimensionId.OVERWORLD; }
+  private DimensionId dimension(CommandSender sender) { if(OperationUi.current()!=null && OperationUi.current().dimension!=null)return OperationUi.current().dimension;return sender instanceof org.bukkit.entity.Player player ? plugin.dimensionOf(player.getWorld()).orElseThrow(()->new IllegalArgumentException("維度未追蹤")) : DimensionId.OVERWORLD; }
+  String mask(String text) { return secrets.mask(text); }
+  /** repo queue 預先讀秘密，非遠端錯誤也可遮罩；UI 不讀憑證檔。 */
+  void refreshCredentialMask() {
+    try {secrets.credentials();}catch(IOException | RuntimeException ignored) { /* 遠端操作仍會明確回報憑證檔錯誤。 */ }
+  }
   private static String key(CommandSender sender) {return sender instanceof Player p?p.getUniqueId().toString():"console";}
   private static CommitMetadata.Identity author(CommandSender sender,WorldGitPlugin plugin) {
     return sender instanceof Player p?new CommitMetadata.Identity(p.getName(),p.getUniqueId()+"@players.worldgit.invalid"):plugin.serverIdentity();
   }
   private void reply(CommandSender sender,String message,Object... args) {
+    if(Set.of("expired","busy","preview-changed","non-ff","notification-failed","usage").contains(message) && OperationUi.current()!=null)OperationUi.current().failed(new IOException(message));
     send(sender,()->Messages.line("paper.remote."+message,args));
   }
   private void send(CommandSender sender,java.util.function.Supplier<Component> message) {
     if(stopped)return;
-    Runnable task=()->{if(!stopped) Messages.inLocale(sender,()->sender.sendMessage(message.get()));};
+    var action=OperationUi.current();
+    Runnable task=()->OperationUi.within(action,()->{if(!stopped) Messages.inLocale(sender,()->sender.sendMessage(message.get()));return null;});
     if(sender instanceof Player p)plugin.platform().entity(p,task,()->{});else plugin.platform().global(task);
   }
   private void fail(CommandSender sender,Throwable error) {
+    if(OperationUi.current()!=null)OperationUi.current().failed(error);
     Throwable root=error;while(root instanceof CompletionException && root.getCause()!=null)root=root.getCause();
     if(root instanceof HubClient.Error e) {reply(sender,"error."+e.failure().name().toLowerCase(Locale.ROOT));return;}
-    String text=PlatformCredentials.redact(root);
+    String text=mask(PlatformCredentials.redact(root));
     String reason=text.replaceAll("(?i)https?://\\S+","[URL]");
     // core 會遮罩 PAT；不把異常 cause/body/stacktrace 送到 logger。
     if(reason.contains("pull preview")) {reply(sender,"preview-changed");return;}
@@ -136,14 +137,14 @@ final class RemoteCommands implements AutoCloseable {
         if (rows.isEmpty()) reply(sender, "empty"); rows.forEach((key, spec) -> reply(sender, "remote-row", "name", key, "url", spec.url()));
       }); return;
     }
-    async(sender,()->{try(var r=open(dimension)) {r.configure(action, name, url, false);return true;}},ignored->{pending.clear();announced=Map.of();plugin.suggestions().invalidateHub();plugin.suggestions().invalidateLocal();reply(sender,"configured");});
+    async(sender,()->{try(var r=open(dimension)) {r.configure(action, name, url, false);return true;}},ignored->{pending.clear();announced.clear();plugin.suggestions().invalidateHub();plugin.suggestions().invalidateLocal();reply(sender,"configured");});
   }
   private void transfer(CommandSender sender, String sub, String remote, String b, boolean t) {
     var identity=author(sender,plugin); var dimension=dimension(sender);
     async(sender,()->{try(var r=open(dimension)) {
       var result=sub.equals("fetch")?r.fetch(remote,false):r.push(remote,b,t,false,false,identity);
-      if(!result.success())throw new IOException(result.error());return result;
-    }},result->reply(sender,"transferred","mode",sub,"dimensions",result.commits().size()));
+      return result;
+    }},result->{if(result.success())reply(sender,"transferred","mode",sub,"dimensions",result.commits().size());else fail(sender,new IOException(result.error()));});
   }
   private Target fetch(String remote,String b,DimensionId dimension) throws IOException {
     try(var r=open(dimension)) {var result=r.fetch(remote,false);if(!result.success())throw new IOException(result.error());
@@ -153,7 +154,8 @@ final class RemoteCommands implements AutoCloseable {
     String id = key(sender); var identity = author(sender, plugin); var dimension=dimension(sender);
     if (request.command().equals("pull.confirm")) {
       Pending p=pending.get(id);
-      if(p==null || !p.code().equals(request.text("code")) || System.currentTimeMillis()>p.expires()) {reply(sender,"expired");return;}
+      var action=OperationUi.current();
+      if(p==null || !p.code().equals(request.text("code")) || System.currentTimeMillis()>p.expires() || !p.world().equals(action.mapping.layout().world()) || !p.dimension().equals(dimension)) {reply(sender,"expired");return;}
       if(!busy.add(id)) {reply(sender,"busy");return;}
       pending.remove(id,p);reply(sender,"start");
       // 先 fetch 網路，不持編輯鎖；再在 coordinator 同一 repo queue 內檢查固定 targets/HEAD。
@@ -161,7 +163,7 @@ final class RemoteCommands implements AutoCloseable {
         var target=fetch(p.remote(),p.branch(),p.preview().targets().firstKey());
         if(!target.url().equals(p.url()) || !target.heads().equals(p.preview().targets()))throw new IOException("pull preview 已過期；遠端 tip 改變，請重新 /wg pull");return target;
       }).thenCompose(target->plugin.repo().mergeOperation(p.preview().targets().firstKey(),"pull "+p.branch(),ops->{
-        var spec=RemoteSpec.read(new WorldRepositories(WorldMapper.map().layout()).tracked().get(p.preview().targets().firstKey())).get(p.remote());
+        var spec=RemoteSpec.read(new WorldRepositories(plugin.mapping().layout()).tracked().get(p.preview().targets().firstKey())).get(p.remote());
         if(spec==null || !spec.url().equals(p.url()))throw new IOException("pull preview 已過期；remote 設定改變，請重新 /wg pull");
         var result=ops.core().pull(p.preview().targets(),p.preview().expectedHeads(),false,
             new WorldOperations.MergeOptions(true,null,1,false,identity,CommitMetadata.Source.PLUGIN)).result();
@@ -176,27 +178,28 @@ final class RemoteCommands implements AutoCloseable {
     reply(sender,"start");
     plugin.repo().submit(()->fetch(remote,b,dimension)).thenCompose(target->plugin.repo().mergeOperation(dimension,"pull preview",ops->{
       var preview=ops.core().pull(target.heads(),null,false,new WorldOperations.MergeOptions(true,null,1,true,identity,CommitMetadata.Source.PLUGIN));
-      return new Pending(UUID.randomUUID().toString().substring(0,8),remote,target.branch(),target.url(),System.currentTimeMillis()+120000,preview);
+      return new Pending(UUID.randomUUID().toString().substring(0,8),remote,target.branch(),target.url(),plugin.mapping().layout().world(),dimension,System.currentTimeMillis()+120000,preview);
     })).whenComplete((p,e)->{
       busy.remove(id);if(e!=null) {fail(sender,e);return;}if(stopped)return;pending.put(id,p);
       var r=p.preview().result();long chunks=affectedChunks(r.plans(),r.reports());
       long sections=r.plans().values().stream().mapToLong(plan->plan.stats().sections()).sum();
       long regions=r.reports().values().stream().mapToLong(report->report.regions().size()).sum();
       reply(sender,"preview","mode",p.preview().fastForward()?"FF":"3-way","regions",regions,"chunks",chunks,"seconds",Math.max(1,(sections+79)/80));
-      send(sender,()->Messages.line("paper.remote.confirm","code",p.code()).clickEvent(ClickEvent.suggestCommand("/wg pull confirm "+p.code())));
+      var action=OperationUi.current();var world=action.mapping.worlds().get(dimension).getName();
+      send(sender,()->Messages.line("paper.remote.confirm","code",p.code()).clickEvent(ClickEvent.suggestCommand("/wg pull --world "+CommandArguments.quote(world)+" --dimension "+dimension+" confirm "+p.code())));
     });
   }
   private void pr(CommandSender sender, CommandRequest request) {
     String command = request.command();
     if (command.equals("pr.list")) {
-      async(sender, () -> { try (var h = hub()) { return h.pulls(); } }, rows -> {
+      async(sender, () -> { try (var h = hub()) { return h.pulls(dimension(sender)); } }, rows -> {
         if (rows.isEmpty()) reply(sender, "empty"); rows.stream().limit(20).forEach(p -> prLine(sender, p));
         if (rows.size() > 20) reply(sender, "pr-more", "count", rows.size() - 20);
       }); return;
     }
     if (command.equals("pr.view")) {
       int number = request.number("id", 0);
-      async(sender, () -> { try (var h = hub()) { return h.view(h.find(number)); } }, d -> {
+      async(sender, () -> { try (var h = hub()) { return h.view(h.find(number,dimension(sender))); } }, d -> {
         prLine(sender, d.pr()); reply(sender, "pr-detail", "state", CommentText.plain(d.mergeability(), 32), "approvals", d.approvals(), "required", d.requiredReviews());
       }); return;
     }
@@ -206,7 +209,7 @@ final class RemoteCommands implements AutoCloseable {
       String b;try(var r=open()) {b=s==null?r.branch():s;
         if(r.hasBranch(b)) {var push=r.push(settings.defaultRemote(),b,false,false,false,identity);if(!push.success())throw new IOException(push.error());}
         else {var fetched=r.fetch(settings.defaultRemote(),false);if(!fetched.success())throw new IOException(fetched.error());r.trackingHeads(settings.defaultRemote(),b);}}
-      try(var h=hub()) {return h.create(text,b,t);}
+      try(var h=hub()) {return h.create(text,b,t,dimension(sender));}
     }, p -> { plugin.suggestions().invalidateHub(); prLine(sender, p); });
   }
   private void prLine(CommandSender sender,HubClient.Pull p) {
@@ -224,8 +227,8 @@ final class RemoteCommands implements AutoCloseable {
     boolean show = command.equals("comments.show"), here = request.flag("--here");
     Integer pr = request.values().containsKey("id") ? request.number("id", 0) : null;
     var key = request.value("dimension", net.kyori.adventure.key.Key.class);
-    String dimension = key == null ? null : key.asString();
-    if (here && !(sender instanceof Player) || here && dimension != null) throw new IllegalArgumentException();
+    String dimension = key == null ? dimension(sender).value() : key.asString();
+    if (here && !(sender instanceof Player) || here && key != null) throw new IllegalArgumentException();
     Player player = sender instanceof Player p ? p : null; org.bukkit.World world = player == null ? null : player.getWorld();
     String current = world == null ? null : plugin.dimensionOf(world).orElseThrow().value();
     if (show || here) dimension = current;
@@ -236,9 +239,9 @@ final class RemoteCommands implements AutoCloseable {
     long showRequest=show?plugin.comments().request(player):0;
     if (command.equals("comment")) {
       String body = request.text("text");
-      async(sender,()->{try(var h=hub()) {h.comment(h.find(n),body,at);return true;}},ignored->reply(sender,"commented"));return;
+      async(sender,()->{try(var h=hub()) {h.comment(h.find(n,dimension(sender)),body,at);return true;}},ignored->reply(sender,"commented"));return;
     }
-    async(sender,()->{try(var h=hub()) {var rows=h.comments(n==null?null:h.find(n),d);
+    async(sender,()->{try(var h=hub()) {var rows=h.comments(n==null?null:h.find(n,dimension(sender)),d);
       if(local) {int minX=(at.x()>>4)<<4,minZ=(at.z()>>4)<<4;return rows.stream().filter(c->c.pin().x()<=minX+15 && (c.pin().maxX()==null?c.pin().x():c.pin().maxX())>=minX && c.pin().z()<=minZ+15 && (c.pin().maxZ()==null?c.pin().z():c.pin().maxZ())>=minZ).toList();}
       return rows;}},rows->{
       if(show) plugin.platform().entity(player,()->{
@@ -252,9 +255,17 @@ final class RemoteCommands implements AutoCloseable {
   Map<String, String> suggestionDefaults() {
     return settings.hubUrl().isEmpty() ? Map.of() : Map.of(settings.defaultRemote(), settings.hubUrl());
   }
+  List<CommandSuggestions.Entry> suggestionPulls(WorldMapper.Mapping mapping,DimensionId dimension) throws IOException {
+    if(stopped)return List.of();
+    var path=new WorldRepositories(mapping.layout()).tracked().get(dimension);if(path==null)return List.of();
+    var urls=RepositorySuggestions.remoteUrls(path,suggestionDefaults());String url=urls.get(settings.defaultRemote());if(url==null)return List.of();
+    try(var h=new HubClient(url,secrets.credentials().resolve(settings.defaultRemote(),url),java.time.Duration.ofMillis(1500))) {
+      return h.pulls(dimension).stream().limit(256).map(pr->CommandSuggestions.Entry.of(Integer.toString(pr.number()),"paper.command.tip.pr","title",CommentText.plain(pr.title(),160),"state",CommentText.plain(pr.status(),32))).toList();
+    }
+  }
   List<CommandSuggestions.Entry> suggestionPulls() throws IOException {
     if (stopped) return List.of();
-    var urls = RepositorySuggestions.remoteUrls(WorldMapper.map().layout().repositoryRoot(), suggestionDefaults());
+    var urls = RepositorySuggestions.remoteUrls(plugin.mapping().layout().repositoryRoot(), suggestionDefaults());
     String url = urls.get(settings.defaultRemote()); if (url == null) return List.of();
     try (var h = new HubClient(url, secrets.credentials().resolve(settings.defaultRemote(), url), java.time.Duration.ofMillis(1500))) {
       return h.pulls().stream().limit(256).map(pr -> CommandSuggestions.Entry.of(Integer.toString(pr.number()),
@@ -262,25 +273,33 @@ final class RemoteCommands implements AutoCloseable {
     }
   }
   private void broadcast(String key,String branch) {
+    var action=OperationUi.current();
     plugin.platform().global(()->{
       if(stopped)return;reply(plugin.getServer().getConsoleSender(),key,"branch",branch);
       for(var p:plugin.getServer().getOnlinePlayers())plugin.platform().entity(p,()->{
-        if(p.hasPermission("worldgit.command.pull") || p.hasPermission("worldgit.admin"))reply(p,key,"branch",branch);
+        if((p.hasPermission("worldgit.command.pull") || p.hasPermission("worldgit.admin")) && (action==null || action.mapping==null || action.mapping.worlds().get(action.dimension)==p.getWorld()))reply(p,key,"branch",branch);
       },()->{});
     });
   }
   private void poll(int attempt) {
     if(stopped || !fetching.compareAndSet(false,true))return;
-    plugin.repo().submit(()->{
+    var jobs=new ArrayList<CompletableFuture<?>>();
+    for(var mapping:plugin.mappings())for(var dimension:mapping.worlds().keySet()) {
+    var action=plugin.operations().begin(plugin.getServer().getConsoleSender(),"auto.fetch",mapping,dimension);
+    OperationUi.within(action,()->{jobs.add(plugin.repo().submit(()->{
+      if(!new WorldRepositories(mapping.layout()).tracked().containsKey(dimension)) {action.status=org.worldgit.core.operation.OperationResult.Status.NO_OP;return null;}
       try(var r=open()) {
-        if(!r.remotes().containsKey(settings.defaultRemote()))return null;
+        if(!r.remotes().containsKey(settings.defaultRemote())) {action.status=org.worldgit.core.operation.OperationResult.Status.NO_OP;return null;}
         String b=r.branch();var result=r.fetch(settings.defaultRemote(),false);if(!result.success())throw new IOException(result.error());
         var heads=r.trackingHeads(settings.defaultRemote(),b);
         var tracking=r.tracking().stream().filter(t->t.remote().equals(settings.defaultRemote()) && t.branch().equals(b)).findFirst().orElse(null);
-        if(tracking!=null && tracking.behind()>0 && !announced.equals(heads)) {announced=Map.copyOf(heads);broadcast("new-version",b);}
+        var path=mapping.layout().repository(dimension);
+        if(tracking!=null && tracking.behind()>0 && !heads.equals(announced.get(path))) {announced.put(path,Map.copyOf(heads));broadcast("new-version",b);}
         return null;
       }
-    }).whenComplete((v,e)->{
+    }));action.release();return null;});
+    }
+    CompletableFuture.allOf(jobs.toArray(CompletableFuture[]::new)).whenComplete((v,e)->{
       fetching.set(false);
       if(e!=null && !stopped) {
         if(attempt<5)plugin.platform().asyncDelayed(2L<<attempt,()->poll(attempt+1));

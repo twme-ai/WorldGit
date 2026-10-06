@@ -12,12 +12,14 @@ import static org.worldgit.paper.CommandSuggestions.*;
 
 /** 只用 readOnly store；不取會建立 lock 檔的 DimensionRepository，不保存 config、不復原 journal。 */
 final class RepositorySuggestions {
-  static List<Entry> read(WorldLayout layout, Kind kind, Map<String, String> defaults) throws IOException {
-    if (kind == Kind.REMOTES) return remotes(layout.repositoryRoot(), defaults);
-    if (kind == Kind.STASHES) return stashes(layout.repositoryRoot());
+  static List<Entry> read(WorldLayout layout, Kind kind, Map<String, String> defaults) throws IOException {return read(layout,null,kind,defaults);}
+  static List<Entry> read(WorldLayout layout, org.worldgit.core.model.DimensionId dimension,Kind kind,Map<String,String> defaults) throws IOException {
+    if (kind == Kind.REMOTES) return remotes(dimension==null?layout.repositoryRoot():layout.repository(dimension), defaults);
+    if (kind == Kind.STASHES) return stashes(dimension==null?layout.repositoryRoot():layout.repository(dimension));
     var tracked = new WorldRepositories(layout).tracked();
-    if (kind == Kind.DIMENSIONS) return tracked.keySet().stream().limit(256)
+    if (kind == Kind.DIMENSIONS) return layout.dimensions().keySet().stream().limit(256)
         .map(id -> Entry.of(id.value(), "paper.command.tip.dimension", "dimension", id.value())).toList();
+    if(dimension!=null)tracked.keySet().removeIf(id->!id.equals(dimension));
     var rows = new LinkedHashMap<String, Entry>();
     for (var path : tracked.values()) {
       try (var repository = new FileRepository(path.toFile()); var store = JGitStore.readOnly(repository)) {

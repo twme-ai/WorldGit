@@ -134,6 +134,13 @@
 | 127 | Hub 錯誤報告 | ErrorReport 先遮罩設定／Authorization／JSON 秘密值及已授權世界 webhook secret，再做 core PAT／URL userinfo／秘密欄位模式遮罩。報告含 code、operation id、dimension、版本、UTC、完整安全訊息；Clipboard 失敗開啟已選取純文字。（2026-10-05） | [安全審查](../hub/docs/security-review-phase5-2026-10-05.md) |
 | 128 | Hub 世界 ZIP 與 release | release 名稱是顯示識別，不再要求跨維度同名 tag。建立時每維度 revisions 可為 branch／tag／HEAD／commit；缺省使用該 repo HEAD，保存固定 commit map，下載交 core WorldAssembler。仍要求主世界 metadata／相容 DataVersion。（2026-10-05） | [使用指南](15-user-guide.md#107-release) |
 
+| 129 | Paper 世界與維度目標 | 玩家預設所在世界群／維度；console init 必須 --world 加 --dimension 或 --all，其餘預設伺服器第一個世界的主世界。目標旗標與 Brigadier 補全一致；greedy 文字後保持文字語意。（2026-10-05） | [Paper](../paper/README.md)、[16](16-phase5-design.md) |
+| 130 | Paper 逐維度批次 | --all 在同一 repo queue 逐維度完成後派下一維度，避免 remote busy 互斥拒絕；每維度結果獨立，聚合 SUCCESS／FAILED／PARTIAL，取消停止後續，不回滾已成功維度。作者歸屬按世界群保存，單維度 commit 不消耗其他維度。（2026-10-05） | [16](16-phase5-design.md) |
+| 131 | Paper 結果與 UI 排程 | 動作邊界統一 operation id、progress 與 OperationResult，非同步子工作保持完成引用；BossBar／聊天／title／音效排 entity 或 global scheduler，console 一秒節流。終態預設三秒，title／sound 預設關。（2026-10-05） | [Paper](../paper/README.md) |
+| 132 | Paper ignore 確認 | 箱子每頁 45 行，刪除／啟停／上移與聊天新增皆走 HEAD preview；120 秒確認綁執行者、世界群、維度、原文與 HEAD，再驗權限／MERGING。規則歷史仍由下一 commit 保存。（2026-10-05） | [15 §6](15-user-guide.md#6-伺服器管理員paperfolia) |
+| 133 | Paper 玩家觸及實體 | owner 只收集 UUID 根／乘客閉包，repo queue 串行 touch；init 前暫存繼承、轉換／跨維度繼承，套用後刷新資格；新 creative 改 player-touched，survival／舊 repo 不變。跨維度還原預檢拒絕重複 UUID，不刪其他維度。（2026-10-05） | [16 J](16-phase5-design.md#j-創造範本的實體追蹤) |
+| 134 | Paper 別名與安全報告 | Lifecycle 註冊 wg／wgit／git／worldgit，worldgit:git 永遠保留，裸 git 衝突不覆蓋且提示一次，開關重啟生效。錯誤的獨立複製元件使用 i18n hover／ErrorReport，另遮罩環境或 credentials YAML 的已知秘密；原 click 保留。（2026-10-05） | [Paper](../paper/README.md)、[16 I](16-phase5-design.md#i-複製錯誤) |
+
 
 ## 路線圖
 
@@ -146,7 +153,7 @@ Phase 1–4 各自是一條**貫穿四端的垂直切片**，同一個功能由 
 | **Phase 2：復原與切換** | 套用 patch、stash、DataFixer 升級流程 | `restore` `switch` `branch` `reset` | `/wg restore`（選取範圍）、原地 `switch`、玩家安全處理 | `/wg preview` 客戶端鬼影預覽另一個 commit；單人世界 switch/restore | 分支瀏覽、兩個 commit 的比較檢視 |
 | **Phase 3：合併** | 三方合併、衝突分群、生物 UUID 合併、合併後鄰居形狀修正 | `merge` `merge --abort` `revert` `cherry-pick` | 合併中狀態、合併工具（ours/theirs/base 原地切換）、衝突 GUI | 衝突清單 UI、ours/theirs 疊圖預覽 | 衝突區域檢視與選擇 |
 | **Phase 4：遠端協作** | push/pull 流程、權限 | `push` `pull` `clone`（產出可直接開的世界） | 遊戲內 `/wg push/pull/pr` | 同左（單人） | 帳號與權限、PR、座標留言、release 下載 |
-| **Phase 5：維度獨立與操作體驗** | 任務 1：獨立 repo／位置／遷移、init、graph、進度、ignore、結果／錯誤、player-touched | 任務 1：新語法與十項 core／CLI 功能 | 任務 3：玩家維度、wgit／git、bossbar、GUI ignore、複製、觸及事件 | 任務 4：同左＋單人／dedicated／客戶端畫面 | 任務 2：獨立專案／PR、互動 graph、進度／結果／複製 |
+| **Phase 5：維度獨立與操作體驗** | 任務 1：獨立 repo／位置／遷移、init、graph、進度、ignore、結果／錯誤、player-touched | 任務 1：新語法與十項 core／CLI 功能 | 任務 3：已接玩家維度、wgit／git、bossbar、GUI ignore、複製、觸及事件；驗收見 16 | 任務 4：同左＋單人／dedicated／客戶端畫面 | 任務 2：獨立專案／PR、互動 graph、進度／結果／複製 |
 | **之後** | 自製儲存後端（視量測）、sparse clone | | worktree 世界（Folia 除外）、更多版本 | 更多版本 | blame、hooks、俯視地圖 tile |
 
 ### 各階段的驗收標準

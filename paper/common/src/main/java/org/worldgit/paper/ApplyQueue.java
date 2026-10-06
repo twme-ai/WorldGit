@@ -20,6 +20,8 @@ final class ApplyQueue {
   private record Owner(UUID world,long region) {}
   final Map<Owner,Usage> usage=new ConcurrentHashMap<>();
   volatile boolean stopping;
+  volatile int total;
+  private final org.worldgit.core.operation.OperationProgress progress=org.worldgit.core.operation.OperationProgress.current();
   static final class Usage { long tick=Long.MIN_VALUE,nanos; int sections; }
   ApplyQueue(WorldGitPlugin plugin) { this.plugin=plugin; }
   interface Work { CompletionStage<Void> run(World world,Chunk chunk) throws Exception; }
@@ -101,7 +103,8 @@ final class ApplyQueue {
             plugin.bridge().applyChunk(world,new ApplyPlan.ChunkOp(op.pos(),false,new TreeMap<>(Map.of(section.y(),section)),new TreeMap<>(),false,null,false,null),rules);
             long elapsed=System.nanoTime()-start; used.nanos+=elapsed;
             if(timings!=null) timings.record("apply-owner",elapsed);
-            used.sections++; sections.incrementAndGet();
+            used.sections++;int done=sections.incrementAndGet();
+            if(progress!=null)progress.publish(plugin.dimensionOf(world).orElse(null),"apply",done,total>=done?(long)total:null,org.worldgit.core.operation.OperationProgress.Unit.SECTION);
           }
           if(!cancelled.get() && !stopping) plugin.bridge().applyChunk(world,new ApplyPlan.ChunkOp(op.pos(),op.delete(),new TreeMap<>(),op.biomes(),op.setTicks(),op.ticks(),op.setStructures(),op.structures()),rules);
           finish(null);

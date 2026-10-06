@@ -19,13 +19,25 @@ public final class WorldMapper {
   public static Mapping map() throws IOException {
     List<World> all = Bukkit.getWorlds();
     if (all.isEmpty()) throw new IOException("伺服器沒有任何世界");
-    WorldLayout layout = WorldLayout.discover(worldRoot(all.getFirst().getWorldFolder().toPath()));
+    return map(all.getFirst());
+  }
+
+  public static Mapping map(World anchor) throws IOException {
+    List<World> all = Bukkit.getWorlds();
+    Path folder = anchor.getWorldFolder().toPath();
+    if (anchor.getEnvironment() != World.Environment.NORMAL) {
+      String suffix = anchor.getEnvironment() == World.Environment.NETHER ? "_nether" : "_the_end";
+      String name = anchor.getName();
+      World parent = name.endsWith(suffix) ? Bukkit.getWorld(name.substring(0, name.length()-suffix.length())) : null;
+      if (parent != null) folder = parent.getWorldFolder().toPath();
+    }
+    WorldLayout layout = WorldLayout.discover(worldRoot(folder));
     var worlds = new TreeMap<DimensionId, World>();
     var unsupported = new ArrayList<String>();
     for (World world : all) {
       DimensionId id = dimensionOf(world, layout);
-      if (id == null || worlds.containsKey(id)) unsupported.add(world.getName());
-      else worlds.put(id, world);
+      if(id==null || !belongs(world,layout,id))continue;
+      if(worlds.containsKey(id))unsupported.add(world.getName());else worlds.put(id,world);
     }
     return new Mapping(layout, worlds, unsupported);
   }
@@ -54,6 +66,13 @@ public final class WorldMapper {
           default -> null;
         };
     return byEnvironment != null && layout.dimensions().containsKey(byEnvironment) ? byEnvironment : null;
+  }
+
+  private static boolean belongs(World world, WorldLayout layout, DimensionId id) {
+    Path folder = world.getWorldFolder().toPath().toAbsolutePath().normalize();
+    Path terrain = layout.dimensions().get(id).directory().toAbsolutePath().normalize();
+    return terrain.equals(folder) || terrain.getParent().equals(folder)
+        || id.equals(DimensionId.OVERWORLD) && layout.world().toAbsolutePath().normalize().equals(folder);
   }
 
   private static DimensionId tryId(String value) {

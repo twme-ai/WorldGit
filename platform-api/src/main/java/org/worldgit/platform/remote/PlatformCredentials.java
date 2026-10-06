@@ -11,11 +11,22 @@ public final class PlatformCredentials {
   private final RemoteSettings settings;
   private final Map<String,String> environment;
   private final Path directory;
+  private final Set<String> known = java.util.concurrent.ConcurrentHashMap.newKeySet();
   public PlatformCredentials(RemoteSettings settings, Map<String,String> environment, Path directory) {
     this.settings=settings; this.environment=Map.copyOf(environment); this.directory=directory.toAbsolutePath().normalize();
+    remember(environment.get(settings.tokenEnvironment()));remember(environment.get(settings.webhook().secretEnvironment()));
   }
   public Credentials credentials() throws IOException {
     secureDirectory();
+    Path file=directory.resolve(settings.credentialsFile());
+    if(Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(file) && Files.size(file)<=65536
+        && Files.getPosixFilePermissions(file).equals(Set.of(PosixFilePermission.OWNER_READ,PosixFilePermission.OWNER_WRITE))) {
+      var data=org.worldgit.core.service.OperationState.read(file);
+      if(data.get("credentials") instanceof Map<?,?> entries)for(var row:entries.values())if(row instanceof Map<?,?> credential && credential.get("token") instanceof String token) {
+        remember(token);String username=String.valueOf(credential.containsKey("username")?credential.get("username"):"token");
+        remember(Base64.getEncoder().encodeToString((username+":"+token).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+      }
+    }
     var env=new HashMap<String,String>();
     String token=environment.get(settings.tokenEnvironment());
     if(token!=null && !token.isEmpty()) { env.put("WGIT_TOKEN",token); env.put("WGIT_AUTH","bearer"); }
@@ -38,7 +49,16 @@ public final class PlatformCredentials {
     }
     if(secret.length()<32 || secret.length()>4096 || secret.indexOf('\n')>=0 || secret.indexOf('\r')>=0)
       throw new IOException("webhook secret 需 32–4096 字元且不得含換行");
-    return secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    remember(secret);return secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+  }
+  private void remember(String value) {
+    if(value!=null && !value.isEmpty() && known.size()<512) {known.add(value);known.add(java.net.URLEncoder.encode(value,java.nio.charset.StandardCharsets.UTF_8));}
+  }
+  /** UI 只遮罩記憶體，憑證解析時更新集合，包含不符合 PAT 形狀的已知秘密。 */
+  public String mask(String message) {
+    if(message==null)return "";
+    for(var secret:known.stream().sorted(Comparator.comparingInt(String::length).reversed()).toList())message=message.replace(secret,"[REDACTED]");
+    return org.worldgit.core.operation.OperationResult.redact(message);
   }
   /** 統一去除 exception chain，避免 logger 印出 transport/header/body 中秘密。 */
   public static String redact(Throwable error) {

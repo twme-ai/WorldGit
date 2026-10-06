@@ -1,8 +1,10 @@
-# WorldGit Paper / Folia 插件（Phase 4：遊戲內遠端協作）
+# WorldGit Paper / Folia 插件（Phase 5：維度與操作體驗）
 
 同一個發佈 jar 支援 Paper / Folia 的 Minecraft **1.21.11 與 26.2**。1.21.11 使用 Java 21，26.2 使用 Java 25。`common` 只引用公開 Paper API；`v1_21_11`、`v26_2` 以 paperweight-userdev 2.0.0-beta.21 各自編譯薄 NMS 轉接層，啟動時只載入符合版本的類別。
 
-Phase 5 任務 1 相容更新：主世界 repo 改為 `<world>/.worldgit/`，其他維度放各自資料目錄 `.worldgit/`，舊位置可讀並由離線 `wgit migrate` 搬移。玩家的切換／合併／remote／傳輸只作用於目前維度；console 暫以主世界為入口。init 暫保留批次建立，creative 明確使用 `entities: all`，以保留觸及事件尚未接線時的實體行為。所在維度 init／追加詢問、別名、graph／ignore GUI、完整進度／完成結果／錯誤複製及實體事件由任務 3 實作；下文 Phase 4 語意中有衝突的部分以 [Phase 5 設計](../docs/16-phase5-design.md) 為準。
+Phase 5 任務 3：所有 repo 指令預設使用玩家所在世界群的目前維度；console 的其他 repo 指令預設伺服器第一個世界的主世界，init 必須明確指定 `--world <世界名>` 與 `--dimension <id>` 或 `--all`。主世界 init 的聊天按鈕可追加既存地獄／終界，沒有自動建立其他 repo。`--dimension` 覆寫目標，`--all` 逐維度完成、各自回報；其中一維度失敗不回滾其他成功。
+
+新增 `/wgit`、`/git`、`/worldgit:git`，保留 `/worldgit`；裸 `/git` 衝突時保留其他插件，名稱空間仍可用。文字 graph、BossBar 進度與終態、完成摘要、可複製且遮罩的錯誤、ignore GUI／preview／確認、creative 玩家觸及實體已接線。Fabric 對應 UX 仍是任務 4；原版客戶端即可使用此次 Paper 功能。
 
 ```bash
 GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers=1 :paper:plugin:build
@@ -14,11 +16,11 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 
 | 指令 | 用途 | 權限（預設） |
 |---|---|---|
-| `/wg init [--template creative\|survival]` | 建立各維度 repo、初始快照與 ignore 範本 | `worldgit.command.init`（op） |
+| `/wg init [--template creative\|survival]` | 建立目前維度 repo、初始快照與 ignore 範本 | `worldgit.command.init`（op） |
 | `/wg status [--full] [--show]` | HEAD 與活世界摘要；full 為全量掃描 | `worldgit.command.status`（op） |
 | `/wg commit -m 訊息` | 手動存檔點；沒有變動就不寫 commit | `worldgit.command.commit`（op） |
-| `/wg log [數量]` | 各維度獨立的 snapshot 歷史；graph 介面待任務 3 | `worldgit.command.log`（所有人） |
-| `/wg diff [--show] [--radius 6]` | 玩家附近的方塊明細，hover 前後狀態、點擊填入傳送指令 | `worldgit.command.diff`（op） |
+| `/wg log [數量] [--graph] [--page 頁]` | 目前維度歷史／文字分支圖；hover 完整資訊，點選填入 diff | `worldgit.command.log`（所有人） |
+| `/wg diff [rev] [--show] [--radius 6]` | 玩家附近的方塊明細，hover 前後狀態、點擊填入傳送指令 | `worldgit.command.diff`（op） |
 | `/wg clear` | 清除自己的客戶端預覽 | `worldgit.command.clear`（所有人） |
 | `/wg reload` | 重新載入語言覆寫 | `worldgit.command.reload`（op） |
 | `/wg restore <rev> [--selection\|--chunks r\|--box x1 y1 z1 x2 y2 z2] [--dry-run]` | 原地還原；局部裁切方塊／BE，不移動 HEAD | `worldgit.command.restore`（op） |
@@ -33,11 +35,13 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 | `/wg conflicts [頁]` | 衝突清單 GUI（玩家）或文字清單（主控台）；點擊傳送。`conflicts preview <#> ours\|theirs\|base` 對 Fabric 客戶端送預覽 | `worldgit.command.conflicts`（op） |
 | `/wg tool` | 取得合併工具（命名的指南針）：站進衝突區域，右鍵 ours→theirs→base 循環，Shift+右鍵標記已解決 | `worldgit.command.tool`、使用時另需 `worldgit.command.resolve`（op） |
 | `/wg revert <rev>` / `/wg cherry-pick <rev>` | 反向／正向 patch；乾淨直接 commit，有衝突進同一 MERGING 流程 | `worldgit.command.revert`／`worldgit.command.cherry-pick`（op） |
+| `/wg ignore [list\|add\|remove\|move\|enable\|disable\|test\|check\|preview\|confirm]` | 箱子規則清單／聊天新增、預覽與確認；下一 commit 記錄歷史 | `worldgit.command.ignore`（op） |
+| `/wg tag [-d] [name]`／`verify [rev]` | 目前維度 tag 與線上驗證 | `worldgit.command.tag`／`verify`（op） |
 | `/wg help [子指令]` | 依權限列出用法，點擊填入聊天列 | 所有人 |
 
 `worldgit.admin` 包含上述指令與 `worldgit.notify` 通知。開發量測入口 `/wg debug` 只開放主控台，其他 sender 必須有 `worldgit.debug`（預設 false）。
 
-`/wg` 與別名 `/worldgit` 使用 **Paper Brigadier Command API**。`onEnable` 透過 `LifecycleEvents.COMMANDS` 註冊完整指令樹，`plugin.yml` 只保留權限，沒有 Bukkit `commands:`／字串解析器。每個節點的 `requires` 同時檢查權限與 sender：tool、diff、clear、conflict-preview 限玩家；status 的 --show、restore 的 --selection、comments 的 show／hide／--here 也限玩家。預設非 op 玩家只收到 log、clear、help；help 的主題同樣過濾。直接輸入無權限入口仍回覆既有多語言權限訊息。
+`/wg`、`/wgit`、`/git` 與 `/worldgit` 使用 **Paper Brigadier Command API**。`onEnable` 透過 `LifecycleEvents.COMMANDS` 註冊完整指令樹，`plugin.yml` 只保留權限，沒有 Bukkit `commands:`／字串解析器。每個節點的 `requires` 同時檢查權限與 sender：tool、diff、clear、conflict-preview 限玩家；status 的 --show、restore 的 --selection、comments 的 show／hide／--here 也限玩家。預設非 op 玩家只收到 log、clear、help；help 的主題同樣過濾。直接輸入無權限入口仍回覆既有多語言權限訊息。
 
 聊天列會逐參數提示與上色；log 數量 1–100、diff 半徑 1–32 chunk、restore 的 --chunks 0–256、stash index ≥0、PR／衝突編號／頁碼 ≥1。`--box` 是兩個 `ArgumentTypes.blockPosition()`，除了原本六個整數，也接受相對於指令來源的 `~` 與區域座標 `^`；留言維度使用 namespaced key，debug 的玩家使用 player resolver。型別／範圍錯誤交由 Brigadier 標示位置，repo／Hub 業務錯誤仍使用原有 i18n 訊息。
 
@@ -69,7 +73,7 @@ GRADLE_USER_HOME=.work/gradle-home flock .work/bench.lock ./gradlew --no-daemon 
 
 ## 儲存、設定與多語言
 
-每個維度使用 CLI 可直接讀取的 bare repo：主世界 `<world>/.worldgit/`，其他維度的資料目錄內 `.worldgit/`。`.wgignore`、`worldgit-repo.yml` 與本機 `worldgit.yml` 跟著各 repo 攜帶；平台目前由主世界讀取色票／實體黏性距離，完整逐維度設定 UX 待任務 3。`modified-only` 尚未接平台的持久玩家編輯集合，缺集合時保守追蹤所有 full chunk。
+每個維度使用 CLI 可直接讀取的 bare repo：主世界 `<world>/.worldgit/`，其他維度的資料目錄內 `.worldgit/`。`.wgignore`、`worldgit-repo.yml` 與本機 `worldgit.yml` 跟著各 repo 攜帶；repo 指令由目標維度讀取色票／實體黏性距離。`modified-only` 尚未接平台的持久玩家編輯集合，缺集合時保守追蹤所有 full chunk。
 
 `plugins/WorldGit/config.yml` 管理輪詢、每 tick 複製鏈數、滑動視窗、timeout、自動 commit 與預覽半徑。整數、布林值與身分字串會驗證；錯誤設定會明確停用插件。
 
@@ -81,7 +85,7 @@ GRADLE_USER_HOME=.work/gradle-home flock .work/bench.lock ./gradlew --no-daemon 
 
 候選來源為原始 `ChunkAccess.unsaved` volatile 欄位、Bukkit 事件、WorldEdit/FAWE，以及 entity chunk。未載入部分使用 core 的 region 時間戳、payload 雜湊與同秒不確定窗；卸載存檔仍在排隊時，可能到下一次 scan 才被看到。沒有強制 flush barrier，不宣稱所有卸載操作當下即已持久化。世界級 gamerule 另外在全域排程器複製，避免尚未落盤的設定在 commit 中落後。
 
-事件與 WorldEdit 以**維度／玩家／chunk／原因**記錄作者；commit 帶 primary author、多位 `Contribution` 與 `Co-authored-by` trailers。目前是 chunk 級歸屬，沒有逐格 blame 或 per-player staging。失敗或未達自動門檻時，作者資料保留到下一次；新事件不會被較舊的 dirty generation 清掉。
+事件與 WorldEdit 以**世界群／維度／玩家／chunk／原因**記錄作者；commit 帶 primary author、多位 `Contribution` 與 `Co-authored-by` trailers。目前是 chunk 級歸屬，沒有逐格 blame 或 per-player staging。失敗或未達自動門檻時，作者資料保留到下一次；新事件不會被較舊的 dirty generation 清掉；單維度 commit 保留其他維度的作者資料。
 
 定時自動 commit 預設每 15 分鐘，小變动最晚合併到 30 分鐘；`min-changed-sections` 可調高以降低生存世界底噪。只有實體變動預設不觸發定時 commit。登出觸發提交當前世界的全部變動；**並非只提交該玩家的變動**。Paper 在關閉流程內聯 commit。Folia 的 disable 階段沒有可用的 region 排程，改走**離線路徑**：onDisable 預載插件類別與離線來源，JVM 關閉鉤子等伺服器印出「All RegionFile I/O tasks to complete」（所有世界已存完）後，用 core 的離線掃描 commit（與 CLI 同一條路徑，標記為自動存檔點；作者歸屬沿用）。結果寫在 `plugins/WorldGit/shutdown-commit.log`（此時 log4j 已不可靠）。等不到訊號（180 秒）就放棄、不動世界。`/stop` 與 SIGTERM 兩種關閉方式都驗證過；kill -9／崩潰當然不會有關閉前 commit。
 
@@ -139,13 +143,13 @@ CI 對選定 adapter 與其內部類別檢查 NMS 方法／欄位描述子、存
 
 ## 線上套用、安全與復原
 
-repo executor 在全組編輯鎖內完成 flush、capture、預檢、journal、套用與驗證。chunk 由伺服器 async IO 載入，加 plugin ticket 後交由真正 owner 替換 section／BE／biome／scheduled ticks／structures，明確更新 POI、heightmap、光照及 unsaved。Starlight 完成回呼後重送 chunk，最後完成 terrain／entity／POI IO barrier；不直接寫使用中的 `.mca`。Folia 依當下 region ID／tick 共用預算、多 lane 並行；Paper 全維度共用同一個 tick 預算。有玩家時 4 section／5 ms／16 ticket，無玩家時 8／5 ms／24 ticket；section 不可搶占，時間是軟上限。
+repo executor 在目標維度編輯鎖內完成 flush、capture、預檢、journal、套用與驗證。chunk 由伺服器 async IO 載入，加 plugin ticket 後交由真正 owner 替換 section／BE／biome／scheduled ticks／structures，明確更新 POI、heightmap、光照及 unsaved。Starlight 完成回呼後重送 chunk，最後完成 terrain／entity／POI IO barrier；不直接寫使用中的 `.mca`。Folia 依當下 region ID／tick 共用預算、多 lane 並行；Paper 全維度共用同一個 tick 預算。有玩家時 4 section／5 ms／16 ticket，無玩家時 8／5 ms／24 ticket；section 不可搶占，時間是軟上限。
 
-實體先依 UUID 掃描全維度的已存／已載入資料，只 ticket 載入含操作 UUID 的磁碟 chunk；全部移除（含舊 passengers）後才生成。正規化省略的乘客位置在 LOAD 前補母實體位置，避免加入原點或錯誤的 Folia region。剛生成實體不以 Folia `isValid()` 作成功判準；以全組 capture／存檔後 verify 為準。明確忽略的 BE／實體頂層欄位保留。套用後清除模組 status／diff 分包與 display fallback。
+實體先預檢其他維度的活 UUID；若重複則拒絕並指出維度。只在目標維度 ticket 載入含操作 UUID 的磁碟 chunk，先移除舊 passengers，再生成；集合外自然實體保留。正規化省略的乘客位置在 LOAD 前補母實體位置，避免加入原點或錯誤的 Folia region。剛生成實體不以 Folia `isValid()` 作成功判準；以全組 capture／存檔後 verify 為準。明確忽略的 BE／實體頂層欄位保留。套用後清除模組 status／diff 分包與 display fallback。
 
 操作期間使用 vanilla 全伺服器 tick freeze，保存並恢復原 freeze／step 狀態；玩家仍可移動。事件攔截玩家編輯、容器、活塞、流體、紅石、爆炸、生物改方塊與 WorldEdit／FAWE。第三方直接寫 NMS 的插件須先查詢 `WorldGitPlugin.isEditLocked(world)` 配合，Bukkit 沒有通用攔截任意插件寫入的機制。WorldEdit `--selection` 目前接受 cuboid。
 
-玩家不被傳送；FALL／SUFFOCATION／DROWNING 保護涵蓋整個操作與結束後 10 秒，也涵蓋中途進入範圍的玩家。bossbar／通知排到各玩家 EntityScheduler。只有全組驗證成功才廣播「已切換到 X @ abc1234」並更新 HEAD。
+玩家不被傳送；FALL／SUFFOCATION／DROWNING 保護涵蓋整個操作與結束後 10 秒，也涵蓋中途進入範圍的玩家。bossbar／通知排到各玩家 EntityScheduler。只有該維度驗證成功才廣播「已切換到 X @ abc1234」並更新 HEAD。
 
 取消／插件關閉留下 PARTIAL，崩潰留下的 APPLYING 下次啟動轉成 PARTIAL 並提示；commit 被阻擋，使用 `/wg switch <target> --force` 或 `/wg reset --hard` 全範圍恢復。關閉時先停 bossbar 更新；玩家通知若與停用競爭，走退休清理，不再註冊新排程。沒有自動續傳或反向回滾。切換時目標沒有的 chunk 保留並標 untracked，包含 ticket 載入期間新生成的周邊 chunk；explicit commit 才重新追蹤。
 
@@ -167,17 +171,17 @@ Phase 3 驗收新增 6 次工具切換、在大世界的 200 個衝突區域中�
 
 | 指令 | 行為 | 權限（皆預設 op） |
 |---|---|---|
-| `/wg remote add <name> <Hub URL>`／`remove <name>`／`list`／`set-url <name> <URL>` | 全維度 remote sidecar；一般 git 樣板亦沿用 core | `worldgit.command.remote` |
-| `/wg fetch [remote]` | 背景下載，publication 全組驗證後才發布 tracking | `worldgit.command.fetch` |
+| `/wg remote add <name> <Hub URL>`／`remove <name>`／`list`／`set-url <name> <URL>` | 目前維度 remote sidecar；--all 逐維度設定，一般 git 樣板沿用 core | `worldgit.command.remote` |
+| `/wg fetch [remote]` | 背景下載、驗證目前維度後發布其 tracking | `worldgit.command.fetch` |
 | `/wg push [remote] [branch] [--tags]` | FF 推送／PARTIAL 原參數重試；拒絕非 FF，提示 pull；沒有 force | `worldgit.command.push` |
 | `/wg pull [remote] [branch]` | fetch 後顯示 FF／三方／衝突區域／chunk／套用估計；不改世界 | `worldgit.command.pull` |
 | `/wg pull confirm <code>` | 120 秒內一次性、綁執行者確認；重新 fetch，tip／URL／本地 HEAD 改變即拒絕；live 套用／MERGING | 同上 |
-| `/wg pr create <title> [--source b] [--target main]`／`list`／`view <#>` | 本機來源先 push；另一端已發布來源先 fetch 驗全組；狀態／mergeability／審核數／可點擊 Hub 連結 | `worldgit.command.pr` |
+| `/wg pr create <title> [--source b] [--target main]`／`list`／`view <#>` | 本機來源先 push；另一端已發布來源先 fetch 驗指定維度；狀態／mergeability／審核數／可點擊 Hub 連結 | `worldgit.command.pr` |
 | `/wg comments [pr #] [--here\|--dimension d]` | 世界／PR／維度釘選清單；--here 為目前 chunk 相交釘選 | `worldgit.command.comment` |
 | `/wg comment <#> <text> [--here]` | PAT 身分留言，--here 帶玩家目前維度與整數座標 | 同上 |
 | `/wg comments show\|hide [pr #]` | 目前維度已載入 chunk 的私人 TextDisplay；hide 清除全部自己的留言顯示 | 同上 |
 
-PR **merge／approve 僅在 Hub 網頁**，因為審核與衝突選擇應搭配網頁 3D 檢視。`worldgit.admin` 包含新增權限。遊戲 `/wg push` 僅推已 commit 的歷史；不自動 capture。pull 要求全組乾淨（含 untracked），沿用 Phase 3 的 commit／stash 與 MERGING 規則。chunk 統計包含候選計畫與精確衝突 atoms（即使預設 ours 暫不改方塊）。估計以候選計畫每秒 80 section 的保守顯示基準計算，至少 1 秒，不含網路、完整 capture／存檔／驗證，也不是延遲保證；後續衝突選擇的套用另計。
+PR **merge／approve 僅在 Hub 網頁**，因為審核與衝突選擇應搭配網頁 3D 檢視。`worldgit.admin` 包含新增權限。遊戲 `/wg push` 僅推已 commit 的歷史；不自動 capture。pull 要求目標維度乾淨（含 untracked），沿用 Phase 3 的 commit／stash 與 MERGING 規則。chunk 統計包含候選計畫與精確衝突 atoms（即使預設 ours 暫不改方塊）。估計以候選計畫每秒 80 section 的保守顯示基準計算，至少 1 秒，不含網路、完整 capture／存檔／驗證，也不是延遲保證；後續衝突選擇的套用另計。
 
 `config.yml` 的 `remote` 區段範例見 [內建設定](common/src/main/resources/config.yml)。`hub-url` 空白時使用 `/wg remote add`；有值時遠端操作會補上尚不存在的預設 remote；要永久移除配置的預設 remote，須清空 hub-url 並重新啟動。`default-name: origin`；`fetch-interval-seconds: 0` 關閉定時 fetch，啟用至少 60 秒；REST 與 git socket timeout 使用 `timeout-seconds`（1–120，預設 30）。世界 remotes.yml 不含憑證，token 不可放在 URL。
 
@@ -194,7 +198,7 @@ credentials:
 
 webhook 預設關閉，啟用後預設 `127.0.0.1:25731/worldgit/webhook`；secret 從 `WGIT_WEBHOOK_SECRET` 或插件資料夾 `webhook.secret`（UTF-8 純文字、32–4096 字元、600）取得。Hub 管理者另在世界 webhook 設定同一 URL／secret，事件選 push／pr.merged；loopback 需 Hub 的精確 allowlist。接收器只支援 HTTP/1.1、Content-Length POST、Connection close；不接受 chunked／redirect／其他方法。公開入口應由 TLS reverse proxy 終結，固定 body/header/連線限制。
 
-通知只針對預設 remote 的目前本機分支。簽章／重放／大小／速率檢查後，背景 fetch 驗完整 publication，對有 pull 權限的線上玩家與 console 提示 `/wg pull`；publication 尚未完成／網路失敗有限退避 2/4/8/16/32 秒，仍失敗則提示手動 fetch。**永遠不自動 apply**。安全審查見 [Phase 4 紀錄](docs/security-review-phase4-2026-10-03.md)。
+通知只針對預設 remote 的目前本機分支。簽章／重放／大小／速率檢查後，背景 fetch 驗各維度傳輸，對有 pull 權限的線上玩家與 console 提示 `/wg pull`；傳輸尚未完成／網路失敗有限退避 2/4/8/16/32 秒，仍失敗則提示手動 fetch。**永遠不自動 apply**。安全審查見 [Phase 4 紀錄](docs/security-review-phase4-2026-10-03.md)。
 
 留言最多讀 512 則（不足時可按 PR／維度篩選）；PR／留言清單顯示前 20 則，PR 可用 view 指定編號，show 最多 64 個 TextDisplay，不載入遠端指定的未知 chunk。文字以 `Component.text` 當純文字，作者 32／摘要 240 Unicode 字元，截斷時另加省略號；HTML／MiniMessage 保持字面，legacy 色碼、控制／雙向格式字元移除。範圍是每玩家 DUST 粒子外框（每秒最多 384 點／64 格距離）。`visibleByDefault=false` 後只向請求者 showEntity，`persistent=false`＋兩版 capture tag 排除；hide／離線／換維度清除，晚到的 REST 回應不能重建已清除顯示。Paper 停用同步刪除；Folia 正常停服隨世界卸載清除，第三方熱卸載沒有立即跨 region 刪除保證，詳見安全審查。
 
@@ -218,3 +222,43 @@ python3 paper/tools/phase4_regressions.py --case folia-26.2-interop
 ```
 
 遠端場景使用 `.work/servers/phase4-runs/` 複本，既有回歸各自使用 harness 的 run 目錄；finally 關閉 Hub／bot／瀏覽客戶端並刪除秘密與大型複本。`paper/tools/fixtures/Phase4DisplayGameTest.java` 是臨時客戶端截圖 fixture，透過 init script 加入既有 gametest task，fixture 不納入正式 Fabric jar，沒有修改 Fabric 原始碼。實際結果與限制見 [docs/14 Paper／Folia](../docs/14-phase4-progress.md#paper-folia)，[可攜驗收摘要](docs/phase4/results-2026-10-03.json) 保留原始證據雜湊，精選截圖在 `paper/docs/screenshots/phase4/`。
+
+## Phase 5 用法（2026-10-05）
+
+```text
+/wg init                         # 只初始化玩家目前維度
+/wg init --world world --dimension minecraft:the_nether  # console 的明確目標
+/wg status --dimension minecraft:the_nether --full
+/wg commit --all -m 各維度存檔      # 目標旗標放在 greedy 訊息前
+/wg log --graph --all             # 各維度、全部 refs，非原子批次
+/wg log --graph --page 2
+/wg ignore                       # 54 格箱子，每頁 45 行
+/wg ignore add entity minecraft:cow
+/wg ignore confirm <預覽代碼>      # 或點選聊天確認按鈕
+/wg commit -m 更新排除規則
+/wg ignore test target           # 準星方塊／實體；test hand 測手持物品欄位
+/wg ignore move 8 3
+```
+
+`--world` 用載入中的 Bukkit 世界名稱（可補全）；`--dimension` 用 namespaced ID（可補全），不能與 `--all` 同時使用。目標旗標可在一般參數前後；commit／stash／PR／留言的 greedy 文字尾端保持文字語意，應將目標旗標放在文字前。graph 每頁預設 10 列，可指定 1–100；branch／tag／HEAD 有色彩、ASCII lane 用 uniform font，hover 保留完整 hash／父節點／作者／時間／snapshot。
+
+ignore 左鍵刪除、右鍵啟停、Shift 點擊上移，新增按鈕轉為聊天輸入。任何修改先顯示 HEAD 的排除數量與樣本；120 秒內確認綁定執行者、世界群、維度、原規則與 HEAD，再驗權限和 MERGING。規則 ID 是檔案行號；取消可不確認，新的 preview 取代舊的。同次確認只寫 `.wgignore`，下一 commit 才寫歷史。預覽只計算 HEAD 已追蹤內容，不代表未提交世界的完整掃描。
+
+新 creative repo 使用 `entities: player-touched`，自然牛等不入庫；生怪蛋、summon／data entity、放置、命名／拴繩／馴服／裝備／染色／繁殖／騎乘、展示框互動與 WE／FAWE 建立實體都記錄 UUID 閉包。init 前觸及在本次伺服器執行期間暫存，init 時繼承；UUID 轉換／跨維度傳送繼承資格。sidecar 由 repo queue 串行寫入，restore／merge 後更新事件資格。survival 與已有 repo 的 entities 設定保持原值。
+
+每個正式動作有 SUCCESS／NO_OP／PARTIAL／FAILED／CANCELLED 終態，含目標、短 hash／分支、變動或傳輸摘要、耗時。耗時操作 BossBar 給執行者和 `worldgit.notify` 觀察者；console 每秒最多一行進度。成功綠／失敗紅終態預設停留 3 秒；`feedback.title`、`sound` 預設關，`auto-notify` 可關閉授權玩家的自動完成通知，console 保留結果。錯誤後的獨立 `[複製]` 保存版本、UTC、維度與 operation id，遮罩已知 PAT 和敏感欄位，不更動原文字 click。
+
+```yaml
+aliases:
+  git: true
+  wgit: true
+feedback:
+  terminal-seconds: 3
+  title: false
+  sound: false
+  auto-notify: true
+```
+
+所有設定需重啟；`/wg reload` 只重載語言。線上 clone／export／migrate 沒有入口，沿用 CLI 的停止世界要求。第三方直接寫 NMS 或未經 WE／FAWE hook 的 UUID 改寫不屬於可攔截事件；無法把任意第三方寫入推測成玩家觸及。
+
+驗收腳本自持 bench.lock：`python3 paper/tools/phase5.py --matrix` 跑 Paper／Folia 兩版及別名衝突／停用；`python3 paper/tools/phase5_screenshots.py paper 1.21.11`（亦可指定其他組合）用真客戶端拍攝八種畫面。證據與限制見 [Phase 5 設計紀錄](../docs/16-phase5-design.md)，截圖在 [phase5](docs/screenshots/phase5/)。

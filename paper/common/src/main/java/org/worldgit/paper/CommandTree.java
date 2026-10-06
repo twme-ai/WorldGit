@@ -29,7 +29,7 @@ final class CommandTree {
   };
   static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore",
       "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "conflict-select", "conflicts",
-      "conflict-preview", "tool", "revert", "cherry-pick", "remote", "fetch", "push", "pull", "pr", "comments", "comment", "help", "debug");
+      "conflict-preview", "tool", "revert", "cherry-pick", "remote", "fetch", "push", "pull", "pr", "comments", "comment", "ignore", "tag", "verify", "help", "debug");
 
   private final Actions actions;
   private final CommandSuggestions suggestions;
@@ -87,9 +87,10 @@ final class CommandTree {
     return new CommandRequest(command, values, flags);
   }
 
-  LiteralArgumentBuilder<CommandSourceStack> build() {
+  LiteralArgumentBuilder<CommandSourceStack> build() { return build("wg"); }
+  LiteralArgumentBuilder<CommandSourceStack> build(String label) {
     building = "help";
-    var root = exec(lit("wg"), "help");
+    var root = exec(lit(label), "help");
     for (String sub : SUBS) {
       building = sub;
       var node = lit(sub);
@@ -105,8 +106,35 @@ final class CommandTree {
         }
         case "status" -> flags(node, sub, List.of("--full", "--show"), Set.of());
         case "commit" -> node.then(lit("-m").then(exec(arg("text", greedyString()), sub)));
-        case "log" -> { exec(node, sub); node.then(exec(arg("limit", integer(1, 100)), sub)); }
-        case "diff" -> flags(node, sub, List.of("--show", "--radius"), Set.of());
+        case "log" -> {
+          flags(node, sub, List.of("--graph", "--all"), Set.of());
+          var limit = arg("limit", integer(1, 100)); flags(limit, sub, List.of("--graph", "--all"), Set.of()); node.then(limit);
+          var graph = lit("--graph"); flags(graph, sub, List.of("--all"), Set.of());
+          var page = lit("--page").then(exec(arg("page", integer(1, 1000)), sub)); graph.then(page); node.then(graph);
+        }
+        case "verify" -> { exec(node, sub); node.then(exec(token("revision", REVISION, CommandSuggestions.Kind.REVISIONS), sub)); }
+        case "tag" -> {
+          exec(node, "tag.list"); node.then(exec(token("tag", BRANCH, null), "tag.create"));
+          node.then(lit("-d").then(exec(token("tag", BRANCH, CommandSuggestions.Kind.REVISIONS), "tag.delete")));
+        }
+        case "ignore" -> {
+          exec(node, "ignore.gui");
+          for (String mode : List.of("list", "check", "preview", "gui")) node.then(exec(lit(mode), "ignore." + mode));
+          node.then(lit("add").then(exec(arg("text", greedyString()).suggests(suggestions.ignoreRules()), "ignore.add")));
+          for (String mode : List.of("remove", "move", "enable", "disable")) {
+            var id = arg("line", integer(1, 4096)).suggests(suggestions.ignoreLines());
+            if (mode.equals("move")) id.then(exec(arg("destination", integer(1, 4096)), "ignore.move")); else exec(id, "ignore." + mode);
+            node.then(lit(mode).then(id));
+          }
+          var test = exec(players(lit("test")), "ignore.test");
+          for (String mode : List.of("target", "hand")) test.then(exec(players(lit(mode)), "ignore.test." + mode));
+          test.then(exec(arg("text", greedyString()), "ignore.test")); node.then(test);
+          node.then(lit("confirm").then(exec(arg("code", com.mojang.brigadier.arguments.StringArgumentType.word()), "ignore.confirm")));
+        }
+        case "diff" -> {
+          flags(node, sub, List.of("--show", "--radius"), Set.of());
+          var revision=token("revision",REVISION,CommandSuggestions.Kind.REVISIONS);flags(revision,sub,List.of("--show","--radius"),Set.of());node.then(revision);
+        }
         case "clear", "reload", "cancel", "tool" -> exec(node, sub);
         case "restore", "switch" -> {
           var revision = token("revision", REVISION, CommandSuggestions.Kind.REVISIONS);
@@ -184,9 +212,41 @@ final class CommandTree {
         case "debug" -> debug(node);
         default -> throw new IllegalStateException(sub);
       }
+      if (!Set.of("help", "debug", "clear", "reload", "cancel").contains(sub)) node=targets(node);
       root.then(node);
     }
     return root;
+  }
+
+
+  /** 目標旗標可放參數前或非 greedy 參數後；文字尾端保持原有純文字語意。 */
+  private LiteralArgumentBuilder<CommandSourceStack> targets(LiteralArgumentBuilder<CommandSourceStack> builder) {
+    var pure=builder.build();
+    return (LiteralArgumentBuilder<CommandSourceStack>) decorateTargets(pure);
+  }
+
+  private ArgumentBuilder<CommandSourceStack,?> decorateTargets(com.mojang.brigadier.tree.CommandNode<CommandSourceStack> pure) {
+    var builder=pure.createBuilder();
+    for(var child:pure.getChildren()) {
+      boolean greedy=child instanceof com.mojang.brigadier.tree.ArgumentCommandNode<?,?> argument &&
+          (argument.getType() instanceof com.mojang.brigadier.arguments.StringArgumentType text && text.getType()==com.mojang.brigadier.arguments.StringArgumentType.StringType.GREEDY_PHRASE
+          || argument.getType() instanceof CommandArguments.TextTail);
+      builder.then(greedy?child:decorateTargets(child).build());
+    }
+    if(pure.getCommand()==null && !pure.getName().equals(building))return builder;
+    // 後續參數只共用未裝飾原樹，不把目標旗標再次遞迴展開。
+    var dimension=nativeArg("dimension","dimension").suggests(suggestions.provider(CommandSuggestions.Kind.DIMENSIONS));
+    if(pure.getCommand()!=null)dimension.executes(pure.getCommand());
+    for(var child:pure.getChildren())if(!Set.of("--dimension","--all").contains(child.getName()))dimension.then(child);
+    if(pure.getChild("--dimension")==null)builder.then(lit("--dimension").then(dimension));
+    var all=lit("--all");if(pure.getCommand()!=null)all.executes(pure.getCommand());
+    for(var child:pure.getChildren())if(!Set.of("--dimension","--all").contains(child.getName()))all.then(child);
+    if(pure.getChild("--all")==null)builder.then(all);
+    var world=arg("world",com.mojang.brigadier.arguments.StringArgumentType.string()).suggests(suggestions.worlds());
+    if(pure.getCommand()!=null)world.executes(pure.getCommand());
+    for(var child:pure.getChildren())world.then(child);
+    world.then(lit("--dimension").then(dimension));world.then(all);builder.then(lit("--world").then(world));
+    return builder;
   }
 
   private void flags(ArgumentBuilder<CommandSourceStack, ?> node, String command, List<String> available, Set<String> used) {

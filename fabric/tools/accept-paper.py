@@ -163,7 +163,7 @@ def run(args):
                 server.send(command)
             # Stand the camera on the platform after it exists; creative mode alone does not fly.
             server.send(f"tp {name} 5 203 -4 0 25")
-            server.send("wg init")
+            server.send("wg init --world world --all")
             server.wait(r"WorldGit.*(Initialized|Initialization|初始化完成)", 600)
             for command in ("setblock 3 201 3 stone", "setblock 5 201 5 air", "setblock 7 201 7 gold_block"):
                 server.send(command)
