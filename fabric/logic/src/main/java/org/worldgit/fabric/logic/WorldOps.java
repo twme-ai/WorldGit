@@ -16,7 +16,7 @@ import org.worldgit.core.service.WorldRepositories;
 import org.worldgit.core.store.RefStore;
 
 /**
- * 線上端（Fabric、之後也可給其他線上平台）的世界級操作：每個維度一個 repo，共用 snapshot UUID，
+ * 線上端（Fabric、之後也可給其他線上平台）的世界級操作：每個維度有自己的 repo 與 snapshot UUID，
  * 逐維度回報成功／沒變動／失敗。與 {@link WorldRepositories} 的差別是 commit 來源為 MOD，
  * 並可帶入 auto 旗標與多人作者歸屬（CLI 版沒有這些）。所有方法是同步阻塞的，呼叫端（repo executor）
  * 負責排程，絕不可在伺服器執行緒呼叫。
@@ -80,8 +80,10 @@ public final class WorldOps {
     return !tracked().isEmpty();
   }
 
-  public WorldGitConfig.Local local() throws IOException {
-    return WorldGitConfig.readLocal(root().resolve("worldgit.yml"));
+  public WorldGitConfig.Local local() throws IOException { return local(DimensionId.OVERWORLD); }
+
+  public WorldGitConfig.Local local(DimensionId dimension) throws IOException {
+    return WorldGitConfig.readLocal(layout.repository(dimension).resolve("worldgit.yml"));
   }
 
   private SortedMap<DimensionId, Path> selectTracked(DimensionId selected) throws IOException {
@@ -97,71 +99,31 @@ public final class WorldOps {
   }
 
   /**
-   * 對尚未 init 的維度建立 repo 並做第一次完整快照；已 init 的維度略過（回報 value=null、error=null），
-   * 因此世界新生成的維度（例如第一次進地獄之後）可以再執行一次補上。
+   * 對選定且尚未 init 的維度建立 repo 並做第一次完整快照；已 init 的維度略過（回報 value=null、error=null），
+   * 因此世界新生成的維度（例如第一次進地獄之後）可以再執行一次補上。每個維度是獨立 repo，不要求同時 init。
    */
   public WorldRepositories.Batch<DimensionRepository.CommitResult> init(
-      DimensionId selected,
+      Collection<DimensionId> selected,
       String template,
       WorldGitConfig.Track track,
       CommitMetadata.Identity author,
       String message)
       throws IOException {
-    UUID snapshot = UUID.randomUUID();
+    if (selected == null || selected.isEmpty()) throw new IOException("init 必須明確指定維度");
+    var existing = tracked();
+    var fresh = new TreeSet<>(selected);
+    fresh.removeAll(existing.keySet());
     var result = new TreeMap<DimensionId, WorldRepositories.Outcome<DimensionRepository.CommitResult>>();
-    var candidates = new TreeMap<DimensionId, Path>();
-    layout
-        .dimensions()
-        .keySet()
-        .forEach(id -> candidates.put(id, layout.repository(id)));
-    if (selected != null) {
-      if (!candidates.containsKey(selected)) throw new IOException("找不到維度：" + selected);
-      candidates.keySet().retainAll(Set.of(selected));
-    }
-    var tracked = tracked();
-    var fresh = new TreeMap<DimensionId, Path>();
-    for (var e : candidates.entrySet()) {
-      if (tracked.containsKey(e.getKey()))
-        result.put(e.getKey(), new WorldRepositories.Outcome<>(null, null));
-      else fresh.put(e.getKey(), e.getValue());
-    }
-    for (var e : fresh.entrySet())
-      try (var repo = new DimensionRepository(e.getValue(), e.getKey(), true)) {
-        repo.initialize(template, track, WorldGitConfig.Entities.ALL); // 觸及事件由 Phase 5 平台任務接線；過渡期保留既有實體行為。
-      } catch (Exception ex) {
-        result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
-      }
-    // 主世界的 dimensions 清單需要包含這次新增的所有維度。
-    var manifest = new TreeMap<>(repositories.manifest());
-    for (var id : fresh.keySet()) if (!id.equals(DimensionId.OVERWORLD)) manifest.put(id, "../" + id.directoryName());
-    for (var e : fresh.entrySet())
-      if (!result.containsKey(e.getKey()))
-        try (var repo = new DimensionRepository(e.getValue(), e.getKey(), false);
-            var source = sources.apply(layout.dimensions().get(e.getKey()))) {
-          var meta =
-              metadata(
-                  source,
-                  author,
-                  author,
-                  message,
-                  UUID.randomUUID(),
-                  e.getKey(),
-                  false,
-                  List.of());
-          result.put(
-              e.getKey(),
-              new WorldRepositories.Outcome<>(repo.commit(source, manifest, meta, tolerance()), null));
-        } catch (Exception ex) {
-          result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
-        }
-
-    return new WorldRepositories.Batch<>(snapshot, result);
+    for (var id : selected) if (existing.containsKey(id)) result.put(id, new WorldRepositories.Outcome<>(null, null));
+    var initialized = repositories.initDimensions(fresh, template, track,
+        (source, id) -> metadata(source, author, author, message, UUID.randomUUID(), id, false, List.of()), tolerance());
+    result.putAll(initialized.dimensions());
+    return new WorldRepositories.Batch<>(initialized.snapshot(), result);
   }
 
   public WorldRepositories.Batch<DimensionRepository.CommitResult> commit(
       DimensionId selected, String message, Context context) throws IOException {
     UUID snapshot = UUID.randomUUID();
-    double tolerance = tolerance();
     var result = new TreeMap<DimensionId, WorldRepositories.Outcome<DimensionRepository.CommitResult>>();
     var manifest = repositories.manifest();
     for (var e : selectTracked(selected).entrySet())
@@ -179,7 +141,7 @@ public final class WorldOps {
                 context.contributions().getOrDefault(e.getKey(), List.of()));
         result.put(
             e.getKey(),
-            new WorldRepositories.Outcome<>(repo.commit(source, manifest, meta, tolerance), null));
+            new WorldRepositories.Outcome<>(repo.commit(source, manifest, meta, tolerance(e.getKey())), null));
       } catch (Exception ex) {
         result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
       }
@@ -189,7 +151,6 @@ public final class WorldOps {
 
   public WorldRepositories.Batch<DimensionRepository.Status> status(
       DimensionId selected, boolean full) throws IOException {
-    double tolerance = tolerance();
     var result = new TreeMap<DimensionId, WorldRepositories.Outcome<DimensionRepository.Status>>();
     var manifest = repositories.manifest();
     for (var e : selectTracked(selected).entrySet())
@@ -197,7 +158,7 @@ public final class WorldOps {
           var source = sources.apply(layout.dimensions().get(e.getKey()))) {
         result.put(
             e.getKey(),
-            new WorldRepositories.Outcome<>(repo.status(source, manifest, tolerance, full), null));
+            new WorldRepositories.Outcome<>(repo.status(source, manifest, tolerance(e.getKey()), full), null));
       } catch (Exception ex) {
         result.put(e.getKey(), new WorldRepositories.Outcome<>(null, error(ex)));
       }
@@ -216,7 +177,7 @@ public final class WorldOps {
       throws IOException {
     Path path = tracked().get(dimension);
     if (path == null) throw new IOException("維度尚未 init：" + dimension);
-    double tolerance = tolerance();
+    double tolerance = tolerance(dimension);
     try (var repo = new DimensionRepository(path, dimension, false)) {
       var engine = new DiffEngine(repo.objects());
       if (revisions.size() == 2) {
@@ -240,9 +201,9 @@ public final class WorldOps {
     if(path==null) throw new NotInitializedException();
     try(var repo=new DimensionRepository(path,dimension,false);
         var source=sources.apply(layout.dimensions().get(dimension))) {
-      String working=repo.workingTree(source,repositories.manifest(),tolerance());
+      String working=repo.workingTree(source,repositories.manifest(),tolerance(dimension));
       String target=repo.refs().readCommit(repo.refs().resolve(revision)).tree();
-      return new DiffEngine(repo.objects()).compare(dimension,working,target,tolerance(),detail,window);
+      return new DiffEngine(repo.objects()).compare(dimension,working,target,tolerance(dimension),detail,window);
     }
   }
 
@@ -275,9 +236,9 @@ public final class WorldOps {
     return rows.subList(0, Math.min(limit, rows.size()));
   }
 
-  private double tolerance() throws IOException {
-    return local().entityTolerance();
-  }
+  private double tolerance() throws IOException { return tolerance(DimensionId.OVERWORLD); }
+
+  private double tolerance(DimensionId dimension) throws IOException { return local(dimension).entityTolerance(); }
 
   private CommitMetadata metadata(
       SnapshotSource source,

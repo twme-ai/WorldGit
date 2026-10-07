@@ -53,6 +53,27 @@ public final class ServerRuntime {
                         return t;
                     });
     private final Attribution attribution = new Attribution();
+    private final OperationUi ui = new OperationUi(this);
+    private final TouchedEntities touchedEntities = new TouchedEntities(this);
+    private volatile Map<DimensionId, String> cachedPalettes = Map.of();
+    public OperationUi ui() { return ui; }
+    private final IgnoreService ignoreService = new IgnoreService(this);
+    private final UiServer uiServer = new UiServer(this, ignoreService);
+    IgnoreService ignoreService() { return ignoreService; }
+    UiServer uiServer() { return uiServer; }
+    boolean isClosed() { return closed; }
+    public TouchedEntities touched() { return touchedEntities; }
+    /** 錯誤報告與 UI 用：已知秘密（環境 PAT、憑證檔）會在這裡遮罩。 */
+    String mask(String text) { return remote.mask(text); }
+    String modVersion() { return net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("worldgit").map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("unknown"); }
+    String platformText() { return "Fabric Loader " + net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("fabricloader").map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("?") + (server.isDedicatedServer() ? " dedicated" : " integrated"); }
+    String statusText(String locale, org.worldgit.core.operation.OperationResult.Status status) {
+        return Mini.plain(catalog, locale, Msg.of(MessageKeys.status(status.name())));
+    }
+    String phaseText(String locale, String phase) {
+        String key = phase == null ? null : MessageKeys.phaseKey(phase);
+        return key == null ? String.valueOf(phase) : Mini.plain(catalog, locale, Msg.of(key));
+    }
     private final Map<DimensionId, DirtyChunkTracker> trackers = new ConcurrentHashMap<>();
     private final Map<DimensionId, Set<ChunkPos>> loaded = new ConcurrentHashMap<>();
     private final HandshakeTracker handshake = new HandshakeTracker();
@@ -61,7 +82,8 @@ public final class ServerRuntime {
     private final AutoCommitPolicy policy;
     private volatile boolean closed;
     private volatile boolean autoRunning;
-    private volatile MergeState mergeState;
+    /** 每個維度各自的 MERGING 狀態（獨立 repo）。 */
+    private final Map<DimensionId, MergeState> mergeStates = new ConcurrentHashMap<>();
     private final RemoteCommands remote;
     public RemoteCommands remote() { return remote; }
     private final Map<UUID,Deque<byte[]>> commentsOutbound=new HashMap<>();
@@ -79,15 +101,21 @@ public final class ServerRuntime {
     /** 啟動後讀取 durable 狀態；MERGING 不會因重啟變成一般 commit。 */
     void started() {
         runRepo(()->{
-            var path=repositoryRoot().resolve("apply-state.yml");
-            var journal=org.worldgit.core.service.OperationState.read(path);
-            if("APPLYING".equals(journal.get("state"))) {
-                var partial=new LinkedHashMap<String,Object>(journal);
-                partial.put("state","PARTIAL");
-                org.worldgit.core.service.OperationState.write(path,partial);
-                LOG.warn("WORLDGIT PARTIAL；合併用 /wg merge --abort，其他操作用 switch --force／reset --hard 恢復");
+            refreshPalette();
+            var layout=WorldLayout.discover(worldRoot());
+            for(var entry:new WorldRepositories(layout).tracked().entrySet()) {
+                var path=entry.getValue().resolve("apply-state.yml");
+                var journal=org.worldgit.core.service.OperationState.read(path);
+                if("APPLYING".equals(journal.get("state"))) {
+                    var partial=new LinkedHashMap<String,Object>(journal);
+                    partial.put("state","PARTIAL");
+                    org.worldgit.core.service.OperationState.write(path,partial);
+                    LOG.warn("WORLDGIT PARTIAL {}；合併用 /wg merge --abort，其他操作用 switch --force／reset --hard 恢復",entry.getKey());
+                }
+                var state=MergeState.read(entry.getValue().resolve("merge-state.bin"));
+                if(state==null) mergeStates.remove(entry.getKey()); else mergeStates.put(entry.getKey(),state);
             }
-            mergeState=MergeState.read(repositoryRoot().resolve("merge-state.bin"));
+            touchedEntities.refresh();
             try {remote.start();}catch(IOException e) {postToServer(()->Texts.failure(server.createCommandSourceStack(),this,Msg.of("fabric.remote.notification-failed")));}
             return null;
         }).exceptionally(e->{LOG.warn("WORLDGIT 讀取恢復狀態失敗",e);return null;});
@@ -196,19 +224,31 @@ public final class ServerRuntime {
 
     public WorldOps ops() throws IOException {
         var layout = WorldLayout.discover(worldRoot());
-        return new WorldOps(layout, dim -> new FabricLiveWorld(this, layout, dim));
+        return new WorldOps(layout, dim -> {
+            // init 前玩家已觸及的實體：此時 core 持有該維度 repo lock，寫入 sidecar 不會與 commit 競爭。
+            touchedEntities.seed(dim.id(), layout.repository(dim.id()));
+            return new FabricLiveWorld(this, layout, dim);
+        });
     }
 
     public String paletteName() {
-        try {
-            return WorldGitConfig.readLocal(repositoryRoot().resolve("worldgit.yml")).palette();
-        } catch (IOException | RuntimeException e) {
-            return "default";
-        }
+        var action = OperationUi.current();
+        return cachedPalettes.getOrDefault(action == null || action.dimension == null ? DimensionId.OVERWORLD : action.dimension, "default");
     }
 
-    public DiffPalette palette() {
-        return paletteName().equals("colorblind") ? DiffPalette.COLORBLIND : DiffPalette.DEFAULT;
+    void refreshPalette() throws IOException {
+        var palettes = new TreeMap<DimensionId, String>();
+        for (var entry : new WorldRepositories(WorldLayout.discover(worldRoot())).tracked().entrySet()) {
+            try { palettes.put(entry.getKey(), WorldGitConfig.readLocal(entry.getValue().resolve("worldgit.yml")).palette()); }
+            catch (IOException | RuntimeException error) { LOG.warn("WORLDGIT 色票設定無效 {}：{}", entry.getKey(), mask(String.valueOf(error.getMessage()))); }
+        }
+        cachedPalettes = Map.copyOf(palettes);
+    }
+
+    public DiffPalette palette() { return paletteName().equals("colorblind") ? DiffPalette.COLORBLIND : DiffPalette.DEFAULT; }
+
+    private DiffPalette palette(DimensionId dimension) {
+        return cachedPalettes.getOrDefault(dimension, "default").equals("colorblind") ? DiffPalette.COLORBLIND : DiffPalette.DEFAULT;
     }
 
     // ---- 執行緒 -----------------------------------------------------------------------
@@ -305,14 +345,40 @@ public final class ServerRuntime {
             future.completeExceptionally(new IOException("WorldGit 已停止"));
             return future;
         }
-        repo.execute(
-                () -> {
-                    try {
-                        future.complete(task.call());
-                    } catch (Throwable t) {
-                        future.completeExceptionally(t);
-                    }
-                });
+        var action = OperationUi.current();
+        if (action != null) action.retain();
+        try {
+            repo.execute(
+                    () -> OperationUi.within(action, () -> {
+                        // 進度 context 與動作同一個 id；listener 只更新記憶體，UI 在伺服器 tick 呈現。
+                        try (var progress = action == null ? null : new org.worldgit.core.operation.OperationProgress(action.id, action.operation, action::event)) {
+                            if (action != null) {
+                                action.progress = progress;
+                                if (action.cancelled || action.parent != null && action.parent.cancelled) progress.cancel();
+                                progress.publish(action.dimension, "start", 0, null, org.worldgit.core.operation.OperationProgress.Unit.OBJECT);
+                            }
+                            if (action != null) remote.refreshCredentialMask();
+                            try {
+                                org.worldgit.core.operation.OperationProgress.check();
+                                future.complete(task.call());
+                            } catch (Throwable t) {
+                                future.completeExceptionally(t);
+                            }
+                        } finally {
+                            if (action != null) {
+                                action.progress = null;
+                                action.release();
+                            }
+                        }
+                        return null;
+                    }));
+        } catch (RejectedExecutionException e) {
+            if (action != null) {
+                action.failed(e);
+                action.release();
+            }
+            future.completeExceptionally(e);
+        }
         return future;
     }
 
@@ -404,29 +470,22 @@ public final class ServerRuntime {
         }
         return false;
     }
-    private final Map<UUID,net.minecraft.server.level.ServerBossEvent> bars=new HashMap<>();
     private volatile ApplyProgress lastProgress;
     public ApplyProgress lastProgress() { return lastProgress; }
+    /** 線上套用的階段轉成共用的 OperationProgress（repo 執行緒）；UI 由伺服器 tick 的 OperationUi 呈現。 */
     void progress(ApplyProgress progress) {
         lastProgress=progress;
-        postToServer(()->{
-            for(var player:server.getPlayerList().getPlayers()) {
-                var bar=bars.computeIfAbsent(player.getUUID(),k->{
-                    var b=Platform.bossbar();
-                    b.addPlayer(player); return b;
-                });
-                String phase=Mini.plain(catalog,Texts.locale(this,player),Msg.of(MessageKeys.phase(progress.phase())));
-                bar.setName(Texts.component(this,Texts.locale(this,player),Msg.of(MessageKeys.APPLY_PROGRESS,"phase",phase,"done",progress.completedSections(),"total",progress.totalSections())));
-                bar.setProgress(progress.totalBatches()==0 ? 1 : (float)progress.completedBatches()/progress.totalBatches());
-            }
-        });
+        var current=org.worldgit.core.operation.OperationProgress.current();
+        String phase=switch(progress.phase()) { case LOCKING->"lock"; case APPLYING->"apply"; case LIGHTING->"lighting"; case SAVING->"saving"; default->null; };
+        if(current!=null && phase!=null) {
+            long total=Math.max(progress.totalSections(),progress.completedSections());
+            current.publish(null,phase,progress.completedSections(),total>0 ? total : null,org.worldgit.core.operation.OperationProgress.Unit.SECTION);
+        }
     }
     @FunctionalInterface public interface LiveAction<T> { T run(WorldOperations operations) throws IOException; }
-    public <T> CompletableFuture<T> live(LiveAction<T> action) { return live(action,false); }
-    public <T> CompletableFuture<T> region(LiveAction<T> action) { return live(action,true); }
+    /** 單一維度的線上作業；沒有「預設維度」，呼叫端必須明確指定要操作的維度。 */
     public <T> CompletableFuture<T> live(DimensionId dimension,LiveAction<T> action) { return live(action,false,dimension); }
     public <T> CompletableFuture<T> region(DimensionId dimension,LiveAction<T> action) { return live(action,true,dimension); }
-    private <T> CompletableFuture<T> live(LiveAction<T> action,boolean region) { return live(action,region,DimensionId.OVERWORLD); }
     private <T> CompletableFuture<T> live(LiveAction<T> action,boolean region,DimensionId dimension) {
         synchronized(this) {
             if(operation!=null) return CompletableFuture.failedFuture(new IOException("已有套用作業；可用 /wg cancel 取消"));
@@ -446,12 +505,13 @@ public final class ServerRuntime {
                     for(var player:server.getPlayerList().getPlayers()) clearPreview(player); return null;
                 });
                 if(result instanceof WorldOperations.MergeResult m && !m.state().equals("DRY_RUN")) try(var notification=org.worldgit.core.service.OperationTimings.stage("notification")) { onServer(()->{
-                    mergeState=m.merging();
+                    if(m.merging()==null) mergeStates.remove(dimension); else mergeStates.put(dimension,m.merging());
                     for(var player:server.getPlayerList().getPlayers()) {
-                        clearPreview(player); sendConflicts(player,m.merging());
+                        clearPreview(player); sendConflicts(player,dimension,m.merging());
                     }
                     return null;
                 }); }
+                try {touchedEntities.refresh();}catch(IOException e) {LOG.warn("WORLDGIT 重新讀取觸及實體集合失敗：{}",mask(String.valueOf(e.getMessage())));}
                 var prior=lastProgress;
                 progress(new ApplyProgress(id,partial ? ApplyProgress.Phase.PARTIAL : ApplyProgress.Phase.COMPLETE,
                     prior==null ? 0 : prior.completedBatches(),prior==null ? 0 : prior.totalBatches(),prior==null ? 0 : prior.completedSections(),prior==null ? 0 : prior.totalSections(),cancel.get()));
@@ -464,7 +524,7 @@ public final class ServerRuntime {
                         var policy=old.protection();
                         group.put(entry.getKey(),new Policy(old.dimension(),new PlayerProtection(policy.chunks(),policy.duration(),policy.causes(),id,false),System.nanoTime()+policy.duration().toNanos(),old.seen()));
                     }
-                    for(var bar:bars.values()) bar.removeAllPlayers(); bars.clear(); return null;
+                    return null;
                 });
                 operation=null;
             }
@@ -473,15 +533,21 @@ public final class ServerRuntime {
         return future;
     }
 
-    public CompletableFuture<MergeState> merging() {
-        return runRepo(() -> MergeState.read(repositoryRoot().resolve("merge-state.bin")));
+    /** 單一維度 repo 目前的 MERGING 狀態（沒有則 null）。 */
+    public CompletableFuture<MergeState> merging(DimensionId dimension) {
+        return runRepo(() -> readMerging(dimension));
     }
 
-    public CompletableFuture<List<byte[]>> conflictPreview(int id, MergeReport.Choice choice) {
+    private MergeState readMerging(DimensionId dimension) throws IOException {
+        var path = new WorldRepositories(WorldLayout.discover(worldRoot())).tracked().get(dimension);
+        return path == null ? null : MergeState.read(path.resolve("merge-state.bin"));
+    }
+
+    public CompletableFuture<List<byte[]>> conflictPreview(DimensionId dimension, int id, MergeReport.Choice choice) {
         long preview = previewIds.getAndIncrement();
         return runRepo(() -> {
             var layout = WorldLayout.discover(worldRoot());
-            try (var ops = WorldOperations.live(layout, new FabricOperations(this, layout))) {
+            try (var ops = WorldOperations.live(layout, new FabricOperations(this, layout), dimension)) {
                 var state = ops.merging();
                 if (state == null) throw new IOException("世界不在 MERGING");
                 var region = state.regions().stream().filter(r -> r.id() == id).findFirst()
@@ -493,12 +559,12 @@ public final class ServerRuntime {
         });
     }
 
-    /** 呼叫於 server owner；只有宣告能力的玩家收到新的 channel。 */
-    public void sendConflicts(ServerPlayer player, MergeState state) {
+    /** 呼叫於 server owner；只有宣告能力的玩家收到新的 channel。state 為 null 表示該維度已沒有衝突。 */
+    public void sendConflicts(ServerPlayer player, DimensionId dimension, MergeState state) {
         if (!handshake.supports(player.getUUID(), MergeProtocol.CAPABILITY) || !WgCommands.allowed(config.readPermissionLevel()).test(player.createCommandSourceStack())) return;
         try {
             if (state == null) {
-                sendPreview(player, MergeProtocol.regions(previewIds.getAndIncrement(), dimensionId((ServerLevel)player.level()), List.of()));
+                sendPreview(player, MergeProtocol.regions(previewIds.getAndIncrement(), dimension, List.of()));
             } else for (var entry : state.dimensions().entrySet()) {
                 var report = entry.getValue().report();
                 sendPreview(player, MergeProtocol.regions(previewIds.getAndIncrement(), entry.getKey(), report.regions(), report.updateShapes()));
@@ -506,10 +572,17 @@ public final class ServerRuntime {
         } catch (IOException ex) { LOG.warn("WORLDGIT 衝突清單編碼失敗", ex); }
     }
 
+    /** 玩家握手完成：每個仍在 MERGING 的維度各送一份；沒有任何衝突時清空玩家目前維度。 */
+    void sendAllConflicts(ServerPlayer player, Map<DimensionId, MergeState> states) {
+        if (states.isEmpty()) sendConflicts(player, dimensionId((ServerLevel) player.level()), null);
+        else states.forEach((dimension, state) -> sendConflicts(player, dimension, state));
+    }
+
     // ---- 世界操作 ---------------------------------------------------------------------
 
+    /** 只 init 選定的維度（玩家所在維度、--dimension 或 --all 解析出的清單）；已 init 的維度略過。 */
     public CompletableFuture<WorldRepositories.Batch<DimensionRepository.CommitResult>> init(
-            DimensionId selected, String template, WorldGitConfig.Track track, CommitMetadata.Identity author) {
+            Collection<DimensionId> selected, String template, WorldGitConfig.Track track, CommitMetadata.Identity author) {
         return runRepo(
                 () -> {
                     var batches = new HashMap<DimensionId, DirtyChunkTracker.Batch>();
@@ -526,12 +599,49 @@ public final class ServerRuntime {
                 });
     }
 
-    public CompletableFuture<WorldRepositories.Batch<DimensionRepository.Status>> status(boolean full) {
-        return runRepo(() -> ops().status(null, full));
+    /** 磁碟上存在、尚未 init 的維度（--all 的 init 目標），以及目前世界所有可 init 的維度。 */
+    public CompletableFuture<List<WorldRepositories.Initializable>> initializable() {
+        return runRepo(() -> new WorldRepositories(WorldLayout.discover(worldRoot())).initializable());
     }
 
-    public CompletableFuture<List<WorldOps.LogRow>> log(int limit) {
-        return runRepo(() -> ops().log(null, limit));
+    public CompletableFuture<SortedMap<DimensionId, java.nio.file.Path>> tracked() {
+        return runRepo(() -> new WorldRepositories(WorldLayout.discover(worldRoot())).tracked());
+    }
+
+    public CompletableFuture<WorldRepositories.Batch<DimensionRepository.Status>> status(DimensionId dimension, boolean full) {
+        return runRepo(() -> ops().status(dimension, full));
+    }
+
+    /** 單一維度的 commit 歷史（新到舊）。 */
+    public CompletableFuture<List<org.worldgit.core.store.RefStore.Commit>> log(DimensionId dimension, int limit) {
+        return runRepo(() -> {
+            var path = new WorldRepositories(WorldLayout.discover(worldRoot())).tracked().get(dimension);
+            if (path == null) throw new java.io.IOException("維度尚未 init：" + dimension);
+            try (var repo = new DimensionRepository(path, dimension, false)) {
+                return repo.log(limit);
+            }
+        });
+    }
+
+    /** 單一維度目前的 HEAD：分支 @ commit（repo 執行緒）。 */
+    String headText(DimensionId dimension) throws IOException {
+        var path = new WorldRepositories(WorldLayout.discover(worldRoot())).tracked().get(dimension);
+        if (path == null) return null;
+        try (var repo = new DimensionRepository(path, dimension, false)) {
+            var head = repo.refs().headState();
+            return (head.branch() == null ? "HEAD" : head.branch()) + "@" + head.commit();
+        }
+    }
+
+    /** 單維度分支圖（core CommitGraph）；all 為真時含所有分支、tag、遠端追蹤 ref。 */
+    public CompletableFuture<org.worldgit.core.graph.CommitGraph> graph(DimensionId dimension, int limit, boolean all) {
+        return runRepo(() -> {
+            var path = new WorldRepositories(WorldLayout.discover(worldRoot())).tracked().get(dimension);
+            if (path == null) throw new java.io.IOException("維度尚未 init：" + dimension);
+            try (var repo = new DimensionRepository(path, dimension, false)) {
+                return org.worldgit.core.graph.CommitGraph.read(repo.refs(), Math.min(10000, Math.max(1, limit)), all);
+            }
+        });
     }
 
     public CompletableFuture<PreviewPlanner.Plan> plan(
@@ -551,18 +661,26 @@ public final class ServerRuntime {
         return runRepo(()->PreviewPlanner.revision(id,ops(),dimension,revision,window,ghosts,config.preview(),minY,maxY));
     }
 
-    /** 手動或自動 commit。成功（所有維度沒有失敗）後才有條件地清除 dirty／歸屬。 */
+    /**
+     * 手動或自動 commit。selected 為 null 表示每個已 init 的維度各自提交（自動 commit 的便利批次）；
+     * 否則只提交該維度。各維度成功後才有條件地清除該維度的 dirty／歸屬。
+     */
     public CompletableFuture<WorldRepositories.Batch<DimensionRepository.CommitResult>> commit(
-            String message, CommitMetadata.Identity requester, boolean auto, boolean flush) {
+            DimensionId selected, String message, CommitMetadata.Identity requester, boolean auto, boolean flush) {
         return runRepo(
                 () -> {
-                    if (auto && MergeState.read(repositoryRoot().resolve("merge-state.bin")) != null)
-                        return new WorldRepositories.Batch<DimensionRepository.CommitResult>(UUID.randomUUID(), new TreeMap<>());
                     if (flush) flushBlocking();
                     var ops = ops();
-                    var attr = attribution.capture();
+                    if (!ops.initialized()) throw new WorldOps.NotInitializedException();
+                    // 自動 commit 跳過仍在 MERGING 的維度（#60）；手動 commit 的 MERGING 由指令層走 continue。
+                    var targets = new TreeSet<DimensionId>();
+                    if (selected != null) targets.add(selected);
+                    else for (var d : ops.tracked().keySet()) if (!auto || readMerging(d) == null) targets.add(d);
+                    if (targets.isEmpty())
+                        return new WorldRepositories.Batch<DimensionRepository.CommitResult>(UUID.randomUUID(), new TreeMap<>());
+                    var attr = selected == null ? attribution.capture() : attribution.capture(selected);
                     var batches = new HashMap<DimensionId, DirtyChunkTracker.Batch>();
-                    trackers.forEach((d, t) -> batches.put(d, t.capture()));
+                    trackers.forEach((d, t) -> { if (targets.contains(d)) batches.put(d, t.capture()); });
                     var serverId = Identities.server(config);
                     var author = requester;
                     if (auto) {
@@ -578,14 +696,23 @@ public final class ServerRuntime {
                                     auto ? serverId : requester,
                                     auto,
                                     attr.contributions(ops.layout().dimensions().keySet(), config.identity().playerEmailDomain()));
-                    var batch = ops.commit(null, message, context);
-                    if (batch.success()) {
-                        attribution.acknowledge(attr);
-                        trackers.forEach((d, t) -> {
-                            var b = batches.get(d);
-                            if (b != null) t.acknowledge(b);
-                        });
+                    var rows = new TreeMap<DimensionId, WorldRepositories.Outcome<DimensionRepository.CommitResult>>();
+                    UUID snapshot = UUID.randomUUID();
+                    for (var d : targets) {
+                        var one = ops.commit(d, message, context);
+                        rows.putAll(one.dimensions());
+                        snapshot = one.snapshot();
                     }
+                    var batch = new WorldRepositories.Batch<>(snapshot, rows);
+                    // 每個成功的維度各自確認自己的 dirty 與歸屬；失敗的維度保留給下一次。
+                    var acknowledged = new HashSet<DimensionId>();
+                    batch.dimensions().forEach((d, outcome) -> {
+                        if (!outcome.success()) return;
+                        acknowledged.add(d);
+                        var b = batches.get(d);
+                        if (b != null) tracker(d).acknowledge(b);
+                    });
+                    if (!acknowledged.isEmpty()) attribution.acknowledge(attr, acknowledged);
                     return batch;
                 });
     }
@@ -600,7 +727,6 @@ public final class ServerRuntime {
         remote.quit(player);commentsOutbound.remove(player.getUUID());
         handshake.leave(player.getUUID());
         outbound.remove(player.getUUID());
-        var bar=bars.remove(player.getUUID()); if(bar!=null) bar.removeAllPlayers();
         var mergeBar=mergeBars.remove(player.getUUID()); if(mergeBar!=null) mergeBar.removeAllPlayers();
         for(var group:protection.values()) for(var guard:group.values()) guard.seen().remove(player.getUUID());
     }
@@ -611,8 +737,15 @@ public final class ServerRuntime {
             if (handshake.reply(player.getUUID(), hello)) {
                 LOG.info("WORLDGIT HANDSHAKE_OK player={} capabilities={} palette={}", player.nameAndId().name(), hello.capabilities(), hello.palette().equals(DiffPalette.COLORBLIND) ? "colorblind" : "default");
                 // repo queue 排在進行中的操作之後，避免晚到的握手發布舊清單。
-                merging().thenAccept(state->postToServer(()->{
-                    if(server.getPlayerList().getPlayer(player.getUUID())==player && handshake.ready(player.getUUID())) sendConflicts(player,state);
+                runRepo(()->{
+                    var states=new TreeMap<DimensionId,MergeState>();
+                    for(var dimension:new WorldRepositories(WorldLayout.discover(worldRoot())).tracked().keySet()) {
+                        var state=readMerging(dimension);
+                        if(state!=null) states.put(dimension,state);
+                    }
+                    return states;
+                }).thenAccept(states->postToServer(()->{
+                    if(server.getPlayerList().getPlayer(player.getUUID())==player && handshake.ready(player.getUUID())) sendAllConflicts(player,states);
                 }));
             }
             else LOG.warn("WORLDGIT HANDSHAKE_REJECTED player={} reason={}", player.nameAndId().name(), handshake.reason(player.getUUID()));
@@ -637,16 +770,17 @@ public final class ServerRuntime {
         }
     }
 
-    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview", MergeProtocol.CAPABILITY,MergeProtocol.SELECT_CAPABILITY,org.worldgit.protocol.CommentsProtocol.CAPABILITY};
+    private static final String[] SERVER_CAPABILITIES = {"diff-preview", "status-outline", "revision-preview", MergeProtocol.CAPABILITY,MergeProtocol.SELECT_CAPABILITY,org.worldgit.protocol.CommentsProtocol.CAPABILITY,UiProtocol.CAPABILITY};
 
     private final Map<UUID,net.minecraft.server.level.ServerBossEvent> mergeBars=new HashMap<>();
     private void mergeProgress() {
-        var state=mergeState;
+        int remaining=0,total=0;
+        for(var state:mergeStates.values()) {remaining+=state.remaining();total+=state.regions().size();}
         for(var player:server.getPlayerList().getPlayers()) {
-            if(!server.isSingleplayer() && state!=null && WgCommands.allowed(config.readPermissionLevel()).test(player.createCommandSourceStack())) {
+            if(!server.isSingleplayer() && !mergeStates.isEmpty() && WgCommands.allowed(config.readPermissionLevel()).test(player.createCommandSourceStack())) {
                 var bar=mergeBars.computeIfAbsent(player.getUUID(),id->{var b=Platform.bossbar(); b.setColor(net.minecraft.world.BossEvent.BossBarColor.PURPLE);b.addPlayer(player);return b;});
-                bar.setName(Texts.component(this,Texts.locale(this,player),Msg.of(MessageKeys.MERGE_STATUS,"remaining",state.remaining(),"total",state.regions().size())));
-                bar.setProgress(state.regions().isEmpty() ? 1f : 1f-(float)state.remaining()/state.regions().size());
+                bar.setName(Texts.component(this,Texts.locale(this,player),Msg.of(MessageKeys.MERGE_STATUS,"remaining",remaining,"total",total)));
+                bar.setProgress(total==0 ? 1f : 1f-(float)remaining/total);
                 bar.setVisible(!operationActive());
             } else { var bar=mergeBars.remove(player.getUUID()); if(bar!=null) bar.removeAllPlayers(); }
         }
@@ -655,6 +789,7 @@ public final class ServerRuntime {
     void tick() {
         drainServerTasks();
         drainTickTasks(false);
+        ui.tick();
         remote.tick();
         for(var e:commentsOutbound.entrySet()) {
             var player=server.getPlayerList().getPlayer(e.getKey());if(player==null)continue;
@@ -669,7 +804,7 @@ public final class ServerRuntime {
             ServerPlayer player = server.getPlayerList().getPlayer(send.player());
             if (player == null || !ServerPlayNetworking.canSend(player, Net.HELLO.type())) continue;
             try {
-                var hello = new Protocol.Hello(Protocol.VERSION, send.nonce(), List.of(SERVER_CAPABILITIES), palette());
+                var hello = new Protocol.Hello(Protocol.VERSION, send.nonce(), List.of(SERVER_CAPABILITIES), palette(dimensionId((ServerLevel) player.level())));
                 ServerPlayNetworking.send(player, Net.HELLO.of(Protocol.encode(hello)));
             } catch (IOException e) {
                 LOG.warn("WORLDGIT hello 編碼失敗", e);
@@ -695,7 +830,7 @@ public final class ServerRuntime {
         int changed = estimateChanged();
         boolean due = policy.intervalDue(now, changed);
         policy.ran(now);
-        if (due) autoCommit(Msg.of(MessageKeys.COMMIT_AUTO_INTERVAL));
+        if (due) autoCommit(Msg.of(MessageKeys.COMMIT_AUTO_INTERVAL), "auto.commit");
     }
 
     /** 候選 chunk 的粗估：dirty 標記 ∪ 已載入且未存檔的 chunk（伺服器執行緒）。 */
@@ -714,21 +849,34 @@ public final class ServerRuntime {
 
     /** 自動 commit；沒有 init 過的世界、已有操作進行中時安靜略過。 */
     public CompletableFuture<Void> autoCommit(Msg reasonMessage) {
+        return autoCommit(reasonMessage, "auto.commit");
+    }
+
+    /** operation：auto.commit（定時）、logout.commit（登出）。每次都有終止結果，只通知有權限的玩家。 */
+    public CompletableFuture<Void> autoCommit(Msg reasonMessage, String operation) {
         if (operationActive() || autoRunning) return CompletableFuture.completedFuture(null);
         autoRunning = true;
         String reason = commitText(reasonMessage);
-        return commit(reason, Identities.server(config), true, false)
+        var action = ui.beginAutomatic(operation, null);
+        return OperationUi.within(action, () -> commit(null, reason, Identities.server(config), true, false))
                 .handle(
                         (batch, error) -> {
                             autoRunning = false;
                             if (error != null) {
                                 Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
-                                if (cause.getMessage() != null && cause.getMessage().contains("尚未 init")) LOG.debug("WORLDGIT 自動 commit 略過：尚未 init");
-                                else LOG.warn("WORLDGIT AUTO_COMMIT_FAILED reason={} error={}", reason, cause.toString());
+                                if (cause.getMessage() != null && cause.getMessage().contains("尚未 init")) {
+                                    LOG.debug("WORLDGIT 自動 commit 略過：尚未 init");
+                                    action.observe(new WorldRepositories.Batch<DimensionRepository.CommitResult>(UUID.randomUUID(), new TreeMap<>()));
+                                } else {
+                                    LOG.warn("WORLDGIT AUTO_COMMIT_FAILED reason={} error={}", reason, cause.toString());
+                                    action.failed(cause);
+                                }
                             } else {
                                 long changed = batch.dimensions().values().stream().filter(o -> o.success() && o.value() != null && o.value().changed()).count();
                                 LOG.info("WORLDGIT AUTO_COMMIT reason={} changedDimensions={} success={}", reason, changed, batch.success());
+                                action.observe(batch);
                             }
+                            action.release();
                             return null;
                         });
     }
@@ -744,7 +892,7 @@ public final class ServerRuntime {
     void playerLoggedOut(ServerPlayer player) {
         boolean touched = attribution.capture().touchedBy(player.getUUID());
         if (policy.onLogout(server.isSingleplayer(), touched))
-            autoCommit(Msg.of(MessageKeys.COMMIT_AUTO_LOGOUT, "player", player.nameAndId().name()));
+            autoCommit(Msg.of(MessageKeys.COMMIT_AUTO_LOGOUT, "player", player.nameAndId().name()), "logout.commit");
     }
 
     /** 伺服器關閉（或離開單人世界）時的最後一次自動 commit：阻塞伺服器執行緒，但持續處理排入的伺服器工作。 */
@@ -773,19 +921,28 @@ public final class ServerRuntime {
 
     private CompletableFuture<Void> autoCommitStop() {
         autoRunning = true;
-        return commit(commitText(Msg.of(MessageKeys.COMMIT_AUTO_STOP)), Identities.server(config), true, true)
+        var action = ui.beginAutomatic("shutdown.commit", null);
+        OperationUi.within(action, () -> commit(null, commitText(Msg.of(MessageKeys.COMMIT_AUTO_STOP)), Identities.server(config), true, true))
                 .handle(
                         (batch, error) -> {
                             autoRunning = false;
-                            if (error != null) LOG.warn("WORLDGIT AUTO_COMMIT_FAILED reason=stop error={}", error.toString());
-                            else LOG.info("WORLDGIT AUTO_COMMIT reason=stop success={}", batch.success());
+                            if (error != null) {
+                                LOG.warn("WORLDGIT AUTO_COMMIT_FAILED reason=stop error={}", error.toString());
+                                action.failed(error);
+                            } else {
+                                LOG.info("WORLDGIT AUTO_COMMIT reason=stop success={}", batch.success());
+                                action.observe(batch);
+                            }
+                            action.release();
                             return null;
                         });
+        // 終態訊息在伺服器執行緒送出後才算完成，停服流程才會等到它。
+        return action.completion().thenApply(r -> null);
     }
 
     void shutdown() {
         remote.close();commentsOutbound.clear();
-        for(var bar:bars.values()) bar.removeAllPlayers();bars.clear();
+        ui.close();
         for(var bar:mergeBars.values()) bar.removeAllPlayers();mergeBars.clear();
         outbound.clear();protection.clear();
         closed = true;

@@ -1,8 +1,8 @@
-# WorldGit Fabric（Phase 4）
+# WorldGit Fabric（Phase 5）
 
 同一套模組提供單人世界／Fabric 專用伺服器的存檔點、復原、切換與合併，遠端 push／pull／PR／座標留言，以及 Paper／Folia 玩家客戶端的 diff 描邊和鬼影。世界與 bare repo 格式直接共用 core，離線 `wgit` 可讀相同歷史；不需要轉換。
 
-Phase 5 任務 1 相容更新：單人與 dedicated 的主世界 repo 都在 `<world>/.worldgit/`，其他維度放各自資料目錄 `.worldgit/`；舊位置可讀並由離線 `wgit migrate` 搬移。玩家的切換／合併／remote／傳輸只作用於目前維度，console 暫用主世界。init 暫保留既有批次入口，creative 使用 `entities: all`，玩家觸及事件尚未接線。所在維度 init／追加詢問、別名、graph／ignore 畫面、完整進度／完成結果／錯誤複製及實體事件由任務 4 實作；下文 Phase 4 語意中有衝突的部分以 [Phase 5 設計](../docs/16-phase5-design.md) 為準。
+Phase 5 任務 4：玩家預設操作所在維度，`/wg init` 只初始化該維度；主世界可點選追加地獄／終界／全部。`wg`、`wgit`、`git`、`worldgit` 共用命令；`--dimension <id>` 與 `--all` 支援逐維度非原子操作。新增聊天分支圖、可捲動圖畫面、BossBar／HUD、明確完成摘要、錯誤複製與 `.wgignore` 編輯器；新 creative repo 使用 `entities: player-touched`。完整契約、實作與驗收見 [Phase 5 設計](../docs/16-phase5-design.md)。
 
 ## 安裝與建置
 
@@ -32,10 +32,16 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 ## 世界操作
 
 ```text
-/wg init [--template creative|survival] [--track all|modified-only] [--dimension minecraft:overworld]
+/wg init [--template creative|survival] [--track all|modified-only] [--dimension <id>|--all]
 /wg status [--full] [--blocks] [--show]
 /wg commit -m 建造城門
-/wg log [1–50]
+/wg log [1–50] [--graph] [--refs] [--page n]
+/wg graph [--refs]
+/wg tag list|create <name>|delete <name>
+/wg verify [revision]
+/wg ignore list|check|test [selector]|preview|gui
+/wg ignore add <rule>|remove <line>|move <line> <destination>|enable <line>|disable <line>
+/wg ignore confirm <code>|cancel
 /wg diff [from [to]] [--blocks] [--show]
 /wg preview <rev> [--radius r]
 /wg preview off
@@ -53,9 +59,9 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 `status --show` 畫 section／chunk 外框，`diff --show`／`preview` 畫逐格外框與半透明方塊模型。顯示與 clear 需玩家執行；console 可執行讀取、寫入與合併命令。指令詳細選項及權限見 `WgCommands`；預設讀取權限等級 0、寫入等級 2，單人世界擁有者可操作。
 
-每個維度一個 repo，主世界保存 world-meta 與維度清單。主世界 repo 在世界根 `.worldgit/`，其他維度在自己的 `DIM-1/`、`DIM1/` 或 `dimensions/<ns>/<path>/` 內；新單人、dedicated 與 CLI clone 使用相同規則。init 只建立磁碟上存在且尚未初始化的維度；第一次進入新維度後可再 init。
+每個維度一個 repo，主世界保存 world-meta 與維度清單。主世界 repo 在世界根 `.worldgit/`，其他維度在自己的 `DIM-1/`、`DIM1/` 或 `dimensions/<ns>/<path>/` 內；新單人、dedicated 與 CLI clone 使用相同規則。玩家 init 只建立目前所在維度；console 必須明確指定 `--dimension <id>` 或 `--all`。主世界 init 後，存在但尚未 init 的地獄／終界附追加按鈕；已 init 的維度略過。第一次進入新維度後可在該維度再 init。
 
-預設 creative 範本全部追蹤；survival 範本排除暫態、非 persistent 生物等。`track: modified-only` 與 core 一致，目前只記錄設定，尚未篩掉自然地形。沒有內容變動不產生 commit。
+預設 creative 範本；YAML `default-template` 或 `--template survival` 可改為生存範本。新 creative repo 的實體僅追蹤 player-touched：生怪蛋、召喚、資料修改、放置盔甲座／展示框／畫／載具／終界水晶、命名／拴繩／馴服／裝備／染色／繁殖／騎乘等互動。自然生成未觸及的實體不入庫，restore 保留它們。資格包含根載具與乘客、UUID 轉換與跨維度繼承；跨維度還原會產生 UUID 重複時先拒絕並指出維度。survival 與舊 repo 設定不變。`track: modified-only` 與 core 一致，目前只記錄設定，尚未篩掉自然地形。沒有內容變動不產生 commit。
 
 自動 commit 包含定時、專用伺服器玩家登出、關機／離開單人世界。玩家放置／破壞事件記錄 chunk 粒度歸屬，多人參與寫入 Contribution trailers；只有一位參與者時自動提交以該玩家為 author，committer 為伺服器。多人登出目前提交共同工作世界，尚無 per-player staging。
 
@@ -67,7 +73,7 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 套用期間顯示 bossbar，暫停世界 tick、關閉容器、攔截玩家物品／容器／實體互動及一般 LevelChunk 方塊寫入；不移動玩家、不加藥水效果。範圍內玩家（含中途進入者）在操作全程及結束後 10 秒免受摔落、窒息、溺水傷害，其他傷害照常。原本的 frozen 狀態會恢復，第三方模組若直接改 section／BE 或實體需配合 `ServerRuntime.editsLocked()`，不能繞過鎖寫入。
 
-所有套用、heightmap／光照／POI 與 chunk 更新在 server owner 執行；未載入 chunk 加 ticket 等 entity IO，不寫線上 `.mca`。使用共用 ApplyBudget（有玩家：4 section／5 ms／16 chunk；無玩家：8／5 ms／24 chunk），不可搶占的單次工作採軟時間上限；全維度 UUID 先移除再生成。完成後 flush、全組驗證才更新 HEAD，並清除舊 status／diff／preview。`cancel` 等在途清理，已寫入的世界保留 PARTIAL、HEAD 不動；用全範圍 `switch <rev> --force`／`reset --hard` 恢復，PARTIAL 阻擋新 commit／普通 switch／stash。
+所有套用、heightmap／光照／POI 與 chunk 更新在 server owner 執行；未載入 chunk 加 ticket 等 entity IO，不寫線上 `.mca`。使用共用 ApplyBudget（有玩家：4 section／5 ms／16 chunk；無玩家：8／5 ms／24 chunk），不可搶占的單次工作採軟時間上限；目標維度內受追蹤 UUID 先移除再生成，其他維度先檢查重複 UUID。完成後 flush、完整驗證目標維度才更新其 HEAD，並清除舊 status／diff／preview。`cancel` 等在途清理，已寫入的世界保留 PARTIAL、HEAD 不動；用該維度全範圍的 `switch <rev> --force`／`reset --hard` 恢復，PARTIAL 阻擋該維度的新 commit／普通 switch／stash。
 
 ## Phase 3：合併與衝突解決
 
@@ -101,13 +107,38 @@ WG_PHASE3=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 1.21.11 --record
 WG_PHASE3=1 ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh 26.2 --record
 ```
 
+## Phase 5 操作畫面與回饋
+
+各 repo 命令預設玩家目前維度，`--dimension <id>` 明確指定，`--all` 依序執行、每維度回報，再提供批次結果；已完成維度不回滾。init 以外的 console 預設主世界。貪婪文字（commit／stash 訊息、ignore 規則、PR 標題與留言）中的目標旗標保持原文字語意；目標旗標請放在正文之前。
+
+- `/wg log --graph` 使用 core 的 lane／標籤；hover 有完整 commit，點選填入綁定維度的 `/wg diff <id>`。`/wg graph` 或 **H** 開啟可捲動畫面（最多 200 節點），選取後可複製 ID、填入 diff 或 switch dry-run。**G** 仍開啟衝突畫面。
+- 所有長操作都有 vanilla BossBar（原版玩家也能看到）；裝有模組的客戶端另有 HUD，顯示階段、維度、百分比／不定進度與 ETA。終態保留數秒；console 節流輸出。每個指令、自動／登出／停服 commit 都有完成狀態與人類可讀摘要。
+- 每個 error／failure／partial 的獨立 `[複製]` 按鈕複製純文字 ErrorReport，含 operation ID、版本與維度，已遮罩已知環境／credentials 秘密；console 用同欄位單行輸出。
+- `/wg ignore gui` 或 **K** 開啟規則編輯器：新增、刪除、上下排序、停用／啟用、即時語法錯誤與 HEAD preview。所有修改先預覽，再明確確認；120 秒確認碼綁定玩家、維度、原規則與 HEAD。server 再驗權限／語法；MERGING 禁止修改。下一次 commit 保存 `.wgignore` 歷史。原版客戶端可使用同一組 ignore 指令與聊天確認按鈕。
+
+`config/worldgit-server.yml` 新增設定（需重啟；`reload` 重載語言與色票）：
+
+```yaml
+aliases:
+  wgit: true
+  git: true
+ignore-permission-level: 2
+feedback:
+  bossbar: true
+  terminal-seconds: 3
+  console-interval-seconds: 1
+  auto-notify: true
+```
+
+裸 `/git` 若已被其他模組占用則跳過並 log 一次；`wg`、`worldgit` 保留。單人 owner 即使未開作弊也走相同權限入口。新圖／ignore／HUD 使用 `fabric-ui-v1` 能力，Paper 伺服器不宣告該能力；H 改為要求聊天 graph，K 使用 Paper 的 ignore 箱子介面，preview／衝突／留言沿用既有協定。
+
 ## 設定與多語言
 
 首次啟動寫入附註解的 YAML：
 
 - `config/worldgit-server.yml`：console／提交訊息語言、預設範本、指令權限、自動提交、伺服器身分、預覽上限與每 tick 送包配額。
 - `config/worldgit-client.yml`：`palette: auto|default|colorblind`、穿牆、明細距離（48 格）、最大距離（384 格）、明細 section 上限（192）、每幀建置配額（4）。
-- 各維度 repo 內的 `worldgit.yml`：與 CLI 共用的本機設定，例如實體容許距離和伺服器色票；平台目前由主世界讀取，完整逐維度設定 UX 待任務 4。
+- 各維度 repo 內的 `worldgit.yml`：與 CLI 共用的本機設定，例如實體容許距離和伺服器色票；status／commit／diff／preview 使用目標維度的 entity tolerance；呈現使用目標維度色票，於啟動及 reload 讀入快取。
 
 ```text
 /wgc palette auto|default|colorblind
@@ -173,7 +204,7 @@ python3 fabric/tools/accept-paper.py 26.2
 
 ## 局部區域切換（2026-10-02）
 
-`conflict-select`／`resolve` 經共用 core 的局部 source、精確 atoms mask、完整受影響 chunk 驗證及增量 MERGING journal。Fabric 在 server owner 以 vanilla ChunkMap serializer、entity storage 與 POI flush 只排入指定 chunk，三種 storage 分別保存（terrain 卸載不代表 entity／POI 已卸載），保留光照／chunk 封包／IO barrier；不寫使用中的 `.mca`。一般區域的 LevelChunk 寫入鎖限受影響 chunk；短暫 tick freeze 及容器／指令屏障保留，防止 vanilla 或跨位置編輯穿越操作。continue／commit 再全組 capture／驗證，abort 保留完整恢復。
+`conflict-select`／`resolve` 經共用 core 的局部 source、精確 atoms mask、完整受影響 chunk 驗證及增量 MERGING journal。Fabric 在 server owner 以 vanilla ChunkMap serializer、entity storage 與 POI flush 只排入指定 chunk，三種 storage 分別保存（terrain 卸載不代表 entity／POI 已卸載），保留光照／chunk 封包／IO barrier；不寫使用中的 `.mca`。一般區域的 LevelChunk 寫入鎖限受影響 chunk；短暫 tick freeze 及容器／指令屏障保留，防止 vanilla 或跨位置編輯穿越操作。continue／commit 再完整 capture／驗證目標維度，abort 保留該維度完整恢復。
 
 `merge-state.bin.updates` 須與基底一起讀取／保存，當機恢復仍用 abort。區域外其他 chunk 的 manual 編輯在 continue 捕捉；其交界提示於 continue 完整重算。全域 IO queue 積壓與 UUID 定位仍可能增加延遲；大型自然世界及第三方忽略鎖的寫入不在本次效能保證內。
 
@@ -192,7 +223,7 @@ python3 fabric/tools/accept-paper-phase3.py folia 26.2
 
 ## Fabric 專用伺服器寫入與合併
 
-專用伺服器使用相同 live coordinator，不直接改寫使用中的 Anvil 檔。套用期間有全組／局部 chunk 編輯鎖、vanilla tick freeze、玩家保護與 bossbar；完成驗證後廣播 MiniMessage。活塞、爆炸與肥料的批量變更在受鎖維度開始前整體攔截，避免部分寫入；玩家容器／互動與操作期間非 WorldGit 命令採保守屏障。MERGING 閒置時可手動編輯，manual resolve 以目前世界為準。
+專用伺服器使用相同 live coordinator，不直接改寫使用中的 Anvil 檔。套用期間有目標維度／局部 chunk 編輯鎖、全伺服器 vanilla tick freeze、玩家保護與 bossbar；完成驗證後廣播 MiniMessage。活塞、爆炸與肥料的批量變更在受鎖維度開始前整體攔截，避免部分寫入；玩家容器／互動與操作期間非 WorldGit 命令採保守屏障。MERGING 閒置時可手動編輯，manual resolve 以目前世界為準。
 
 連線的 Fabric 客戶端可使用清單、Ghost、Set blocks、Resolve 與傳送。伺服器公告 merge／select 能力，握手後推送持久化清單；多位檢視者在選擇／解決後同步更新。重啟恢復 MERGING；登出、定時與關機的自動 commit 均依 #60 跳過，手動 commit 等同 continue。
 
@@ -279,3 +310,22 @@ python3 fabric/tools/regress-phase4.py
 ```
 
 腳本自行取 bench.lock，啟動真 Hub jar／SQLite、dedicated 正式 jar、Xvfb 真客戶端；finally 關閉／清除世界副本、憑證與服務。截圖在 [phase4](docs/screenshots/phase4/)，可攜結果／來源與產物雜湊見 [驗收摘要](docs/phase4/results-2026-10-04.json)，失敗與限制見 [docs/14 Fabric](../docs/14-phase4-progress.md#fabric)，安全界線見 [Phase 4 安全審查](docs/security-review-phase4-2026-10-04.md)。
+
+## Phase 5 驗收
+
+新增真伺服器／真客戶端驗收（腳本自行取得 bench.lock；同時只跑一組）：
+
+```bash
+python3 fabric/tools/accept-phase5.py 1.21.11 --mode dedicated
+python3 fabric/tools/accept-phase5.py 1.21.11 --mode single
+python3 fabric/tools/accept-phase5.py 26.2 --mode dedicated
+python3 fabric/tools/accept-phase5.py 26.2 --mode single
+# --mode all（預設）可在同一輪依序跑全部；--stages a|b|c|ab|ac|bc|abc 限定 dedicated 診斷範圍。
+```
+
+Dedicated A 使用正式 mod jar、vanilla 協定 bot（含未裝模組／未授權玩家），B 使用 Xvfb 真客戶端，C／D 重啟檢查 YAML 停用與第三方 `/git` 衝突。single 在未開作弊的 owner 世界走同一入口；自然牛／命名、真物品放置盔甲座、還原與跨維度 UUID、進度、圖 refresh、ignore preview-confirm-commit 皆實測。圖複製／填入、聊天 click／hover 與真 framebuffer 都有證據，沒有合成 UI 封包。既有 fixture 改為明確 `--all` init、單維度 API 與 PR commit map 契約，保留完整逐格、UUID、三維度 refs、parents 與離線零差異檢查；新快照 UUID 不再跨維度分組，歷史測試按新契約核對各自提交。舊實體回歸明確使用 `entities: all`，新 creative 的 player-touched 預設另由 Phase 5 驗證。
+
+結果在 `.work/fabric-phase5/<mode>-<version>-<timestamp>/result.json`，包含步驟、jar SHA-256、聊天／console／BossBar 與關閉埠狀態。大型世界與複製 jar 在 finally 清除，保留 log／JSON。正式截圖在 [phase5](docs/screenshots/phase5/)，最終命令、項數與完整平台回歸表見 [設計與驗收](../docs/16-phase5-design.md)。
+
+
+2026-10-07 最終驗收：Phase 5 四組共 426 項；既有 regress-phase4 九案例、兩版 Phase 4 單人／dedicated、Paper 基本對接及四組 Paper／Folia Phase 3 全部通過。Paper 1.21.11／Folia 26.2 Phase 5 與 Paper 基本驗收亦完成受影響補驗；最終完整 build 及 git diff --check 通過。逐命令項數、網路失敗與補跑證據、Phase 5 完成總結見 [16](../docs/16-phase5-design.md#任務-4-最終回歸與受影響平台補驗2026-10-07)。

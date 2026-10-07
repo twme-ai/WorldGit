@@ -51,8 +51,9 @@ final class Phase3ClientGameTest {
             ctx.waitTicks(100);
             ctx.waitFor(c->ClientRuntime.get().handshaken(),600);
             check(ctx.computeOnClient(c->ClientRuntime.get().mergeCapable()),"客戶端沒有 merge-regions-v1 capability");
-            server.runCommand("wg init"); awaitHead(ctx,server,null);
-            mainName=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(ops->ops.branches().stream().filter(b->b.current()).findFirst().orElseThrow().name())),1800);
+            WorldGitClientGameTest.trackAllEntities(server);
+            server.runCommand("wg init --all"); awaitHead(ctx,server,null);
+            mainName=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(org.worldgit.core.model.DimensionId.OVERWORLD,ops->ops.branches().stream().filter(b->b.current()).findFirst().orElseThrow().name())),1800);
             log("main="+mainName);
             var base=head(ctx,server);
             var baseCells=cells(server);
@@ -67,7 +68,7 @@ final class Phase3ClientGameTest {
             command(ctx,server,"wg switch "+mainName);
             var clean=(WorldOperations.MergeResult)command(ctx,server,"wg merge t1");
             check(clean.success() && clean.merging()==null && "COMPLETE".equals(clean.state()),"零衝突合併應直接完成："+clean);
-            check(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging()),600)==null,"零衝突後仍 MERGING");
+            check(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging(org.worldgit.core.model.DimensionId.OVERWORLD)),600)==null,"零衝突後仍 MERGING");
             var m2cells=cells(server);
             for(var e:Map.of(3+",-60,3","minecraft:gold_block",8+",-60,3","minecraft:lapis_block",40+",-60,3","minecraft:lapis_block").entrySet())
                 check(e.getValue().equals(m2cells.get(e.getKey())),"零衝突結果缺少 "+e.getKey());
@@ -168,7 +169,7 @@ final class Phase3ClientGameTest {
             check(aborted.success() && aborted.merging()==null,"abort 失敗："+aborted);
             check(cells(server).equals(oursCells),"abort 後世界與合併前不同："+diff(oursCells,cells(server)));
             check(head(ctx,server).equals(oursHead),"abort 移動了 HEAD");
-            check(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging()),600)==null,"abort 後仍 MERGING");
+            check(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging(org.worldgit.core.model.DimensionId.OVERWORLD)),600)==null,"abort 後仍 MERGING");
             ctx.waitFor(c->ClientRuntime.get().conflicts().regions().isEmpty(),600);
             checkpoint(server,"after-abort");
             log("abort=true cells-identical="+oursCells.size());
@@ -211,7 +212,7 @@ final class Phase3ClientGameTest {
             set(server,18,-60,10,"minecraft:redstone_lamp[lit=false]");
             var manualNeighbor=cells(server).get("19,-60,10"); // 玩家自己的 setblock 會讓原版更新鄰居（不是 WorldGit 造成）
             ui(ctx,server,wire,Choice.MANUAL,true);
-            var state=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging()),600);
+            var state=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging(org.worldgit.core.model.DimensionId.OVERWORLD)),600);
             check(state!=null && state.remaining()==0,"應全部解決："+(state==null ? null : state.remaining()));
             var expectedFinal=new TreeMap<>(s0);
             for(var r:List.of(door,fence)) for(var p:atoms(r)) expectedFinal.put(p,theirsCells.get(p));
@@ -222,7 +223,7 @@ final class Phase3ClientGameTest {
             checkpoint(server,"all-resolved");
             var done=(WorldOperations.MergeResult)command(ctx,server,"wg merge --continue");
             check(done.success() && done.merging()==null,"continue 失敗："+done);
-            check(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging()),600)==null,"continue 後仍 MERGING");
+            check(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging(org.worldgit.core.model.DimensionId.OVERWORLD)),600)==null,"continue 後仍 MERGING");
             var finalCells=cells(server);
             check(new TreeMap<>(finalCells).equals(expectedFinal),"continue 後世界改變："+diff(expectedFinal,finalCells));
             var finalVerify=verify(ctx,server);
@@ -297,7 +298,7 @@ final class Phase3ClientGameTest {
         return out;
     }
     private static List<MergeReport.Region> regions(ClientGameTestContext ctx,TestServerContext server) {
-        var state=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging()),600);
+        var state=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).merging(org.worldgit.core.model.DimensionId.OVERWORLD)),600);
         check(state!=null,"不在 MERGING");
         return state.regions();
     }
@@ -323,7 +324,7 @@ final class Phase3ClientGameTest {
     // ---- 指令／repo ---------------------------------------------------------------------
 
     private static String head(ClientGameTestContext ctx,TestServerContext server) {
-        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),2400).stream().filter(row->row.commits().containsKey(DimensionId.OVERWORLD)).findFirst().orElseThrow().commits().get(DimensionId.OVERWORLD);
+        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(DimensionId.OVERWORLD,10)),2400).getFirst().id();
     }
     private static void awaitHead(ClientGameTestContext ctx,TestServerContext server,String previous) {
         for(int i=0;i<180;i++) {
@@ -336,7 +337,7 @@ final class Phase3ClientGameTest {
         var previous=head(ctx,server); server.runCommand("wg commit -m "+message); awaitHead(ctx,server,previous);
     }
     private static WorldOperations.Result verify(ClientGameTestContext ctx,TestServerContext server) {
-        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(ops->ops.verify(mainName,null,Scope.all(),true))),2400);
+        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(org.worldgit.core.model.DimensionId.OVERWORLD,ops->ops.verify(mainName,null,Scope.all(),true))),2400);
     }
     private static Object command(ClientGameTestContext ctx,TestServerContext server,String command) {
         var previous=server.computeOnServer(s->WorldGitMod.runtime(s).lastOperation());

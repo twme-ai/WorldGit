@@ -103,11 +103,21 @@ public final class Attribution {
   }
 
   public synchronized Snapshot capture() {
+    return capture(d -> true);
+  }
+
+  /** 只擷取單一維度的歸屬（單維度 commit）。 */
+  public synchronized Snapshot capture(DimensionId dimension) {
+    return capture(dimension::equals);
+  }
+
+  private Snapshot capture(java.util.function.Predicate<DimensionId> select) {
     var g = new HashMap<Key, Long>();
     var p = new HashMap<Key, Map<UUID, String>>();
     var c = new HashMap<Key, Set<String>>();
     touches.forEach(
         (k, t) -> {
+          if (!select.test(k.dimension())) return;
           g.put(k, t.generation);
           p.put(k, new LinkedHashMap<>(t.players));
           c.put(k, new TreeSet<>(t.causes));
@@ -118,6 +128,16 @@ public final class Attribution {
   public synchronized void acknowledge(Snapshot snapshot) {
     snapshot.generations.forEach(
         (k, g) -> {
+          var t = touches.get(k);
+          if (t != null && t.generation == g) touches.remove(k);
+        });
+  }
+
+  /** 只確認指定維度（其他維度提交失敗時保留其歸屬）。 */
+  public synchronized void acknowledge(Snapshot snapshot, Set<DimensionId> dimensions) {
+    snapshot.generations.forEach(
+        (k, g) -> {
+          if (!dimensions.contains(k.dimension())) return;
           var t = touches.get(k);
           if (t != null && t.generation == g) touches.remove(k);
         });

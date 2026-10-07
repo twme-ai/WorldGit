@@ -138,8 +138,8 @@ public final class RepoService implements AutoCloseable {
     var path=action.mapping.layout().repository(action.dimension);
     if(!Files.exists(path.resolve("HEAD")))return;
     try(var store=new org.worldgit.core.store.JGitStore(path,false)) {
-      var head=store.headState();action.summary.put("head",(head.branch()==null?"HEAD":head.branch())+"@"+Messages.shortId(head.commit()));
-    }catch(IOException error) {action.summary.put("head","unavailable");}
+      var head=store.headState();action.summary.put("head",new OperationUi.Head(head.branch(),head.commit()));
+    }catch(IOException error) {plugin.getLogger().fine("無法讀取 HEAD："+error.getMessage());}
   }
 
   // ---------------------------------------------------------------- 共用

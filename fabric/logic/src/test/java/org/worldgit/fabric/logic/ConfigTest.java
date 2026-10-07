@@ -68,4 +68,33 @@ class ConfigTest {
     assertThrows(IOException.class, () -> ClientConfig.parse("detail-distance: 1\n", "t"));
     assertThrows(IOException.class, () -> ClientConfig.parse("palette: neon\n", "t"));
   }
+
+  @Test
+  void aliasesFeedbackAndIgnorePermissionAreConfigurable() throws Exception {
+    var defaults = ServerConfig.defaults();
+    assertTrue(defaults.aliases().wgit() && defaults.aliases().git());
+    assertEquals(2, defaults.ignorePermissionLevel());
+    assertTrue(defaults.feedback().bossbar() && defaults.feedback().hud());
+    assertEquals(3, defaults.feedback().terminalSeconds());
+    var custom = ServerConfig.parse("aliases:\n  git: false\nfeedback:\n  terminal-seconds: 5\n  hud: false\nignore-permission-level: 3\n", "t");
+    assertFalse(custom.aliases().git());
+    assertTrue(custom.aliases().wgit());
+    assertEquals(5, custom.feedback().terminalSeconds());
+    assertFalse(custom.feedback().hud());
+    assertEquals(3, custom.ignorePermissionLevel());
+    assertThrows(IOException.class, () -> ServerConfig.parse("aliases:\n  worldgit: false\n", "t"));
+    assertThrows(IOException.class, () -> ServerConfig.parse("feedback:\n  terminal-seconds: 0\n", "t"));
+  }
+
+  @Test
+  void errorMessagesAreClassifiedForTheCopyButton() {
+    assertTrue(MessageKeys.isError(MessageKeys.COMMON_ERROR));
+    assertTrue(MessageKeys.isError(MessageKeys.ERROR_TEMPLATE));
+    assertTrue(MessageKeys.isError(MessageKeys.REMOTE_ERROR_FORBIDDEN));
+    assertTrue(MessageKeys.isError(MessageKeys.APPLY_PARTIAL));
+    assertTrue(MessageKeys.isError(MessageKeys.TOUCH_DUPLICATE));
+    assertFalse(MessageKeys.isError(MessageKeys.COMMIT_DONE));
+    assertFalse(MessageKeys.isError(MessageKeys.RESULT_LINE));
+    assertFalse(MessageKeys.isError(MessageKeys.GRAPH_TITLE));
+  }
 }

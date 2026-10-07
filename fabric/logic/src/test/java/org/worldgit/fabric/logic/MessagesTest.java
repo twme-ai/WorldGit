@@ -13,7 +13,7 @@ import org.yaml.snakeyaml.Yaml;
 /** 語言鍵與語言檔一致：每個鍵都有 en_us／zh_tw、樣板只用宣告過的參數、語言檔沒有沒註冊的 fabric.* 孤兒鍵。 */
 class MessagesTest {
   private static final Set<String> STYLE_TAGS =
-      Set.of("gold", "gray", "white", "aqua", "green", "red", "yellow", "bold", "italic", "wg_added", "wg_removed", "wg_modified", "wg_conflict");
+      Set.of("gold", "gray", "white", "aqua", "green", "red", "yellow", "bold", "italic", "wg_added", "wg_removed", "wg_modified", "wg_conflict", "newline");
   private static final Pattern TAG = Pattern.compile("(?<!\\\\)<([a-z_]+)>");
 
   @Test
@@ -61,6 +61,17 @@ class MessagesTest {
         orphans.removeAll(MessageKeys.all().keySet());
         assertTrue(orphans.isEmpty(), locale + " 有沒註冊的鍵：" + orphans);
       }
+  }
+
+  @Test
+  void remoteUsageIsStaticAndReportsInvalidInput() {
+    assertTrue(Msg.prefixed(MessageKeys.REMOTE_USAGE).args().isEmpty());
+    assertTrue(MessageKeys.isError(MessageKeys.REMOTE_USAGE));
+    for (String locale : MessageCatalog.BUNDLED_LOCALES) {
+      String text = MessageCatalog.bundled().raw(locale, MessageKeys.REMOTE_USAGE);
+      for (String placeholder : List.of("code", "title", "text"))
+        assertTrue(text.contains("\\<" + placeholder + ">"), locale + " " + placeholder);
+    }
   }
 
   @Test

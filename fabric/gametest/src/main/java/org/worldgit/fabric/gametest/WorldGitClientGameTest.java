@@ -34,6 +34,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
       client.options.framerateLimit().set(120);
       client.options.languageCode = "en_us";
     });
+    if(Boolean.getBoolean("wgtest.phase5")) { Phase5ClientGameTest.run(ctx);return; }
     if(Boolean.getBoolean("wgtest.phase4")) { Phase4ClientGameTest.run(ctx);return; }
     int paperPort = Integer.getInteger("wgtest.paperPort", 0);
     if (paperPort != 0) {
@@ -59,7 +60,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
       ctx.waitFor(c -> ClientRuntime.get().handshaken(), 400);
       LOG.info("WGTEST handshake=true");
 
-      server.runCommand("wg init");
+      server.runCommand("wg init --all");
       awaitInitialized(ctx, server);
       ctx.waitTicks(10);
       ctx.takeScreenshot("01-init-chat");
@@ -68,7 +69,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
       server.runCommand("setblock 3 -60 3 minecraft:stone");   // 新增
       server.runCommand("setblock 5 -60 5 minecraft:air");     // 移除（樓梯）
       server.runCommand("setblock 7 -60 7 minecraft:dirt");    // 修改（鵝卵石 → 泥土）
-      var status = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).status(false)), 1200);
+      var status = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).status(OVERWORLD, false)), 1200);
       var diff = status.dimensions().get(OVERWORLD).value().diff();
       var counts = diff.counts();
       LOG.info("WGTEST status sections={} added={} removed={} modified={} conflict={}", diff.sections().size(), counts.added(), counts.removed(), counts.modified(), counts.conflict());
@@ -77,7 +78,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
           "預期恰好 1 section、+1 -1 ~1，實際為 " + diff);
       // Force vanilla to clear unsaved, then ensure our generation still exposes the same changes.
       server.runOnServer(s -> s.saveEverything(true, true, true));
-      var savedStatus = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).status(false)), 1200);
+      var savedStatus = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).status(OVERWORLD, false)), 1200);
       check(savedStatus.success() && savedStatus.dimensions().get(OVERWORLD).value().diff().sections().size() == 1,
           "存檔後遺失 dirty generation");
       LOG.info("WGTEST saved-status sections=1");
@@ -115,7 +116,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
       hideGui(ctx);
       client(ctx, "wg commit -m client game test");
       awaitLog(ctx, server, 2);
-      var clean = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).status(false)), 1200);
+      var clean = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).status(OVERWORLD, false)), 1200);
       check(clean.success() && clean.dimensions().get(OVERWORLD).value().diff().sections().isEmpty(), "commit 後應為 clean");
       java.nio.file.Path worldPath = server.computeOnServer(s -> WorldGitMod.runtime(s).worldRoot());
       LOG.info("WGTEST world={}", worldPath);
@@ -204,7 +205,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
       client(ctx, "wg init");
       awaitInitialized(ctx, server);
       server.runCommand("setblock 3 -60 3 minecraft:stone");
-      var status = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).status(false)), 1200);
+      var status = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).status(OVERWORLD, false)), 1200);
       LOG.info("WGTEST zh-status sections={}", status.dimensions().get(OVERWORLD).value().diff().sections().size());
       check(status.success() && status.dimensions().get(OVERWORLD).value().diff().sections().size() == 1, "中文世界應有 1 section");
       client(ctx, "wg status");
@@ -217,6 +218,17 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
   }
 
   // ---- 工具 ---------------------------------------------------------------------------
+
+  /** 舊回歸沿用全實體範本，console 召喚的 UUID 也必須實際入庫；新預設由 Phase 5 另驗。 */
+  static void trackAllEntities(TestServerContext server) throws java.io.IOException {
+    var root = server.computeOnServer(s -> WorldGitMod.runtime(s).worldRoot());
+    var layout = org.worldgit.core.anvil.WorldLayout.discover(root);
+    var config = new org.worldgit.core.config.WorldGitConfig.Repo(
+        org.worldgit.core.config.WorldGitConfig.Track.ALL, org.worldgit.core.config.WorldGitConfig.Entities.ALL);
+    for (var dimension : layout.dimensions().keySet())
+      org.worldgit.core.config.WorldGitConfig.write(layout.repository(dimension).resolve("worldgit-repo.yml"),
+          org.worldgit.core.config.WorldGitConfig.write(config));
+  }
 
   private static void check(boolean condition, String message) {
     if (!condition) throw new AssertionError(message);
@@ -242,7 +254,7 @@ public final class WorldGitClientGameTest implements FabricClientGameTest {
     for (int attempt = 0; attempt < 120; attempt++) {
       int commits = 0;
       try {
-        commits = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).log(10)), 600).stream().filter(row -> row.commits().containsKey(DimensionId.OVERWORLD)).toList().size();
+        commits = await(ctx, server.computeOnServer(s -> WorldGitMod.runtime(s).log(OVERWORLD, 10)), 600).size();
       } catch (java.util.concurrent.CompletionException notYet) {
         // repo 尚未建立完成
       }

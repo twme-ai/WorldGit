@@ -129,10 +129,39 @@ final class ClientPlatform {
   }
 
   static void setScreen(net.minecraft.client.gui.screens.Screen screen) { Minecraft.getInstance().gui.setScreen(screen); }
+  static net.minecraft.client.gui.screens.Screen currentScreen() { return Minecraft.getInstance().gui.screen(); }
+  static boolean guiHidden() { return Minecraft.getInstance().gui.hud.isHidden(); }
+
+  /** 開啟聊天輸入框並預填文字（不送出）。 */
+  static void openChat(String text) { Minecraft.getInstance().gui.setScreen(new net.minecraft.client.gui.screens.ChatScreen(text, false)); }
+
+  static Canvas canvas(net.minecraft.client.gui.GuiGraphicsExtractor g) {
+    var font = Minecraft.getInstance().font;
+    return new Canvas() {
+      @Override public void fill(int x1, int y1, int x2, int y2, int argb) { g.fill(x1, y1, x2, y2, argb); }
+      @Override public void text(net.minecraft.network.chat.Component text, int x, int y, int argb) { g.text(font, text.getVisualOrderText(), x, y, argb, false); }
+      @Override public int width(net.minecraft.network.chat.Component text) { return font.width(text); }
+    };
+  }
+
+  /** 進度 overlay（模組客戶端）：階段、維度、百分比或不定進度、ETA，完成後顯示終態。 */
+  static void registerProgressHud() {
+    net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.attachElementBefore(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.CHAT,
+        Identifier.parse("worldgit:progress"), (g, delta) -> {
+          var mc = Minecraft.getInstance();
+          if (mc.level == null || guiHidden()) return;
+          var items = ClientRuntime.get().progressItems();
+          if (!items.isEmpty()) ProgressHud.render(canvas(g), items, g.guiWidth(), System.currentTimeMillis());
+        });
+  }
+
+  private static final class KeyCategory {
+    static final net.minecraft.client.KeyMapping.Category VALUE = net.minecraft.client.KeyMapping.Category.register(net.minecraft.resources.Identifier.parse("worldgit:controls"));
+  }
 
   static net.minecraft.client.KeyMapping registerKey(String name, int key) {
     return net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper.registerKeyMapping(new net.minecraft.client.KeyMapping(
-        name, key, net.minecraft.client.KeyMapping.Category.register(net.minecraft.resources.Identifier.parse("worldgit:controls"))));
+        name, key, KeyCategory.VALUE));
   }
   static void registerCommentHud() {
     net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.attachElementBefore(net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements.CHAT,Identifier.parse("worldgit:comments"),(g,delta)->{

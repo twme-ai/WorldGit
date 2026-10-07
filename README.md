@@ -4,18 +4,18 @@ Minecraft 世界的 git 式版本控制。世界是 working tree，每個維度�
 
 目前已完成 Phase 4：四端共用的遠端協作（remote／fetch／push／pull／clone／tag／release ZIP），Hub 帳號與權限、受保護分支、PR 審核與網頁合併、3D 座標釘選留言、webhook；Paper／Folia 與 Fabric（單人／專用伺服器）遊戲內 push／pull 預覽確認、PR 與留言顯示。各平台結果與限制見 [Phase 4 紀錄](docs/14-phase4-progress.md)。
 
-Phase 5 任務 1 已實作 core／CLI 的維度獨立、世界內 repo、安全遷移、init 範圍、分支圖、進度、ignore 編輯及完成／錯誤結果。介面、驗收與任務 2（Hub）／3（Paper／Folia）／4（Fabric）的交接見 [Phase 5 設計](docs/16-phase5-design.md)。遊戲內 creative init 在玩家觸及事件接線前仍使用 `entities: all`；core／CLI 新 creative repo 使用 `player-touched`，離線初始集合為空。
+Phase 5 四個任務已完成並通過驗收（2026-10-07）：core／CLI 的維度獨立、世界內 repo、安全遷移；Hub 的每維度 PR／分支圖／操作結果；Paper／Folia 與 Fabric 的玩家維度 init／追加按鈕、別名、進度、ignore 編輯、人類可讀完成摘要與錯誤複製。Fabric 另有單人／dedicated 的原生圖畫面、ignore 畫面與 HUD。介面、決定與實測矩陣見 [Phase 5 設計與驗收](docs/16-phase5-design.md)。新 creative repo 四端使用 `entities: player-touched`，遊戲內由玩家事件追蹤；CLI 沿用 sidecar，離線 init 的初始集合為空。survival 與舊 repo 的實體設定保持既有語意。
 
 **使用方式請看 [使用手冊](docs/15-user-guide.md)**：依單人玩家、伺服器管理員、建築者、CLI、Hub 使用者與架站者分章說明。
 
 | 模組 | 責任 | Java |
 |---|---|---|
 | [core](core/README.md) | Anvil/NBT、正規化、JGit、維度 repo、快照／套用／三方合併、YAML 與 `.wgignore` | 21 |
-| platform-api | `LiveWorld`、dirty generation、離線來源、session lock、Phase 2 apply/lock 介面 | 21 |
+| platform-api | `LiveWorld`、dirty generation、離線來源、session lock、apply/lock 與共用 i18n 完成摘要 | 21 |
 | [protocol](protocol/README.md) | 協定 v2、衝突清單／預覽與可選能力、色票、≤ 28,000 bytes 分包與重組 | 21 |
 | [cli](cli/README.md) | 離線快照、復原／切換、合併／解決衝突、JSON、終端色彩、fat jar | 21 |
 | [Paper／Folia](paper/README.md) | 1.21.11／26.2 插件、線上合併、區域工具與 GUI | 21／25 |
-| [Fabric](fabric/README.md) | 兩版單人操作、客戶端鬼影與衝突清單、Paper／Folia 對接 | 21／25 |
+| [Fabric](fabric/README.md) | 兩版單人／dedicated、分支圖與 ignore 畫面、BossBar／HUD、鬼影／衝突與 Paper／Folia 對接 | 21／25 |
 | [Hub](hub/README.md) | 歷史、3D diff、PR／審核／合併、座標留言、release、webhook | 25 |
 
 根 Gradle 納入上述模組，各平台使用自己的 project 與 toolchain。core 不引用任何 Minecraft 類別，Java 25 平台可依賴 Java 21 的 core。

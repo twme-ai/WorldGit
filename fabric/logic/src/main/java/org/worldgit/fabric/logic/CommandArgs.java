@@ -13,6 +13,11 @@ public final class CommandArgs {
       this.msg = Messages.error(key, "option", option);
     }
 
+    Invalid(Msg msg) {
+      super(msg.key());
+      this.msg = msg;
+    }
+
     public Msg msg() {
       return msg;
     }

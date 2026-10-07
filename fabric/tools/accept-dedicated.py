@@ -125,7 +125,7 @@ def run(args):
             server.cmd('op '+player);server.cmd('gamemode creative '+player)
             server.cmd(f'tp {player} 15.5 66 -4 0 20');server.cmd('forceload add 0 0 31 15')
             server.cmd('tick freeze',r'froze');server.cmd('kill @e[type=!player]')
-            variant('oak','oak',1,'diamond');cmd('wg init',r'Initialization complete|失敗',900)
+            variant('oak','oak',1,'diamond');cmd('wg init --all',r'Initialization complete|失敗',900)
             observe()
             op_rows=json.loads((Path(server.dir)/'ops.json').read_text());check('client operator level 2',any(row['name']==player and row['level']==2 for row in op_rows))
             # console Phase 2 寫入；HEAD 與完整 section 比對。

@@ -89,7 +89,7 @@ def run(args):
             result['fixture_preload']='Paper strider AgeLocked removed by vanilla serialization before initial snapshot'
         for dimension,player in remote_bots.items():cmd('execute in '+dimension+' run tp '+player.name+' 8 '+('225' if dimension=='minecraft:overworld' else '65')+' 8',r'Teleported')
         move('minecraft:overworld');time.sleep(10)
-        cmd('wg init',r'Initialization complete|Error:',True)
+        cmd('wg init --all',r'Initialization complete|Error:',True)
         for dimension in DIMENSIONS:
             move(dimension);botcmd('remote add origin '+url,r'updated|Error:');botcmd('remote list',r'origin →|Error:')
             out=botcmd('push',r'push complete|Error:');check('player push only '+dimension,'push complete (1 dimensions)' in out)
@@ -115,12 +115,16 @@ def run(args):
             move('minecraft:overworld')
             botcmd('pr create remote building --source topic --target main',r'PR #\d+|Error:');pr=hub.api('GET',base+'/pulls')['items'][0];detail=hub.api('GET',base+'/pulls/'+pr['id'])
             hub.api('PUT',base+'/protected-branches',{'branch':'main','prOnly':True,'reviews':1});hub.api('POST',base+'/pulls/'+pr['id']+'/reviews',{'fingerprint':detail['pr']['fingerprint'],'decision':'approve'},hub.reviewer)
+            before_merge=heads()
             mark=server.mark();hub.api('POST',base+'/pulls/'+pr['id']+'/merge',{'fingerprint':detail['pr']['fingerprint']});merged=hub.api('GET',base+'/pulls/'+pr['id']);server.wait('has a new version',120,mark)
-            check('signed webhook notification never auto applies',sample(8)=='air' and heads()!=merged['pr']['commits'])
+            check('signed webhook notification never auto applies',sample(8)=='air' and heads()==before_merge and before_merge['minecraft:overworld']!=merged['pr']['commits']['minecraft:overworld'])
             botcmd('pr list',r'PR #1|Error:');botcmd('pr view 1',r'approvals|Error:')
             code,out=preview();check('FF preview keeps world unchanged',sample(8)=='air' and 'FF' in out);botcmd('pull confirm '+code,r'COMPLETE:|Error:|PARTIAL')
             for dimension in DIMENSIONS[1:]:move(dimension);pull()
-            move('minecraft:overworld');check('live FF equals Hub merge',sample(8)=='diamond_block' and heads()==merged['pr']['commits'],local=heads(),remote=merged['pr']['commits'])
+            move('minecraft:overworld');remote=hub_heads(work,'admin',slug)
+            check('live FF equals Hub merge',sample(8)=='diamond_block' and heads()==remote
+                  and merged['pr']['commits']=={'minecraft:overworld':remote['minecraft:overworld']}
+                  and all(remote[dimension]==initial[dimension] for dimension in DIMENSIONS[1:]),local=heads(),remote=remote,pr_commits=merged['pr']['commits'])
             out=botcmd('pull confirm '+code,r'No valid preview|Error:',False);check('confirmation one use','No valid preview' in out)
             hub.api('DELETE',base+'/protected-branches?branch=main');b=clone();remote_edit(b,2,'emerald_block');cli(b,'commit','-m','remote2');cli(b,'push');code,_=preview();remote_edit(b,3,'lapis_block');cli(b,'commit','-m','remote3');cli(b,'push');old=heads()
             out=botcmd('pull confirm '+code,r'Pull preview changed|Error:',False);check('changed remote tip rejected',heads()==old and sample(2)=='air' and 'preview changed' in out);pull()

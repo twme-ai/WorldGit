@@ -169,7 +169,7 @@ public final class MessageKeys {
   public static final String CONFLICT_EMPTY = def("fabric.merge.empty");
   public static final String CONFLICT_ROW = def("fabric.merge.row","id","dimension","bounds","count","ours","theirs","choice","resolved","redstone");
 
-  public static final String REMOTE_USAGE=def("fabric.remote.usage","code","text","title");
+  public static final String REMOTE_USAGE=def("fabric.remote.usage");
   public static final String REMOTE_BUSY=def("fabric.remote.busy");
   public static final String REMOTE_START=def("fabric.remote.start");
   public static final String REMOTE_EMPTY=def("fabric.remote.empty");
@@ -207,4 +207,79 @@ public final class MessageKeys {
   public static final String REMOTE_DIRTY=def("fabric.remote.dirty");
   public static final String REMOTE_MERGING=def("fabric.remote.merging");
   public static final String REMOTE_PARTIAL=def("fabric.remote.partial");
+
+  // ---- Phase 5 任務 4 ----
+  public static final String ERROR_TARGET_EXCLUSIVE = def("fabric.error.target-exclusive", "option");
+  public static final String ERROR_CONSOLE_INIT = def("fabric.error.console-init");
+  public static final String ERROR_DIMENSION_MISSING = def("fabric.error.dimension-missing", "dimension");
+  public static final String ERROR_PERMISSION = def("fabric.error.permission");
+
+  public static final String INIT_EXTRA_NETHER = def("fabric.init.extra-nether");
+  public static final String INIT_EXTRA_END = def("fabric.init.extra-end");
+  public static final String INIT_EXTRA_ALL = def("fabric.init.extra-all");
+  public static final String INIT_EXTRA_HOVER = def("fabric.init.extra-hover", "command");
+
+  public static final String RESULT_LINE = def("fabric.result.line", "operation", "status", "dimension", "summary", "millis");
+  public static final String RESULT_COPY = def("fabric.result.copy");
+  public static final String RESULT_COPY_HOVER = def("fabric.result.copy-hover");
+  public static final String RESULT_RECOVERY = def("fabric.result.recovery");
+  public static final String PROGRESS_LINE = def("fabric.progress.line", "operation", "dimension", "phase", "percent", "eta");
+  public static final String PROGRESS_TERMINAL = def("fabric.progress.terminal", "operation", "status", "dimension", "millis");
+  public static final String APPLY_PARTIAL = def("fabric.apply.partial", "sections", "entities");
+  public static final String HELP_PHASE5 = def("fabric.help.phase5");
+  public static final String HELP_TARGET = def("fabric.help.target");
+
+  public static final List<String> STATUSES = List.of("success", "no_op", "partial", "failed", "cancelled");
+  private static final Map<String, String> STATUS_KEYS = new TreeMap<>();
+  static { for (String status : STATUSES) STATUS_KEYS.put(status, def("fabric.result.status." + status)); }
+  public static String status(String status) { return STATUS_KEYS.get(status.toLowerCase(Locale.ROOT)); }
+
+  /** 進度階段名稱（core 的 phase 識別字）；沒有翻譯的階段原樣顯示。 */
+  public static final List<String> PROGRESS_PHASES = List.of("start", "scan", "scan-terrain", "scan-entities", "capture", "normalize", "diff", "preflight",
+      "apply", "apply-terrain", "verify", "merge-compute", "merge-write", "merge", "merge-preview", "publish", "fetch", "push", "index", "lock",
+      "lighting", "saving", "flush", "complete");
+  private static final Map<String, String> PHASE_KEYS = new TreeMap<>();
+  static { for (String phase : PROGRESS_PHASES) PHASE_KEYS.put(phase, def("fabric.phase." + phase)); }
+  public static String phaseKey(String phase) { return PHASE_KEYS.get(phase); }
+
+  public static final String GRAPH_TITLE = def("fabric.graph.title", "dimension", "page");
+  public static final String GRAPH_MORE = def("fabric.graph.more", "page");
+  public static final String GRAPH_EMPTY = def("fabric.graph.empty", "dimension");
+  public static final String GRAPH_SCREEN = def("fabric.graph.screen", "dimension");
+  public static final String GRAPH_NO_SCREEN = def("fabric.graph.no-screen");
+  public static final String GRAPH_HOVER_SUFFIX = def("fabric.graph.hover", "id", "author", "time", "message", "parents");
+
+  public static final String IGNORE_WRITTEN = def("fabric.ignore.written");
+  public static final String IGNORE_VALID = def("fabric.ignore.valid", "count");
+  public static final String IGNORE_TEST = def("fabric.ignore.test", "excluded", "line", "rule");
+  public static final String IGNORE_PREVIEW = def("fabric.ignore.preview", "blocks", "bes", "entities", "biomes", "fields", "samples");
+  public static final String IGNORE_CONFIRM = def("fabric.ignore.confirm", "code");
+  public static final String IGNORE_ROW = def("fabric.ignore.row", "number", "state", "text");
+  public static final String IGNORE_STALE = def("fabric.ignore.stale");
+  public static final String IGNORE_MERGING = def("fabric.ignore.merging");
+  public static final String IGNORE_NO_PENDING = def("fabric.ignore.no-pending");
+  public static final String IGNORE_USAGE = def("fabric.ignore.usage");
+  public static final String IGNORE_NO_TARGET = def("fabric.ignore.no-target");
+  public static final String IGNORE_CANCELLED = def("fabric.ignore.cancelled");
+  public static final String IGNORE_PERMISSION = def("fabric.ignore.permission");
+  public static final String IGNORE_INVALID = def("fabric.ignore.invalid", "message");
+  public static final String IGNORE_NO_SCREEN = def("fabric.ignore.no-screen");
+
+  public static final String TAG_ROW = def("fabric.tag.row", "name", "commit");
+  public static final String TAG_EMPTY = def("fabric.tag.empty");
+  public static final String TAG_DONE = def("fabric.tag.done", "action", "name");
+  public static final String TAG_CREATED = def("fabric.tag.created");
+  public static final String TAG_DELETED = def("fabric.tag.deleted");
+  public static final String VERIFY_DONE = def("fabric.verify.done", "revision");
+  public static final String TOUCH_DUPLICATE = def("fabric.touched.duplicate", "uuid", "dimension");
+
+  private static final Set<String> ERRORS = Set.of(COMMON_ERROR, ERROR_DIRTY, ERROR_PARTIAL, STATUS_DIMENSION_FAILED, COMMIT_DIM_FAILED, COMMIT_INCOMPLETE,
+      APPLY_PARTIAL, REMOTE_PERMISSION, REMOTE_NON_FF, REMOTE_EXPIRED, REMOTE_PREVIEW_CHANGED, REMOTE_NOTIFICATION_FAILED, REMOTE_DIRTY,
+      REMOTE_MERGING, REMOTE_PARTIAL, REMOTE_NO_COMMENTS_MOD, REMOTE_BUSY, REMOTE_USAGE, ERROR_PHASE2_ARGS, IGNORE_STALE, IGNORE_MERGING, IGNORE_NO_PENDING, IGNORE_USAGE,
+      IGNORE_NO_TARGET, IGNORE_PERMISSION, IGNORE_INVALID, PREVIEW_NO_MOD, PREVIEW_PLAYER_ONLY, TOUCH_DUPLICATE);
+
+  /** error／failure／partial 類的訊息：送出時附獨立 [複製]。 */
+  public static boolean isError(String key) {
+    return ERRORS.contains(key) || key.startsWith("fabric.error.") || key.startsWith("fabric.remote.error.");
+  }
 }

@@ -17,7 +17,7 @@ abstract class CommandEditMixin {
         var runtime=WorldGitMod.runtime(parse.getContext().getSource().getServer());
         if(runtime!=null && runtime.editsLocked() && !runtime.internalMutation()) {
             var name=Commands.trimOptionalPrefix(command).split(" ",2)[0].toLowerCase(java.util.Locale.ROOT);
-            if(!java.util.Set.of("wg","worldgit","stop","list","tps","mspt","say","msg","tell").contains(name)) ci.cancel();
+            if(!java.util.Set.of("wg","worldgit","wgit","git","stop","list","tps","mspt","say","msg","tell").contains(name)) ci.cancel();
         }
     }
 }

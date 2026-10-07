@@ -1,6 +1,6 @@
 # 15 — WorldGit 使用手冊
 
-本手冊依「你是誰」與「你用哪個平臺」整理 WorldGit 的實際用法。共通規則、CLI、Hub 與 Paper／Folia 已更新至 2026-10-05 的 Phase 5 任務 1–3；Fabric 保留相容過渡，UX 在任務 4 完成。設計理由見 [09 決定表](09-roadmap-open-questions.md)，驗收與交接見 [16](16-phase5-design.md) 及各模組 README。
+本手冊依「你是誰」與「你用哪個平臺」整理 WorldGit 的實際用法。共通規則、CLI、Hub、Paper／Folia 與 Fabric 已更新至 2026-10-07；Phase 5 四個任務皆已完成並通過驗收。設計理由見 [09 決定表](09-roadmap-open-questions.md)，驗收與交接見 [16](16-phase5-design.md) 及各模組 README。
 
 ---
 
@@ -24,7 +24,7 @@
 
 ---
 
-> Phase 5 core／CLI、Hub 與 Paper／Folia 已接線。Paper 玩家 init 只取所在維度、新 creative 使用 player-touched；Fabric 的對應玩家範圍／事件與畫面由任務 4 接線，完整契約與驗收狀態見 [16](16-phase5-design.md)。
+> Phase 5 四端已完成並通過驗收（2026-10-07）：遊戲玩家 init 只取所在維度、新 creative 使用 player-touched；所有 repo 操作有維度目標、明確終態與可複製錯誤。完整契約與驗收狀態見 [16](16-phase5-design.md)。
 
 ## 1. WorldGit 是什麼
 
@@ -175,11 +175,11 @@ WorldGit 的 Fabric jar 已內嵌 core、JGit、Jackson、Adventure 等依賴，
 ### 5.2 第一次使用
 
 ```text
-/wg init                       # 建立 repo 與第一個完整快照（預設 creative 範本，全部追蹤）
+/wg init                       # 建立目前維度的 repo 與第一個快照（預設 creative 範本）
 /wg init --template survival   # 生存世界：排除暫態資料、非 persistent 生物等
 ```
 
-`init` 只建立已存在的維度；第一次進入地獄或終界後，再執行一次 `/wg init` 即可加入。
+`init` 只建立玩家目前維度；主世界 init 後會提供追加地獄／終界／全部的可點選按鈕。第一次進入新維度後可在該維度再 init；也能用 `/wg init --dimension minecraft:the_nether` 或 `/wg init --all` 明確選取。creative 預設只追蹤玩家觸及的實體，自然牛不入庫、命名後入庫；還原盔甲座不刪除自然實體。
 
 ### 5.3 日常：存檔點、歷史、差異
 
@@ -258,6 +258,16 @@ WorldGit 的 Fabric jar 已內嵌 core、JGit、Jackson、Adventure 等依賴，
 ```
 
 細部設定在 `config/worldgit-client.yml`（明細距離、最大距離、每幀建置量、留言顯示上限等）。
+
+### 5.6.1 分支圖、進度與 ignore 編輯器
+
+`/wg log --graph` 顯示聊天分支圖：hover 看完整提交，點選填入 diff。`/wg graph` 或 H 開啟可捲動圖畫面，選取提交後可複製完整 ID、填入 diff 或 switch dry-run；畫面最多 200 提交，更早歷史用聊天 `--page`。G 仍開衝突清單。
+
+長操作有 vanilla BossBar 與模組 HUD，顯示階段、維度、百分比／不定進度與 ETA，完成後保留終態數秒。每個指令以及自動／登出／存檔退出 commit 都有明確完成摘要；錯誤後的 `[複製]` 可取得遮罩秘密的 ErrorReport。
+
+`/wg ignore gui` 或 K 開啟 `.wgignore` 編輯器。可新增、刪除、排序、啟停規則，新增框即時檢查語法。修改先顯示 HEAD preview，再按「確認修改」，120 秒內有效；HEAD 或原規則變更後須重新預覽，MERGING 時禁止修改。server 再驗單人 owner／寫入權限與規則；下一次 commit 保存規則歷史。也可使用 `/wg ignore list|add|remove|move|enable|disable|test|check|preview`；不帶 selector 的 test 取準星目標。
+
+所有 repo 命令預設目前維度；`--dimension <id>` 明確選取，`--all` 逐維度非原子執行、各自回報。目標旗標放在 commit／stash 訊息、ignore 規則、PR 標題或留言正文之前。
 
 ### 5.7 把單人世界放上 Hub、或下載別人的世界
 
@@ -557,7 +567,9 @@ remote:
 ### 7.3 指令差異
 
 - 指令與 Paper 幾乎相同；Fabric 多了 `/wg preview <版本> [--radius r]`、`/wg info`、`/wg conflict-preview`，合併工具用客戶端的衝突清單畫面（`G` 鍵）取代 Paper 的指南針與箱子 GUI。
-- 主控臺執行局部 restore 時以指令來源的維度與座標為準。
+- 主控臺 init 必須帶 `--dimension <id>` 或 `--all`；其他 repo 操作預設主世界。玩家預設目前維度；`--all` 逐維度非原子執行。局部 restore 的中心以來源座標為準。
+- `wg`、`wgit`、`git`、`worldgit` 共用入口。YAML `aliases.wgit`／`aliases.git` 可停用，需重啟；其他模組已占用 `/git` 時不覆蓋。
+- 原版玩家能看 BossBar、完成摘要與錯誤複製；沒有模組時 `.wgignore` 使用指令與聊天 preview／confirm。圖形編輯器、圖畫面與 HUD 需模組客戶端。`ignore-permission-level` 預設 2。
 - 自動 commit 在玩家登出、定時與關機時觸發；MERGING 期間全部跳過。
 
 ### 7.4 玩家客戶端
@@ -610,7 +622,7 @@ remote:
 
 ## 9. CLI 使用者（離線、備份、腳本）
 
-Java 21+，只在世界停止時寫世界或 migrate。完整旗標見 [CLI README](../cli/README.md)；平臺／Hub 章節待後續 Phase 5 任務更新。
+Java 21+，只在世界停止時寫世界或 migrate。完整旗標見 [CLI README](../cli/README.md)；線上操作與 Hub 協作分別見本手冊的平臺／Hub 章節。
 
 ### 9.1 範圍與結果
 
@@ -934,7 +946,7 @@ wgit push origin main --tags
 
 ## 14. 已知限制
 
-- **Phase 5 Fabric 過渡**：Fabric 的玩家維度 init、別名、畫面／HUD、ignore、完整進度／結果／複製及觸及事件在任務 4 更新；Paper／Folia 已接任務 3，Hub 已完成任務 2。
+- **Phase 5 Fabric**：玩家維度 init／追加按鈕、別名、圖／ignore 畫面、BossBar／HUD、完成摘要、錯誤複製與 touched 事件已接線；驗收與各項限制見 [16](16-phase5-design.md)。分支圖畫面顯示至多 200 提交，更早歷史用聊天分頁；別名及伺服器設定改動需重啟。
 - **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理；跨 DataVersion 不支援（沒有 DataFixer）。
 - **作者歸屬**是 chunk 粒度，沒有逐格 blame；玩家登出提交的是整個世界，沒有 per-player staging。
 - **`modified-only`** 目前只記錄設定，平臺尚未自動蒐集玩家編輯集合，實際仍追蹤全部 chunk。
@@ -955,13 +967,13 @@ wgit push origin main --tags
 | 初始化 | `/wg init` | `/wg init` | `wgit init` | 新增世界 |
 | 狀態 | `/wg status [--show]` | `/wg status [--show]` | `wgit status` | — |
 | 存檔點 | `/wg commit -m` | `/wg commit -m` | `wgit commit -m` | — |
-| 歷史 | `/wg log` | `/wg log` | `wgit log` | commits 頁 |
+| 歷史 | `/wg log [--graph]`、H 圖畫面 | `/wg log` | `wgit log` | commits 頁 |
 | 差異 | `/wg diff [--show]`、`/wg preview` | `/wg diff [--show]` | `wgit diff [--blocks]` | commit／compare 3D |
 | 局部還原 | `/wg restore` | `/wg restore [--selection]` | `wgit restore` | — |
 | 分支 | `/wg branch`、`/wg switch` | `/wg branch`、`/wg switch` | `wgit branch`、`wgit switch` | branches 頁 |
 | 暫存 | `/wg stash` | `/wg stash` | `wgit stash` | — |
 | 重設 | `/wg reset --hard` | `/wg reset --hard` | `wgit reset --hard` | — |
-| 驗證 | — | — | `wgit verify` | — |
+| 驗證 | `/wg verify [rev]` | — | `wgit verify` | — |
 | 合併 | `/wg merge` | `/wg merge` | `wgit merge` | PR 合併按鈕 |
 | 衝突處理 | `G` 畫面、`/wg resolve`、`/wg conflict-select` | `/wg conflicts` GUI、`/wg tool`、`/wg resolve`、`/wg conflict-select` | `wgit conflicts`、`wgit resolve` | PR 區域選擇 |
 | revert／cherry-pick | `/wg revert`、`/wg cherry-pick` | 同左 | `wgit revert`、`wgit cherry-pick` | — |
@@ -969,8 +981,9 @@ wgit push origin main --tags
 | fetch／push | `/wg fetch`、`/wg push` | `/wg fetch`、`/wg push` | `wgit fetch`、`wgit push` | — |
 | pull | `/wg pull` → `confirm` | `/wg pull` → `confirm` | `wgit pull` | — |
 | clone | （用 CLI clone 後放進 saves/） | — | `wgit clone` | clone 指令提示 |
-| tag／release | — | — | `wgit tag`、`wgit export` | Releases 頁 |
+| tag／release | `/wg tag list\|create\|delete` | `/wg tag` | `wgit tag`、`wgit export` | Releases 頁 |
 | PR | `/wg pr create\|list\|view` | `/wg pr create\|list\|view` | — | 建立、審核、合併 |
 | 座標留言 | `/wg comment`、`/wg comments show`（客戶端 HUD） | `/wg comment`、`/wg comments show`（TextDisplay） | — | 3D 釘選留言 |
+| ignore | `/wg ignore`、K 編輯器（preview → confirm） | `/wg ignore`（箱子 GUI） | `wgit ignore` | — |
 | 取消套用 | `/wg cancel` | `/wg cancel` | — | — |
 | 客戶端設定 | `/wgc palette\|seethrough\|status\|clear` | — | — | 色票切換 |

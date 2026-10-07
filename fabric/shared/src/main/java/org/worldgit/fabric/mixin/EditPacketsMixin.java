@@ -30,6 +30,9 @@ public abstract class EditPacketsMixin {
     }
     private void guardCommand(String command,CallbackInfo ci) {
         var runtime=WorldGitMod.runtime(player.level().getServer());
-        if(runtime!=null && runtime.editsLocked() && !command.equals("wg") && !command.startsWith("wg ")) ci.cancel();
+        if(runtime!=null && runtime.editsLocked()) {
+            String name=command.split(" ",2)[0];
+            if(!java.util.Set.of("wg","worldgit","wgit","git").contains(name)) ci.cancel();
+        }
     }
 }

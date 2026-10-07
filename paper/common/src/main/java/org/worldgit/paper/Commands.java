@@ -503,7 +503,7 @@ final class Commands implements CommandTree.Actions {
       if(plugin.repo().stopping()) return;
       if(error!=null) { fail(sender,error); return; }
       plugin.suggestions().invalidateLocal();
-      var r=applied.result();if(OperationUi.current()!=null) {OperationUi.current().observe(r);OperationUi.current().summary.put("head",Messages.shortId(applied.head()));}
+      var r=applied.result();if(OperationUi.current()!=null) {OperationUi.current().observe(r);OperationUi.current().summary.put("head",new OperationUi.Head(null,applied.head()));}
       if(r.state()==PaperOperations.State.PARTIAL) reply(sender,Messages.line("paper.apply.partial","message",r.error()));
       else if(r.state()==PaperOperations.State.DRY_RUN) reply(sender,Messages.line("paper.apply.dry-run","stats",r.dimensions()));
       else if(sub.equals("switch")) {

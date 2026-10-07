@@ -59,6 +59,69 @@ class WorldOpsTest {
   }
 
   @Test
+  void netherEntityToleranceIsIndependentOfTheOverworldSetting() throws Exception {
+    Path server = temp.resolve("tolerance");
+    copy(fixture(), server);
+    var layout = WorldLayout.discover(server);
+    var nether = new DimensionId("minecraft:the_nether");
+    ChunkPos position;
+    try (var terrain = new RegionFile(RegionFile.list(layout.dimensions().get(nether).region()).getFirst())) {
+      int index = 0;
+      while (!terrain.has(index)) index++;
+      position = terrain.pos(index);
+    }
+    var id = UUID.fromString("00000000-0000-0000-0000-000000000123");
+    double x = position.x() * 16 + 1, z = position.z() * 16 + 1;
+    var entity = new Nbt.Compound().with("id", "minecraft:cow")
+        .with("UUID", new int[] {0, 0, 0, 0x123})
+        .with("Pos", new Nbt.ListTag(6, List.of(x, 65.0, z)))
+        .with("Rotation", new Nbt.ListTag(5, List.of(0f, 0f)));
+    Path entities = layout.dimensions().get(nether).entities().resolve(position.regionName() + ".mca");
+    var region = new Nbt.Compound().with("DataVersion", layout.dataVersion()).with("Position", new int[] {position.x(), position.z()})
+        .with("Entities", new Nbt.ListTag(10, List.of(entity)));
+    RegionFile.update(entities, Map.of(position.regionIndex(), region), 1);
+    var ops = new WorldOps(layout, dimension -> {
+      try { org.worldgit.core.capture.PlayerTouchedEntities.touch(layout.repository(dimension.id()), entity); }
+      catch (IOException error) { throw new java.io.UncheckedIOException(error); }
+      return new OfflineWorld(layout, dimension, ignored -> {});
+    });
+    assertTrue(ops.init(Set.of(nether), "creative", WorldGitConfig.Track.ALL, ALICE, "init").success());
+    WorldGitConfig.write(layout.repository(nether).resolve("worldgit.yml"), WorldGitConfig.write(new WorldGitConfig.Local("default", 0)));
+    WorldGitConfig.write(layout.repository(DimensionId.OVERWORLD).resolve("worldgit.yml"), WorldGitConfig.write(new WorldGitConfig.Local("default", 2)));
+    entity.put("Pos", new Nbt.ListTag(6, List.of(x + 1, 65.0, z)));
+    RegionFile.update(entities, Map.of(position.regionIndex(), region), 2);
+    var difference = ops.diff(nether, List.of(), DiffEngine.Detail.SUMMARY, null);
+    assertEquals(1, difference.entities().size(), "地獄 tolerance=0 應保留一格移動；不能讀主世界的 2");
+    assertEquals(id, difference.entities().getFirst().uuid());
+    assertEquals(1, ops.status(nether, true).dimensions().get(nether).value().diff().entities().size());
+    WorldGitConfig.write(layout.repository(nether).resolve("worldgit.yml"), WorldGitConfig.write(new WorldGitConfig.Local("default", 2)));
+    assertTrue(ops.diff(nether, List.of(), DiffEngine.Detail.SUMMARY, null).entities().isEmpty(), "地獄自身改為 2 才忽略移動");
+  }
+
+  @Test
+  void selectedInitKeepsOtherDimensionsUntouchedAndPreservesModMetadata() throws Exception {
+    Path server = temp.resolve("selected");
+    copy(fixture(), server);
+    var layout = WorldLayout.discover(server);
+    var ops = new WorldOps(layout, dimension -> new OfflineWorld(layout, dimension, ignored -> {}));
+    var nether = new DimensionId("minecraft:the_nether");
+    var first = ops.init(Set.of(nether), "creative", WorldGitConfig.Track.ALL, ALICE, "nether only");
+    assertTrue(first.success());
+    assertEquals(Set.of(nether), ops.tracked().keySet());
+    assertFalse(Files.exists(layout.repository(DimensionId.OVERWORLD).resolve("HEAD")));
+    try (var repository = new org.worldgit.core.service.DimensionRepository(ops.tracked().get(nether), nether, false)) {
+      var commit = repository.log(1).getFirst();
+      assertEquals(CommitMetadata.Source.MOD, commit.metadata().source());
+      assertEquals("nether only", commit.metadata().message());
+      assertEquals(nether, commit.metadata().dimension());
+    }
+    var appended = ops.init(Set.of(DimensionId.OVERWORLD, nether), "survival", WorldGitConfig.Track.ALL, ALICE, "append");
+    assertTrue(appended.success());
+    assertNull(appended.dimensions().get(nether).value());
+    assertEquals(Set.of(nether, DimensionId.OVERWORLD), ops.tracked().keySet());
+  }
+
+  @Test
   void initEditStatusPreviewCommitLog() throws Exception {
     Path server = temp.resolve("server");
     copy(fixture(), server);
@@ -67,13 +130,16 @@ class WorldOpsTest {
     assertFalse(ops.initialized());
     assertThrows(IOException.class, () -> ops.status(null, false));
 
-    var init = ops.init(null, "creative", WorldGitConfig.Track.ALL, ALICE, "init");
+    var init = ops.init(layout.dimensions().keySet(), "creative", WorldGitConfig.Track.ALL, ALICE, "init");
     assertTrue(init.success(), init.toString());
     assertEquals(3, init.dimensions().size());
     assertTrue(init.dimensions().values().stream().allMatch(o -> o.value().changed()));
     assertTrue(ops.initialized());
+    assertTrue(org.worldgit.core.config.WorldGitConfig.readRepo(layout.repository(DimensionId.OVERWORLD).resolve("worldgit-repo.yml")).entities()
+        == WorldGitConfig.Entities.PLAYER_TOUCHED, "Fabric 的 creative init 預設 entities: player-touched");
+    assertThrows(IOException.class, () -> ops.init(null, "creative", WorldGitConfig.Track.ALL, ALICE, "init"), "init 必須明確指定維度");
     // 再 init 一次：每個維度都略過，不失敗
-    var again = ops.init(null, "creative", WorldGitConfig.Track.ALL, ALICE, "init");
+    var again = ops.init(layout.dimensions().keySet(), "creative", WorldGitConfig.Track.ALL, ALICE, "init");
     assertTrue(again.success());
     assertTrue(again.dimensions().values().stream().allMatch(o -> o.value() == null));
 

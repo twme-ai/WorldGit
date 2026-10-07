@@ -40,8 +40,19 @@ final class FaweHook {
     }
     @Override public java.util.concurrent.Future<?> postProcessSet(IChunk chunk,IChunkGet get,IChunkSet set) {
       var ids=new java.util.HashSet<java.util.UUID>();
-      for(Object entity:set.getEntities())try {var id=(java.util.UUID)entity.getClass().getMethod("getUUID").invoke(entity);if(id!=null)ids.add(id);}catch(ReflectiveOperationException error) {throw new IllegalStateException("無法讀取 FAWE entity UUID",error);}
+      // IBlocks#getEntities 已標記移除；改用 entities()（FaweCompoundTag）。linbus 型別不在編譯期 classpath，
+      // 以 WorldEdit 的 jnbt CompoundTag 包裝後讀取 UUID。
+      for(var entity:set.entities()) {var id=uuid(entity);if(id!=null)ids.add(id);}
       sess.entityIds(ids,chunk.getX(),chunk.getZ());return java.util.concurrent.CompletableFuture.completedFuture(null);
+    }
+
+    private static java.util.UUID uuid(com.fastasyncworldedit.core.nbt.FaweCompoundTag entity) {
+      try {
+        Object lin=com.fastasyncworldedit.core.nbt.FaweCompoundTag.class.getMethod("linTag").invoke(entity);
+        var compound=Class.forName("com.sk89q.jnbt.CompoundTag");
+        Object tag=compound.getConstructor(Class.forName("org.enginehub.linbus.tree.LinCompoundTag")).newInstance(lin);
+        return (java.util.UUID)compound.getMethod("getUUID").invoke(tag);
+      } catch(ReflectiveOperationException error) {throw new IllegalStateException("無法讀取 FAWE entity UUID",error);}
     }
 
     @Override

@@ -21,10 +21,20 @@ public record ServerConfig(
     int readPermissionLevel,
     AutoCommit autoCommit,
     Identity identity,
-    Preview preview, org.worldgit.platform.remote.RemoteSettings remote) {
+    Preview preview, org.worldgit.platform.remote.RemoteSettings remote,
+    Aliases aliases, Feedback feedback, int ignorePermissionLevel) {
   public ServerConfig(String locale, String template, WorldGitConfig.Track track, int write, int read,
       AutoCommit auto, Identity identity, Preview preview) {
-    this(locale,template,track,write,read,auto,identity,preview,org.worldgit.platform.remote.RemoteSettings.defaults());
+    this(locale,template,track,write,read,auto,identity,preview,org.worldgit.platform.remote.RemoteSettings.defaults(),
+        new Aliases(true,true),Feedback.defaults(),2);
+  }
+
+  /** 指令別名：wg 與 worldgit 永遠存在；wgit／git 可停用。已有其他模組的 /git 時一律不覆蓋。 */
+  public record Aliases(boolean wgit, boolean git) {}
+
+  /** 長操作的進度與終態呈現。terminalSeconds 是完成後在 BossBar／HUD 保留終態的秒數。 */
+  public record Feedback(boolean bossbar, boolean hud, int terminalSeconds, int consoleIntervalSeconds, boolean autoNotify) {
+    public static Feedback defaults() { return new Feedback(true, true, 3, 1, true); }
   }
   public record AutoCommit(
       boolean onLogout, boolean onStop, int intervalMinutes, int minChangedChunks) {}
@@ -72,6 +82,14 @@ public record ServerConfig(
             pv.integer("packets-per-tick", 4, 1, 64));
     pv.rejectUnknown();
     var remote = RemoteConfig.parse(root.section("remote"));
+    var al = root.section("aliases");
+    var aliases = new Aliases(al.bool("wgit", true), al.bool("git", true));
+    al.rejectUnknown();
+    var fb = root.section("feedback");
+    var feedback = new Feedback(fb.bool("bossbar", true), fb.bool("hud", true), fb.integer("terminal-seconds", 3, 1, 60),
+        fb.integer("console-interval-seconds", 1, 1, 60), fb.bool("auto-notify", true));
+    fb.rejectUnknown();
+    int ignoreLevel = root.integer("ignore-permission-level", 2, 0, 4);
     root.rejectUnknown();
     return new ServerConfig(
         locale,
@@ -81,7 +99,7 @@ public record ServerConfig(
         read,
         autoCommit,
         identity,
-        preview, remote);
+        preview, remote, aliases, feedback, ignoreLevel);
   }
 
   private static String identityText(String s, String source) throws IOException {
@@ -117,6 +135,20 @@ public record ServerConfig(
       # 需要的 op 等級（0-4）。單人世界的擁有者一律允許。
       permission-level: 2        # init / commit / restore / switch / stash / reset / merge / resolve / cancel
       read-permission-level: 0   # status / log / diff
+      ignore-permission-level: 2 # /wg ignore 與 .wgignore 編輯畫面（等同 worldgit.command.ignore）；單人世界擁有者一律允許
+
+      # 指令別名：wg、worldgit 永遠可用；wgit、git 可關閉。若已有其他模組註冊 /git，WorldGit 會跳過 /git 並在日誌提示一次。
+      aliases:
+        wgit: true
+        git: true
+
+      # 長操作進度與終態（BossBar 給執行者與有權限的觀察者，HUD 給安裝模組的客戶端，console 節流文字行）
+      feedback:
+        bossbar: true
+        hud: true
+        terminal-seconds: 3          # 完成後在 BossBar／HUD 顯示終態的秒數
+        console-interval-seconds: 1  # console 進度行最短間隔
+        auto-notify: true            # 自動 commit（定時／登出／停服）完成通知給有權限的玩家
 
       auto-commit:
         on-logout: true          # 專用伺服器：玩家登出時，若他本次改過 chunk

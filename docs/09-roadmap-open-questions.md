@@ -140,6 +140,13 @@
 | 132 | Paper ignore 確認 | 箱子每頁 45 行，刪除／啟停／上移與聊天新增皆走 HEAD preview；120 秒確認綁執行者、世界群、維度、原文與 HEAD，再驗權限／MERGING。規則歷史仍由下一 commit 保存。（2026-10-05） | [15 §6](15-user-guide.md#6-伺服器管理員paperfolia) |
 | 133 | Paper 玩家觸及實體 | owner 只收集 UUID 根／乘客閉包，repo queue 串行 touch；init 前暫存繼承、轉換／跨維度繼承，套用後刷新資格；新 creative 改 player-touched，survival／舊 repo 不變。跨維度還原預檢拒絕重複 UUID，不刪其他維度。（2026-10-05） | [16 J](16-phase5-design.md#j-創造範本的實體追蹤) |
 | 134 | Paper 別名與安全報告 | Lifecycle 註冊 wg／wgit／git／worldgit，worldgit:git 永遠保留，裸 git 衝突不覆蓋且提示一次，開關重啟生效。錯誤的獨立複製元件使用 i18n hover／ErrorReport，另遮罩環境或 credentials YAML 的已知秘密；原 click 保留。（2026-10-05） | [Paper](../paper/README.md)、[16 I](16-phase5-design.md#i-複製錯誤) |
+| 135 | Fabric 正式維度目標 | 玩家預設所在維度，console init 必須 --dimension／--all；其他 console 預設主世界。init 共用 WorldRepositories.initDimensions，新增線上 metadata factory 保留 MOD 作者與訊息；status／commit／diff／preview 讀目標 repo 設定，色票由 repo 執行緒快取；主世界追加按鈕只列存在且未 init 的維度。--all 在同一佇列逐維度完成、各自回報，取消停止後續且不回滾已完成維度。（2026-10-07） | [Fabric](../fabric/README.md)、[16](16-phase5-design.md) |
+| 136 | Fabric 圖畫面與 UI 協定 | 實作可捲動 native Screen，H 開圖、K 開 ignore，G 保留衝突；聊天圖採 core GraphText，hover 完整 commit、suggest 綁定維度。fabric-ui-v1 能力僅 Fabric 宣告，命令與 refresh 共用 server generation，不比較 client／server nanoTime；圖分片收齊且 envelope 一致才發布，節點／行數、字串與 payload 有界；畫面顯示至多 200 節點，更多歷史使用聊天分頁。（2026-10-07） | [Fabric](../fabric/README.md)、[UiProtocol](../fabric/logic/src/main/java/org/worldgit/fabric/logic/UiProtocol.java) |
+| 137 | Fabric 動作邊界與共用摘要 | 每個指令、GUI 請求、自動／登出／停服 commit 都有 OperationResult；非同步工作與 server 回呼保持完成引用。原版 BossBar 加模組 HUD，console 節流，終態預設三秒。Paper／Fabric 共用 i18n ResultSummary，千分位數量、短 ID 與可讀 HEAD，禁止 record／Map toString。（2026-10-07） | [16 動作盤點](16-phase5-design.md#任務-4fabric-實作紀錄2026-10-07)、[ResultSummary](../platform-api/src/main/java/org/worldgit/platform/ResultSummary.java) |
+| 138 | Fabric ignore 確認與畫面 | 規則清單、排序、啟停、新增框即時語法檢查、HEAD preview；所有修改先 preview／confirm。120 秒代碼綁定玩家、維度、原文與 HEAD；確認入佇列後再回 server 驗權限，MERGING 禁止修改；規則由下一 commit 保存。單人 owner 即使未開作弊也用同一入口。（2026-10-07） | [15 §5](15-user-guide.md#5-單人玩家fabric-客戶端) |
+| 139 | Fabric player-touched 事件 | server 只擷取 UUID 閉包，sidecar 在 repo queue 持維度鎖寫入。物品使用、召喚、蛋與繁殖範圍以 try/finally 關閉；互動、data、轉換、成功騎乘與傳送回傳實體繼承資格。新 creative 使用 player-touched；跨維度 UUID 預檢以 live 已載入實體為準，僅查未載入區塊磁碟，避免舊 entity 檔案誤拒絕。（2026-10-07） | [16 J](16-phase5-design.md#j-創造範本的實體追蹤)、[Fabric](../fabric/README.md) |
+| 140 | Fabric 別名與錯誤複製 | Brigadier 註冊 wg／wgit／worldgit，最後檢查裸 git；衝突不覆蓋且提示一次。YAML 可停用 wgit／git，重啟生效。錯誤／部分完成保留原元件行為，追加獨立 COPY_TO_CLIPBOARD 與 i18n hover；已知環境與 credentials 秘密再遮罩，console 同報告欄位單行。（2026-10-07） | [Fabric](../fabric/README.md)、[16 I](16-phase5-design.md#i-複製錯誤) |
+| 141 | Paper FAWE 替代 API | IBlocks.getEntities 已標記移除，改用 entities() 的 FaweCompoundTag；透過已有 WorldEdit CompoundTag／linbus 介面取得 UUID，不呼叫 deprecated API。Paper／Folia 補跑 Phase 5，Paper 1.21.11 補完整 acceptance。（2026-10-07） | [FaweHook](../paper/common/src/main/java/org/worldgit/paper/FaweHook.java)、[16](16-phase5-design.md) |
 
 
 ## 路線圖
@@ -153,7 +160,7 @@ Phase 1–4 各自是一條**貫穿四端的垂直切片**，同一個功能由 
 | **Phase 2：復原與切換** | 套用 patch、stash、DataFixer 升級流程 | `restore` `switch` `branch` `reset` | `/wg restore`（選取範圍）、原地 `switch`、玩家安全處理 | `/wg preview` 客戶端鬼影預覽另一個 commit；單人世界 switch/restore | 分支瀏覽、兩個 commit 的比較檢視 |
 | **Phase 3：合併** | 三方合併、衝突分群、生物 UUID 合併、合併後鄰居形狀修正 | `merge` `merge --abort` `revert` `cherry-pick` | 合併中狀態、合併工具（ours/theirs/base 原地切換）、衝突 GUI | 衝突清單 UI、ours/theirs 疊圖預覽 | 衝突區域檢視與選擇 |
 | **Phase 4：遠端協作** | push/pull 流程、權限 | `push` `pull` `clone`（產出可直接開的世界） | 遊戲內 `/wg push/pull/pr` | 同左（單人） | 帳號與權限、PR、座標留言、release 下載 |
-| **Phase 5：維度獨立與操作體驗** | 任務 1：獨立 repo／位置／遷移、init、graph、進度、ignore、結果／錯誤、player-touched | 任務 1：新語法與十項 core／CLI 功能 | 任務 3：已接玩家維度、wgit／git、bossbar、GUI ignore、複製、觸及事件；驗收見 16 | 任務 4：同左＋單人／dedicated／客戶端畫面 | 任務 2：獨立專案／PR、互動 graph、進度／結果／複製 |
+| **Phase 5：維度獨立與操作體驗（已完成，2026-10-07）** | 任務 1：獨立 repo／位置／遷移、init、graph、進度、ignore、結果／錯誤、player-touched | 任務 1：新語法與十項 core／CLI 功能 | 任務 3：已接玩家維度、wgit／git、bossbar、GUI ignore、複製、觸及事件；驗收見 16 | 任務 4：同左＋單人／dedicated／客戶端畫面 | 任務 2：獨立專案／PR、互動 graph、進度／結果／複製 |
 | **之後** | 自製儲存後端（視量測）、sparse clone | | worktree 世界（Folia 除外）、更多版本 | 更多版本 | blame、hooks、俯視地圖 tile |
 
 ### 各階段的驗收標準
@@ -208,3 +215,8 @@ core／CLI 遠端協作、裸 repo 合併、可開世界 clone 與 release ZIP �
 每維度 PR／分支保護／圖／預設分支、每維度 ZIP revision、operation SSE／輪詢、完成結果與可複製錯誤已實作。schema v5 保留舊 ACL、release 與 merged PR 的 commit map；未合併舊 PR 須重新確認維度與審核。Paper／Folia、Fabric 的玩家維度、bossbar、GUI、ignore 與觸及事件仍屬任務 3／4；不以 Hub 完成代表四端全部完成。驗證與介面見 [16](16-phase5-design.md)，安全審查見 [Hub Phase 5](../hub/docs/security-review-phase5-2026-10-05.md)。
 
 任務 2 驗證完成：315 項 JUnit（Hub 74）與前端 26 項／lint／typecheck／build 全綠；最終同一 jar 的 Phase 4 兩版與 Phase 5 Hub／SQLite／CLI／瀏覽器均通過。動作盤點、API／任務 3／4 交接、舊資料相容與限制見 [16](16-phase5-design.md)；可攜證據見 [Hub Phase 5 acceptance](../hub/docs/phase5-security/acceptance.json)。本輪未 commit，容器由主對話另驗。
+
+
+## Phase 5 完成（2026-10-07）
+
+任務 1 core／CLI、2 Hub、3 Paper／Folia、4 Fabric 已完成；Fabric 兩版單人／dedicated Phase 5 共 426 項、既有九案例與其他回歸、Paper／Folia 受影響補驗及最終完整 build 全部通過。決定 #110–#141、各階段實測與限制見 [16 的完成總結](16-phase5-design.md#phase-5-完成總結2026-10-07)。保留跨維度非原子、線上 apply 與第三方事件覆蓋的明確限制。

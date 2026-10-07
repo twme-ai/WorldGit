@@ -21,12 +21,20 @@ public final class WorldGitClient implements ClientModInitializer {
       ClientPlayNetworking.registerGlobalReceiver(channel.type(), (payload, context) -> ClientRuntime.get().onPreview(payload.bytes()));
     ClientPlayNetworking.registerGlobalReceiver(Net.CONFLICTS.type(), (payload, context) -> ClientRuntime.get().onMerge(org.worldgit.protocol.MergeProtocol.REGIONS,payload.bytes()));
     ClientPlayNetworking.registerGlobalReceiver(Net.CONFLICT_PREVIEW.type(), (payload, context) -> ClientRuntime.get().onMerge(org.worldgit.protocol.MergeProtocol.PREVIEW,payload.bytes()));
+    ClientPlayNetworking.registerGlobalReceiver(Net.UI.type(), (payload, context) -> ClientRuntime.get().onUi(payload.bytes()));
     ClientPlayNetworking.registerGlobalReceiver(Net.COMMENTS.type(),(payload,context)->ClientRuntime.get().onComments(payload.bytes()));
     var conflictsKey=ClientPlatform.registerKey("key.worldgit.conflicts", org.lwjgl.glfw.GLFW.GLFW_KEY_G);
+    var graphKey=ClientPlatform.registerKey("key.worldgit.graph", org.lwjgl.glfw.GLFW.GLFW_KEY_H);
+    var ignoreKey=ClientPlatform.registerKey("key.worldgit.ignore", org.lwjgl.glfw.GLFW.GLFW_KEY_K);
     net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
       if (connections.shouldReset(client.getConnection())) ClientRuntime.get().onDisconnect();
       ClientRuntime.get().tickComments();
       while(conflictsKey.consumeClick()) ClientRuntime.get().openConflicts();
+      while(graphKey.consumeClick()) {
+        var runtime=ClientRuntime.get();
+        runtime.command(runtime.uiCapable() ? "wg graph" : "wg log --graph");
+      }
+      while(ignoreKey.consumeClick()) ClientRuntime.get().command("wg ignore gui");
     });
     ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
       ClientRuntime.get().onDisconnect();
@@ -37,6 +45,7 @@ public final class WorldGitClient implements ClientModInitializer {
     ClientCommandRegistrationCallback.EVENT.register((dispatcher, buildContext) -> ClientCommands.register(dispatcher));
     ClientPlatform.registerRender((view, cx, cy, cz) -> ClientRuntime.get().render(view, cx, cy, cz));
     ClientPlatform.registerCommentHud();
+    ClientPlatform.registerProgressHud();
     ClientRuntime.LOG.info("WORLDGIT CLIENT_LOADED adapter={}", ClientPlatform.VERSION);
   }
 }

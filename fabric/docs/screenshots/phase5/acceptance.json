@@ -1,0 +1,2696 @@
+{
+  "date": "2026-10-07",
+  "platform": "Fabric",
+  "runs": [
+    {
+      "name": "fabric-phase5-dedicated-1.21.11",
+      "version": "1.21.11",
+      "mode": "dedicated",
+      "success": true,
+      "checks": 171,
+      "steps": [
+        {
+          "name": "/wg help works",
+          "ok": true
+        },
+        {
+          "name": "/wgit help works",
+          "ok": true
+        },
+        {
+          "name": "/git help works",
+          "ok": true
+        },
+        {
+          "name": "/worldgit help works",
+          "ok": true
+        },
+        {
+          "name": "init in the nether only initializes the nether",
+          "ok": true
+        },
+        {
+          "name": "nether init has no append buttons",
+          "ok": true
+        },
+        {
+          "name": "nether init completion is human readable",
+          "ok": true
+        },
+        {
+          "name": "overworld init offers the missing End only (nether already initialized)",
+          "ok": true
+        },
+        {
+          "name": "init is hover-described",
+          "ok": true
+        },
+        {
+          "name": "creative init defaults to entities: player-touched",
+          "ok": true
+        },
+        {
+          "name": "overworld init did not touch the End",
+          "ok": true
+        },
+        {
+          "name": "append button command initializes the End",
+          "ok": true
+        },
+        {
+          "name": "chat graph has lanes, colored labels, hover and suggest",
+          "ok": true
+        },
+        {
+          "name": "graph hover carries the full commit id",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg status",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg status --full",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m nothing",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m first-change",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg log",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg log --graph",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg graph",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg diff",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg diff --blocks",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create m1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg tag create t1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg tag list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg tag delete t1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg verify",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg info",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg reload",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg clear",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg cancel",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg conflicts",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg stash push saved",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg stash list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg stash pop",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m stash-result",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch m1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch main",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg restore HEAD --dry-run",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg reset --hard --dry-run",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch delete m1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg preview HEAD",
+          "ok": true
+        },
+        {
+          "name": "error message has a separate copy button",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg fetch",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg push",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg pull",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg pr list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg comments",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch phase5-arbitrary-secret",
+          "ok": true
+        },
+        {
+          "name": "copy report masks the environment token and keeps fields",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch yaml-arbitrary-secret",
+          "ok": true
+        },
+        {
+          "name": "copy report masks the credentials file token",
+          "ok": true
+        },
+        {
+          "name": "copy hover text comes from i18n",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote add origin https://hub.invalid/alice/world",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote set-url origin https://hub.invalid/bob/world",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote remove origin",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg init --dimension minecraft:the_nether",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg status --all",
+          "ok": true
+        },
+        {
+          "name": "--all reports each dimension separately and then the batch",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg log --graph --all",
+          "ok": true
+        },
+        {
+          "name": "--dimension targets one dimension",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create only-nether --dimension minecraft:the_nether",
+          "ok": true
+        },
+        {
+          "name": "--dimension isolates the branch",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m natural-cow",
+          "ok": true
+        },
+        {
+          "name": "natural cow is not committed",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m named-cow",
+          "ok": true
+        },
+        {
+          "name": "named cow becomes player-touched and is committed",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore check",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore add entity minecraft:cow",
+          "ok": true
+        },
+        {
+          "name": "ignore add previews before any change and offers a confirm click",
+          "ok": true
+        },
+        {
+          "name": "ignore file unchanged before confirmation",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore --dimension minecraft:overworld confirm f10ebcc5",
+          "ok": true
+        },
+        {
+          "name": "ignore confirmed writes the rule",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore test entity minecraft:cow 0,64,0",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore move 1 1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore cancel",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore disable 1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore --dimension minecraft:overworld confirm 51f062b2",
+          "ok": true
+        },
+        {
+          "name": "disabled rule is kept as a restorable line",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore enable 1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore --dimension minecraft:overworld confirm 733b071d",
+          "ok": true
+        },
+        {
+          "name": "non-privileged player cannot use ignore (permission)",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m ignored-cow",
+          "ok": true
+        },
+        {
+          "name": "committed ignore rule excludes the cow from the next snapshot",
+          "ok": true
+        },
+        {
+          "name": "placed armor stand exists",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m armor-stand",
+          "ok": true
+        },
+        {
+          "name": "placed armor stand is player-touched and committed",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg restore HEAD",
+          "ok": true
+        },
+        {
+          "name": "armor stand restored; natural cow created after the commit is preserved",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg restore HEAD",
+          "ok": true
+        },
+        {
+          "name": "cross-dimension duplicate UUID is rejected before writing and names the dimension",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit --dimension minecraft:the_nether -m transferred",
+          "ok": true
+        },
+        {
+          "name": "destination dimension inherits the touched UUID",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m departed",
+          "ok": true
+        },
+        {
+          "name": "source dimension drops the departed UUID on the next commit",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create base-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch base-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m theirs-side",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create theirs-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch main",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m ours-side",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create ours-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg merge theirs-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg conflicts",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore add entity minecraft:pig",
+          "ok": true
+        },
+        {
+          "name": "ignore edits are refused while MERGING",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m while-merging",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg conflict-select 1 theirs",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg resolve 1 ours",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg merge --continue",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch ours-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg merge theirs-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg merge --abort",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg revert HEAD",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg cherry-pick theirs-p5",
+          "ok": true
+        },
+        {
+          "name": "status creates exactly one BossBar for the executor",
+          "ok": true
+        },
+        {
+          "name": "bossbar added, updated with progress, shows the terminal state and is removed",
+          "ok": true
+        },
+        {
+          "name": "auto commit has a terminal message (log + authorized player)",
+          "ok": true
+        },
+        {
+          "name": "logout commit has a terminal message",
+          "ok": true
+        },
+        {
+          "name": "shutdown commit has a terminal message",
+          "ok": true
+        },
+        {
+          "name": "server log has no unexpected ERROR",
+          "ok": true
+        },
+        {
+          "name": "offline verify has zero differences",
+          "ok": true
+        },
+        {
+          "name": "true client receives nether, End and All append buttons",
+          "ok": true
+        },
+        {
+          "name": "client append command initializes minecraft:the_nether",
+          "ok": true
+        },
+        {
+          "name": "client append command initializes minecraft:the_end",
+          "ok": true
+        },
+        {
+          "name": "UI capability negotiated",
+          "ok": true
+        },
+        {
+          "name": "long scan shows running HUD",
+          "ok": true
+        },
+        {
+          "name": "vanilla BossBar appears with HUD",
+          "ok": true
+        },
+        {
+          "name": "HUD displays the terminal state",
+          "ok": true
+        },
+        {
+          "name": "BossBar displays the same terminal state",
+          "ok": true
+        },
+        {
+          "name": "completion is human readable",
+          "ok": true
+        },
+        {
+          "name": "terminal HUD disappears after TTL",
+          "ok": true
+        },
+        {
+          "name": "terminal BossBar disappears after TTL",
+          "ok": true
+        },
+        {
+          "name": "armor stand is tracked before the GUI edit",
+          "ok": true
+        },
+        {
+          "name": "client chat graph has hover and suggest",
+          "ok": true
+        },
+        {
+          "name": "graph Screen opens",
+          "ok": true
+        },
+        {
+          "name": "graph Screen displays server nodes",
+          "ok": true
+        },
+        {
+          "name": "graph refresh publishes a new server generation",
+          "ok": true
+        },
+        {
+          "name": "copy commit button works",
+          "ok": true
+        },
+        {
+          "name": "graph copies the full commit id",
+          "ok": true
+        },
+        {
+          "name": "diff button fills chat",
+          "ok": true
+        },
+        {
+          "name": "suggested diff is bound to the graph dimension",
+          "ok": true
+        },
+        {
+          "name": "client business error has copy and i18n hover",
+          "ok": true
+        },
+        {
+          "name": "copy hover is hit by the real mouse",
+          "ok": true
+        },
+        {
+          "name": "ignore Screen opens",
+          "ok": true
+        },
+        {
+          "name": "live syntax errors disable Add",
+          "ok": true
+        },
+        {
+          "name": "valid typing enables Add without rebuilding the Screen",
+          "ok": true
+        },
+        {
+          "name": "Add sends a server preview request",
+          "ok": true
+        },
+        {
+          "name": "preview requires explicit confirmation",
+          "ok": true
+        },
+        {
+          "name": "Confirm sends the preview code",
+          "ok": true
+        },
+        {
+          "name": "confirmed and committed GUI rule takes effect",
+          "ok": true
+        },
+        {
+          "name": "superseded preview cannot be confirmed",
+          "ok": true
+        },
+        {
+          "name": "GUI preview-confirm-commit excludes an actual tracked armor stand",
+          "ok": true
+        },
+        {
+          "name": "stale authorized Screen still sends the confirm request",
+          "ok": true
+        },
+        {
+          "name": "server refuses GUI confirmation after permission is revoked and sends copy error",
+          "ok": true
+        },
+        {
+          "name": "revoked GUI confirmation leaves the rules unchanged",
+          "ok": true
+        },
+        {
+          "name": "/wgit disabled by YAML",
+          "ok": true
+        },
+        {
+          "name": "/git disabled by YAML",
+          "ok": true
+        },
+        {
+          "name": "/wg still works with disabled",
+          "ok": true
+        },
+        {
+          "name": "/worldgit still works with disabled",
+          "ok": true
+        },
+        {
+          "name": "existing third-party /git is preserved",
+          "ok": true
+        },
+        {
+          "name": "/git conflict is logged once",
+          "ok": true
+        },
+        {
+          "name": "/wg still works with conflict",
+          "ok": true
+        },
+        {
+          "name": "/worldgit still works with conflict",
+          "ok": true
+        },
+        {
+          "name": "/wgit works when /git conflicts",
+          "ok": true
+        }
+      ],
+      "artifacts": {
+        "worldgit.jar": "76a5adbc17429fd14a3b55b6d1f19b639b18dfb9003b5316909b286ebb84540b",
+        "fixture.jar": "0d6c65816d5b62b64e567fd339721680464c33ab3f830d4d8a75a521e720bc33",
+        "wgit.jar": "5916030b68ea97f470742e65aee8f9b236077e83e678dff18649923023c21a3d"
+      },
+      "ports_closed": {
+        "25701": true,
+        "25702": true
+      },
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791363546/result.json"
+    },
+    {
+      "name": "fabric-phase5-single-1.21.11",
+      "version": "1.21.11",
+      "mode": "single",
+      "success": true,
+      "checks": 42,
+      "steps": [
+        {
+          "name": "singleplayer UI capable owner without cheats",
+          "ok": true
+        },
+        {
+          "name": "singleplayer nether init only initializes the nether",
+          "ok": true
+        },
+        {
+          "name": "singleplayer main init offers remaining End",
+          "ok": true
+        },
+        {
+          "name": "singleplayer creative defaults to player-touched",
+          "ok": true
+        },
+        {
+          "name": "singleplayer append command executes",
+          "ok": true
+        },
+        {
+          "name": "singleplayer /wgit is usable without cheats",
+          "ok": true
+        },
+        {
+          "name": "singleplayer /git is usable without cheats",
+          "ok": true
+        },
+        {
+          "name": "singleplayer natural cow is excluded",
+          "ok": true
+        },
+        {
+          "name": "singleplayer real name-tag interaction succeeds",
+          "ok": true
+        },
+        {
+          "name": "singleplayer named cow is tracked",
+          "ok": true
+        },
+        {
+          "name": "singleplayer places armor stand using real item interaction",
+          "ok": true
+        },
+        {
+          "name": "singleplayer armor stand spawned",
+          "ok": true
+        },
+        {
+          "name": "singleplayer placed armor stand is tracked",
+          "ok": true
+        },
+        {
+          "name": "singleplayer armor stand restored and natural cow preserved",
+          "ok": true
+        },
+        {
+          "name": "singleplayer cross-dimension UUID preflight rejects",
+          "ok": true
+        },
+        {
+          "name": "long scan shows running HUD",
+          "ok": true
+        },
+        {
+          "name": "vanilla BossBar appears with HUD",
+          "ok": true
+        },
+        {
+          "name": "HUD displays the terminal state",
+          "ok": true
+        },
+        {
+          "name": "BossBar displays the same terminal state",
+          "ok": true
+        },
+        {
+          "name": "completion is human readable",
+          "ok": true
+        },
+        {
+          "name": "terminal HUD disappears after TTL",
+          "ok": true
+        },
+        {
+          "name": "terminal BossBar disappears after TTL",
+          "ok": true
+        },
+        {
+          "name": "client chat graph has hover and suggest",
+          "ok": true
+        },
+        {
+          "name": "graph Screen opens",
+          "ok": true
+        },
+        {
+          "name": "graph Screen displays server nodes",
+          "ok": true
+        },
+        {
+          "name": "graph refresh publishes a new server generation",
+          "ok": true
+        },
+        {
+          "name": "copy commit button works",
+          "ok": true
+        },
+        {
+          "name": "graph copies the full commit id",
+          "ok": true
+        },
+        {
+          "name": "diff button fills chat",
+          "ok": true
+        },
+        {
+          "name": "suggested diff is bound to the graph dimension",
+          "ok": true
+        },
+        {
+          "name": "client business error has copy and i18n hover",
+          "ok": true
+        },
+        {
+          "name": "copy hover is hit by the real mouse",
+          "ok": true
+        },
+        {
+          "name": "ignore Screen opens",
+          "ok": true
+        },
+        {
+          "name": "live syntax errors disable Add",
+          "ok": true
+        },
+        {
+          "name": "valid typing enables Add without rebuilding the Screen",
+          "ok": true
+        },
+        {
+          "name": "Add sends a server preview request",
+          "ok": true
+        },
+        {
+          "name": "preview requires explicit confirmation",
+          "ok": true
+        },
+        {
+          "name": "Confirm sends the preview code",
+          "ok": true
+        },
+        {
+          "name": "confirmed and committed GUI rule takes effect",
+          "ok": true
+        },
+        {
+          "name": "superseded preview cannot be confirmed",
+          "ok": true
+        },
+        {
+          "name": "singleplayer save-and-quit commit has terminal result",
+          "ok": true
+        },
+        {
+          "name": "singleplayer final offline verify is complete and zero differences",
+          "ok": true
+        }
+      ],
+      "artifacts": {
+        "worldgit.jar": "76a5adbc17429fd14a3b55b6d1f19b639b18dfb9003b5316909b286ebb84540b",
+        "fixture.jar": "0d6c65816d5b62b64e567fd339721680464c33ab3f830d4d8a75a521e720bc33",
+        "wgit.jar": "5916030b68ea97f470742e65aee8f9b236077e83e678dff18649923023c21a3d"
+      },
+      "ports_closed": {
+        "25701": true,
+        "25702": true
+      },
+      "source": ".work/fabric-phase5/single-1.21.11-1791365109/result.json"
+    },
+    {
+      "name": "fabric-phase5-single-26.2",
+      "version": "26.2",
+      "mode": "single",
+      "success": true,
+      "checks": 42,
+      "steps": [
+        {
+          "name": "singleplayer UI capable owner without cheats",
+          "ok": true
+        },
+        {
+          "name": "singleplayer nether init only initializes the nether",
+          "ok": true
+        },
+        {
+          "name": "singleplayer main init offers remaining End",
+          "ok": true
+        },
+        {
+          "name": "singleplayer creative defaults to player-touched",
+          "ok": true
+        },
+        {
+          "name": "singleplayer append command executes",
+          "ok": true
+        },
+        {
+          "name": "singleplayer /wgit is usable without cheats",
+          "ok": true
+        },
+        {
+          "name": "singleplayer /git is usable without cheats",
+          "ok": true
+        },
+        {
+          "name": "singleplayer natural cow is excluded",
+          "ok": true
+        },
+        {
+          "name": "singleplayer real name-tag interaction succeeds",
+          "ok": true
+        },
+        {
+          "name": "singleplayer named cow is tracked",
+          "ok": true
+        },
+        {
+          "name": "singleplayer places armor stand using real item interaction",
+          "ok": true
+        },
+        {
+          "name": "singleplayer armor stand spawned",
+          "ok": true
+        },
+        {
+          "name": "singleplayer placed armor stand is tracked",
+          "ok": true
+        },
+        {
+          "name": "singleplayer armor stand restored and natural cow preserved",
+          "ok": true
+        },
+        {
+          "name": "singleplayer cross-dimension UUID preflight rejects",
+          "ok": true
+        },
+        {
+          "name": "long scan shows running HUD",
+          "ok": true
+        },
+        {
+          "name": "vanilla BossBar appears with HUD",
+          "ok": true
+        },
+        {
+          "name": "HUD displays the terminal state",
+          "ok": true
+        },
+        {
+          "name": "BossBar displays the same terminal state",
+          "ok": true
+        },
+        {
+          "name": "completion is human readable",
+          "ok": true
+        },
+        {
+          "name": "terminal HUD disappears after TTL",
+          "ok": true
+        },
+        {
+          "name": "terminal BossBar disappears after TTL",
+          "ok": true
+        },
+        {
+          "name": "client chat graph has hover and suggest",
+          "ok": true
+        },
+        {
+          "name": "graph Screen opens",
+          "ok": true
+        },
+        {
+          "name": "graph Screen displays server nodes",
+          "ok": true
+        },
+        {
+          "name": "graph refresh publishes a new server generation",
+          "ok": true
+        },
+        {
+          "name": "copy commit button works",
+          "ok": true
+        },
+        {
+          "name": "graph copies the full commit id",
+          "ok": true
+        },
+        {
+          "name": "diff button fills chat",
+          "ok": true
+        },
+        {
+          "name": "suggested diff is bound to the graph dimension",
+          "ok": true
+        },
+        {
+          "name": "client business error has copy and i18n hover",
+          "ok": true
+        },
+        {
+          "name": "copy hover is hit by the real mouse",
+          "ok": true
+        },
+        {
+          "name": "ignore Screen opens",
+          "ok": true
+        },
+        {
+          "name": "live syntax errors disable Add",
+          "ok": true
+        },
+        {
+          "name": "valid typing enables Add without rebuilding the Screen",
+          "ok": true
+        },
+        {
+          "name": "Add sends a server preview request",
+          "ok": true
+        },
+        {
+          "name": "preview requires explicit confirmation",
+          "ok": true
+        },
+        {
+          "name": "Confirm sends the preview code",
+          "ok": true
+        },
+        {
+          "name": "confirmed and committed GUI rule takes effect",
+          "ok": true
+        },
+        {
+          "name": "superseded preview cannot be confirmed",
+          "ok": true
+        },
+        {
+          "name": "singleplayer save-and-quit commit has terminal result",
+          "ok": true
+        },
+        {
+          "name": "singleplayer final offline verify is complete and zero differences",
+          "ok": true
+        }
+      ],
+      "artifacts": {
+        "worldgit.jar": "c19595b41960d5b0749b7ccb9f46911bbf11f9c55df960e7a14ea8fd604c27c8",
+        "fixture.jar": "bf658692641e2c12733f26341feb10fe8956bb5ef002409f449f1fbd833c51f2",
+        "wgit.jar": "5916030b68ea97f470742e65aee8f9b236077e83e678dff18649923023c21a3d"
+      },
+      "ports_closed": {
+        "25701": true,
+        "25702": true
+      },
+      "source": ".work/fabric-phase5/single-26.2-1791365500/result.json"
+    },
+    {
+      "name": "fabric-phase5-dedicated-26.2",
+      "version": "26.2",
+      "mode": "dedicated",
+      "success": true,
+      "checks": 171,
+      "steps": [
+        {
+          "name": "/wg help works",
+          "ok": true
+        },
+        {
+          "name": "/wgit help works",
+          "ok": true
+        },
+        {
+          "name": "/git help works",
+          "ok": true
+        },
+        {
+          "name": "/worldgit help works",
+          "ok": true
+        },
+        {
+          "name": "init in the nether only initializes the nether",
+          "ok": true
+        },
+        {
+          "name": "nether init has no append buttons",
+          "ok": true
+        },
+        {
+          "name": "nether init completion is human readable",
+          "ok": true
+        },
+        {
+          "name": "overworld init offers the missing End only (nether already initialized)",
+          "ok": true
+        },
+        {
+          "name": "init is hover-described",
+          "ok": true
+        },
+        {
+          "name": "creative init defaults to entities: player-touched",
+          "ok": true
+        },
+        {
+          "name": "overworld init did not touch the End",
+          "ok": true
+        },
+        {
+          "name": "append button command initializes the End",
+          "ok": true
+        },
+        {
+          "name": "chat graph has lanes, colored labels, hover and suggest",
+          "ok": true
+        },
+        {
+          "name": "graph hover carries the full commit id",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg status",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg status --full",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m nothing",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m first-change",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg log",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg log --graph",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg graph",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg diff",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg diff --blocks",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create m1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg tag create t1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg tag list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg tag delete t1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg verify",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg info",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg reload",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg clear",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg cancel",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg conflicts",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg stash push saved",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg stash list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg stash pop",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m stash-result",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch m1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch main",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg restore HEAD --dry-run",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg reset --hard --dry-run",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch delete m1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg preview HEAD",
+          "ok": true
+        },
+        {
+          "name": "error message has a separate copy button",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg fetch",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg push",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg pull",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg pr list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg comments",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch phase5-arbitrary-secret",
+          "ok": true
+        },
+        {
+          "name": "copy report masks the environment token and keeps fields",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch yaml-arbitrary-secret",
+          "ok": true
+        },
+        {
+          "name": "copy report masks the credentials file token",
+          "ok": true
+        },
+        {
+          "name": "copy hover text comes from i18n",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote add origin https://hub.invalid/alice/world",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote set-url origin https://hub.invalid/bob/world",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg remote remove origin",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg init --dimension minecraft:the_nether",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg status --all",
+          "ok": true
+        },
+        {
+          "name": "--all reports each dimension separately and then the batch",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg log --graph --all",
+          "ok": true
+        },
+        {
+          "name": "--dimension targets one dimension",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create only-nether --dimension minecraft:the_nether",
+          "ok": true
+        },
+        {
+          "name": "--dimension isolates the branch",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m natural-cow",
+          "ok": true
+        },
+        {
+          "name": "natural cow is not committed",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m named-cow",
+          "ok": true
+        },
+        {
+          "name": "named cow becomes player-touched and is committed",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore list",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore check",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore add entity minecraft:cow",
+          "ok": true
+        },
+        {
+          "name": "ignore add previews before any change and offers a confirm click",
+          "ok": true
+        },
+        {
+          "name": "ignore file unchanged before confirmation",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore --dimension minecraft:overworld confirm ced69a2b",
+          "ok": true
+        },
+        {
+          "name": "ignore confirmed writes the rule",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore test entity minecraft:cow 0,64,0",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore move 1 1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore cancel",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore disable 1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore --dimension minecraft:overworld confirm bb267c7a",
+          "ok": true
+        },
+        {
+          "name": "disabled rule is kept as a restorable line",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore enable 1",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore --dimension minecraft:overworld confirm ecee42a6",
+          "ok": true
+        },
+        {
+          "name": "non-privileged player cannot use ignore (permission)",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m ignored-cow",
+          "ok": true
+        },
+        {
+          "name": "committed ignore rule excludes the cow from the next snapshot",
+          "ok": true
+        },
+        {
+          "name": "placed armor stand exists",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m armor-stand",
+          "ok": true
+        },
+        {
+          "name": "placed armor stand is player-touched and committed",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg restore HEAD",
+          "ok": true
+        },
+        {
+          "name": "armor stand restored; natural cow created after the commit is preserved",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg restore HEAD",
+          "ok": true
+        },
+        {
+          "name": "cross-dimension duplicate UUID is rejected before writing and names the dimension",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit --dimension minecraft:the_nether -m transferred",
+          "ok": true
+        },
+        {
+          "name": "destination dimension inherits the touched UUID",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m departed",
+          "ok": true
+        },
+        {
+          "name": "source dimension drops the departed UUID on the next commit",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create base-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch base-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m theirs-side",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create theirs-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch main",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m ours-side",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg branch create ours-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg merge theirs-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg conflicts",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg ignore add entity minecraft:pig",
+          "ok": true
+        },
+        {
+          "name": "ignore edits are refused while MERGING",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg commit -m while-merging",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg conflict-select 1 theirs",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg resolve 1 ours",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg merge --continue",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg switch ours-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg merge theirs-p5",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg merge --abort",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg revert HEAD",
+          "ok": true
+        },
+        {
+          "name": "completion message: wg cherry-pick theirs-p5",
+          "ok": true
+        },
+        {
+          "name": "status creates exactly one BossBar for the executor",
+          "ok": true
+        },
+        {
+          "name": "bossbar added, updated with progress, shows the terminal state and is removed",
+          "ok": true
+        },
+        {
+          "name": "auto commit has a terminal message (log + authorized player)",
+          "ok": true
+        },
+        {
+          "name": "logout commit has a terminal message",
+          "ok": true
+        },
+        {
+          "name": "shutdown commit has a terminal message",
+          "ok": true
+        },
+        {
+          "name": "server log has no unexpected ERROR",
+          "ok": true
+        },
+        {
+          "name": "offline verify has zero differences",
+          "ok": true
+        },
+        {
+          "name": "true client receives nether, End and All append buttons",
+          "ok": true
+        },
+        {
+          "name": "client append command initializes minecraft:the_nether",
+          "ok": true
+        },
+        {
+          "name": "client append command initializes minecraft:the_end",
+          "ok": true
+        },
+        {
+          "name": "UI capability negotiated",
+          "ok": true
+        },
+        {
+          "name": "long scan shows running HUD",
+          "ok": true
+        },
+        {
+          "name": "vanilla BossBar appears with HUD",
+          "ok": true
+        },
+        {
+          "name": "HUD displays the terminal state",
+          "ok": true
+        },
+        {
+          "name": "BossBar displays the same terminal state",
+          "ok": true
+        },
+        {
+          "name": "completion is human readable",
+          "ok": true
+        },
+        {
+          "name": "terminal HUD disappears after TTL",
+          "ok": true
+        },
+        {
+          "name": "terminal BossBar disappears after TTL",
+          "ok": true
+        },
+        {
+          "name": "armor stand is tracked before the GUI edit",
+          "ok": true
+        },
+        {
+          "name": "client chat graph has hover and suggest",
+          "ok": true
+        },
+        {
+          "name": "graph Screen opens",
+          "ok": true
+        },
+        {
+          "name": "graph Screen displays server nodes",
+          "ok": true
+        },
+        {
+          "name": "graph refresh publishes a new server generation",
+          "ok": true
+        },
+        {
+          "name": "copy commit button works",
+          "ok": true
+        },
+        {
+          "name": "graph copies the full commit id",
+          "ok": true
+        },
+        {
+          "name": "diff button fills chat",
+          "ok": true
+        },
+        {
+          "name": "suggested diff is bound to the graph dimension",
+          "ok": true
+        },
+        {
+          "name": "client business error has copy and i18n hover",
+          "ok": true
+        },
+        {
+          "name": "copy hover is hit by the real mouse",
+          "ok": true
+        },
+        {
+          "name": "ignore Screen opens",
+          "ok": true
+        },
+        {
+          "name": "live syntax errors disable Add",
+          "ok": true
+        },
+        {
+          "name": "valid typing enables Add without rebuilding the Screen",
+          "ok": true
+        },
+        {
+          "name": "Add sends a server preview request",
+          "ok": true
+        },
+        {
+          "name": "preview requires explicit confirmation",
+          "ok": true
+        },
+        {
+          "name": "Confirm sends the preview code",
+          "ok": true
+        },
+        {
+          "name": "confirmed and committed GUI rule takes effect",
+          "ok": true
+        },
+        {
+          "name": "superseded preview cannot be confirmed",
+          "ok": true
+        },
+        {
+          "name": "GUI preview-confirm-commit excludes an actual tracked armor stand",
+          "ok": true
+        },
+        {
+          "name": "stale authorized Screen still sends the confirm request",
+          "ok": true
+        },
+        {
+          "name": "server refuses GUI confirmation after permission is revoked and sends copy error",
+          "ok": true
+        },
+        {
+          "name": "revoked GUI confirmation leaves the rules unchanged",
+          "ok": true
+        },
+        {
+          "name": "/wgit disabled by YAML",
+          "ok": true
+        },
+        {
+          "name": "/git disabled by YAML",
+          "ok": true
+        },
+        {
+          "name": "/wg still works with disabled",
+          "ok": true
+        },
+        {
+          "name": "/worldgit still works with disabled",
+          "ok": true
+        },
+        {
+          "name": "existing third-party /git is preserved",
+          "ok": true
+        },
+        {
+          "name": "/git conflict is logged once",
+          "ok": true
+        },
+        {
+          "name": "/wg still works with conflict",
+          "ok": true
+        },
+        {
+          "name": "/worldgit still works with conflict",
+          "ok": true
+        },
+        {
+          "name": "/wgit works when /git conflicts",
+          "ok": true
+        }
+      ],
+      "artifacts": {
+        "worldgit.jar": "c19595b41960d5b0749b7ccb9f46911bbf11f9c55df960e7a14ea8fd604c27c8",
+        "fixture.jar": "bf658692641e2c12733f26341feb10fe8956bb5ef002409f449f1fbd833c51f2",
+        "wgit.jar": "5916030b68ea97f470742e65aee8f9b236077e83e678dff18649923023c21a3d"
+      },
+      "ports_closed": {
+        "25701": true,
+        "25702": true
+      },
+      "source": ".work/fabric-phase5/dedicated-26.2-1791365885/result.json"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "dedicated-1.21.11-chat-graph.png",
+      "sha256": "7bc56ef9dd30d8020462e6823ec574021d6d1068019a8c73890ee3a0863f29f0",
+      "inspected": true,
+      "visible": "graph",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-completion-message.png",
+      "sha256": "75d303f216c26a4abaa41e62cf65154177f4d7cae824a8c081beff4e5cec81da",
+      "inspected": true,
+      "visible": "message",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-error-copy-hover.png",
+      "sha256": "ad7fc750bdf8e2bb2a5a27acca866f01c89869451a90bc84751841dcd10aef84",
+      "inspected": true,
+      "visible": "copy-hover",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-graph-screen.png",
+      "sha256": "4e2333f0297b436b4e7f916266576d8e9c9382136ea58737105023b4214df502",
+      "inspected": true,
+      "visible": "screen",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-ignore-editor.png",
+      "sha256": "a77c76662e57e2bcd20d42782f324b2ab502ce7047508541f1bbe26231b42f60",
+      "inspected": true,
+      "visible": "editor",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-ignore-preview.png",
+      "sha256": "ced3eb5bed80c7d56481ed74a3ad5f6e1a58b79eda4273e5548cf880cfbb8a80",
+      "inspected": true,
+      "visible": "preview",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-ignore-syntax-error.png",
+      "sha256": "839e37bdf28a2b0830530512b2dd8f8a748e4d09fa919e34c5d3bc397c006b66",
+      "inspected": true,
+      "visible": "syntax-error",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-init-append-buttons.png",
+      "sha256": "626ee0563f4ed190d124562ca30ad37791902f18c64873202e29dedfd7ece763",
+      "inspected": true,
+      "visible": "append-buttons",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-progress-running.png",
+      "sha256": "bbe806a3faea163ac7b0a4fb14fba345f3757e7fd8bb321250527e5ae5530ecf",
+      "inspected": true,
+      "visible": "running",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-1.21.11-progress-terminal.png",
+      "sha256": "d6a5cec236ae0b534b67bfded64148b7b2b7a74d19cf31371af7440678ed19f9",
+      "inspected": true,
+      "visible": "terminal",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-chat-graph.png",
+      "sha256": "bbc4cc40313a08824224ce096f3021b1802510e7b2dc1175a6fa7de3de1de7fd",
+      "inspected": true,
+      "visible": "graph",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-completion-message.png",
+      "sha256": "5b6c59d8068d35679c3252f801ed79bf9c0f495fd0b8ff8e4d141bbbd189b7a3",
+      "inspected": true,
+      "visible": "message",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-error-copy-hover.png",
+      "sha256": "ceeaf7458ab900bcfca30bbcf6f5244563192ddb8b0afcd1a0c75059643538ae",
+      "inspected": true,
+      "visible": "copy-hover",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-graph-screen.png",
+      "sha256": "3e7e098b84c053140722c96524f12ad63c23c21c1e661ecd27f70ed74836cef2",
+      "inspected": true,
+      "visible": "screen",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-ignore-editor.png",
+      "sha256": "e81702444108e2748d926378a6a56119bdc69d76c845b9e715201e643aaedbcf",
+      "inspected": true,
+      "visible": "editor",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-ignore-preview.png",
+      "sha256": "6a8a6ba8e96bfaf6f6909e00c31c03a08154542a31cc269d326c44b2fea97aa9",
+      "inspected": true,
+      "visible": "preview",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-ignore-syntax-error.png",
+      "sha256": "e09864a5c6959c4f71d30cb963d80717354076b9a963525a737118955ec53bce",
+      "inspected": true,
+      "visible": "syntax-error",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-init-append-buttons.png",
+      "sha256": "d4c0886a4fe4200af902ccf3b05893594720491aed3340b1afc0019fe4a96371",
+      "inspected": true,
+      "visible": "append-buttons",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-progress-running.png",
+      "sha256": "e9cb37dd1c0dd9540a283ff92e39f4b48af29a08ff517cc07ab4fb28c98f8b75",
+      "inspected": true,
+      "visible": "running",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "dedicated-26.2-progress-terminal.png",
+      "sha256": "a31df5cbdca0e8fab5ce3944f5cab55f403508a76c08a24e24afa60d6dd17e0e",
+      "inspected": true,
+      "visible": "terminal",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-chat-graph.png",
+      "sha256": "d5afd3556c72f4782f890f4dd179db3a1ed0952c3c1272d09912bd3bbb3a268a",
+      "inspected": true,
+      "visible": "graph",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-completion-message.png",
+      "sha256": "e87750808bb1858c137873a8e4cabf10e701f0a8e54fee7833f51ed938272094",
+      "inspected": true,
+      "visible": "message",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-error-copy-hover.png",
+      "sha256": "4c7de791af39d5259b39777bd36844ac23d2d1f7a8599a64cb0f2593d61cae01",
+      "inspected": true,
+      "visible": "copy-hover",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-graph-screen.png",
+      "sha256": "c279870c6f80e4d8bbd926e02be180d5a14f708f6058672aaf1b4095465f5f31",
+      "inspected": true,
+      "visible": "screen",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-ignore-editor.png",
+      "sha256": "39490c46b95de04247f12f245c4c1aedfd3087c35ab050cb4e906836c74684f5",
+      "inspected": true,
+      "visible": "editor",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-ignore-preview.png",
+      "sha256": "33f6e7fd1ede9ba8a3914e0bf3a5e2f19c169dd8b83dd32acbb8068dd741401f",
+      "inspected": true,
+      "visible": "preview",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-ignore-syntax-error.png",
+      "sha256": "d2c53188cba222c69a383b99116cf75a7659ec2ba868401806e50142c15acb56",
+      "inspected": true,
+      "visible": "syntax-error",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-init-append-buttons.png",
+      "sha256": "b1eeff1e4071df82f56fd3e6bae110085c16cde81791eb06751767d72dfde3f6",
+      "inspected": true,
+      "visible": "append-buttons",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-progress-running.png",
+      "sha256": "d9572ff93eb63a06b2360a90be2c3b4a85cae1c8401aba0801f4d98b52b6124e",
+      "inspected": true,
+      "visible": "running",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-1.21.11-progress-terminal.png",
+      "sha256": "c52e08e3b5ccba5bf2b6ab53d4386cf55e9e601ed665e6d75839881d779f8cfa",
+      "inspected": true,
+      "visible": "terminal",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-chat-graph.png",
+      "sha256": "7384ee7cfc14772061429e044e7f689687375ef9e1bdd16157eaabc0fa3ab3ca",
+      "inspected": true,
+      "visible": "graph",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-completion-message.png",
+      "sha256": "728b3c639d522029544ea21fcba8e3219c4225aab0813c9a315c9588a267dbb8",
+      "inspected": true,
+      "visible": "message",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-error-copy-hover.png",
+      "sha256": "afff09d845dd930266bf91281638cb09d983605c7cc88e7aba08d9d1aa5c31cd",
+      "inspected": true,
+      "visible": "copy-hover",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-graph-screen.png",
+      "sha256": "66fd4ac42ef9239d7a5bd9baaefe316ccb16ff074b819e8411af17d9f2525215",
+      "inspected": true,
+      "visible": "screen",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-ignore-editor.png",
+      "sha256": "082152ab903ddd91af59368140bfbf03050698c106e8858a1a628c06a4ae12cd",
+      "inspected": true,
+      "visible": "editor",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-ignore-preview.png",
+      "sha256": "9bdb950247377436e7a03d93737541dbe8dd78f8725ebe58c510a7c2cc732191",
+      "inspected": true,
+      "visible": "preview",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-ignore-syntax-error.png",
+      "sha256": "f998f7008edfae6dc30e7234e9592cde58dd66f8e88477613432ff162580509e",
+      "inspected": true,
+      "visible": "syntax-error",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-init-append-buttons.png",
+      "sha256": "fbaf128e91abb6a26b9bed838e1bd2bbed0152a341b72e7df5b9cdb76dd07125",
+      "inspected": true,
+      "visible": "append-buttons",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-progress-running.png",
+      "sha256": "bef5225e614e7a3f278b1d1aa6be5d871edc8ba4c9a8530177de3851a081e4db",
+      "inspected": true,
+      "visible": "running",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    },
+    {
+      "file": "single-26.2-progress-terminal.png",
+      "sha256": "25c22b379f6ec9e93119d6651eed1e6fc54c19213fcf49add73d749a5169ee0a",
+      "inspected": true,
+      "visible": "terminal",
+      "verified_again": "2026-10-07",
+      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+    }
+  ],
+  "final_validation": [
+    {
+      "name": "fabric-phase5-dedicated-1.21.11",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase5.py",
+        "1.21.11",
+        "--mode",
+        "dedicated"
+      ],
+      "success": true,
+      "checks": 171,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/fabric-phase5-dedicated-1.21.11.json",
+      "original_result": ".work/fabric-phase5/dedicated-1.21.11-1791363546/result.json",
+      "log": ".work/p5-final/fabric-phase5-dedicated-1.21.11.log"
+    },
+    {
+      "name": "fabric-phase5-single-1.21.11",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase5.py",
+        "1.21.11",
+        "--mode",
+        "single"
+      ],
+      "success": true,
+      "checks": 42,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/fabric-phase5-single-1.21.11.json",
+      "original_result": ".work/fabric-phase5/single-1.21.11-1791365109/result.json",
+      "log": ".work/p5-final/fabric-phase5-single-1.21.11.log"
+    },
+    {
+      "name": "fabric-phase5-single-26.2",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase5.py",
+        "26.2",
+        "--mode",
+        "single"
+      ],
+      "success": true,
+      "checks": 42,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/fabric-phase5-single-26.2.json",
+      "original_result": ".work/fabric-phase5/single-26.2-1791365500/result.json",
+      "log": ".work/p5-final/fabric-phase5-single-26.2.log"
+    },
+    {
+      "name": "fabric-phase5-dedicated-26.2",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase5.py",
+        "26.2",
+        "--mode",
+        "dedicated"
+      ],
+      "success": true,
+      "checks": 171,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/fabric-phase5-dedicated-26.2.json",
+      "original_result": ".work/fabric-phase5/dedicated-26.2-1791365885/result.json",
+      "log": ".work/p5-final/fabric-phase5-dedicated-26.2.log"
+    },
+    {
+      "name": "accept-phase4-singleplayer-1.21.11",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase4-singleplayer.py",
+        "1.21.11"
+      ],
+      "success": true,
+      "checks": 18,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/accept-phase4-singleplayer-1.21.11.json",
+      "original_result": ".work/fabric-phase4/single-1.21.11-1791386003/results.json",
+      "log": ".work/p5-final/accept-phase4-singleplayer-1.21.11.log"
+    },
+    {
+      "name": "accept-phase4-1.21.11",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase4.py",
+        "1.21.11"
+      ],
+      "success": true,
+      "checks": 28,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/accept-phase4-1.21.11.json",
+      "original_result": ".work/fabric-phase4/dedicated-1.21.11-1791386516/results.json",
+      "log": ".work/p5-final/accept-phase4-1.21.11.log"
+    },
+    {
+      "name": "accept-paper-1.21.11",
+      "command": [
+        "python3",
+        "fabric/tools/accept-paper.py",
+        "1.21.11"
+      ],
+      "success": true,
+      "checks": 0,
+      "game_test_cases": 1,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/accept-paper-1.21.11.json",
+      "original_result": ".work/fabric-acceptance/paper-1.21.11-20261007-153639/result.json",
+      "log": ".work/p5-final/accept-paper-1.21.11.log"
+    },
+    {
+      "name": "accept-paper-phase3-folia-1.21.11",
+      "command": [
+        "python3",
+        "fabric/tools/accept-paper-phase3.py",
+        "folia",
+        "1.21.11"
+      ],
+      "success": true,
+      "checks": 17,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/accept-paper-phase3-folia-1.21.11.json",
+      "original_result": ".work/fabric-acceptance/pair-folia-1.21.11-20261007-153830/result.json",
+      "log": ".work/p5-final/accept-paper-phase3-folia-1.21.11.log"
+    },
+    {
+      "name": "accept-phase4-singleplayer-26.2",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase4-singleplayer.py",
+        "26.2"
+      ],
+      "success": true,
+      "checks": 18,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/accept-phase4-singleplayer-26.2.json",
+      "original_result": ".work/fabric-phase4/single-26.2-1791387918/results.json",
+      "log": ".work/p5-final/accept-phase4-singleplayer-26.2.log"
+    },
+    {
+      "name": "accept-phase4-26.2",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase4.py",
+        "26.2"
+      ],
+      "success": true,
+      "checks": 28,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/accept-phase4-26.2.json",
+      "original_result": ".work/fabric-phase4/dedicated-26.2-1791388436/results.json",
+      "log": ".work/p5-final/accept-phase4-26.2.log"
+    },
+    {
+      "name": "accept-paper-26.2",
+      "command": [
+        "python3",
+        "fabric/tools/accept-paper.py",
+        "26.2"
+      ],
+      "success": true,
+      "checks": 0,
+      "game_test_cases": 1,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/accept-paper-26.2.json",
+      "original_result": ".work/fabric-acceptance/paper-26.2-20261007-160710/result.json",
+      "log": ".work/p5-final/accept-paper-26.2.log"
+    },
+    {
+      "name": "accept-paper-phase3-folia-26.2",
+      "command": [
+        "python3",
+        "fabric/tools/accept-paper-phase3.py",
+        "folia",
+        "26.2"
+      ],
+      "success": true,
+      "checks": 17,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/accept-paper-phase3-folia-26.2.json",
+      "original_result": ".work/fabric-acceptance/pair-folia-26.2-20261007-160908/result.json",
+      "log": ".work/p5-final/accept-paper-phase3-folia-26.2.log"
+    },
+    {
+      "name": "paper-phase5-paper-1.21.11",
+      "command": [
+        "python3",
+        "paper/tools/phase5.py",
+        "paper",
+        "1.21.11"
+      ],
+      "success": true,
+      "checks": 50,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/paper-phase5-paper-1.21.11.json",
+      "original_result": ".work/paper-phase5/paper-1.21.11-1791389742/results.json",
+      "log": ".work/p5-final/paper-phase5-paper-1.21.11.log"
+    },
+    {
+      "name": "paper-phase5-folia-26.2",
+      "command": [
+        "python3",
+        "paper/tools/phase5.py",
+        "folia",
+        "26.2"
+      ],
+      "success": true,
+      "checks": 51,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/paper-phase5-folia-26.2.json",
+      "original_result": ".work/paper-phase5/folia-26.2-1791390110/results.json",
+      "log": ".work/p5-final/paper-phase5-folia-26.2.log"
+    },
+    {
+      "name": "paper-acceptance",
+      "command": [
+        "python3",
+        "paper/tools/acceptance.py",
+        "paper",
+        "1.21.11"
+      ],
+      "success": true,
+      "checks": 32,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/paper-acceptance.json",
+      "original_result": ".work/paper-delivery/results/paper-1.21.11.json",
+      "log": ".work/p5-final/paper-acceptance.log"
+    },
+    {
+      "name": "regress-phase4",
+      "command": [
+        "python3",
+        "fabric/tools/regress-phase4.py"
+      ],
+      "success": true,
+      "checks": 9,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/regress-phase4-final.json",
+      "log": ".work/p5-final/regress-phase4.log"
+    },
+    {
+      "name": "single-1.21.11-phase2",
+      "command": [
+        "WG_PHASE2=1",
+        "fabric/tools/run-gametest.sh",
+        "1.21.11",
+        "--record"
+      ],
+      "success": true,
+      "checks": 0,
+      "game_test_cases": 1,
+      "offline_dimension_checks": 12,
+      "result": ".work/p5-final/single-1.21.11-phase2.json",
+      "original_result": ".work/fabric-acceptance/phase2-1.21.11-20261007-123542/result.json",
+      "log": ".work/fabric-phase4/regressions-1791375742/single-1.21.11-phase2.log"
+    },
+    {
+      "name": "single-26.2-phase2",
+      "command": [
+        "WG_PHASE2=1",
+        "fabric/tools/run-gametest.sh",
+        "26.2",
+        "--record"
+      ],
+      "success": true,
+      "checks": 0,
+      "game_test_cases": 1,
+      "offline_dimension_checks": 12,
+      "result": ".work/p5-final/single-26.2-phase2.json",
+      "original_result": ".work/fabric-acceptance/phase2-26.2-20261007-124939/result.json",
+      "log": ".work/fabric-phase4/regressions-1791375742/single-26.2-phase2.log"
+    },
+    {
+      "name": "single-1.21.11-phase3",
+      "command": [
+        "WG_PHASE3=1",
+        "fabric/tools/run-gametest.sh",
+        "1.21.11",
+        "--record"
+      ],
+      "success": true,
+      "checks": 0,
+      "game_test_cases": 1,
+      "offline_dimension_checks": 9,
+      "result": ".work/p5-final/single-1.21.11-phase3.json",
+      "original_result": ".work/fabric-acceptance/phase3-1.21.11-20261007-125722/result.json",
+      "log": ".work/fabric-phase4/regressions-1791375742/single-1.21.11-phase3.log"
+    },
+    {
+      "name": "single-26.2-phase3",
+      "command": [
+        "WG_PHASE3=1",
+        "fabric/tools/run-gametest.sh",
+        "26.2",
+        "--record"
+      ],
+      "success": true,
+      "checks": 0,
+      "game_test_cases": 1,
+      "offline_dimension_checks": 9,
+      "result": ".work/p5-final/single-26.2-phase3.json",
+      "original_result": ".work/fabric-acceptance/phase3-26.2-20261007-130506/result.json",
+      "log": ".work/fabric-phase4/regressions-1791375742/single-26.2-phase3.log"
+    },
+    {
+      "name": "dedicated-1.21.11",
+      "command": [
+        "python3",
+        "fabric/tools/accept-dedicated.py",
+        "1.21.11"
+      ],
+      "success": true,
+      "checks": 44,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/dedicated-1.21.11.json",
+      "original_result": ".work/fabric-acceptance/dedicated-fabric-1.21.11-20261007-130529/result.json",
+      "log": ".work/fabric-phase4/regressions-1791375742/dedicated-1.21.11.log"
+    },
+    {
+      "name": "interop-paper-1.21.11",
+      "command": [
+        "python3",
+        "fabric/tools/accept-paper-phase3.py",
+        "paper",
+        "1.21.11"
+      ],
+      "success": true,
+      "checks": 17,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/interop-paper-1.21.11.json",
+      "original_result": ".work/fabric-acceptance/pair-paper-1.21.11-20261007-134445/result.json",
+      "log": ".work/fabric-phase4/regressions-1791375742/interop-paper-1.21.11.log"
+    },
+    {
+      "name": "paper-phase4-1.21.11",
+      "command": [
+        "python3",
+        "paper/tools/phase4.py",
+        "paper",
+        "1.21.11",
+        "--screenshots"
+      ],
+      "success": true,
+      "checks": 23,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/paper-phase4-1.21.11.json",
+      "original_result": ".work/paper-phase4/paper-1.21.11-1791381541/results.json",
+      "log": ".work/fabric-phase4/regressions-1791375742/paper-phase4-1.21.11.log"
+    },
+    {
+      "name": "interop-paper-26.2",
+      "command": [
+        "python3",
+        "fabric/tools/accept-paper-phase3.py",
+        "paper",
+        "26.2"
+      ],
+      "success": true,
+      "checks": 17,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/interop-paper-26.2.json",
+      "original_result": ".work/fabric-acceptance/pair-paper-26.2-20261007-144749/result.json",
+      "log": ".work/fabric-phase4/regressions-1791382171/interop-paper-26.2.log"
+    },
+    {
+      "name": "dedicated-26.2",
+      "command": [
+        "python3",
+        "fabric/tools/accept-dedicated.py",
+        "26.2"
+      ],
+      "success": true,
+      "checks": 44,
+      "game_test_cases": 0,
+      "offline_dimension_checks": 0,
+      "result": ".work/p5-final/dedicated-26.2.json",
+      "original_result": ".work/fabric-acceptance/dedicated-fabric-26.2-20261007-163445/result.json",
+      "log": ".work/fabric-phase4/regressions-1791390885/dedicated-26.2.log"
+    }
+  ],
+  "unit_tests": {
+    "projects": [
+      {
+        "project": "cli",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "project": "core",
+        "tests": 119,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "project": "fabric/logic",
+        "tests": 68,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "project": "hub",
+        "tests": 74,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "project": "i18n",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "project": "paper/common",
+        "tests": 42,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "project": "platform-api",
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "project": "protocol",
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "total": {
+      "tests": 346,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "build": {
+    "command": [
+      "flock",
+      ".work/bench.lock",
+      "env",
+      "GRADLE_USER_HOME=.work/gradle-home",
+      "./gradlew",
+      "--no-daemon",
+      "--configure-on-demand",
+      "--max-workers=1",
+      "build"
+    ],
+    "exit": 0,
+    "seconds": 16.08,
+    "log": ".work/p5-final/full-build.log"
+  },
+  "cleanup": {
+    "success": true,
+    "bench_lock_available": true,
+    "ports_closed": {
+      "8095": true,
+      "25663": true,
+      "25664": true,
+      "25671": true,
+      "25672": true,
+      "25673": true,
+      "25674": true,
+      "25701": true,
+      "25702": true,
+      "25703": true,
+      "25704": true,
+      "25711": true,
+      "25712": true,
+      "25713": true,
+      "25714": true,
+      "25763": true,
+      "25764": true
+    },
+    "namespace_process_check": [],
+    "runner_finished": ".work/p5-final-runner-cont7.log ends with PASS regress-phase4-retry2",
+    "lifecycle_evidence": "All 25 validation summaries pass; dedicated server/client exit=0 and server_problems=[]",
+    "baseline_work_bytes": 18033538748,
+    "final_work_bytes": 18292247545,
+    "task_increment_bytes": 258708797,
+    "task_increment_limit_bytes": 4000000000,
+    "removed_copies": [
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791299269/worldgit.jar",
+        "bytes": 16279229,
+        "sha256": "60a62074ebe804b11eae25e12bc104992393250787b2b4a9dfe2d37b7d8e6d05"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791299269/fixture.jar",
+        "bytes": 95675,
+        "sha256": "dd273b6dd9d7a6426eae0ecba60f2423c9fda0c467c0ac132f4c45fd6d1d601d"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791299269/wgit.jar",
+        "bytes": 15809364,
+        "sha256": "4688f4fc70e311408567e06886f643d027f1c84db0f54681b2e3ef1548966f14"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791299519/worldgit.jar",
+        "bytes": 16279229,
+        "sha256": "60a62074ebe804b11eae25e12bc104992393250787b2b4a9dfe2d37b7d8e6d05"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791299519/fixture.jar",
+        "bytes": 95675,
+        "sha256": "dd273b6dd9d7a6426eae0ecba60f2423c9fda0c467c0ac132f4c45fd6d1d601d"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791299519/wgit.jar",
+        "bytes": 15809364,
+        "sha256": "4688f4fc70e311408567e06886f643d027f1c84db0f54681b2e3ef1548966f14"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791300387/worldgit.jar",
+        "bytes": 16279229,
+        "sha256": "60a62074ebe804b11eae25e12bc104992393250787b2b4a9dfe2d37b7d8e6d05"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791300387/fixture.jar",
+        "bytes": 95675,
+        "sha256": "dd273b6dd9d7a6426eae0ecba60f2423c9fda0c467c0ac132f4c45fd6d1d601d"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791300387/wgit.jar",
+        "bytes": 15809364,
+        "sha256": "4688f4fc70e311408567e06886f643d027f1c84db0f54681b2e3ef1548966f14"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791356516/worldgit.jar",
+        "bytes": 16279270,
+        "sha256": "e3362565e464d866d2ad9d85e5f096ec7fc53d934d08940cf4c253b00c5224e2"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791356516/fixture.jar",
+        "bytes": 98275,
+        "sha256": "1047282c3869ec917375c38eb57d23487eef7034bf59699887d6b18431e01209"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791356516/wgit.jar",
+        "bytes": 15809364,
+        "sha256": "4688f4fc70e311408567e06886f643d027f1c84db0f54681b2e3ef1548966f14"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791356706/worldgit.jar",
+        "bytes": 16279270,
+        "sha256": "e3362565e464d866d2ad9d85e5f096ec7fc53d934d08940cf4c253b00c5224e2"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791356706/fixture.jar",
+        "bytes": 98275,
+        "sha256": "1047282c3869ec917375c38eb57d23487eef7034bf59699887d6b18431e01209"
+      },
+      {
+        "file": ".work/fabric-phase5/dedicated-1.21.11-1791356706/wgit.jar",
+        "bytes": 15809364,
+        "sha256": "4688f4fc70e311408567e06886f643d027f1c84db0f54681b2e3ef1548966f14"
+      },
+      {
+        "directory": ".work/fabric-acceptance/dedicated-fabric-26.2-20261007-134424/failed-server",
+        "reason": "server download failed before any scenario; JSON and logs retained"
+      }
+    ]
+  }
+}

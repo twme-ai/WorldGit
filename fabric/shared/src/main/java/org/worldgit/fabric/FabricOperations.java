@@ -60,6 +60,7 @@ final class FabricOperations implements WorldOperations.LiveAccess {
             for(var biome:chunk.biomes().values()) for(var id:biome.samples()) if(!id.isEmpty()) biomes.add(id);
         }
         for(var entity:plan.entities()) if(entity.target()!=null) entityTypes(entity.target().data(),entityTypes);
+        rejectCrossDimensionDuplicates(plan);
         runtime.onServer(()->{
             var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(plan.dimension().value())));
             if(level==null) throw new IOException("維度尚未載入："+plan.dimension());
@@ -72,6 +73,48 @@ final class FabricOperations implements WorldOperations.LiveAccess {
             for(var id:entityTypes) runtime.server().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENTITY_TYPE).getOrThrow(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,net.minecraft.resources.Identifier.parse(id)));
             return null;
         });
+    }
+    /**
+     * 各維度的歷史互相獨立，還原可能讓某個 UUID 同時存在於兩個維度（例如實體已傳送到地獄後還原主世界）。
+     * 在第一個寫入之前，以已載入的實體與磁碟 entity region 預檢其他維度；只要有重複就拒絕並指出維度。
+     */
+    private void rejectCrossDimensionDuplicates(ApplyPlan plan) throws IOException {
+        var targets=new TreeSet<UUID>();
+        for(var entity:plan.entities()) if(entity.target()!=null) collect(entity.target().data(),targets,new HashSet<>());
+        if(targets.isEmpty()) return;
+        for(var other:layout.dimensions().values()) {
+            if(other.id().equals(plan.dimension())) continue;
+            var live=runtime.onServer(()->{
+                var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(other.id().value())));
+                if(level==null) return Optional.<UUID>empty();
+                for(var id:targets) { var entity=level.getEntity(id); if(entity!=null && !entity.isRemoved()) return Optional.of(id); }
+                return Optional.<UUID>empty();
+            });
+            if(live.isPresent()) throw new DuplicateEntityException(live.get(),other.id());
+            for(var path:RegionFile.list(other.entities())) try(var region=new RegionFile(path)) {
+                for(int i=0;i<1024;i++) if(region.has(i)) {
+                    var found=firstContained(region.read(i).list("Entities"),targets);
+                    if(found!=null) {
+                        var pos=region.pos(i);
+                        boolean authoritative=runtime.onServer(()->{
+                            var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(other.id().value())));
+                            return level!=null && ((org.worldgit.fabric.mixin.ServerLevelAccess)level).worldgit$entities().areEntitiesLoaded(
+                                ((long)pos.x() & 0xffffffffL) | ((long)pos.z() << 32));
+                        });
+                        // 已載入的 entity storage 以活世界為準，不能用尚未 flush 的舊檔案判斷已離開的 UUID。
+                        if(!authoritative) throw new DuplicateEntityException(found,other.id());
+                    }
+                }
+            }
+        }
+    }
+    private static UUID firstContained(Nbt.ListTag entities,Set<UUID> ids) {
+        for(var p:entities.values()) {
+            var e=(Nbt.Compound)p; var id=EntityNormalizer.uuid(e);
+            if(ids.contains(id)) return id;
+            var nested=firstContained(e.list("Passengers"),ids); if(nested!=null) return nested;
+        }
+        return null;
     }
     @Override public void applyAll(Collection<ApplyPlan> plans) throws IOException {
         var budget=runtime.onServer(()->runtime.server().getPlayerList().getPlayers().isEmpty() ? ApplyBudget.DEFAULT : ApplyBudget.WITH_PLAYERS);

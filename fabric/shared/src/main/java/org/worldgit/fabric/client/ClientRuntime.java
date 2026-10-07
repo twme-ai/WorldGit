@@ -89,6 +89,63 @@ public final class ClientRuntime {
   private boolean handshaken;
   private boolean mergeCapable;
   private boolean selectCapable;
+  private final ClientUi ui = new ClientUi();
+  private boolean uiCapable;
+  ClientUi ui() { return ui; }
+  public boolean uiCapable() { return handshaken && uiCapable; }
+  List<ClientUi.Hud> progressItems() { return ui.active(System.currentTimeMillis()); }
+  /** 目前顯示中的進度數（測試用）。 */
+  public int progressCount() { return ui.active(System.currentTimeMillis()).size(); }
+  /** 最新一筆進度的摘要（測試／截圖用）：status|operation|phase|percent；沒有時為空字串。 */
+  public String progressSummary() {
+    var items = ui.active(System.currentTimeMillis());
+    if (items.isEmpty()) return "";
+    var hud = items.getLast();
+    return hud.status() + "|" + hud.operation() + "|" + hud.phase() + "|" + (hud.total() > 0 ? hud.completed() * 100 / hud.total() : -1);
+  }
+  public boolean graphScreenOpen() { return ClientPlatform.currentScreen() instanceof GraphScreenBase; }
+  public long graphPublishedId() { return ui.graph() == null ? -1 : ui.graph().request(); }
+  public boolean ignoreScreenOpen() { return ClientPlatform.currentScreen() instanceof IgnoreScreenBase; }
+  public void onUi(byte[] bytes) {
+    try {
+      if (!handshaken || !uiCapable) throw new IOException("ui capability");
+      switch (UiProtocol.decode(bytes)) {
+        case UiProtocol.Progress progress -> ui.progress(progress, System.currentTimeMillis());
+        case UiProtocol.GraphPart part -> ui.acceptGraph(part).ifPresent(done -> {
+          LOG.info("WORLDGIT UI_GRAPH dimension={} nodes={} open={}", done.dimension(), done.nodes().size(), done.open());
+          if (done.open() && !(ClientPlatform.currentScreen() instanceof GraphScreenBase)) ClientPlatform.setScreen(new GraphScreen());
+        });
+        case UiProtocol.IgnoreView view -> {
+          ui.ignoreView(view);
+          LOG.info("WORLDGIT UI_IGNORE_VIEW dimension={} lines={} total={} open={}", view.dimension(), view.lines().size(), view.total(), view.open());
+          if (view.open() && !(ClientPlatform.currentScreen() instanceof IgnoreScreenBase)) ClientPlatform.setScreen(new IgnoreScreen());
+        }
+        case UiProtocol.IgnorePreview preview -> ui.ignorePreview(preview);
+        case UiProtocol.IgnoreResult result -> ui.ignoreResult(result);
+        default -> throw new IOException("ui message direction");
+      }
+    } catch (IOException | RuntimeException e) {
+      LOG.warn("WORLDGIT UI 封包被拒絕：{}", e.toString());
+    }
+  }
+  private void sendUi(UiProtocol.Message message) {
+    try {
+      if (uiCapable()) ClientPlayNetworking.send(Net.UI.of(UiProtocol.encode(message)));
+    } catch (IOException | RuntimeException e) {
+      LOG.warn("WORLDGIT UI 請求送出失敗：{}", e.toString());
+    }
+  }
+  /** 重新整理分支圖（refs 為真時含所有分支、tag、遠端追蹤 ref）。 */
+  public void requestGraph(String dimension, boolean refs) {
+    sendUi(new UiProtocol.GraphRequest(ui.nextRequest(), dimension == null ? "" : dimension, refs, 200, false));
+  }
+  public void requestIgnore(String op, int line, int destination, String text, String token) { requestIgnore(op, line, destination, text, token, "", 0); }
+  public void requestIgnore(String op, int line, int destination, String text, String token, String code) { requestIgnore(op, line, destination, text, token, code, 0); }
+  public void requestIgnore(String op, int line, int destination, String text, String token, String code, int offset) {
+    var view = ui.ignoreView();
+    String dimension = view == null ? "" : view.dimension();
+    sendUi(new UiProtocol.IgnoreEdit(ui.nextRequest(), dimension, op, line, destination, text, code, token, offset));
+  }
   private final ClientConflicts conflicts = new ClientConflicts();
   private final Map<DimensionId,List<PreviewScene>> conflictBounds = new HashMap<>();
   private PreviewScene conflictGhost;
@@ -111,19 +168,19 @@ public final class ClientRuntime {
   public void previewConflict(Choice choice) {
     var key=conflicts.selected(); if(key==null || !mergeCapable) return;
     conflicts.request(choice); clearConflictGhost();
-    command("wg conflict-preview "+key.region()+" "+choice.name().toLowerCase(Locale.ROOT));
+    command("wg conflict-preview "+key.region()+" "+choice.name().toLowerCase(Locale.ROOT)+" --dimension "+key.dimension().value());
   }
   public void applyConflict(Choice choice, boolean resolve) {
     var key=conflicts.selected(); if(key==null || !mergeCapable) return;
     if(!resolve && !selectCapable()) return;
-    command(resolve ? "wg resolve "+key.region()+ (singleplayer() ? " --" : " ")+choice.name().toLowerCase(Locale.ROOT)
-        : "wg conflict-select "+key.region()+" "+choice.name().toLowerCase(Locale.ROOT));
+    command((resolve ? "wg resolve "+key.region()+ (singleplayer() ? " --" : " ")+choice.name().toLowerCase(Locale.ROOT)
+        : "wg conflict-select "+key.region()+" "+choice.name().toLowerCase(Locale.ROOT))+" --dimension "+key.dimension().value());
   }
   public void gotoConflict() {
     var key=conflicts.selected();
     if(key!=null) {
       var region=conflicts.region(key);
-      if(singleplayer()) command("wg conflicts --teleport "+key.region());
+      if(singleplayer()) command("wg conflicts --teleport "+key.region()+" --dimension "+key.dimension().value());
       else if(region!=null && region.info().bounds()!=null) {
         var b=region.info().bounds();
         command("execute in "+key.dimension().value()+" run tp @s "+(b.minX()+0.5)+" "+(b.maxY()+2)+" "+(b.minZ()+0.5));
@@ -238,6 +295,7 @@ public final class ClientRuntime {
       ClientPlayNetworking.send(Net.HELLO.of(Protocol.encode(reply.get())));
       handshaken = true;
       commentsCapable=hello.capabilities().contains(org.worldgit.protocol.CommentsProtocol.CAPABILITY);
+      uiCapable=hello.capabilities().contains(UiProtocol.CAPABILITY);
       mergeCapable = hello.capabilities().contains(MergeProtocol.CAPABILITY);
       selectCapable = ClientHandshake.canSelect(hello);
       LOG.info("WORLDGIT CLIENT_HANDSHAKE_OK nonce={} capabilities={} palette={}", hello.nonce(), ClientHandshake.capabilities(), config.palette());
@@ -286,6 +344,7 @@ public final class ClientRuntime {
     clear();
     previews.reset();commentAssembler.reset();commentsCapable=false;
     conflicts.reset(); mergeCapable=false; selectCapable=false;
+    ui.reset(); uiCapable=false;
     handshaken = false;
     serverPalette = null;
     LOG.info("WORLDGIT CLIENT_SESSION_RESET");

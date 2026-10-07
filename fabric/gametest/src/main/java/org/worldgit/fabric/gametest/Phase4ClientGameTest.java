@@ -107,7 +107,7 @@ final class Phase4ClientGameTest {
               var player=server.getPlayerList().getPlayer(id);server.getCommands().performPrefixedCommand(command.startsWith("wg ")?player.createCommandSourceStack():server.createCommandSourceStack(),command);
             });});
             ctx.waitTicks(6);
-            ctx.waitFor(c->{var rt=WorldGitMod.runtime(c.getSingleplayerServer());return !rt.operationActive() && !busy(rt);},18000);
+            ctx.waitFor(c->{var rt=WorldGitMod.runtime(c.getSingleplayerServer());return !rt.operationActive() && !busy(rt) && !rt.ui().busy();},18000);
             ctx.waitTicks(10);
             out=ctx.computeOnClient(c->{var rt=WorldGitMod.runtime(c.getSingleplayerServer());var j=new JsonObject();j.addProperty("code",code(rt,c.player.getUUID().toString()));return j;});
           }else {command(ctx,command);ctx.waitTicks(6);}

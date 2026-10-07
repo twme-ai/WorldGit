@@ -193,7 +193,7 @@ final class OfflineShutdownCommit {
       long now=System.currentTimeMillis();
       if(!finished.get() && now-last.get()>=1000) {last.set(now);log(plain(OperationUi.progressText(event)));}
     })) {
-      var summary=new TreeMap<String,Object>();summary.put("world",p.layout().world().toString());
+      var summary=new TreeMap<String,Object>();var snapshotId=UUID.randomUUID();var rows=new TreeMap<DimensionId,WorldRepositories.Outcome<DimensionRepository.CommitResult>>();
       OperationResult.ErrorReport error=null;
       var status=OperationResult.Status.NO_OP;
       int changed=0,failed=0;
@@ -209,17 +209,17 @@ final class OfflineShutdownCommit {
                 contributors.stream().map(Attribution.Contributor::toContribution).toList());
             var r=repo.commit(source,manifest,metadata,p.tolerance());
             if(r.changed())changed++;
-            summary.put(dimension.value(),Messages.shortId(r.commit())+" sections="+r.status().diff().sections().size()+" entities="+r.status().diff().entities().size());
+            rows.put(dimension,new WorldRepositories.Outcome<>(r,null));
             log("關閉前離線 commit "+dimension+" → "+(r.changed()?Messages.shortId(r.commit()):"沒有變動"));
           } catch(Exception failure) {
-            failed++;error=error(progress.id(),dimension,failure);summary.put(dimension.value(),"FAILED");
+            failed++;error=error(progress.id(),dimension,failure);rows.put(dimension,new WorldRepositories.Outcome<>(null,error.message()));
             log("關閉前離線 commit "+dimension+" 失敗："+error.message());
             if(failure instanceof java.io.InterruptedIOException) {status=OperationResult.Status.CANCELLED;break;}
           }
         }
         if(status!=OperationResult.Status.CANCELLED)status=failed>0?(failed==tracked.size()?OperationResult.Status.FAILED:OperationResult.Status.PARTIAL):changed>0?OperationResult.Status.SUCCESS:OperationResult.Status.NO_OP;
       } catch(Exception failure) {status=OperationResult.Status.FAILED;error=error(progress.id(),null,failure);}
-      summary.put("changed",changed);summary.put("failed",failed);
+      if(!rows.isEmpty())summary.put("batch",new WorldRepositories.Batch<>(snapshotId,rows));
       var result=progress.result(status,null,summary,List.of(),error);
       finished.set(true);
       log(plain(plugin.operations().completion(result)));

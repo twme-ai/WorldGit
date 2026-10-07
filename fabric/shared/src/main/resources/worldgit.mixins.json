@@ -2,6 +2,27 @@
   "required": true,
   "package": "org.worldgit.fabric.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": ["LevelChunkMixin", "EditPacketsMixin", "PistonEditMixin", "ExplosionEditMixin", "BoneMealEditMixin", "CommandEditMixin", "ChunkMapAccess", "ServerLevelAccess", "EntityManagerAccess", "SectionStorageAccess"],
-  "injectors": { "defaultRequire": 1 }
+  "mixins": [
+    "LevelChunkMixin",
+    "EditPacketsMixin",
+    "PistonEditMixin",
+    "ExplosionEditMixin",
+    "BoneMealEditMixin",
+    "CommandEditMixin",
+    "ChunkMapAccess",
+    "ServerLevelAccess",
+    "EntityManagerAccess",
+    "SectionStorageAccess",
+    "TouchScopePlayerUseMixin",
+    "TouchScopeSummonMixin",
+    "TouchScopeDataEntityMixin",
+    "TouchScopeBreedingMixin",
+    "TouchScopeEggMixin",
+    "TouchScopeConvertMixin",
+    "TouchScopeAddEntityMixin",
+    "TouchScopeEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

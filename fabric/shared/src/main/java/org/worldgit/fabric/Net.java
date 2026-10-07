@@ -51,6 +51,9 @@ public final class Net {
 
     public static final Channel COMMENTS = channel(org.worldgit.protocol.CommentsProtocol.CHANNEL);
 
+    /** Fabric 專屬 UI（進度 HUD、分支圖畫面、.wgignore 畫面）；雙向。 */
+    public static final Channel UI = channel(org.worldgit.fabric.logic.UiProtocol.CHANNEL);
+
     public static final Channel CONFLICTS = channel(MergeProtocol.REGIONS);
     public static final Channel CONFLICT_PREVIEW = channel(MergeProtocol.PREVIEW);
 
@@ -80,6 +83,8 @@ public final class Net {
         registered = true;
         Platform.s2c().register(HELLO.type(), HELLO.codec());
         Platform.c2s().register(HELLO.type(), HELLO.codec());
+        Platform.s2c().register(UI.type(), UI.codec());
+        Platform.c2s().register(UI.type(), UI.codec());
         Platform.s2c().register(DIFF.type(), DIFF.codec());
         Platform.s2c().register(STATUS.type(), STATUS.codec());
         Platform.s2c().register(CLEAR.type(), CLEAR.codec());

@@ -57,25 +57,24 @@ final class OperationUi implements AutoCloseable {
         for(var row:batch.dimensions().entrySet()) {
           var outcome=row.getValue();
           if(!outcome.success()) {failures++;error=report(this,outcome.error());}
-          else if(outcome.value() instanceof DimensionRepository.CommitResult commit) {
-            changed|=commit.changed(); summary.put(row.getKey().value(),Messages.shortId(commit.commit())+" sections="+commit.status().diff().sections().size()+" entities="+commit.status().diff().entities().size()+" blocks="+commit.status().diff().counts());
-          } else if(outcome.value() instanceof DimensionRepository.Status state) summary.put(row.getKey().value(),"sections="+state.diff().sections().size()+" entities="+state.diff().entities().size());
+          else if(outcome.value() instanceof DimensionRepository.CommitResult commit) changed|=commit.changed();
         }
+        summary.put("batch."+summary.size(),batch);
         status=failures==0 ? operation.endsWith("commit") && !changed ? OperationResult.Status.NO_OP : OperationResult.Status.SUCCESS
             : failures==batch.dimensions().size() ? OperationResult.Status.FAILED : OperationResult.Status.PARTIAL;
       } else if(value instanceof PaperOperations.Result applied) {
-        summary.put("changes",applied.dimensions().toString());
+        summary.put("changes",applied);
         if(!applied.success()) {status=applied.error()!=null && applied.error().contains("取消")?OperationResult.Status.CANCELLED:OperationResult.Status.PARTIAL;error=report(this,applied.error());}
       } else if(value instanceof WorldOperations.MergeResult merge) {
-        summary.put("commits",merge.commits().toString());summary.put("remaining",merge.merging()==null?0:merge.merging().remaining());
+        summary.put("merge",merge);
         if(!merge.success()) {status=OperationResult.Status.PARTIAL;error=report(this,merge.error());}
         else if(merge.state().toString().equals("NO_OP"))status=OperationResult.Status.NO_OP;
       } else if(value instanceof org.worldgit.core.remote.WorldRemotes.TransferResult transfer) {
-        summary.put("commits",transfer.commits().toString());summary.put("bytes",transfer.packs().values().stream().flatMap(Collection::stream).mapToLong(pack->pack.wireBytes()==null?pack.preparedBytes():pack.wireBytes()).sum());
+        summary.put("transfer",transfer);
         if(!transfer.success()) {status=transfer.commits().isEmpty()?OperationResult.Status.FAILED:OperationResult.Status.PARTIAL;error=report(this,transfer.error());}
       } else if(value instanceof Collection<?> rows) summary.put("count",rows.size());
       else if(value instanceof OperationResult child) {
-        summary.put(child.dimension()==null?child.operation():child.dimension().value(),child.status()+" "+child.summary());
+        summary.put("child."+summary.size(),child);
         if(child.status()==OperationResult.Status.SUCCESS || child.status()==OperationResult.Status.NO_OP)successfulChildren.incrementAndGet();
         else {failedChildren.incrementAndGet();error=child.error();}
         status=failedChildren.get()==0?OperationResult.Status.SUCCESS:successfulChildren.get()==0?OperationResult.Status.FAILED:OperationResult.Status.PARTIAL;
@@ -131,6 +130,30 @@ final class OperationUi implements AutoCloseable {
       });
     }
   }
+  /** 動作完成後的 HEAD（分支 @ commit）。 */
+  record Head(String branch, String commit) {}
+  /** 完成摘要：每個欄位依型別轉成人類可讀文字（不輸出 record／Map 的 toString）。 */
+  static String describe(Map<String,Object> summary) {
+    var rs=Messages.summaryRenderer();var parts=new ArrayList<String>();
+    for(var entry:summary.entrySet()) {
+      String text=one(rs,entry.getKey(),entry.getValue());if(text!=null && !text.isBlank())parts.add(text);
+    }
+    return rs.joinParts(parts);
+  }
+  private static String one(org.worldgit.platform.ResultSummary rs,String key,Object value) {
+    if(value==null)return null;
+    if(value instanceof PaperOperations.Result applied)
+      return rs.applied(new WorldOperations.Result(WorldOperations.State.valueOf(applied.state().name()),applied.dimensions(),applied.error()));
+    if(value instanceof Head head)return rs.head(head.branch(),head.commit());
+    if(value instanceof OperationResult child) {
+      String label=(child.dimension()==null?child.operation():child.dimension().value())+" "+child.status();
+      String inner=describe(child.summary());return inner.isBlank()?label:label+"："+inner;
+    }
+    if(value instanceof Number number && Messages.hasSummaryLabel(key))return Messages.plain(Messages.text("paper.phase5.summary."+key,"n",number));
+    if(value instanceof Number number)return rs.count(number.longValue());
+    String described=rs.describe(value);
+    return described!=null?described:value instanceof CharSequence text?text.toString():null;
+  }
   private final WorldGitPlugin plugin;
   private final Map<UUID,Action> actions=new ConcurrentHashMap<>();
   private volatile boolean closed;
@@ -144,7 +167,7 @@ final class OperationUi implements AutoCloseable {
   }
   Component completion(OperationResult result) {
     var line=Messages.line("paper.phase5.result","operation",result.operation(),"status",result.status(),"dimension",result.dimension()==null?"all":result.dimension(),
-        "summary",result.summary(),"millis",result.elapsedMillis(),"id",result.operationId());
+        "summary",describe(result.summary()),"millis",result.elapsedMillis(),"id",result.operationId());
     if(result.status()==OperationResult.Status.PARTIAL || result.status()==OperationResult.Status.CANCELLED) {
       boolean applied=result.operation().matches("(?:restore|switch|reset|merge|resolve|conflict-select|revert|cherry-pick)(?:\\..*)?")
           || result.operation().startsWith("stash.push") || result.operation().startsWith("stash.pop") || result.operation().equals("pull.confirm") || result.operation().startsWith("tool.");

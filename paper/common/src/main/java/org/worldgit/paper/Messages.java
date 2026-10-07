@@ -50,6 +50,10 @@ final class Messages {
     try { return work.get(); } finally { if (previous == null) LOCALE.remove(); else LOCALE.set(previous); }
   }
   private static String locale() { return Optional.ofNullable(LOCALE.get()).orElse(defaultLocale); }
+  /** 目前 locale 的完成摘要渲染器（人類可讀，不輸出 record toString）。 */
+  static org.worldgit.platform.ResultSummary summaryRenderer() { return new org.worldgit.platform.ResultSummary(catalog, locale()); }
+  static boolean hasSummaryLabel(String key) { return catalog.find(locale(), "paper.phase5.summary." + key).isPresent(); }
+  static String plain(Component component) { return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(component); }
   static String fullSuffix() { return catalog.raw(locale(), "paper.status.full-suffix"); }
   static DiffPalette palette(String name) { return "colorblind".equals(name) ? DiffPalette.COLORBLIND : DiffPalette.DEFAULT; }
 

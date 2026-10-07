@@ -28,6 +28,9 @@ public final class DedicatedServerFixture implements ModInitializer {
     @Override public void onInitialize() {
         if(!Boolean.getBoolean("worldgit.acceptance")) return;
         ServerTickEvents.END_SERVER_TICK.register(server->ticks.add(System.nanoTime()));
+        // 第三方模組的 /git：驗證 WorldGit 遇到衝突時跳過裸 /git。
+        if(Boolean.getBoolean("worldgit.fixture.git")) CommandRegistrationCallback.EVENT.register((dispatcher,context,selection)->dispatcher.register(Commands.literal("git")
+            .executes(ctx->{ctx.getSource().sendSuccess(()->net.minecraft.network.chat.Component.literal("OTHER_GIT"),false);return 1;})));
         CommandRegistrationCallback.EVENT.register((dispatcher,context,selection)->dispatcher.register(Commands.literal("wg").then(Commands.literal("test")
             .requires(source->source.getPlayer()==null)
             .then(Commands.argument("args",com.mojang.brigadier.arguments.StringArgumentType.greedyString()).executes(ctx->{
@@ -60,6 +63,18 @@ public final class DedicatedServerFixture implements ModInitializer {
                             say(source,"WGTICKS count="+values.size()+" tps="+(values.size()*1000/total)+" p99="+values.get(Math.min(values.size()-1,(int)(values.size()*.99)))+" max="+values.getLast());
                         }
                         case "locks" -> {locks(rt,level);say(source,"WGLOCKS block=true outside=true piston=true explosion=true fertilizer=true console=true");}
+                        case "natural-cow" -> {
+                            // 與玩家動作無關的自然出生（不在 TouchScope 內）：不得進入 player-touched 集合。
+                            var cow=(net.minecraft.world.entity.Mob)net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.parse("minecraft:cow")).create(level,net.minecraft.world.entity.EntitySpawnReason.NATURAL);
+                            cow.setPos(Double.parseDouble(args[1]),Double.parseDouble(args[2]),Double.parseDouble(args[3]));
+                            cow.setNoAi(true);cow.setNoGravity(true);level.addFreshEntity(cow);
+                            say(source,"WGCOW uuid="+cow.getUUID());
+                        }
+                        case "entities" -> {
+                            var rows=new ArrayList<String>();
+                            for(var entity:level.getAllEntities()) if(!(entity instanceof net.minecraft.world.entity.player.Player)) rows.add(entity.getType().builtInRegistryHolder().key().identifier()+":"+entity.getUUID());
+                            Collections.sort(rows);say(source,"WGENTITIES "+level.dimension().identifier()+" "+rows);
+                        }
                         case "auto" -> {rt.autoCommit(org.worldgit.fabric.logic.Msg.of(org.worldgit.fabric.logic.MessageKeys.COMMIT_AUTO_LOGOUT,"player","fixture"));say(source,"WGAUTO queued");}
                         case "protection" -> {
                             var player=source.getServer().getPlayerList().getPlayerByName(args[1]);

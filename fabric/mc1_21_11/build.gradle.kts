@@ -92,12 +92,15 @@ afterEvaluate {
     }
     val tmp = rootProject.projectDir.resolve(".work/fabric-tmp").apply { mkdirs() }
     loom.runs.named("clientGameTest") {
-        val suffix = if (providers.gradleProperty("wgtestPhase4").isPresent) "-phase4" else if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else if (providers.gradleProperty("wgtestPhase2").isPresent) "-phase2" else if (providers.gradleProperty("wgtestPhase3").isPresent) "-phase3" else ""
+        val suffix = if (providers.gradleProperty("wgtestPhase5").isPresent) "-phase5" else if (providers.gradleProperty("wgtestPhase4").isPresent) "-phase4" else if (providers.gradleProperty("wgtestPaperPort").isPresent) "-paper" else if (providers.gradleProperty("wgtestPhase2").isPresent) "-phase2" else if (providers.gradleProperty("wgtestPhase3").isPresent) "-phase3" else ""
         val workspace = projectDir.canonicalFile.parentFile.parentFile
         runDir(workspace.resolve(".work/worlds/fabric-gametest/$mcVersion$suffix").absolutePath)
         providers.gradleProperty("wgtestPaperPort").orNull?.let { port ->
             vmArgs("-Dwgtest.paperPort=$port", "-Dwgtest.paperReady=${providers.gradleProperty("wgtestPaperReady").get()}")
         }
+        if (providers.gradleProperty("wgtestPhase5").isPresent) programArgs("--width", "1280", "--height", "720")
+        if (providers.gradleProperty("wgtestPhase5").isPresent) vmArgs("-Dwgtest.phase5=true", "-Dwgtest.phase5Dir=${providers.gradleProperty("wgtestPhase5Dir").get()}",
+            "-Dwgtest.phase5Single=${providers.gradleProperty("wgtestPhase5Single").getOrElse("false")}", "-Dwgtest.phase5Language=${providers.gradleProperty("wgtestPhase5Language").getOrElse("en_us")}")
         if (providers.gradleProperty("wgtestPhase4").isPresent) vmArgs("-Dwgtest.phase4=true", "-Dwgtest.phase4Dir=${providers.gradleProperty("wgtestPhase4Dir").get()}", "-Dwgtest.phase4Single=${providers.gradleProperty("wgtestPhase4Single").getOrElse("false")}")
         if (providers.gradleProperty("wgtestPaperPhase3").isPresent) vmArgs("-Dwgtest.paperPhase3=true")
         if (providers.gradleProperty("wgtestDedicated").isPresent) vmArgs("-Dwgtest.dedicated=true")

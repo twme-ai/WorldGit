@@ -6,10 +6,10 @@
 
 | 任務 | 範圍 | 驗收 |
 |---|---|---|
-| 1（本次） | 路線圖、core、CLI；平臺相容調整 | 單維度 HEAD／逐格隔離、repo 搬移與攜帶、CLI graph／ignore／結果、全專案 build、真 Hub／Paper／Fabric 回歸 |
-| 2 | Hub | 每維度專案、PR／release／remote 獨立、互動分支圖、進度與完成通知、錯誤複製 |
-| 3 | Paper／Folia | 玩家所在維度 init、可點選追加 init、別名、bossbar、ignore 箱子 GUI、結果與複製、觸及實體事件 |
-| 4 | Fabric | 同上；單人／dedicated／客戶端 HUD、ignore 編輯畫面、分支圖畫面評估 |
+| 1（已完成） | 路線圖、core、CLI；平臺相容調整 | 單維度 HEAD／逐格隔離、repo 搬移與攜帶、CLI graph／ignore／結果、全專案 build、真 Hub／Paper／Fabric 回歸 |
+| 2（已完成） | Hub | 每維度專案、PR／release／remote 獨立、互動分支圖、進度與完成通知、錯誤複製 |
+| 3（已完成） | Paper／Folia | 玩家所在維度 init、可點選追加 init、別名、bossbar、ignore 箱子 GUI、結果與複製、觸及實體事件 |
+| 4（已完成） | Fabric | 同上；單人／dedicated／客戶端 HUD、ignore 編輯畫面、可捲動分支圖畫面 |
 
 四端共用 core graph lane、進度及結果模型。最終驗收：只切地獄，主世界 HEAD、逐格內容與世界級資料不變；壓縮世界／維度資料夾會攜帶該 repo，另一臺解壓後可 status、commit；release ZIP 不含 repo。
 
@@ -164,9 +164,11 @@ capture、diff、merge、clone 的樹只包含集合內實體；apply 只移除�
 
 主要風險：Paper 首次開原版世界會搬 DIM-1／DIM1，須驗 repo 隨之搬移；26.2 shared 與 dimension saved-data 不能混放；legacy active journal 不可猜測拆分；線上 adapter 的全世界 UUID 掃描須改為隔離且預檢重複；不同分支圖標籤與未初始化 remote 的發現；取消不等於世界回滾；秘密 masker 與中文終端寬度；大量 sidecar 集合的 capture／merge 費用；平臺事件涵蓋不完整時不能宣稱已達 player-touched 語意。
 
-## 本次實作與後續缺口
+## 各任務實作與交接紀錄
 
 本檔案規定全部 A–J 的目標。
+
+以下任務 1–3 的過渡行為與交接表保留當時狀態；2026-10-07 的 Fabric 正式實作見文末任務 4，不再沿用批次 init／entities: all 的過渡入口。
 
 ### 任務 3：Paper／Folia 動作盤點（2026-10-05，實作前）
 
@@ -394,3 +396,102 @@ TouchedEntities 在事件 owner 收集純 UUID 閉包，repo queue 串行寫 sid
 ### 留給任務 4
 
 Fabric 可直接使用 WorldRepositories.initDimensions、WorldOperations.live(layout, access, id)、CommitGraph／GraphText、OperationProgress／OperationResult／ErrorReport、IgnoreEditor 與 PlayerTouchedEntities。Paper OperationUi／IgnoreUi／TouchedEntities 是 Bukkit 專用，不能直接搬入 Fabric；需另接 server owner executor、事件／mixin、觸及 sidecar 串行佇列、UUID 預檢、單人／dedicated 的世界選擇及 native 畫面／HUD。先完成事件，再切換 Fabric creative 預設；Hub PR／留言明確傳專案維度，沿共用 HubClient／credential masker。此次只改 Fabric 驗收 harness 的 console init 語法，沒有加入 Fabric UX。
+
+## 任務 4：Fabric 實作紀錄（2026-10-07）
+
+### 動作盤點與結果契約（審查時補列）
+
+下表盤點全部遊戲入口。每個入口建立 `OperationUi.Action`；非同步 repo 工作、回到 server thread 的呈現與逐維度子動作全部完成後，才輸出 `OperationResult` 的終止訊息。`--all` 依序執行，各維度各自回報，再彙整為批次結果，沒有跨維度原子性。
+
+| 動作 | 明確結果與摘要 |
+| --- | --- |
+| init、commit、auto.commit、logout.commit、shutdown.commit | 每維度 commit 短 ID、方塊／sections／實體／其他資料的千分位數量；無變動為 NO_OP；單人存檔退出共用 shutdown.commit。 |
+| status、diff、log、graph、branch、tag、stash、verify | 人類可讀的差異／提交／清單數量與成功終態；圖與編輯畫面開啟也有終止訊息。 |
+| switch、restore、reset、stash pop、merge、resolve、revert、cherry-pick、conflict-select | 核心 apply／merge 的 SUCCESS、PARTIAL、CANCELLED 或 FAILED；dry-run、未解區域與復原操作皆明示。 |
+| conflicts、conflict-preview、preview、clear、cancel、reload、info、help | 即使沒有變更／沒有執行中的作業也回報終態；錯誤附獨立複製按鈕。 |
+| remote、fetch、push、pull（含 confirm）、PR、comment／comments | 沿用既有 Hub 行為，綁定目標維度；傳輸部分完成保留 PARTIAL，不以例外抹去已完成資訊。 |
+| ignore list／check／test／preview／add／remove／move／enable／disable／confirm／cancel／gui；UI 請求 | 預覽與確認分成獨立動作；確認代碼綁定玩家、維度、HEAD、原規則與期限；MERGING 拒絕修改，server 重新驗證權限與語法。 |
+
+聊天與 console 完成摘要使用共用 `platform-api.ResultSummary`，Paper／Fabric 都不輸出 Java record 的 `toString`。BossBar 給執行者與具有寫入權限的觀察者；具備 `fabric-ui-v1` 握手能力的客戶端另收到 HUD、圖與 ignore UI 封包。repo IO 在串行 executor，呈現回到 server thread，事件只擷取 UUID 與維度。
+
+### 正式實作與接手審查
+
+決定 #135–#141。玩家目標在指令開始時固定；`ServerRuntime.live/region` 強制傳入單一維度，不再保留隱含的跨維度入口。init 經 `WorldRepositories.initDimensions`，線上 metadata factory 保留 MOD 作者／訊息，已初始化目標回 NO_OP。追加按鈕列出磁碟存在且尚未 init 的維度，實際指令重新走相同權限。entity tolerance 與色票取目標 repo，色票在啟動／reload 的 repo queue 讀入快取。
+
+圖畫面採 native Screen，直向捲動、lane 線、完整提交細節、複製與填入 diff／switch dry-run。聊天及畫面 refresh 共用 server generation；不比較兩端 nanoTime。圖分片須維度、數量與 envelope 一致，完整收齊且 commit 不重複才發布；lane 使用 short，超過 255 條仍可解碼。畫面最多 200 節點，更早歷史用聊天分頁；封包字串與行數另有限制。
+
+ignore 畫面使用同一伺服器 IgnoreEditor。輸入框 responder 即時更新語法與 Add 狀態，不依賴重建 Screen；每次編輯先回傳 HEAD preview，確認時再次驗原文、HEAD、期限、玩家及寫入權限，MERGING 拒絕。進入佇列後還會回 server thread 重驗權限，避免排隊期間撤權；規則由下一 commit 保存。pending preview 畫面保留確認／取消操作，避免小視窗按鈕重疊。
+
+觸及來源包含真物品使用、召喚／生怪蛋、data entity、互動與繁殖幼體；scope 以 try/finally 關閉，避免異常或提前回傳洩漏。騎乘成功、實體轉換與跨維度傳送回傳的新實體繼承資格；server 擷取完整載具／乘客 UUID 閉包，repo queue 持維度鎖寫 sidecar。init 前本次開服記憶體的觸及集合，在第一次 source factory 持鎖時繼承。UUID 預檢使用其他維度的 live 實體及未載入 entity chunks；已載入 chunk 的舊磁碟內容不能誤拒絕傳送後的還原。
+
+接手時保留全部未提交修改，先完整 build，再逐項審查修正：apply／remote 保留 PARTIAL、取消停止後續維度、圖 refresh generation、KeyMapping category 只註冊一次、HUD／畫面窄寬度配置、ignore responder／排隊授權與協定上限。遠端用法的 `<code>`／`<title>`／`<text>` 改為 MiniMessage 靜態文字，新增測試；呈現回呼例外也會使動作失敗，避免回報假成功。Paper／Fabric 摘要共用 i18n 的數量與 HEAD 格式；FAWE 改 `IBlocks.entities()`，不再使用標記移除的 `getEntities()`。
+
+### 任務 4 的限制
+
+- `--all` 逐維度完成，沒有跨維度原子性；取消不回滾已完成維度。線上套用仍使用既有全伺服器 tick freeze，repo／編輯鎖與歷史則限定目標維度。
+- 原生圖、ignore Screen 與詳細 HUD 需要兩端支援 `fabric-ui-v1`。Paper／Folia 連線的 H 使用聊天圖，K 使用插件箱子介面；原版玩家可使用指令與 BossBar。圖畫面至多 200 提交，更早歷史使用聊天分頁。
+- init 前的觸及集合只存在本次開服記憶體。第三方直接寫入實體且繞過玩家物品／互動／指令等事件時，沒有通用玩家來源可推斷；不依 entity type 猜測自然或玩家來源。
+- 沿用 core 的線上套用限制與單 parent revert／cherry-pick 契約；需停止世界的 clone／export／migrate 仍由 CLI 執行。Brigadier 語法錯誤由原版呈現，WorldGit 業務錯誤與 UI 拒絕才使用自己的 ErrorReport／複製。
+
+Phase 2／3 單人舊回歸明確預置 `entities: all`，使 console 召喚的測試 UUID 仍實際入庫；新 creative 的 player-touched 預設由 Phase 5 獨立案例驗證。Phase 2 的 B 場景同時修改主世界與地獄；玩家 `commit` 現在只提交所在維度，因此 fixture 另以真指令提交地獄、等待該維度歷史後才建立 B 分支。保留全部逐格、UUID 唯一性、主世界 HEAD 隔離與兩維度離線 verify 斷言，不用 `--force` 繞過 dirty 預檢。
+
+Phase 4 單人與 dedicated 的 PR fixture 依 Hub 單維度契約更新：合併回傳只能包含 PR 所屬主世界的 commit；另兩維度 HEAD 必須維持初始值。本地三維度 HEAD 仍完整比對 Hub 三維度 refs，通知後還要求三維度 HEAD 全部未變與主世界未套用，避免不同大小的 commit map 讓不等式恆真。原單人失敗結果與日誌保留，修正預期值後完整重跑兩版。
+
+### 任務 4 驗收（2026-10-07）
+
+新 Phase 5 矩陣已完成：dedicated 每版 171 項、單人每版 42 項，共 426 項全過。dedicated 涵蓋正式 mod、原版協定玩家、真客戶端、撤權後拒絕確認、別名停用與第三方 `/git` 衝突；兩版單人皆用未開作弊的 owner，存檔退出後完整離線 verify 零差異。每輪 finally 清除世界與複製 jar，受測埠關閉。
+
+| 命令 | 結果 | 證據 |
+| --- | --- | --- |
+| `python3 fabric/tools/accept-phase5.py 1.21.11 --mode dedicated` | 171／171 | `.work/p5-final/fabric-phase5-dedicated-1.21.11.json` 與同名 `.log` |
+| `python3 fabric/tools/accept-phase5.py 26.2 --mode dedicated` | 171／171 | `.work/p5-final/fabric-phase5-dedicated-26.2.json` 與同名 `.log` |
+| `python3 fabric/tools/accept-phase5.py 1.21.11 --mode single` | 42／42 | `.work/p5-final/fabric-phase5-single-1.21.11.json` 與同名 `.log` |
+| `python3 fabric/tools/accept-phase5.py 26.2 --mode single` | 42／42 | `.work/p5-final/fabric-phase5-single-26.2.json` 與同名 `.log` |
+
+兩版 × 單人／dedicated 各十張，共 40 張真正 framebuffer 截圖，已逐張確認追加 init、聊天 graph、graph Screen、BossBar／HUD 執行中與終態、完成訊息、錯誤複製 hover、ignore 編輯／語法錯誤／preview。畫面與可攜通過步驟／雜湊索引見 [Fabric Phase 5 截圖](../fabric/docs/screenshots/phase5/README.md) 和 [acceptance.json](../fabric/docs/screenshots/phase5/acceptance.json)。
+
+### 任務 4 最終回歸與受影響平台補驗（2026-10-07）
+
+所有重型驗收依序執行；腳本自行取得 bench.lock，僅最終 Gradle build 外包 flock。以下專用伺服器／Paper Phase 3 案例也屬 regress-phase4 的九案例，列出其實際子命令與項數，沒有重複計入套件通過數。
+
+| 命令 | 最終結果 | 證據 |
+| --- | --- | --- |
+| `python3 fabric/tools/accept-phase5.py 1.21.11 --mode dedicated` | 171／171 | `.work/p5-final/fabric-phase5-dedicated-1.21.11.json`、`.work/p5-final/fabric-phase5-dedicated-1.21.11.log` |
+| `python3 fabric/tools/accept-phase5.py 1.21.11 --mode single` | 42／42 | `.work/p5-final/fabric-phase5-single-1.21.11.json`、`.work/p5-final/fabric-phase5-single-1.21.11.log` |
+| `python3 fabric/tools/accept-phase5.py 26.2 --mode single` | 42／42 | `.work/p5-final/fabric-phase5-single-26.2.json`、`.work/p5-final/fabric-phase5-single-26.2.log` |
+| `python3 fabric/tools/accept-phase5.py 26.2 --mode dedicated` | 171／171 | `.work/p5-final/fabric-phase5-dedicated-26.2.json`、`.work/p5-final/fabric-phase5-dedicated-26.2.log` |
+| `python3 fabric/tools/accept-phase4-singleplayer.py 1.21.11` | 18／18 | `.work/p5-final/accept-phase4-singleplayer-1.21.11.json`、`.work/p5-final/accept-phase4-singleplayer-1.21.11.log` |
+| `python3 fabric/tools/accept-phase4.py 1.21.11` | 28／28 | `.work/p5-final/accept-phase4-1.21.11.json`、`.work/p5-final/accept-phase4-1.21.11.log` |
+| `python3 fabric/tools/accept-paper.py 1.21.11` | 通過；1 個真客戶端 GameTest | `.work/p5-final/accept-paper-1.21.11.json`、`.work/p5-final/accept-paper-1.21.11.log` |
+| `python3 fabric/tools/accept-paper-phase3.py folia 1.21.11` | 17／17 | `.work/p5-final/accept-paper-phase3-folia-1.21.11.json`、`.work/p5-final/accept-paper-phase3-folia-1.21.11.log` |
+| `python3 fabric/tools/accept-phase4-singleplayer.py 26.2` | 18／18 | `.work/p5-final/accept-phase4-singleplayer-26.2.json`、`.work/p5-final/accept-phase4-singleplayer-26.2.log` |
+| `python3 fabric/tools/accept-phase4.py 26.2` | 28／28 | `.work/p5-final/accept-phase4-26.2.json`、`.work/p5-final/accept-phase4-26.2.log` |
+| `python3 fabric/tools/accept-paper.py 26.2` | 通過；1 個真客戶端 GameTest | `.work/p5-final/accept-paper-26.2.json`、`.work/p5-final/accept-paper-26.2.log` |
+| `python3 fabric/tools/accept-paper-phase3.py folia 26.2` | 17／17 | `.work/p5-final/accept-paper-phase3-folia-26.2.json`、`.work/p5-final/accept-paper-phase3-folia-26.2.log` |
+| `python3 paper/tools/phase5.py paper 1.21.11` | 50／50 | `.work/p5-final/paper-phase5-paper-1.21.11.json`、`.work/p5-final/paper-phase5-paper-1.21.11.log` |
+| `python3 paper/tools/phase5.py folia 26.2` | 51／51 | `.work/p5-final/paper-phase5-folia-26.2.json`、`.work/p5-final/paper-phase5-folia-26.2.log` |
+| `python3 paper/tools/acceptance.py paper 1.21.11` | 32／32 | `.work/p5-final/paper-acceptance.json`、`.work/p5-final/paper-acceptance.log` |
+| `python3 fabric/tools/regress-phase4.py` | 9／9（首輪 7＋兩例補跑；失敗紀錄保留） | `.work/p5-final/regress-phase4-final.json`、`.work/p5-final/regress-phase4.log` |
+| `WG_PHASE2=1 fabric/tools/run-gametest.sh 1.21.11 --record` | 通過；1 個真客戶端 GameTest；12 次離線維度檢查 | `.work/p5-final/single-1.21.11-phase2.json`、`.work/fabric-phase4/regressions-1791375742/single-1.21.11-phase2.log` |
+| `WG_PHASE2=1 fabric/tools/run-gametest.sh 26.2 --record` | 通過；1 個真客戶端 GameTest；12 次離線維度檢查 | `.work/p5-final/single-26.2-phase2.json`、`.work/fabric-phase4/regressions-1791375742/single-26.2-phase2.log` |
+| `WG_PHASE3=1 fabric/tools/run-gametest.sh 1.21.11 --record` | 通過；1 個真客戶端 GameTest；9 次離線維度檢查 | `.work/p5-final/single-1.21.11-phase3.json`、`.work/fabric-phase4/regressions-1791375742/single-1.21.11-phase3.log` |
+| `WG_PHASE3=1 fabric/tools/run-gametest.sh 26.2 --record` | 通過；1 個真客戶端 GameTest；9 次離線維度檢查 | `.work/p5-final/single-26.2-phase3.json`、`.work/fabric-phase4/regressions-1791375742/single-26.2-phase3.log` |
+| `python3 fabric/tools/accept-dedicated.py 1.21.11` | 44／44 | `.work/p5-final/dedicated-1.21.11.json`、`.work/fabric-phase4/regressions-1791375742/dedicated-1.21.11.log` |
+| `python3 fabric/tools/accept-paper-phase3.py paper 1.21.11` | 17／17 | `.work/p5-final/interop-paper-1.21.11.json`、`.work/fabric-phase4/regressions-1791375742/interop-paper-1.21.11.log` |
+| `python3 paper/tools/phase4.py paper 1.21.11 --screenshots` | 23／23 | `.work/p5-final/paper-phase4-1.21.11.json`、`.work/fabric-phase4/regressions-1791375742/paper-phase4-1.21.11.log` |
+| `python3 fabric/tools/accept-paper-phase3.py paper 26.2` | 17／17 | `.work/p5-final/interop-paper-26.2.json`、`.work/fabric-phase4/regressions-1791382171/interop-paper-26.2.log` |
+| `python3 fabric/tools/accept-dedicated.py 26.2` | 44／44 | `.work/p5-final/dedicated-26.2.json`、`.work/fabric-phase4/regressions-1791390885/dedicated-26.2.log` |
+| `flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home ./gradlew --no-daemon --configure-on-demand --max-workers=1 build` | exit 0；JUnit 346 項，failure／error／skip 皆 0 | `.work/p5-final/full-build.log`、`.work/p5-final/unit-results-final.json` |
+| `git diff --check` | exit 0 | `.work/p5-final/diff-check.json` |
+
+首輪 regress-phase4 為 7／9：dedicated 26.2 的 Mojang server.jar 下載逾時，Paper 26.2 的 Yggdrasil 公鑰下載逾時。dedicated harness 現在複製專案內已暖機的 `.fabric/server` installer 快取，原始 jar SHA-1 與下載目標一致。dedicated 第一次補跑 44 項及離線 verify 全過，但重啟時公鑰連線 reset，仍按零 server error 斷言判為失敗；再次完整補跑才計為通過。原始失敗 JSON／console／命令 log 都保留在 `.work/p5-final/`，沒有排除錯誤行或放寬斷言。完整執行與恢復關係見 `matrix.json`、逐命令摘要見 `validations.json`；FAWE 兩版實際 jar 的 production UUID API 探針皆通過，證據為 `fawe-api.json`。
+
+單人 Phase 4 首輪因舊 PR commit map 預期值失敗，原始證據見 `accept-phase4-singleplayer-1.21.11-first-failure.json`／`.log`。修正後的一次長命令遭執行環境 SIGTERM（exit 143），保留 `accept-phase4-singleplayer-1.21.11-interrupted.log`，不計為通過；改用持續終端工作階段後，兩版單人與 dedicated 均完整重跑。
+
+最終來源與產物雜湊、40 張截圖複核、全部命令與清理證據集中在 `.work/p5-final/`。正式程式與四組 Phase 5 通過時相同；舊 fixture 按維度與明確 entities: all 語意修正後，全套回歸仍要求完整世界內容、UUID、refs、parents、權限、multipart 與離線零差異。最終所有本任務 runner／Minecraft／Xvfb／Hub／bot 均已退出，受測埠關閉且 bench.lock 可取得。暫存增量與上限核對見 `cleanup.json`；未修改 experiments、未操作 /tmp/sculpt-e2e、未 commit／push。
+
+### Phase 5 完成總結（2026-10-07）
+
+Phase 5 任務 1–4 已完成，A–J 的四端契約已實作與驗收：每維度獨立 repo／HEAD／branch／remote，repo 隨世界攜帶與安全遷移；玩家／路徑 init 範圍；共用分支圖；別名；進度、取消與明確終態；ignore 預覽確認；遮罩秘密的錯誤複製；creative player-touched 與 UUID 預檢。任務 1–3 的完整驗收保留於各節，任務 4 上述兩版單人／dedicated、Fabric 既有回歸及 Paper／Folia 受影響補驗全部通過。
+
+完成範圍依本檔案契約，不把既有未支援功能算入：跨維度批次仍非原子；Fabric 圖畫面上限 200 提交；原生畫面／HUD 需要 Fabric UI 能力；第三方繞過事件的實體寫入沒有玩家來源可推斷；大型自然世界及任意第三方模組／硬體 GPU 組合未驗收。線上 metadata／刪除 chunk、DataVersion 與其他既有 apply 限制仍見各平台 README。決定 #135–#141、使用方式、40 張真客戶端截圖與可攜摘要均已更新。

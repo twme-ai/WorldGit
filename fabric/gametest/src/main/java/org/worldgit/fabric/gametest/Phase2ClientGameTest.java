@@ -56,7 +56,8 @@ final class Phase2ClientGameTest {
             server.runCommand("execute in minecraft:the_nether run setblock 0 64 0 minecraft:glowstone");
             server.runCommand("execute in minecraft:the_nether run summon armor_stand 2 65 2 {UUID:[I;1421430784,0,0,2],NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b,Tags:[\"cross_dimension\"]}");
             ctx.waitFor(c->ClientRuntime.get().handshaken(),600);
-            server.runCommand("wg init"); awaitCommits(ctx,server,1);
+            WorldGitClientGameTest.trackAllEntities(server);
+            server.runCommand("wg init --all"); awaitCommits(ctx,server,1);
             command(ctx,server,"wg branch A");
             for(var dimension:List.of("minecraft:the_nether","minecraft:the_end")) commandIn(ctx,server,dimension,"wg branch A");
             var a=head(ctx,server);
@@ -76,11 +77,14 @@ final class Phase2ClientGameTest {
             server.runCommand("execute in minecraft:the_nether run setblock 0 64 0 minecraft:gold_block");
             server.runCommand("execute in minecraft:the_nether as @e[tag=cross_dimension] in minecraft:overworld run tp @s 26 -60 10");
             server.runCommand("wg commit -m Phase2-B"); awaitCommits(ctx,server,2);
+            // B 也修改了地獄；Phase 5 的玩家 commit 只提交目前維度，必須另存地獄分支。
+            server.runCommand("execute in minecraft:the_nether run wg commit -m Phase2-B");
+            awaitCommits(ctx,server,new DimensionId("minecraft:the_nether"),2);
             command(ctx,server,"wg branch B");
             for(var dimension:List.of("minecraft:the_nether","minecraft:the_end")) commandIn(ctx,server,dimension,"wg branch B");
             var b=head(ctx,server);
             log("B="+b);
-            var verifyBefore=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(ops->ops.verify("B",null,Scope.all(),true))),2400);
+            var verifyBefore=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(org.worldgit.core.model.DimensionId.OVERWORLD,ops->ops.verify("B",null,Scope.all(),true))),2400);
             check(verifyBefore.success(),"B commit 與世界不符："+verifyBefore);
             checkpoint(server,"B-before-preview");
 
@@ -108,7 +112,7 @@ final class Phase2ClientGameTest {
             }
             Files.writeString(artifacts.resolve("preview-cells.json"),cellsJson.toString());
             toggleGui(ctx); ctx.waitTicks(10); ctx.takeScreenshot("phase2-01-preview-A");
-            var verifyAfter=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(ops->ops.verify("B",null,Scope.all(),true))),2400);
+            var verifyAfter=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(org.worldgit.core.model.DimensionId.OVERWORLD,ops->ops.verify("B",null,Scope.all(),true))),2400);
             check(verifyAfter.success(),"preview 修改了世界");
             checkpoint(server,"B-after-preview");
             send(ctx,"wg preview A --radius 1");ctx.waitFor(c->ClientRuntime.get().summary()!=null,2400);
@@ -143,7 +147,7 @@ final class Phase2ClientGameTest {
             check(server.computeOnServer(s->{long count=0;for(var e:s.overworld().getAllEntities()) if(e.getUUID().equals(ENTITY)) count++;return count;})==1,"實體重複／遺失");
             check(server.computeOnServer(s->{long count=0;for(var level:s.getAllLevels()) for(var e:level.getAllEntities()) if(e.getUUID().equals(new UUID(0x54b9500000000000L,2))) count++;return count;})==1,"跨維度實體重複／遺失");
             check(summary(ctx)==null,"套用後仍有鬼影");
-            var saved=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(ops->ops.verify("A",null,Scope.all(),true))),2400);
+            var saved=await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).live(org.worldgit.core.model.DimensionId.OVERWORLD,ops->ops.verify("A",null,Scope.all(),true))),2400);
             check(saved.success(),"A 存檔 verify 非零："+saved);
             checkpoint(server,"A-switched");
             log("switch-A=true client-blocks=3366 protection=true light="+lighting+" entities=1 verify=0");
@@ -217,7 +221,7 @@ final class Phase2ClientGameTest {
         log("DONE");
     }
     private static String head(ClientGameTestContext ctx,TestServerContext server) {
-        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),2400).stream().filter(row->row.commits().containsKey(DimensionId.OVERWORLD)).findFirst().orElseThrow().commits().get(DimensionId.OVERWORLD);
+        return await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(DimensionId.OVERWORLD,10)),2400).getFirst().id();
     }
     private static String block(TestServerContext server,int x,int y,int z) { return server.computeOnServer(s->s.overworld().getBlockState(new BlockPos(x,y,z)).toString()); }
     private static ClientRuntime.Summary summary(ClientGameTestContext ctx) { return ctx.computeOnClient(c->ClientRuntime.get().summary()); }
@@ -272,7 +276,10 @@ final class Phase2ClientGameTest {
         for(int i=0;i<ticks && !future.isDone();i++)ctx.waitTick();check(future.isDone(),"操作逾時");return future.join();
     }
     private static void awaitCommits(ClientGameTestContext ctx,TestServerContext server,int count) {
-        for(int i=0;i<180;i++) {try {if(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(10)),600).stream().filter(row->row.commits().containsKey(DimensionId.OVERWORLD)).count()>=count)return;}catch(CompletionException notYet){}ctx.waitTicks(10);}throw new AssertionError("commit 逾時");
+        awaitCommits(ctx,server,DimensionId.OVERWORLD,count);
+    }
+    private static void awaitCommits(ClientGameTestContext ctx,TestServerContext server,DimensionId dimension,int count) {
+        for(int i=0;i<180;i++) {try {if(await(ctx,server.computeOnServer(s->WorldGitMod.runtime(s).log(dimension,10)),600).size()>=count)return;}catch(CompletionException notYet){}ctx.waitTicks(10);}throw new AssertionError("commit 逾時："+dimension);
     }
     private static void check(boolean ok,String message) { if(!ok) throw new AssertionError(message); }
     private static void log(String message) { WorldGitClientGameTest.LOG.info("WGTEST2 {}",message); }

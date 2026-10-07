@@ -136,6 +136,19 @@ public final class WorldRepositories {
   }
 
   public Batch<DimensionRepository.CommitResult> initDimensions(Collection<DimensionId> dimensions, String template, WorldGitConfig.Track track, CommitMetadata.Identity author) throws IOException {
+    return initDimensions(dimensions, template, track,
+        (source, id) -> metadata(author, "初始化世界", UUID.randomUUID(), id, false, List.of()), 2);
+  }
+
+  /** 線上平台沿同一個明確選取入口 init，保留自己的 MOD／PLUGIN 身分與本機 tolerance。 */
+  @FunctionalInterface
+  public interface InitialMetadata {
+    CommitMetadata create(org.worldgit.core.capture.SnapshotSource source, DimensionId dimension) throws IOException;
+  }
+
+  public Batch<DimensionRepository.CommitResult> initDimensions(Collection<DimensionId> dimensions, String template, WorldGitConfig.Track track,
+      InitialMetadata metadataFactory,
+      double tolerance) throws IOException {
     UUID snapshot = UUID.randomUUID();
     var result = new TreeMap<DimensionId, Outcome<DimensionRepository.CommitResult>>();
     var selectedRepos = new TreeMap<DimensionId, Path>();
@@ -151,8 +164,8 @@ public final class WorldRepositories {
       if (!result.containsKey(e.getKey()))
         try (var repo = new DimensionRepository(e.getValue(), e.getKey(), false);
             var source = sourceFactory.apply(layout.dimensions().get(e.getKey()))) {
-          var m = metadata(author, "初始化世界", UUID.randomUUID(), e.getKey(), false, List.of());
-          result.put(e.getKey(), new Outcome<>(repo.commit(source, manifest(), m, 2), null));
+          var m = metadataFactory.create(source, e.getKey());
+          result.put(e.getKey(), new Outcome<>(repo.commit(source, manifest(), m, tolerance), null));
         } catch (Exception ex) {
           result.put(e.getKey(), new Outcome<>(null, error(ex)));
         }
