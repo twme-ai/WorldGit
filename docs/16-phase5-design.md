@@ -495,3 +495,24 @@ Phase 4 單人與 dedicated 的 PR fixture 依 Hub 單維度契約更新：合�
 Phase 5 任務 1–4 已完成，A–J 的四端契約已實作與驗收：每維度獨立 repo／HEAD／branch／remote，repo 隨世界攜帶與安全遷移；玩家／路徑 init 範圍；共用分支圖；別名；進度、取消與明確終態；ignore 預覽確認；遮罩秘密的錯誤複製；creative player-touched 與 UUID 預檢。任務 1–3 的完整驗收保留於各節，任務 4 上述兩版單人／dedicated、Fabric 既有回歸及 Paper／Folia 受影響補驗全部通過。
 
 完成範圍依本檔案契約，不把既有未支援功能算入：跨維度批次仍非原子；Fabric 圖畫面上限 200 提交；原生畫面／HUD 需要 Fabric UI 能力；第三方繞過事件的實體寫入沒有玩家來源可推斷；大型自然世界及任意第三方模組／硬體 GPU 組合未驗收。線上 metadata／刪除 chunk、DataVersion 與其他既有 apply 限制仍見各平台 README。決定 #135–#141、使用方式、40 張真客戶端截圖與可攜摘要均已更新。
+
+### 截圖審查後的 UX 修正（2026-10-07）
+
+core 擷取不再加入寫給 CLI 的中文 `player-touched` warning。離線 CLI 呼叫端只在該 repo 使用 `entities: player-touched` 時，以 `en_us／zh_tw` YAML 文字提示沒有平台事件來源、沿用已保存 UUID 集合、離線 init 集合為空；Paper／Fabric 的遊戲操作不顯示此提示。core 的資料模型與實體追蹤政策不變。新增 core、CLI 與語系測試，覆蓋 init／status／commit 的 warning、CLI init／status／diff／commit 的提示、`all`／survival 不提示與兩種語系；另以正式 CLI jar 確認兩種語系的實際輸出。
+
+creative `.wgignore` 註解改為完整追蹤方塊／BE／biome／地形、實體只追蹤玩家放出／更改的內容；survival 註解明示 `entities: all` 再由規則排除暫態實體，規則本身不變。[15 使用手冊](15-user-guide.md) 已同步。Fabric ignore 編輯器原先在原始 `#` 前另畫 `#`，現移除額外標記，保留規則的 `✓／✗`。Paper GUI 原本直接使用原文，實際第一行 tooltip 與真客戶端斷言確認沒有重複標記。
+
+| 驗證命令 | 結果 | 證據 |
+|---|---|---|
+| `timeout 3600 flock .work/bench.lock env GRADLE_USER_HOME=.work/gradle-home ./gradlew --no-daemon --configure-on-demand --max-workers=1 build` | exit 0；349 個 JUnit 測試，failure／error／skip 均 0 | `.work/ux-fix-build.log`、`.work/ux-fix-unit-summary.json` |
+| 受影響的 core Phase5Test／ConfigTest、CLI 與 i18n 單元測試 | exit 0；35 項通過 | `.work/ux-fix-unit.log` |
+| `python3 fabric/tools/accept-phase5.py 1.21.11 --mode single` | 43／43；單人離線 verify 完整、零差異 | `.work/fabric-phase5/single-1.21.11-1791394475/result.json`、`.work/ux-fix-fabric-single-1.21.11.log` |
+| `python3 paper/tools/phase5.py paper 1.21.11` | 50／50；plugin problems 為 0 | `.work/paper-phase5/paper-1.21.11-1791394918/results.json`、`.work/ux-fix-paper-1.21.11.log` |
+| `python3 paper/tools/phase5_screenshots.py paper 1.21.11` | 真客戶端 GameTest 通過；重拍八張，包含註解 tooltip | `.work/paper-phase5/screens-paper-1.21.11-1791395298/results.json`、`.work/ux-fix-paper-screenshots-1.21.11.log` |
+| `python3 fabric/tools/accept-phase5.py 1.21.11 --mode dedicated --stages b` | 35／35；真客戶端 UI 階段，重拍十張 | `.work/fabric-phase5/dedicated-1.21.11-1791395517/result.json`、`.work/ux-fix-fabric-dedicated-1.21.11-retry.log` |
+| `python3 fabric/tools/accept-phase5.py 26.2 --mode all --stages b` | 78／78；dedicated 真客戶端 UI 階段加完整單人流程，重拍二十張；單人離線 verify 完整、零差異 | `.work/fabric-phase5/all-26.2-1791395802/result.json`、`.work/ux-fix-fabric-26.2.log` |
+| 正式 CLI jar 的 `WGIT_LOCALE=en_us／zh_tw` init／status | 三次輸出檢查通過；英文提示不含漢字 | `.work/ux-fix-cli-locales.json`、`.work/ux-fix-cli-locales.log` |
+
+平台 runner 自帶鎖，未外包 flock；快取全在 `.work`，重型 runner 依序執行。Fabric dedicated 1.21.11 補拍首輪於啟動時遭 SIGTERM（exit 143），未產生驗收結果，不計通過；中斷證據保留在 `.work/fabric-phase5/dedicated-1.21.11-1791395434/` 與 `.work/ux-fix-fabric-dedicated-1.21.11.log`，確認埠關閉後改用持續終端工作階段重跑相同命令才計通過，未放寬斷言。
+
+Fabric 四組合共四十張、Paper 八張已重新擷取並檢視，截圖 SHA-256 與來源已更新於 [Fabric acceptance.json](../fabric/docs/screenshots/phase5/acceptance.json) 的 `ux_fix_validation` 和 [Paper acceptance.json](../paper/docs/screenshots/phase5/acceptance.json)。最後檢查與清理證據見 `.work/ux-fix-verification.json`；未修改 experiments、未操作 /tmp/sculpt-e2e、未 commit。

@@ -479,7 +479,15 @@ public final class Wgit implements Runnable {
     messages.forEach(s -> spec.commandLine().getErr().println("提示：" + s));
   }
 
-  private int printBatch(WorldRepositories.Batch<DimensionRepository.CommitResult> batch)
+  /** CLI 沒有平台實體事件；提示由呼叫端依 repo 政策與 CLI 語系呈現。 */
+  private void warnings(List<String> messages, Path repository) throws IOException {
+    warnings(messages);
+    if (WorldGitConfig.readRepo(repository.resolve("worldgit-repo.yml")).entities()
+        == WorldGitConfig.Entities.PLAYER_TOUCHED)
+      spec.commandLine().getErr().println(CliMessages.text("offline-player-touched"));
+  }
+
+  private int printBatch(WorldRepositories.Batch<DimensionRepository.CommitResult> batch, WorldRepositories repos)
       throws IOException {
     long failures = batch.dimensions().values().stream().filter(o -> !o.success()).count();
     outcome = failures == batch.dimensions().size() ? OperationResult.Status.FAILED : failures > 0 ? OperationResult.Status.PARTIAL : batch.dimensions().values().stream().allMatch(o -> !o.value().changed()) ? OperationResult.Status.NO_OP : OperationResult.Status.SUCCESS;
@@ -500,7 +508,7 @@ public final class Wgit implements Runnable {
           spec.commandLine()
               .getOut()
               .println(e.getKey() + " " + (value.changed() ? value.commit() : "沒有變動"));
-          warnings(value.status().warnings());
+          warnings(value.status().warnings(), repos.tracked().get(e.getKey()));
         } else spec.commandLine().getErr().println(e.getKey() + " 失敗：" + outcome.error());
       }
     }
@@ -554,7 +562,7 @@ public final class Wgit implements Runnable {
             } else root.spec.commandLine().getErr().println(CliMessages.text("init-hint"));
           }
         }
-        return root.printBatch(repos.initDimensions(ids, template.name(), config.track(), root.identity()));
+        return root.printBatch(repos.initDimensions(ids, template.name(), config.track(), root.identity()), repos);
       }
     }
   }
@@ -590,7 +598,7 @@ public final class Wgit implements Runnable {
               if (merging != null) root.spec.commandLine().getOut().printf("  %s %s 剩餘衝突=%d%n", merging.mode(), merging.source(), merging.remaining());
               if (e.getValue().success()) {
                 var status = e.getValue().value(); root.printDiff(status.diff(), WorldGitConfig.readLocal(path.resolve("worldgit.yml")), false);
-                root.spec.commandLine().getOut().printf("  candidates=%d payloads-read=%d%n", status.candidates(),status.payloadsRead()); root.warnings(status.warnings());
+                root.spec.commandLine().getOut().printf("  candidates=%d payloads-read=%d%n", status.candidates(),status.payloadsRead()); root.warnings(status.warnings(), path);
               } else root.reportProblem(e.getKey() + "：" + e.getValue().error());
               for (var t : tracking) if(t.dimension().equals(e.getKey())) root.spec.commandLine().getOut().printf("  %s/%s ahead=%d behind=%d%s%n",t.remote(),t.branch(),t.ahead(),t.behind(),t.estimated()?"（估算）":"");
             }
@@ -630,7 +638,7 @@ public final class Wgit implements Runnable {
       }
       try (var guard = SessionGuard.acquire(layout)) {
         return root.printBatch(
-            repos.commit(root.selected(), message, root.identity(), local.entityTolerance()));
+            repos.commit(root.selected(), message, root.identity(), local.entityTolerance()), repos);
       }
     }
   }
@@ -692,7 +700,7 @@ public final class Wgit implements Runnable {
               try (var source =
                   new OfflineWorld(layout, layout.dimensions().get(e.getKey()), s -> {})) {
                 var status = repo.status(source, repos.manifest(), local.entityTolerance(), false);
-                root.warnings(status.warnings());
+                root.warnings(status.warnings(), e.getValue());
                 String tree = ScanIndex.read(e.getValue().resolve("worldgit.index")).tree();
                 String before =
                     revisions.isEmpty()

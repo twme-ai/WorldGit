@@ -46,6 +46,42 @@ class CliTest {
   private JsonNode data(String output) throws Exception { return new ObjectMapper().readTree(output).path("data"); }
   private JsonNode single(String output) throws Exception { return data(output).path("minecraft:overworld").path("data"); }
 
+  @Test void offlineEntityHintBelongsToCliAndOnlyPlayerTouchedRepos() throws Exception {
+    Path fixture = Path.of(System.getProperty("worldgit.projectRoot"), "core/src/test/resources/fixtures/26.2");
+    try (var files = Files.walk(fixture)) {
+      for (Path file : files.toList()) {
+        Path target = temp.resolve(fixture.relativize(file));
+        if (Files.isDirectory(file)) Files.createDirectories(target); else Files.copy(file, target);
+      }
+    }
+    String hint = CliMessages.text("offline-player-touched");
+    for (String[] command : List.of(new String[]{"init", "--only"}, new String[]{"status"}, new String[]{"diff"}, new String[]{"commit", "-m", "unchanged"})) {
+      var result = run(command);
+      assertEquals(0, result.code, result.err);
+      assertTrue(result.err.contains(hint), result.err);
+      assertEquals(1, result.err.lines().filter(hint::equals).count());
+    }
+    var json = run("status", "--format=json");
+    assertEquals(0, json.code, json.err);
+    assertFalse(json.out.contains("offline-player-touched"));
+    assertFalse(json.out.contains("CLI"));
+    Path repo = WorldLayout.discover(temp).repository(DimensionId.OVERWORLD);
+    Files.writeString(repo.resolve("worldgit-repo.yml"), "track: all\nentities: all\n");
+    var all = run("status");
+    assertEquals(0, all.code, all.err);
+    assertFalse(all.err.contains(hint), all.err);
+    Path survival = temp.resolve("survival");
+    try (var files = Files.walk(fixture)) {
+      for (Path file : files.toList()) {
+        Path target = survival.resolve(fixture.relativize(file));
+        if (Files.isDirectory(file)) Files.createDirectories(target); else Files.copy(file, target);
+      }
+    }
+    var initialized = runAt(survival, "init", "--only", "--template", "survival");
+    assertEquals(0, initialized.code, initialized.err);
+    assertFalse(initialized.err.contains(hint), initialized.err);
+  }
+
   @Test void dimensionScopeIgnoreGraphAndPartialResultsShareOperationId() throws Exception {
     Path fixture=Path.of(System.getProperty("worldgit.projectRoot"),"core/src/test/resources/fixtures/26.2");
     try(var files=Files.walk(fixture)) { for(Path file:files.toList()) { Path target=temp.resolve(fixture.relativize(file)); if(Files.isDirectory(file))Files.createDirectories(target);else Files.copy(file,target); } }

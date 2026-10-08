@@ -10,6 +10,15 @@ import org.junit.jupiter.api.io.TempDir;
 
 class MessageCatalogTest {
     @Test
+    void offlineEntityHintExplainsBothPoliciesInEachLocale() {
+        MessageCatalog catalog = MessageCatalog.bundled();
+        String english = catalog.raw("en_us", "cli.phase5.offline-player-touched");
+        String chinese = catalog.raw("zh_tw", "cli.phase5.offline-player-touched");
+        assertTrue(english.contains("no platform events") && english.contains("saved UUID set") && english.contains("empty set"));
+        assertTrue(english.codePoints().noneMatch(c -> Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN));
+        assertTrue(chinese.contains("沒有平台事件來源") && chinese.contains("已保存的 UUID 集合") && chinese.contains("離線 init 的集合為空"));
+    }
+    @Test
     void bundledLocalesHaveEveryKey() {
         MessageCatalog catalog = MessageCatalog.bundled();
         for (String locale : MessageCatalog.BUNDLED_LOCALES) {

@@ -45,7 +45,9 @@ def run(platform,version,conflict=False,disabled=False):
             mark=len(bot.lines);bot.ask('chat /'+text,'chat_sent');deadline=time.monotonic()+timeout
             while time.monotonic()<deadline:
               rows=chats(mark)
-              if any('finished:' in row['t'] and ('--all' not in text.split() or ' all ' in row['t']) for row in rows):return rows
+              if any('finished:' in row['t'] and ('--all' not in text.split() or ' all ' in row['t']) for row in rows):
+                if any('CLI' in row['t'] or 'UUID 集合' in row['t'] for row in rows):raise AssertionError('遊戲內不應顯示離線 CLI 實體提示：'+str(rows))
+                return rows
               time.sleep(.1)
             raise TimeoutError(text+' '+str(chats(mark))[-1500:])
           def serialized(rows):return json.dumps(rows,ensure_ascii=False)

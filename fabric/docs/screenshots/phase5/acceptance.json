@@ -1786,323 +1786,363 @@
   "screenshots": [
     {
       "file": "dedicated-1.21.11-chat-graph.png",
-      "sha256": "7bc56ef9dd30d8020462e6823ec574021d6d1068019a8c73890ee3a0863f29f0",
+      "sha256": "60e137e1f8fc8ffdeefd21ef6999589329716f8845e44e48eff78be0d41463ec",
       "inspected": true,
       "visible": "graph",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-completion-message.png",
-      "sha256": "75d303f216c26a4abaa41e62cf65154177f4d7cae824a8c081beff4e5cec81da",
+      "sha256": "adc432ba0927f6cd519e296131db77acdaf91832ed1b3c14bc96e20d9cbd900d",
       "inspected": true,
       "visible": "message",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-error-copy-hover.png",
-      "sha256": "ad7fc750bdf8e2bb2a5a27acca866f01c89869451a90bc84751841dcd10aef84",
+      "sha256": "7e7b6eb981db4ddb7d1ec3490cf09ee9894f44d7d17420dea8bcca847f22f8c4",
       "inspected": true,
       "visible": "copy-hover",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-graph-screen.png",
-      "sha256": "4e2333f0297b436b4e7f916266576d8e9c9382136ea58737105023b4214df502",
+      "sha256": "5761a9709c41861cfb1882481db6df79064837dc0694641a1136bd75b2366dd6",
       "inspected": true,
       "visible": "screen",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-ignore-editor.png",
-      "sha256": "a77c76662e57e2bcd20d42782f324b2ab502ce7047508541f1bbe26231b42f60",
+      "sha256": "5763b549a5b4397eceaf6e7090765d37daeaa31b303ac790b5ecefdc68ad3f76",
       "inspected": true,
       "visible": "editor",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-ignore-preview.png",
-      "sha256": "ced3eb5bed80c7d56481ed74a3ad5f6e1a58b79eda4273e5548cf880cfbb8a80",
+      "sha256": "ba4596de51e4c34156b1eb4ae0e59533307bb985a492cb59935099e30df75aac",
       "inspected": true,
       "visible": "preview",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-ignore-syntax-error.png",
-      "sha256": "839e37bdf28a2b0830530512b2dd8f8a748e4d09fa919e34c5d3bc397c006b66",
+      "sha256": "4e6d6de99e0d9cce3f146b7617eae890d9f6a0c0565b955ebc91e1f003113d10",
       "inspected": true,
       "visible": "syntax-error",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-init-append-buttons.png",
-      "sha256": "626ee0563f4ed190d124562ca30ad37791902f18c64873202e29dedfd7ece763",
+      "sha256": "39d7b7bc7509ad295e30f7c08a506dc679b345212629d8793d0f330a89922890",
       "inspected": true,
       "visible": "append-buttons",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-progress-running.png",
-      "sha256": "bbe806a3faea163ac7b0a4fb14fba345f3757e7fd8bb321250527e5ae5530ecf",
+      "sha256": "1010e64a1e127b0ba896c324e69a4e5c2e345b91c7961fa2db2bfb1d2cb69970",
       "inspected": true,
       "visible": "running",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-1.21.11-progress-terminal.png",
-      "sha256": "d6a5cec236ae0b534b67bfded64148b7b2b7a74d19cf31371af7440678ed19f9",
+      "sha256": "6bbbf8a5c12483be2d82cdd0e4f790523b921ffd2d3e4f89f0056c4843729671",
       "inspected": true,
       "visible": "terminal",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json"
     },
     {
       "file": "dedicated-26.2-chat-graph.png",
-      "sha256": "bbc4cc40313a08824224ce096f3021b1802510e7b2dc1175a6fa7de3de1de7fd",
+      "sha256": "731d9ab521ebd6f7fe82fd89964dc66d5b40768b05b601eba3bffb56b5a523e8",
       "inspected": true,
       "visible": "graph",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-completion-message.png",
-      "sha256": "5b6c59d8068d35679c3252f801ed79bf9c0f495fd0b8ff8e4d141bbbd189b7a3",
+      "sha256": "a6462ab74f14330d14d85d40acabafb405c2bfa1e5a0b1a67a76f421432462d0",
       "inspected": true,
       "visible": "message",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-error-copy-hover.png",
-      "sha256": "ceeaf7458ab900bcfca30bbcf6f5244563192ddb8b0afcd1a0c75059643538ae",
+      "sha256": "94d4a3d080a831d44679f8bac7eb5de0821e72ec583859dd70aebdeb9590ea03",
       "inspected": true,
       "visible": "copy-hover",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-graph-screen.png",
-      "sha256": "3e7e098b84c053140722c96524f12ad63c23c21c1e661ecd27f70ed74836cef2",
+      "sha256": "f829b56f85747083c74f49a1c710e5742edcd26be72373b9d41edadc2a90bd21",
       "inspected": true,
       "visible": "screen",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-ignore-editor.png",
-      "sha256": "e81702444108e2748d926378a6a56119bdc69d76c845b9e715201e643aaedbcf",
+      "sha256": "191c44eb5556430bc6cd6d63715b20cc8e9e03a5b4eb248d2e0fd9bb9c13741c",
       "inspected": true,
       "visible": "editor",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-ignore-preview.png",
-      "sha256": "6a8a6ba8e96bfaf6f6909e00c31c03a08154542a31cc269d326c44b2fea97aa9",
+      "sha256": "e6b6467a6a9869236edc70f0318c7d79f7eefc04abb98201961cc47f3ef246c7",
       "inspected": true,
       "visible": "preview",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-ignore-syntax-error.png",
-      "sha256": "e09864a5c6959c4f71d30cb963d80717354076b9a963525a737118955ec53bce",
+      "sha256": "e8f57a35eb1a27e595310425f070605deba8236aa60a135aceacceeecb63590c",
       "inspected": true,
       "visible": "syntax-error",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-init-append-buttons.png",
-      "sha256": "d4c0886a4fe4200af902ccf3b05893594720491aed3340b1afc0019fe4a96371",
+      "sha256": "56ca00ce2d51b7276fdb943dd2fcc977480353482e33c34b35ab848fb3eddf79",
       "inspected": true,
       "visible": "append-buttons",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-progress-running.png",
-      "sha256": "e9cb37dd1c0dd9540a283ff92e39f4b48af29a08ff517cc07ab4fb28c98f8b75",
+      "sha256": "a5262eda0cde5499a6f2397e967dfa2354afe87caac8beeee6c8921bbc76dcdd",
       "inspected": true,
       "visible": "running",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "dedicated-26.2-progress-terminal.png",
-      "sha256": "a31df5cbdca0e8fab5ce3944f5cab55f403508a76c08a24e24afa60d6dd17e0e",
+      "sha256": "170c59f67b95f6f55e424db5de34583b3bbe2f78cc08373fa05a0e91a1dbfcd1",
       "inspected": true,
       "visible": "terminal",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-1.21.11-chat-graph.png",
-      "sha256": "d5afd3556c72f4782f890f4dd179db3a1ed0952c3c1272d09912bd3bbb3a268a",
+      "sha256": "f11c2f821def02870e727b4cafcc233c1950114bb772ba63b803f8c2064bbc67",
       "inspected": true,
       "visible": "graph",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-completion-message.png",
-      "sha256": "e87750808bb1858c137873a8e4cabf10e701f0a8e54fee7833f51ed938272094",
+      "sha256": "ae0ad00375046537b3228f853f85dbe1c61d976db1c5c7a2d4596795c3c89b5d",
       "inspected": true,
       "visible": "message",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-error-copy-hover.png",
-      "sha256": "4c7de791af39d5259b39777bd36844ac23d2d1f7a8599a64cb0f2593d61cae01",
+      "sha256": "0c0717180f6154be7d2edf0058f606b7ca32c576ce5ecb23325dcd6ea556a2de",
       "inspected": true,
       "visible": "copy-hover",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-graph-screen.png",
-      "sha256": "c279870c6f80e4d8bbd926e02be180d5a14f708f6058672aaf1b4095465f5f31",
+      "sha256": "7eeae10dba72a53c0686f8a6ca9cf207df0cb772ec9f3147314b7dd719e9dea5",
       "inspected": true,
       "visible": "screen",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-ignore-editor.png",
-      "sha256": "39490c46b95de04247f12f245c4c1aedfd3087c35ab050cb4e906836c74684f5",
+      "sha256": "46cfebad7492bbd77f5637d4cd3dae43475de8515ca2497834753f9edb9bdb46",
       "inspected": true,
       "visible": "editor",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-ignore-preview.png",
-      "sha256": "33f6e7fd1ede9ba8a3914e0bf3a5e2f19c169dd8b83dd32acbb8068dd741401f",
+      "sha256": "ea96c661f36d85ed760a8f979b7c78d4adb4b9d3f61fa6ab152138f33191d806",
       "inspected": true,
       "visible": "preview",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-ignore-syntax-error.png",
-      "sha256": "d2c53188cba222c69a383b99116cf75a7659ec2ba868401806e50142c15acb56",
+      "sha256": "4be120fd516ad357509c3640864f5cbe206d068c9b544f4904eb709df2a4951e",
       "inspected": true,
       "visible": "syntax-error",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-init-append-buttons.png",
-      "sha256": "b1eeff1e4071df82f56fd3e6bae110085c16cde81791eb06751767d72dfde3f6",
+      "sha256": "d21e0bc13c9cad9c83c5ff13838640ef24d7a7e13d3e04bee8e1a44d5d88aa68",
       "inspected": true,
       "visible": "append-buttons",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-progress-running.png",
-      "sha256": "d9572ff93eb63a06b2360a90be2c3b4a85cae1c8401aba0801f4d98b52b6124e",
+      "sha256": "f3694fddd7890e6cedbac78781d82e866351a6ed057f57d1a0a9af1bcfd2e65d",
       "inspected": true,
       "visible": "running",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-1.21.11-progress-terminal.png",
-      "sha256": "c52e08e3b5ccba5bf2b6ab53d4386cf55e9e601ed665e6d75839881d779f8cfa",
+      "sha256": "a0c81b4427e43bb8ba774836dbb90646726daefa643226e5ebc948be790b8417",
       "inspected": true,
       "visible": "terminal",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/single-1.21.11-1791394475/result.json"
     },
     {
       "file": "single-26.2-chat-graph.png",
-      "sha256": "7384ee7cfc14772061429e044e7f689687375ef9e1bdd16157eaabc0fa3ab3ca",
+      "sha256": "91abe8da7ead5747163b74d2b5ae64afd9c46b65e37c30eb55c72418bec4533e",
       "inspected": true,
       "visible": "graph",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-completion-message.png",
-      "sha256": "728b3c639d522029544ea21fcba8e3219c4225aab0813c9a315c9588a267dbb8",
+      "sha256": "97162e494b51eeb7cbec72564c5c3046c0d611d6e3f2460cc1da2545b16597b2",
       "inspected": true,
       "visible": "message",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-error-copy-hover.png",
-      "sha256": "afff09d845dd930266bf91281638cb09d983605c7cc88e7aba08d9d1aa5c31cd",
+      "sha256": "9d0a0f9a0d688626c78be2fb823977277f995bf664592203d017a8480f634755",
       "inspected": true,
       "visible": "copy-hover",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-graph-screen.png",
-      "sha256": "66fd4ac42ef9239d7a5bd9baaefe316ccb16ff074b819e8411af17d9f2525215",
+      "sha256": "c5092ac7bf5382cb86831e194d49da85e3e682625af0ba03b6ebd74be211e940",
       "inspected": true,
       "visible": "screen",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-ignore-editor.png",
-      "sha256": "082152ab903ddd91af59368140bfbf03050698c106e8858a1a628c06a4ae12cd",
+      "sha256": "92466909d3057eff64d0ea288f1e042f4a526162d4d37523170438f5136860cc",
       "inspected": true,
       "visible": "editor",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-ignore-preview.png",
-      "sha256": "9bdb950247377436e7a03d93737541dbe8dd78f8725ebe58c510a7c2cc732191",
+      "sha256": "fe8077b3ca246fd6e43bb76d6dd75e3d67fc5e62a3f391b65f722ade5b5ed8cb",
       "inspected": true,
       "visible": "preview",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-ignore-syntax-error.png",
-      "sha256": "f998f7008edfae6dc30e7234e9592cde58dd66f8e88477613432ff162580509e",
+      "sha256": "351d365ae2154a705ed929940df19ac236991ee18ffcacce985d14f8f6d2894b",
       "inspected": true,
       "visible": "syntax-error",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-init-append-buttons.png",
-      "sha256": "fbaf128e91abb6a26b9bed838e1bd2bbed0152a341b72e7df5b9cdb76dd07125",
+      "sha256": "811ddf0555bf498078838f10425977263eb82c63b1b3d4f6a23dd390b372030e",
       "inspected": true,
       "visible": "append-buttons",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-progress-running.png",
-      "sha256": "bef5225e614e7a3f278b1d1aa6be5d871edc8ba4c9a8530177de3851a081e4db",
+      "sha256": "1b0938c61c82d2ffb56bfc8878d405c041dcc156cee661360b8bba4a31455c8a",
       "inspected": true,
       "visible": "running",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     },
     {
       "file": "single-26.2-progress-terminal.png",
-      "sha256": "25c22b379f6ec9e93119d6651eed1e6fc54c19213fcf49add73d749a5169ee0a",
+      "sha256": "10effbc6359eaf6b51143724b783d4e3a72a632e9ae9a853dd77f07da99ebc7d",
       "inspected": true,
       "visible": "terminal",
       "verified_again": "2026-10-07",
-      "inspection": "逐張檢視：對應功能可見，非載入畫面或空白"
+      "inspection": "本次重拍後檢視：對應功能可見，非載入畫面或空白；CLI 提示與註解標記另由真客戶端斷言驗證。",
+      "source": ".work/fabric-phase5/all-26.2-1791395802/result.json"
     }
   ],
   "final_validation": [
@@ -2692,5 +2732,267 @@
         "reason": "server download failed before any scenario; JSON and logs retained"
       }
     ]
+  },
+  "ux_fix_validation": {
+    "date": "2026-10-07",
+    "base_commit": "4cd64468f5d7572b816d6bcd40432a7aaa92a7c5",
+    "description": "截圖審查後的 CLI 提示、creative 範本與重複註解標記修正；既有完整 Phase 5 驗收保留為先前紀錄，本欄對應目前重拍截圖。",
+    "build": {
+      "command": [
+        "timeout",
+        "3600",
+        "flock",
+        ".work/bench.lock",
+        "env",
+        "GRADLE_USER_HOME=.work/gradle-home",
+        "npm_config_cache=.work/npm-cache",
+        "PLAYWRIGHT_BROWSERS_PATH=.work/ms-playwright",
+        "./gradlew",
+        "--no-daemon",
+        "--configure-on-demand",
+        "--max-workers=1",
+        "build"
+      ],
+      "exit": 0,
+      "seconds": 232,
+      "log": ".work/ux-fix-build.log",
+      "sha256": "f29318d9b01b3cf59a3a30c100ba7203a07bd2aeb280deccc0720c2cae841590"
+    },
+    "unit_tests": {
+      "projects": [
+        {
+          "project": "cli",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "project": "core",
+          "tests": 120,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "project": "fabric/logic",
+          "tests": 68,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "project": "hub",
+          "tests": 74,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "project": "i18n",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "project": "paper/common",
+          "tests": 42,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "project": "platform-api",
+          "tests": 25,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "project": "protocol",
+          "tests": 10,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ],
+      "total": {
+        "tests": 349,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "cli_locales": [
+      {
+        "locale": "zh_tw",
+        "command": [
+          "init",
+          "--only"
+        ],
+        "success": true,
+        "hint": "提示：entities: player-touched；離線 CLI 沒有平台事件來源，沿用已保存的 UUID 集合；離線 init 的集合為空。"
+      },
+      {
+        "locale": "en_us",
+        "command": [
+          "status"
+        ],
+        "success": true,
+        "hint": "Note: entities: player-touched; the offline CLI has no platform events and reuses the saved UUID set. Offline init starts with an empty set."
+      },
+      {
+        "locale": "zh_tw",
+        "command": [
+          "status"
+        ],
+        "success": true,
+        "hint": "提示：entities: player-touched；離線 CLI 沒有平台事件來源，沿用已保存的 UUID 集合；離線 init 的集合為空。"
+      }
+    ],
+    "runs": [
+      {
+        "name": "Fabric 1.21.11 單人",
+        "command": [
+          "python3",
+          "fabric/tools/accept-phase5.py",
+          "1.21.11",
+          "--mode",
+          "single"
+        ],
+        "exit": 0,
+        "success": true,
+        "result": ".work/fabric-phase5/single-1.21.11-1791394475/result.json",
+        "result_sha256": "5736b3b2880ac2f35967809b5cef04affe804bc117916eac498d1e7c0f6e0800",
+        "log": ".work/ux-fix-fabric-single-1.21.11.log",
+        "log_sha256": "2c3e192bf2dd5d1f51d9cbc27b9d3849d7d1dd92b63b469a13791f70b9994686",
+        "checks": 43,
+        "artifacts": {
+          "worldgit.jar": "9a4141f2bdcc7e5703b0a17f3a916c0b4728d7fb5416adebf32254078a386d06",
+          "fixture.jar": "df326d37c886ee023d03957e45e697748855211bff4da0d83c332dd0a4560ea8",
+          "wgit.jar": "a1c6e527170a45bf8939cc272daccd16839b2f86bc7c48ec0dab61cd7c1d9db1"
+        },
+        "ports_closed": {
+          "25701": true,
+          "25702": true
+        }
+      },
+      {
+        "name": "Fabric 1.21.11 dedicated 真客戶端階段 b",
+        "command": [
+          "python3",
+          "fabric/tools/accept-phase5.py",
+          "1.21.11",
+          "--mode",
+          "dedicated",
+          "--stages",
+          "b"
+        ],
+        "exit": 0,
+        "success": true,
+        "result": ".work/fabric-phase5/dedicated-1.21.11-1791395517/result.json",
+        "result_sha256": "1a0a5c3c57419a2aa982f94a1c4450ded9dfafe55ac30eccac1564628b99c59c",
+        "log": ".work/ux-fix-fabric-dedicated-1.21.11-retry.log",
+        "log_sha256": "ef19a82c4646caf97cd70a44fc2a7ef137e5d6c718df11c268b2fdb8124b3123",
+        "checks": 35,
+        "artifacts": {
+          "worldgit.jar": "9a4141f2bdcc7e5703b0a17f3a916c0b4728d7fb5416adebf32254078a386d06",
+          "fixture.jar": "df326d37c886ee023d03957e45e697748855211bff4da0d83c332dd0a4560ea8",
+          "wgit.jar": "a1c6e527170a45bf8939cc272daccd16839b2f86bc7c48ec0dab61cd7c1d9db1"
+        },
+        "ports_closed": {
+          "25701": true,
+          "25702": true
+        }
+      },
+      {
+        "name": "Fabric 26.2 dedicated 階段 b 與單人",
+        "command": [
+          "python3",
+          "fabric/tools/accept-phase5.py",
+          "26.2",
+          "--mode",
+          "all",
+          "--stages",
+          "b"
+        ],
+        "exit": 0,
+        "success": true,
+        "result": ".work/fabric-phase5/all-26.2-1791395802/result.json",
+        "result_sha256": "ce3980ff9ccc90e96ae0b5bb9e5fd4d9e4089f999f75ff5c4f72576681d6061a",
+        "log": ".work/ux-fix-fabric-26.2.log",
+        "log_sha256": "1d3d0c47c48f8ef6abfe5921fd3b430488948b8b7c91cfb13b264cf474e17340",
+        "checks": 78,
+        "artifacts": {
+          "worldgit.jar": "7ef1168e37dc3ba804720637106c9fafb3ad55176e74a0d4387cf8060ff5b428",
+          "fixture.jar": "4e5e4ecbdaf75d4de703a0224f337062dbeec6778289b6d16a1932e3c3a647cb",
+          "wgit.jar": "a1c6e527170a45bf8939cc272daccd16839b2f86bc7c48ec0dab61cd7c1d9db1"
+        },
+        "ports_closed": {
+          "25701": true,
+          "25702": true
+        }
+      },
+      {
+        "name": "Paper 1.21.11 代表性驗收",
+        "command": [
+          "python3",
+          "paper/tools/phase5.py",
+          "paper",
+          "1.21.11"
+        ],
+        "exit": 0,
+        "success": true,
+        "result": ".work/paper-phase5/paper-1.21.11-1791394918/results.json",
+        "result_sha256": "b9d45f041bdd8bbdf33533907d5e734cf723f57d37b5eac3911638e8f9eb286d",
+        "log": ".work/ux-fix-paper-1.21.11.log",
+        "log_sha256": "f0924bdb6fe833cbefed2c53edc7459a2e1a297a4cbbf08eb095dab30e96bf20",
+        "checks": 50,
+        "plugin_sha256": "6d280cef32d032ce58c5c9f752d04f1ba62eb14c9cb748685079d24a6233817d"
+      },
+      {
+        "name": "Paper 1.21.11 真客戶端截圖",
+        "command": [
+          "python3",
+          "paper/tools/phase5_screenshots.py",
+          "paper",
+          "1.21.11"
+        ],
+        "exit": 0,
+        "success": true,
+        "result": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+        "result_sha256": "17f7649916503e648ec3b31f41eb4b6ae70c97ef2dbe697cd09025e26e9661a8",
+        "log": ".work/ux-fix-paper-screenshots-1.21.11.log",
+        "log_sha256": "d6f2debf22ea8fbf5c11caa2d400d1fe2cc4e3af0aa9438c3acab9cb7a892795",
+        "game_test_cases": 1
+      }
+    ],
+    "interrupted_run": {
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase5.py",
+        "1.21.11",
+        "--mode",
+        "dedicated",
+        "--stages",
+        "b"
+      ],
+      "exit": 143,
+      "success": false,
+      "description": "啟動時遭 SIGTERM，未產生驗收結果，不計通過；確認埠關閉後，使用持續終端工作階段重跑同一命令通過。",
+      "evidence": ".work/fabric-phase5/dedicated-1.21.11-1791395434/",
+      "log": ".work/ux-fix-fabric-dedicated-1.21.11.log"
+    },
+    "source_sha256": {
+      "core/src/main/java/org/worldgit/core/service/DimensionRepository.java": "8570d840078ba69c3d215074557a86d0c8d2aa3428f537480f9c7130116160e0",
+      "cli/src/main/java/org/worldgit/cli/Wgit.java": "5847ea603a9fff89e31278dc5c56bf45196a0cdf5ec3b9f2fff31d1999233d88",
+      "core/src/main/resources/org/worldgit/templates/creative.wgignore": "096fbaee8f40d6ecee05faf6b236f92caa07edd3331f9ce47473268a469856e2",
+      "core/src/main/resources/org/worldgit/templates/survival.wgignore": "c8066b8de9b0c0da02ac352829abe5f86be35d66aeb3afabeeaa42914da2e9d5",
+      "fabric/shared/src/main/java/org/worldgit/fabric/client/IgnoreScreenBase.java": "27e62b9c055a4c6b6d5a0b1c63e277b37440e9f2fa6e1efc10bb42ad66b7635a",
+      "fabric/shared/src/main/java/org/worldgit/fabric/client/ScreenDriver.java": "913e08cdb57459ab3db29fab131297746ca1d678ba57e709de8aba25939fb8c4",
+      "i18n/src/main/resources/org/worldgit/i18n/lang/en_us.yml": "8d1ae3d4cb63c643a10cbc19c35c844a841637854acbefa286927f224f1a3f83",
+      "i18n/src/main/resources/org/worldgit/i18n/lang/zh_tw.yml": "143fa0cb36bc733380aa5d9a198cb7167b19b50b84cad7e8dc67f388d26301b2"
+    }
   }
 }

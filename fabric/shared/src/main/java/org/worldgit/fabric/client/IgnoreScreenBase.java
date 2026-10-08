@@ -183,7 +183,7 @@ abstract class IgnoreScreenBase extends Screen {
       String error = lineErrors.get(i + 1);
       int color = error != null ? 0xFFFF5A5A : !line.rule() ? 0xFF7C879E : line.enabled() ? 0xFFFFFFFF : 0xFF8892A8;
       canvas.text(Component.literal(String.format("%4d", i + 1)), 14, y + 3, 0xFF6C7A9C);
-      canvas.text(Component.literal(!line.rule() ? "#" : line.enabled() ? "✓" : "✗"), 48, y + 3, line.rule() && line.enabled() ? 0xFF4CD964 : 0xFF8892A8);
+      canvas.text(Component.literal(!line.rule() ? "" : line.enabled() ? "✓" : "✗"), 48, y + 3, line.rule() && line.enabled() ? 0xFF4CD964 : 0xFF8892A8);
       canvas.textLimited(Component.literal(line.text() + (line.cut() ? "…" : "")), 62, y + 3, color, width - 82);
       if (error != null) {
         var message = Component.literal("⚠ " + error);

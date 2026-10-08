@@ -268,7 +268,10 @@ def session_a(args,work,result,check,sessions):
 
 def client_command(client,command,timeout=300):
     mark=client.chat_mark();client.command(command,nowait=True)
-    return client.wait_chat(mark,r'\bfinished: ',timeout)
+    rows=client.wait_chat(mark,r'\bfinished: ',timeout)
+    if any('CLI' in text or 'UUID 集合' in text for text in texts(rows)):
+        raise AssertionError('遊戲內不應顯示離線 CLI 實體提示：'+str(texts(rows)))
+    return rows
 
 def client_ui(client,check,result):
     """以真 Screen 元件點擊，驗證 editor 的 responder、preview／確認及 graph 指令填入。"""
@@ -290,7 +293,10 @@ def client_ui(client,check,result):
     rows=client_command(client,'wg switch missing-phase5-branch')
     check('client business error has copy and i18n hover',events(rows,'copy_to_clipboard') and any('copy the error report' in h for h in hover_text(rows)))
     client.action('chat-open');check('copy hover is hit by the real mouse',client.action('hover-chat')['found']);shot('error-copy-hover');client.action('close')
-    client_command(client,'wg ignore gui');check('ignore Screen opens',client.action('wait-screen',name='IgnoreScreen')['ok']);shot('ignore-editor')
+    client_command(client,'wg ignore gui');check('ignore Screen opens',client.action('wait-screen',name='IgnoreScreen')['ok'])
+    state=client.action('screen');comments=[row.strip() for row in state['ignoreRows'] if row.strip().startswith('#')]
+    check('ignore Screen preserves comments without a duplicated marker',bool(comments) and not any(re.match(r'^#\s+#',row) for row in comments),rows=state['ignoreRows'])
+    shot('ignore-editor')
     client.action('type',text='not a valid rule')
     state=client.action('screen');check('live syntax errors disable Add',any(b=='Add rule|false' for b in state['buttons']),buttons=state['buttons'])
     shot('ignore-syntax-error')

@@ -176,6 +176,9 @@ final class Phase5ClientGameTest {
           var buttons = new JsonArray();
           ctx.<List<String>, RuntimeException>computeOnClient(c -> ScreenDriver.buttons()).forEach(buttons::add);
           out.add("buttons", buttons);
+          var ignoreRows = new JsonArray();
+          ctx.<List<String>, RuntimeException>computeOnClient(c -> ScreenDriver.ignoreRows()).forEach(ignoreRows::add);
+          out.add("ignoreRows", ignoreRows);
           out.addProperty("nodes", ctx.<Integer, RuntimeException>computeOnClient(c -> ScreenDriver.graphNodes()));
           out.addProperty("input", ctx.<String, RuntimeException>computeOnClient(c -> ScreenDriver.inputValue()));
         }

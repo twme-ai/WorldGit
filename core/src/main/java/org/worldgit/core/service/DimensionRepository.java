@@ -308,7 +308,6 @@ public final class DimensionRepository implements AutoCloseable {
     if (playerTouched) {
       touched.retainAll(seenEntities);
       editor.putBlob(PlayerTouchedEntities.FILE, PlayerTouchedEntities.bytes(touched));
-      warnings.add("entities: player-touched；CLI 沿用 UUID 集合（" + touched.size() + "），離線 init 的集合為空。");
     }
     org.worldgit.core.operation.OperationProgress.report(dimension, "capture", scan.candidates().size(), (long) scan.candidates().size(), org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
     editor.putBlob(".wgignore", ignore.getBytes(StandardCharsets.UTF_8));

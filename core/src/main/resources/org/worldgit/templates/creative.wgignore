@@ -1,5 +1,6 @@
-# WorldGit 創造模式範本：預設追蹤一切（玩家除外）。
-# 有需要時取消註解：
+# WorldGit 創造模式範本：完整追蹤方塊／BE／biome／地形。
+# 新 repo 使用 entities: player-touched，只追蹤玩家放出／更改的實體（玩家除外）。
+# 以下規則可再排除已追蹤內容；有需要時取消註解：
 # entity minecraft:item              # 掉落物
 # entity minecraft:experience_orb    # 經驗球
 # entity #minecraft:arrows           # 箭

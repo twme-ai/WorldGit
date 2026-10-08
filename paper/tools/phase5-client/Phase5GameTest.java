@@ -57,6 +57,14 @@ public final class Phase5GameTest implements FabricClientGameTest {
     ctx.getInput().setCursorPos(hover[0],hover[1]);ctx.waitTicks(8);ctx.takeScreenshot("phase5-error-copy-hover");
     command(ctx,"wg ignore", "finished:");
     ctx.waitFor(c->GameTestScreens.current(c) instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen,1200);
+    String first=ctx.computeOnClient(c->c.player.containerMenu.getSlot(0).getItem().getHoverName().getString());
+    if(!first.startsWith("1 # WorldGit") || first.startsWith("1 # #"))throw new AssertionError("ignore comment marker: "+first);
+    LOG.info("PAPER5 ignore-first-line={}",first);
+    double[] slotPos=ctx.computeOnClient(c->{
+      var screen=GameTestScreens.current(c);var slot=c.player.containerMenu.getSlot(0);
+      return new double[]{(((Number)field(screen,"leftPos")).intValue()+slot.x+8)*c.getWindow().getGuiScale(),(((Number)field(screen,"topPos")).intValue()+slot.y+8)*c.getWindow().getGuiScale()};
+    });
+    ctx.getInput().setCursorPos(slotPos[0],slotPos[1]);ctx.waitTicks(8);
     ctx.takeScreenshot("phase5-ignore-gui");
     command(ctx,"wg ignore add entity minecraft:cow", "Confirm change");shot(ctx,"phase5-ignore-preview");
     ctx.runOnClient(c->{c.disconnectFromWorld(net.minecraft.client.multiplayer.ClientLevel.DEFAULT_QUIT_MESSAGE);GameTestScreens.title(c);});
@@ -65,6 +73,8 @@ public final class Phase5GameTest implements FabricClientGameTest {
   private static void command(ClientGameTestContext ctx,String command,String expected) {
     ctx.runOnClient(c->{GameTestScreens.play(c);c.gui.getChat().clearMessages(false);c.getConnection().sendCommand(command);});
     ctx.waitFor(c->chat(c).contains(expected),12000);ctx.waitTicks(5);
+    String text=ctx.computeOnClient(Phase5GameTest::chat);
+    if(text.contains("CLI") || text.contains("UUID 集合"))throw new AssertionError("unexpected offline entity hint: "+text);
     LOG.info("PAPER5 command={} chat={}",command,(Object)ctx.computeOnClient(Phase5GameTest::chat));
   }
   private static void chatScreen(ClientGameTestContext ctx) {

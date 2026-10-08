@@ -18,6 +18,21 @@ public final class ScreenDriver {
     return screen == null ? "none" : screen.getClass().getSimpleName();
   }
 
+  /** 從畫面的實際繪製路徑讀取可見列，驗收註解與狀態標記的組合。 */
+  public static java.util.List<String> ignoreRows() {
+    var rows = new java.util.TreeMap<Integer, String>();
+    if (ClientPlatform.currentScreen() instanceof IgnoreScreenBase ignore) {
+      ignore.paintUnder(new Canvas() {
+        public void fill(int x1, int y1, int x2, int y2, int argb) {}
+        public int width(net.minecraft.network.chat.Component text) { return 0; }
+        public void text(net.minecraft.network.chat.Component text, int x, int y, int argb) {
+          if (x == 48 || x == 62) rows.merge(y, text.getString(), (marker, raw) -> marker + " " + raw);
+        }
+      });
+    }
+    return java.util.List.copyOf(rows.values());
+  }
+
   /** 以按鈕文字（包含比對）點選；找不到或未啟用回傳 false。 */
   public static boolean click(String label) {
     var screen = ClientPlatform.currentScreen();

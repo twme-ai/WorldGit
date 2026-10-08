@@ -1,4 +1,5 @@
-# WorldGit 生存模式範本：排除會自然消失、反覆出現的實體。
+# WorldGit 生存模式範本：新 repo 使用 entities: all（玩家除外）。
+# 完整追蹤方塊／BE／biome／地形；以下規則排除會自然消失、反覆出現的實體。
 entity * !persistent                 # 自然刷出、會自然消失的生物
 entity minecraft:item                # 掉落物
 entity minecraft:experience_orb      # 經驗球

@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-07",
+  "base_commit": "4cd64468f5d7572b816d6bcd40432a7aaa92a7c5",
+  "description": "Paper 真客戶端重拍；聊天沒有離線 CLI 提示，ignore GUI 第一行 tooltip 直接顯示原文與單一 #。",
+  "runs": [
+    {
+      "name": "Paper 1.21.11 代表性驗收",
+      "command": [
+        "python3",
+        "paper/tools/phase5.py",
+        "paper",
+        "1.21.11"
+      ],
+      "exit": 0,
+      "success": true,
+      "result": ".work/paper-phase5/paper-1.21.11-1791394918/results.json",
+      "result_sha256": "b9d45f041bdd8bbdf33533907d5e734cf723f57d37b5eac3911638e8f9eb286d",
+      "log": ".work/ux-fix-paper-1.21.11.log",
+      "log_sha256": "f0924bdb6fe833cbefed2c53edc7459a2e1a297a4cbbf08eb095dab30e96bf20",
+      "checks": 50,
+      "plugin_sha256": "6d280cef32d032ce58c5c9f752d04f1ba62eb14c9cb748685079d24a6233817d"
+    },
+    {
+      "name": "Paper 1.21.11 真客戶端截圖",
+      "command": [
+        "python3",
+        "paper/tools/phase5_screenshots.py",
+        "paper",
+        "1.21.11"
+      ],
+      "exit": 0,
+      "success": true,
+      "result": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "result_sha256": "17f7649916503e648ec3b31f41eb4b6ae70c97ef2dbe697cd09025e26e9661a8",
+      "log": ".work/ux-fix-paper-screenshots-1.21.11.log",
+      "log_sha256": "d6f2debf22ea8fbf5c11caa2d400d1fe2cc4e3af0aa9438c3acab9cb7a892795",
+      "game_test_cases": 1
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "paper-1.21.11-bossbar-progress.png",
+      "sha256": "67c7063ed731ff41695c5f257bbd4184bb5d1c820b32041a349acc56f5e115bd",
+      "source": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "inspected": true
+    },
+    {
+      "file": "paper-1.21.11-bossbar-terminal.png",
+      "sha256": "ddc76b17d1d9d2f4504e9b33bbacfa0e062d7cbc13f68680320f7adc94944f71",
+      "source": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "inspected": true
+    },
+    {
+      "file": "paper-1.21.11-completion.png",
+      "sha256": "415a17345e68a6aecef32a44f727405c2c8cfe661bdd54202b7b128fe15853ad",
+      "source": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "inspected": true
+    },
+    {
+      "file": "paper-1.21.11-error-copy-hover.png",
+      "sha256": "a750ceaf176d684c7f1f44f5c81745c56b98af039a87596d8b7d7e0a7eb34673",
+      "source": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "inspected": true
+    },
+    {
+      "file": "paper-1.21.11-graph.png",
+      "sha256": "235d1982476d75522f0d5db7b56d22df93323cdcb8dd5a99823e2c8680de308b",
+      "source": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "inspected": true
+    },
+    {
+      "file": "paper-1.21.11-ignore-gui.png",
+      "sha256": "9b5d4f62838bc0fc9efcd287064146a605502cfa9a6504286c2d8c284aa640cb",
+      "source": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "inspected": true
+    },
+    {
+      "file": "paper-1.21.11-ignore-preview.png",
+      "sha256": "96f509de78964d478bf1e2bc96ecb560cd0266f7675ba3048bda3aff447578c5",
+      "source": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "inspected": true
+    },
+    {
+      "file": "paper-1.21.11-init-buttons.png",
+      "sha256": "8167474d6f08d58ddf7e333f64f1987d35d76f5ab7484fb97013cda46d4f4083",
+      "source": ".work/paper-phase5/screens-paper-1.21.11-1791395298/results.json",
+      "inspected": true
+    }
+  ]
+}

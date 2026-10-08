@@ -160,6 +160,22 @@ class Phase5Test {
     }
     UUID uuid = UUID.randomUUID(); PlayerTouchedEntities.touch(path, TestWorlds.entity(uuid, 0, true)); assertEquals(Set.of(uuid), PlayerTouchedEntities.read(path));
   }
+  @Test void captureDoesNotAddCallerSpecificOfflineEntityWarnings() throws Exception {
+    var layout = world("26.2");
+    var worlds = new WorldRepositories(layout);
+    var init = worlds.init(null, "creative", WorldGitConfig.Track.ALL, AUTHOR);
+    assertTrue(init.success());
+    assertNoOfflineEntityWarning(init.dimensions().get(DimensionId.OVERWORLD).value().status());
+    var status = worlds.status(null, 2, true);
+    assertTrue(status.success());
+    assertNoOfflineEntityWarning(status.dimensions().get(DimensionId.OVERWORLD).value());
+    var commit = worlds.commit(null, "unchanged", AUTHOR, 2);
+    assertTrue(commit.success());
+    assertNoOfflineEntityWarning(commit.dimensions().get(DimensionId.OVERWORLD).value().status());
+  }
+  private static void assertNoOfflineEntityWarning(DimensionRepository.Status status) {
+    assertTrue(status.warnings().stream().noneMatch(w -> w.contains("CLI") || w.contains("player-touched")), status.warnings().toString());
+  }
   @Test void cloneUsesSymbolicHeadWhenTwoBranchesShareTip() throws Exception {
     var layout=world("26.2");assertTrue(new WorldRepositories(layout).init(null,"survival",WorldGitConfig.Track.ALL,AUTHOR).success());
     try(var ops=new WorldOperations(layout)) { ops.createBranch("alias",null); }
