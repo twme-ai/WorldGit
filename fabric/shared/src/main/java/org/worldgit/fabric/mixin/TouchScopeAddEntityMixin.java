@@ -23,6 +23,7 @@ abstract class TouchScopeAddEntityMixin {
         var kind = TouchScope.current();
         if (kind == null || !cir.getReturnValue()) return;
         if (kind == TouchScope.Kind.USE && (entity instanceof ItemEntity || entity instanceof ExperienceOrb || entity instanceof Projectile)) return;
-        WorldGitMod.touch(entity);
+        if (kind == TouchScope.Kind.AXIOM) org.worldgit.fabric.AxiomEdits.spawned(entity);
+        else WorldGitMod.touch(entity);
     }
 }

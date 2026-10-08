@@ -13,6 +13,7 @@ const [port, version, name, mode] = process.argv.slice(2)
 const bot = mineflayer.createBot({ host: '127.0.0.1', port: +port, username: name, version, auth: 'offline', viewDistance: 'tiny' })
 const out = (o) => console.log('BOT ' + JSON.stringify(o))
 const received = { hello: 0, status: 0, diff: 0, clear: 0, conflicts: 0, conflictPreview: 0, statusEntries: 0, diffEntries: 0, bytes: 0, previews: {} }
+const axiom = process.env.WG_AXIOM_BOT ? require("./axiom-protocol.js")(bot, out, version) : null
 let ready = false
 
 function varint(buf, pos) { let n = 0, i = 0, b; do { b = buf[pos++]; n |= (b & 127) << (7 * i++); } while (b & 128); return [n, pos] }
@@ -75,7 +76,8 @@ rl.on('line', async (line) => {
   const a = line.trim().split(/\s+/)
   const cmd = a[0]
   try {
-    if (cmd === 'give') {
+    if (cmd === 'axiom' && axiom) axiom(a)
+    else if (cmd === 'give') {
       const Item = require(path.join(root, 'prismarine-item'))(bot.version)
       const it = bot.registry.itemsByName[a[1]]
       await bot.creative.setInventorySlot(36, new Item(it.id, Math.min(64, it.stackSize))); out({ ev: 'give', item: a[1] })
@@ -86,7 +88,7 @@ rl.on('line', async (line) => {
     } else if (cmd === 'dig') {
       const b = bot.blockAt(new Vec3(+a[1], +a[2], +a[3])); await bot.dig(b, true); out({ ev: 'dug', name: b.name })
     } else if (cmd === 'block') {
-      const b = bot.blockAt(new Vec3(+a[1], +a[2], +a[3])); out({ ev: 'block', pos: a.slice(1, 4).join(','), name: b ? b.name : null })
+      const b = bot.blockAt(new Vec3(+a[1], +a[2], +a[3])); out({ ev: 'block', pos: a.slice(1, 4).join(','), name: b ? b.name : null, stateId: b ? b.stateId : null, properties: b ? b.getProperties() : null })
     } else if (cmd === 'chat') { bot.chat(line.slice(5)); out({ ev: 'chat_sent' }) }
     else if (cmd === 'sample') {
       const cx=+a[1], cz=+a[2], sy=+a[3], hash=crypto.createHash('sha256'), counts={}; let missing=0

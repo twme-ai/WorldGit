@@ -73,6 +73,16 @@ public final class Wgit implements Runnable {
       description = "世界資料夾，或包含 world 的伺服器資料夾")
   Path world = Path.of(".");
 
+  @Option(names = "--mod-pack", scope = ScopeType.INHERIT, paramLabel = "id=jar",
+      description = "離線讀取 Fabric mod jar 的 entity tags（可重複；不執行模組）")
+  Map<String, Path> modPacks = new LinkedHashMap<>();
+  private EntityTagRegistry.PackResolver packResolver;
+
+  private EntityTagRegistry.PackResolver packs() throws IOException {
+    if (packResolver == null && !modPacks.isEmpty()) packResolver = EntityTagRegistry.jars(modPacks);
+    return packResolver;
+  }
+
   @Option(
       names = "--dimension",
       scope = ScopeType.INHERIT,
@@ -261,7 +271,7 @@ public final class Wgit implements Runnable {
   }
 
   private WorldOperations operations() throws IOException {
-    var layout = layout(); return WorldOperations.inDimension(layout, selected() == null ? layout.currentDimension() : selected());
+    var layout = layout(); return WorldOperations.inDimension(layout, selected() == null ? layout.currentDimension() : selected(), packs());
   }
   private WorldRemotes remoteOperations(boolean every) throws IOException {
     var layout = layout(); var paths = new WorldRepositories(layout).tracked();
@@ -285,9 +295,10 @@ public final class Wgit implements Runnable {
     return WorldLayout.discover(world);
   }
 
-  private WorldRepositories repositories(WorldLayout layout) {
+  private WorldRepositories repositories(WorldLayout layout) throws IOException {
+    var packs = packs();
     return new WorldRepositories(
-        layout, dim -> new OfflineWorld(layout, dim, s -> spec.commandLine().getErr().println(s)));
+        layout, dim -> new OfflineWorld(layout, dim, s -> spec.commandLine().getErr().println(s), packs));
   }
 
   private WorldGitConfig.Local local(WorldRepositories repos) throws IOException {
@@ -698,7 +709,7 @@ public final class Wgit implements Runnable {
                       blocks ? DiffEngine.Detail.BLOCKS : DiffEngine.Detail.SUMMARY);
             else {
               try (var source =
-                  new OfflineWorld(layout, layout.dimensions().get(e.getKey()), s -> {})) {
+                  new OfflineWorld(layout, layout.dimensions().get(e.getKey()), s -> {}, root.packs())) {
                 var status = repo.status(source, repos.manifest(), local.entityTolerance(), false);
                 root.warnings(status.warnings(), e.getValue());
                 String tree = ScanIndex.read(e.getValue().resolve("worldgit.index")).tree();
@@ -1598,7 +1609,7 @@ public final class Wgit implements Runnable {
         switch (action) {
           case "list" -> data = old.entries();
           case "check" -> data = Map.of("valid", true, "lines", old.lines().size());
-          case "test" -> data = IgnoreEditor.test(old, String.join(" ", arguments), EntityTagRegistry.load(layout.world(), layout.dataVersion(), null));
+          case "test" -> data = IgnoreEditor.test(old, String.join(" ", arguments), EntityTagRegistry.load(layout.world(), layout.dataVersion(), root.packs()));
           case "add", "remove", "move", "disable", "enable" -> {
             if (Files.exists(path.resolve("merge-state.bin"))) throw new IOException("MERGING 期間禁止修改規則");
             proposed = switch (action) {
@@ -1607,7 +1618,7 @@ public final class Wgit implements Runnable {
               case "move" -> old.move(Integer.parseInt(arguments.getFirst()), Integer.parseInt(arguments.get(1)));
               default -> old.enabled(Integer.parseInt(arguments.getFirst()), action.equals("enable"));
             };
-            data = IgnoreEditor.preview(repo, proposed, EntityTagRegistry.load(layout.world(), layout.dataVersion(), null));
+            data = IgnoreEditor.preview(repo, proposed, EntityTagRegistry.load(layout.world(), layout.dataVersion(), root.packs()));
             root.summary.put("rules", proposed.entries().stream().filter(IgnoreEditor.Line::rule).count());
             root.summary.put("dryRun", dryRun);
             if (proposed.equals(old)) root.outcome = OperationResult.Status.NO_OP;

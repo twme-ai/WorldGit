@@ -3,6 +3,8 @@
 # Diff colors follow docs/06 §1.1; use the <wg_added>, <wg_removed>, <wg_modified>, <wg_conflict> tags
 # so that the colorblind palette applies everywhere.
 common:
+  axiom:
+    locked: "<red>WorldGit is applying changes. Axiom edit rejected; wait for completion and refresh the editor preview.</red>"
   prefix: "<gray>[<white>WorldGit</white>]</gray> "
   no-permission: "<red>You do not have permission to do that.</red>"
   error: "<red>Error: <message></red>"

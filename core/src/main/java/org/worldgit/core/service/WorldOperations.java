@@ -123,6 +123,7 @@ public final class WorldOperations implements AutoCloseable {
   private final Writer writer;
   private final boolean groupedWriter;
   private final LiveAccess live;
+  private final EntityTagRegistry.PackResolver packResolver;
   private final double tolerance;
 
   public WorldOperations(WorldLayout layout) throws IOException {
@@ -138,14 +139,25 @@ public final class WorldOperations implements AutoCloseable {
     return new WorldOperations(layout, null, null, Objects.requireNonNull(dimension));
   }
 
+  public static WorldOperations inDimension(WorldLayout layout, DimensionId dimension,
+      EntityTagRegistry.PackResolver packs) throws IOException {
+    return new WorldOperations(layout, null, null, Objects.requireNonNull(dimension), packs);
+  }
+
   public static WorldOperations live(WorldLayout layout, LiveAccess access, DimensionId dimension) throws IOException {
     return new WorldOperations(layout, null, Objects.requireNonNull(access), Objects.requireNonNull(dimension));
   }
 
   private WorldOperations(WorldLayout layout, Writer writer, LiveAccess live, DimensionId dimension) throws IOException {
+    this(layout, writer, live, dimension, null);
+  }
+
+  private WorldOperations(WorldLayout layout, Writer writer, LiveAccess live, DimensionId dimension,
+      EntityTagRegistry.PackResolver packs) throws IOException {
     this.layout = layout;
-    worlds = new WorldRepositories(layout);
-    applier = new OfflineApplier(layout);
+    packResolver = live == null ? packs : live.packs();
+    worlds = new WorldRepositories(layout, dim -> new OfflineSnapshotSource(layout, dim, packResolver));
+    applier = new OfflineApplier(layout, packResolver);
     this.live = live;
     this.writer = writer == null ? applier::apply : writer;
     groupedWriter = writer == null;
@@ -225,7 +237,7 @@ public final class WorldOperations implements AutoCloseable {
         rules,
         rules,
         EntityTagRegistry.load(
-            layout.world(), layout.dataVersion(), live == null ? null : live.packs()),
+            layout.world(), layout.dataVersion(), packResolver),
         tolerance,
         delete,
         meta,
@@ -236,7 +248,7 @@ public final class WorldOperations implements AutoCloseable {
     try (var timing = OperationTimings.stage("capture");
         var source =
             live == null
-                ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()))
+                ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()), packResolver)
                 : live.source(layout.dimensions().get(repo.dimension()))) {
       return repo.workingTree(source, worlds.manifest(), tolerance);
     }
@@ -952,7 +964,7 @@ public final class WorldOperations implements AutoCloseable {
     int nextId = 1;
     var semantics =
         EntityTagRegistry.load(
-            layout.world(), layout.dataVersion(), live == null ? null : live.packs());
+            layout.world(), layout.dataVersion(), packResolver);
     for (var entry : repos.entrySet()) {
       var id = entry.getKey();
       var repo = entry.getValue();
@@ -1189,7 +1201,7 @@ public final class WorldOperations implements AutoCloseable {
 
   private String captureRules(DimensionRepository repo, String text) throws IOException {
     try (var source = live == null
-        ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()))
+        ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()), packResolver)
         : live.source(layout.dimensions().get(repo.dimension()))) {
       return repo.workingTree(source, worlds.manifest(), tolerance, text);
     }
@@ -1204,7 +1216,7 @@ public final class WorldOperations implements AutoCloseable {
             parsed,
             parsed,
             EntityTagRegistry.load(
-                layout.world(), layout.dataVersion(), live == null ? null : live.packs()),
+                layout.world(), layout.dataVersion(), packResolver),
             tolerance,
             !parsed.hasAreas(),
             true,
@@ -1392,7 +1404,7 @@ public final class WorldOperations implements AutoCloseable {
     try (var timing = OperationTimings.stage("capture");
         var source =
             live == null
-                ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()))
+                ? new OfflineSnapshotSource(layout, layout.dimensions().get(repo.dimension()), packResolver)
                 : live.source(layout.dimensions().get(repo.dimension()), chunks)) {
       var editor = new TreeEditor(repo.objects(), null);
       var rules = IgnoreRules.parse(Files.readString(repo.ignorePath()));
@@ -1427,7 +1439,7 @@ public final class WorldOperations implements AutoCloseable {
             rules,
             rules,
             EntityTagRegistry.load(
-                layout.world(), layout.dataVersion(), live == null ? null : live.packs()),
+                layout.world(), layout.dataVersion(), packResolver),
             0,
             false,
             false,
@@ -1927,7 +1939,7 @@ public final class WorldOperations implements AutoCloseable {
                 IgnoreRules.none(),
                 IgnoreRules.none(),
                 EntityTagRegistry.load(
-                    layout.world(), layout.dataVersion(), live == null ? null : live.packs()),
+                    layout.world(), layout.dataVersion(), packResolver),
                 tolerance,
                 true,
                 repo.dimension().equals(DimensionId.OVERWORLD),

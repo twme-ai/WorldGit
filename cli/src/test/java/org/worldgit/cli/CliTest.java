@@ -46,6 +46,33 @@ class CliTest {
   private JsonNode data(String output) throws Exception { return new ObjectMapper().readTree(output).path("data"); }
   private JsonNode single(String output) throws Exception { return data(output).path("minecraft:overworld").path("data"); }
 
+  @Test void explicitModPackWorksThroughInitIgnoreRestoreAndStrictVerify() throws Exception {
+    Path fixture=Path.of(System.getProperty("worldgit.projectRoot"),"core/src/test/resources/fixtures/1.21.11");
+    try(var files=Files.walk(fixture)) { for(Path file:files.toList()) { Path target=temp.resolve(fixture.relativize(file)); if(Files.isDirectory(file))Files.createDirectories(target);else Files.copy(file,target); } }
+    Path world=WorldLayout.discover(temp).world();
+    var level=WorldLayout.readGzip(world.resolve("level.dat"));
+    level.compound("Data").put("DataPacks",new Nbt.Compound().with("Enabled",new Nbt.ListTag(8,List.of("vanilla","demo"))).with("Disabled",new Nbt.ListTag(8,List.of())));
+    try(var out=new java.util.zip.GZIPOutputStream(Files.newOutputStream(world.resolve("level.dat")))) {out.write(Nbt.write(level));}
+    Path jar=temp.resolve("demo.jar");
+    try(var zip=new java.util.zip.ZipOutputStream(Files.newOutputStream(jar))) {
+      for(var entry:Map.of("fabric.mod.json","{\"id\":\"demo\"}","data/demo/tags/entity_type/builders.json","{\"values\":[\"minecraft:cow\"]}").entrySet()) {
+        zip.putNextEntry(new java.util.zip.ZipEntry(entry.getKey()));zip.write(entry.getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8));zip.closeEntry();
+      }
+    }
+    String pack="demo="+jar;
+    assertEquals(0,run("--mod-pack",pack,"init","--only","--format=json").code);
+    var missing=run("verify","HEAD","--format=json");assertEquals(1,missing.code);assertTrue(missing.out.contains("demo"));
+    assertEquals(0,run("--mod-pack",pack,"ignore","add","entity #demo:builders","--format=json").code);
+    var excluded=run("--mod-pack",pack,"ignore","test","entity minecraft:cow 0,64,0","--format=json");assertEquals(0,excluded.code,excluded.err);assertTrue(data(excluded.out).path("preview").path("excluded").asBoolean());
+    assertEquals(0,run("--mod-pack",pack,"commit","-m","tag rule","--format=json").code);
+    setSection("minecraft:diamond_block");
+    var restored=run("--mod-pack",pack,"restore","HEAD","--format=json");assertEquals(0,restored.code,restored.out+restored.err);
+    var verified=run("--mod-pack",pack,"verify","HEAD","--format=json");assertEquals(0,verified.code,verified.out+verified.err);
+    assertEquals("COMPLETE",data(verified.out).path("state").asText());
+    var counts=data(verified.out).path("dimensions").path("minecraft:overworld");assertEquals(8,counts.size());
+    for(var count:counts)assertEquals(0,count.asInt(),verified.out);
+  }
+
   @Test void offlineEntityHintBelongsToCliAndOnlyPlayerTouchedRepos() throws Exception {
     Path fixture = Path.of(System.getProperty("worldgit.projectRoot"), "core/src/test/resources/fixtures/26.2");
     try (var files = Files.walk(fixture)) {

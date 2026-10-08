@@ -44,6 +44,52 @@ class EntityTagRegistryTest {
     Files.writeString(file, json);
   }
 
+  private Path modJar(String name, Map<String, String> entries) throws IOException {
+    Path jar = temp.resolve(name);
+    try (var zip = new ZipOutputStream(Files.newOutputStream(jar))) {
+      for (var entry : entries.entrySet()) {
+        zip.putNextEntry(new ZipEntry(entry.getKey()));
+        zip.write(entry.getValue().getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+      }
+    }
+    return jar;
+  }
+
+  @Test
+  void explicitModJarResolvesActualTagsAndEmptyPacksWithoutSkippingUnknownPacks() throws Exception {
+    Path world = world("1.21.11");
+    packs(world, "vanilla", "demo");
+    Path jar = modJar("demo.jar", Map.of("fabric.mod.json", "{\"id\":\"demo\"}",
+        "data/demo/tags/entity_type/builders.json", "{\"values\":[\"#minecraft:skeletons\",\"minecraft:cow\"]}"));
+    assertThrows(IOException.class, () -> EntityTagRegistry.load(world, 4671));
+    var registry = EntityTagRegistry.load(world, 4671, EntityTagRegistry.jars(Map.of("demo", jar)));
+    assertTrue(registry.inTag("demo:builders", "minecraft:skeleton"));
+    assertTrue(registry.inTag("demo:builders", "minecraft:cow"));
+    assertFalse(registry.inTag("demo:builders", "minecraft:pig"));
+    Path empty = modJar("empty.jar", Map.of("fabric.mod.json", "{\"id\":\"empty\"}"));
+    packs(world, "vanilla", "empty");
+    assertTrue(EntityTagRegistry.load(world, 4671, EntityTagRegistry.jars(Map.of("empty", empty)))
+        .inTag("minecraft:skeletons", "minecraft:skeleton"));
+    packs(world, "vanilla", "unknown");
+    assertThrows(IOException.class, () -> EntityTagRegistry.load(world, 4671, EntityTagRegistry.jars(Map.of("empty", empty))));
+  }
+
+  @Test
+  void explicitModJarRejectsWrongManifestMalformedTagsAndResourceBudgetOverflow() throws Exception {
+    Path world = world("1.21.11");packs(world, "vanilla", "demo");
+    Path wrong = modJar("wrong.jar", Map.of("fabric.mod.json", "{\"id\":\"other\"}"));
+    assertThrows(IOException.class, () -> EntityTagRegistry.jars(Map.of("demo", wrong)));
+    Path missing = modJar("missing.jar", Map.of());
+    assertThrows(IOException.class, () -> EntityTagRegistry.jars(Map.of("demo", missing)));
+    Path malformed = modJar("malformed.jar", Map.of("fabric.mod.json", "{\"id\":\"demo\"}",
+        "data/demo/tags/entity_type/broken.json", "{\"values\":[\"#missing:tag\"]}"));
+    assertThrows(IOException.class, () -> EntityTagRegistry.load(world, 4671, EntityTagRegistry.jars(Map.of("demo", malformed))));
+    Path huge = modJar("huge.jar", Map.of("fabric.mod.json", "{\"id\":\"demo\"}",
+        "data/demo/tags/entity_type/huge.json", " ".repeat(1_048_577)));
+    assertThrows(IOException.class, () -> EntityTagRegistry.jars(Map.of("demo", huge)));
+  }
+
   @Test
   void vanillaBothVersionsAndUnknownTagDiagnostic() throws Exception {
     for (String version : List.of("1.21.11", "26.2")) {

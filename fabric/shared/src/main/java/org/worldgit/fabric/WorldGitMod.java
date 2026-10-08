@@ -62,6 +62,7 @@ public final class WorldGitMod implements ModInitializer {
 
     /** Called by the chunk mixin for commands, block entities and natural changes alike. */
     public static void chunkChanged(net.minecraft.world.level.chunk.LevelChunk chunk) {
+        AxiomEdits.chunk(chunk);
         if (chunk.getLevel() instanceof ServerLevel level) {
             var rt = runtime(level.getServer());
             if (rt != null) rt.chunkChanged(level, chunk);

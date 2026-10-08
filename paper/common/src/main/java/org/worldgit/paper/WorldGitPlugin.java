@@ -108,6 +108,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
       }
     });
     hookWorldEdit();
+    hookAxiom();
     repo.submit(() -> {
       try {
         var root=mapping().layout().repositoryRoot();
@@ -394,6 +395,23 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
         getLogger().info("FAWE 預設會丟掉第三方 Extent：請在 FAWE config.yml 的 extent.allowed-plugins 加入 org.worldgit.paper，否則 WorldEdit 作者歸屬無法記錄（變動仍由旗標普查偵測）。");
     } catch (Throwable t) {
       getLogger().log(Level.WARNING, "WorldEdit 掛接失敗，改用旗標普查偵測：" + t);
+    }
+  }
+
+  private java.util.function.Consumer<World> axiomBarrier = world -> {};
+  void axiomBarrier(java.util.function.Consumer<World> barrier) { axiomBarrier = barrier; }
+  void quiesceAxiom(World world) { axiomBarrier.accept(world); }
+  private void hookAxiom() {
+    if (platform.folia()) return;
+    var axiom = getServer().getPluginManager().getPlugin("AxiomPaper");
+    if (axiom == null || !axiom.isEnabled()) return;
+    try {
+      AxiomHook.install(this, axiom);
+      getLogger().info("已掛接 AxiomPaper（編輯鎖、作者歸屬、觸及實體）");
+    } catch (ReflectiveOperationException | LinkageError | RuntimeException error) {
+      // No unsafe fallback: direct section writes and queued bypass edits escape ordinary guards.
+      axiomBarrier = world -> { if (axiom.isEnabled()) throw new IllegalStateException("Unsupported AxiomPaper API; WorldGit apply refused", error); };
+      getLogger().warning("AxiomPaper API 不相容；停用 AxiomPaper 後才能套用：" + error);
     }
   }
 

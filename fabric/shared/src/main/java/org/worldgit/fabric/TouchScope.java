@@ -10,7 +10,7 @@ import java.util.ArrayDeque;
 public final class TouchScope {
     private TouchScope() {}
 
-    public enum Kind { NONE, USE, COMMAND, BREEDING, THROWN }
+    public enum Kind { NONE, USE, COMMAND, BREEDING, THROWN, AXIOM }
 
     private static final ThreadLocal<ArrayDeque<Kind>> STACK = ThreadLocal.withInitial(ArrayDeque::new);
 

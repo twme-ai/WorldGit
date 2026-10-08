@@ -33,6 +33,7 @@ public final class MessageKeys {
   public static final String COMMON_PREFIX = def("common.prefix");
   public static final String COMMON_NO_PERMISSION = def("common.no-permission");
   public static final String COMMON_ERROR = def("common.error", "message");
+  public static final String COMMON_AXIOM_LOCKED = def("common.axiom.locked");
 
   public static final String MERGE_SELECT_UNSUPPORTED = def("fabric.merge.select-unsupported");
 

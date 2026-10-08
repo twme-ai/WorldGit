@@ -11,6 +11,14 @@ sourceSets.main {
 }
 
 dependencies {
+    // 選用的真客戶端互通性驗收；不 include、不進入正式產物。
+    providers.environmentVariable("WG_TEST_AXIOM_JAR").orNull?.let {
+        modLocalRuntime(files(it))
+        providers.environmentVariable("WG_TEST_AXIOM_DEPS").orNull?.let { directory ->
+            modLocalRuntime(fileTree(directory) { include("*.jar") })
+        }
+    }
+
     minecraft("com.mojang:minecraft:$mcVersion")
     mappings(loom.officialMojangMappings())
     modImplementation(libs.fabric.loader)

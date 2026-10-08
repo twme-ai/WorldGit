@@ -1,6 +1,7 @@
 // 與 Minecraft 版本無關的插件本體：只用 Paper API（及選用的 WorldEdit/FAWE），不得引用 NMS／CraftBukkit。
 // NMS 只存在於 :paper:v1_21_11、:paper:v26_2 的薄轉接層，由 NmsBridge 介面連接。
 dependencies {
+    compileOnly(project(":paper:axiom-api"))
     api(project(":core"))
     api(project(":platform-api"))
     api(project(":protocol"))

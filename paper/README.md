@@ -12,6 +12,17 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 
 將 `paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar` 放到伺服器的 `plugins/`，啟動後執行 `/wg init`。未知 MC 版本會明確停用插件。26.2 adapter 是 Java 25 bytecode，其餘本體與共用模組是 Java 21。
 
+## Axiom
+
+Paper 1.21.11／26.2 可搭配對應版 AxiomPaper 6.0.1 與客戶端 Axiom 6.1.3。AxiomPaper 是選用插件；未安裝時 WorldGit 不載入其 API。AxiomPaper 沒有宣告 Folia 支援，WorldGit 在 Folia 不啟用此整合。
+
+Axiom 方塊、BE、biome 編輯可由 status／commit 捕捉；CustomIntegration 的座標及已核對的寫入 frame 記錄玩家及 `axiom` cause，實體生成／操作記入 creative 的 player-touched。具備 `axiomadmin.bypass_region_checks` 的方塊編輯跳過座標 API，歸屬保持未知；多人不使用時間窗口猜作者。1.21.11 不版本化日間時計／Axiom 註記；26.2 的 world clocks／世界 PDC 則由 saved-data 捕捉，時間變動也可能使線上 switch 因 metadata 預檢拒絕。gamerules 等設定依既有 world-meta 規則追蹤。
+
+WorldGit 套用期間拒絕該鎖定世界的 Axiom 編輯（局部套用也保守拒絕整個世界），套用前取消尚未完成的 Axiom buffer；玩家會收到自己的語系訊息與區塊重送。插件 API／queue 結構不相容時，明確拒絕套用，請更新整合或停用 AxiomPaper。套用後請重整 Axiom editor preview；其 clipboard／undo 不跟隨 WorldGit 歷史。視覺重疊時先 `/wg clear`。線上 world-meta 還原仍需離線 CLI。
+
+研究依據、精確度與真伺服器命令見 [Axiom 互通性](../docs/17-axiom.md)。26.2 的註記／clock 差異需離線還原，沒有專屬線上快取重載整合。
+
+
 ## 指令與權限
 
 | 指令 | 用途 | 權限（預設） |

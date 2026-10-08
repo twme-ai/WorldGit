@@ -1,8 +1,13 @@
 {
   "required": true,
   "package": "org.worldgit.fabric.mixin",
+  "plugin": "org.worldgit.fabric.mixin.OptionalIntegrationMixins",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AxiomPacketMixin",
+    "AxiomSetBlockMixin",
+    "AxiomWorldPropertyMixin",
+    "AxiomEntityLookupMixin",
     "LevelChunkMixin",
     "EditPacketsMixin",
     "PistonEditMixin",

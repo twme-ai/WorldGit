@@ -62,6 +62,38 @@ public final class EntityTagRegistry implements EntitySemantics {
     Map<String, byte[]> tags(String pack) throws IOException;
   }
 
+  /** 明確提供的 Fabric mod jar 只當資料讀取；不載入或執行任何類別。 */
+  public static PackResolver jars(Map<String, Path> jars) throws IOException {
+    var packs = new HashMap<String, Map<String, byte[]>>();
+    if (jars.size() > 64) throw new IOException("mod packs 超過 64 個");
+    for (var provided : jars.entrySet()) {
+      String pack = provided.getKey();
+      try (var zip = new ZipFile(provided.getValue().toFile())) {
+        var metadata = zip.getEntry("fabric.mod.json");
+        if (metadata == null) throw new IOException("mod jar 缺少 fabric.mod.json：" + provided.getValue());
+        Map<?, ?> manifest;
+        try (var in = zip.getInputStream(metadata)) {
+          manifest = mapping(parse(in.readNBytes(MAX_RESOURCE + 1), "fabric.mod.json"), "fabric.mod.json");
+        }
+        if (!pack.equals(manifest.get("id"))) throw new IOException("mod pack id 與 jar 不符：" + pack);
+        var tags = new TreeMap<String, byte[]>();
+        var entries = zip.stream().filter(e -> !e.isDirectory() && tagId(e.getName()) != null)
+            .limit(MAX_TAGS + 1).toList();
+        if (entries.size() > MAX_TAGS) throw new IOException("mod jar 的 entity tags 過多：" + pack);
+        int total = 0;
+        for (var entry : entries) {
+          byte[] bytes;
+          try (var in = zip.getInputStream(entry)) { bytes = in.readNBytes(MAX_RESOURCE + 1); }
+          total = budget(total, bytes.length);
+          if (tags.put(tagId(entry.getName()), bytes) != null) throw new IOException("mod jar 重複 entity tag：" + entry.getName());
+        }
+        packs.put(pack, Map.copyOf(tags));
+      }
+    }
+    var immutable = Map.copyOf(packs);
+    return immutable::get;
+  }
+
   public static EntityTagRegistry load(Path world, int dataVersion) throws IOException {
     return load(world, dataVersion, null);
   }

@@ -2,6 +2,8 @@
 # 鍵：common.* 共用；paper.* / fabric.* 屬於各平台。
 # diff 色彩依 docs/06 §1.1，請用 <wg_added>、<wg_removed>、<wg_modified>、<wg_conflict> 標籤，色盲色票才會全面生效。
 common:
+  axiom:
+    locked: "<red>WorldGit 正在套用。Axiom 編輯已拒絕；請等操作完成後重新整理編輯器預覽。</red>"
   prefix: "<gray>[<white>WorldGit</white>]</gray> "
   no-permission: "<red>你沒有權限執行這個操作。</red>"
   error: "<red>錯誤：<message></red>"

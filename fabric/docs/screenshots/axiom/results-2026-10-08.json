@@ -1,0 +1,283 @@
+{
+  "date": "2026-10-08",
+  "decisions": [
+    142,
+    143,
+    144,
+    145,
+    146
+  ],
+  "success": true,
+  "checks": [
+    {
+      "name": "Axiom Paper 1.21.11",
+      "command": [
+        "python3",
+        "paper/tools/axiom.py",
+        "paper",
+        "1.21.11"
+      ],
+      "success": true,
+      "passed": 53,
+      "failed": 0,
+      "result": ".work/axiom/paper-1.21.11-1791445919/result.json",
+      "port_closed": true,
+      "process_exit_codes": {
+        "server": 0,
+        "WgBot": 0,
+        "WgBot2": 0
+      },
+      "offline_verify": {
+        "state": "COMPLETE",
+        "dimensions": {
+          "minecraft:overworld": {
+            "chunks": 0,
+            "sections": 0,
+            "biomeSections": 0,
+            "entityPuts": 0,
+            "entityRemoves": 0,
+            "chunkDeletes": 0,
+            "untrackedKept": 0,
+            "metaFiles": 0
+          }
+        },
+        "error": null
+      }
+    },
+    {
+      "name": "Axiom Paper 26.2",
+      "command": [
+        "python3",
+        "paper/tools/axiom.py",
+        "paper",
+        "26.2"
+      ],
+      "success": true,
+      "passed": 54,
+      "failed": 0,
+      "result": ".work/axiom/paper-26.2-1791447260/result.json",
+      "port_closed": true,
+      "process_exit_codes": {
+        "server": 0,
+        "WgBot": 0,
+        "WgBot2": 0
+      },
+      "offline_verify": {
+        "state": "COMPLETE",
+        "dimensions": {
+          "minecraft:overworld": {
+            "chunks": 0,
+            "sections": 0,
+            "biomeSections": 0,
+            "entityPuts": 0,
+            "entityRemoves": 0,
+            "chunkDeletes": 0,
+            "untrackedKept": 0,
+            "metaFiles": 0
+          }
+        },
+        "error": null
+      }
+    },
+    {
+      "name": "Axiom Fabric dedicated 1.21.11 與真客戶端",
+      "command": [
+        "python3",
+        "paper/tools/axiom.py",
+        "fabric",
+        "1.21.11",
+        "--screenshots"
+      ],
+      "success": true,
+      "passed": 56,
+      "failed": 0,
+      "result": ".work/axiom/fabric-1.21.11-1791445407/result.json",
+      "port_closed": true,
+      "process_exit_codes": {
+        "server": 0,
+        "WgBot": 0,
+        "WgBot2": 0
+      },
+      "offline_verify": {
+        "state": "COMPLETE",
+        "dimensions": {
+          "minecraft:overworld": {
+            "chunks": 0,
+            "sections": 0,
+            "biomeSections": 0,
+            "entityPuts": 0,
+            "entityRemoves": 0,
+            "chunkDeletes": 0,
+            "untrackedKept": 0,
+            "metaFiles": 0
+          }
+        },
+        "error": null
+      }
+    },
+    {
+      "name": "未裝 AxiomPaper 1.21.11",
+      "command": [
+        "python3",
+        "paper/tools/axiom-optional.py",
+        "1.21.11"
+      ],
+      "success": true,
+      "passed": 5,
+      "failed": 0,
+      "result": ".work/axiom/without-axiom-1.21.11-1791447815/result.json",
+      "port_closed": true
+    },
+    {
+      "name": "未裝 AxiomPaper 26.2",
+      "command": [
+        "python3",
+        "paper/tools/axiom-optional.py",
+        "26.2"
+      ],
+      "success": true,
+      "passed": 5,
+      "failed": 0,
+      "result": ".work/axiom/without-axiom-26.2-1791447838/result.json",
+      "port_closed": true
+    },
+    {
+      "name": "Paper Phase 5",
+      "command": [
+        "python3",
+        "paper/tools/phase5.py",
+        "paper",
+        "1.21.11"
+      ],
+      "success": true,
+      "passed": 50,
+      "failed": 0,
+      "result": ".work/paper-phase5/paper-1.21.11-1791447855/results.json"
+    },
+    {
+      "name": "Paper acceptance",
+      "command": [
+        "python3",
+        "paper/tools/acceptance.py",
+        "paper",
+        "1.21.11"
+      ],
+      "success": true,
+      "passed": 32,
+      "failed": 0,
+      "result": ".work/paper-delivery/results/paper-1.21.11.json"
+    },
+    {
+      "name": "Fabric Phase 5 dedicated",
+      "command": [
+        "python3",
+        "fabric/tools/accept-phase5.py",
+        "1.21.11",
+        "--mode",
+        "dedicated"
+      ],
+      "success": true,
+      "passed": 172,
+      "failed": 0,
+      "result": ".work/fabric-phase5/dedicated-1.21.11-1791448679/result.json",
+      "ports_closed": {
+        "25701": true,
+        "25702": true
+      },
+      "tested_artifacts_sha256": {
+        "worldgit.jar": "0bb980851a37e2ed8f7a52613ce8470a3548e3045d129dba416d04b822d1d1bb",
+        "fixture.jar": "ee3589e968b99fb7d2ac916f13a260a6d44c922101f9afaea6fea96bcf4d0dc3",
+        "wgit.jar": "058c6f0d21dc7aba1e2ffe8b6820a37537b5b497108f0cf05bd12cf445b3533c"
+      }
+    }
+  ],
+  "full_build": {
+    "command": [
+      "flock",
+      ".work/bench.lock",
+      "./gradlew",
+      "--no-daemon",
+      "--configure-on-demand",
+      "--max-workers=1",
+      "build"
+    ],
+    "environment": {
+      "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk-amd64",
+      "GRADLE_USER_HOME": ".work/gradle-home",
+      "npm_config_cache": ".work/npm-cache",
+      "PLAYWRIGHT_BROWSERS_PATH": ".work/ms-playwright"
+    },
+    "exit_code": 0,
+    "log": ".work/axiom/regressions/full-build-resume.log",
+    "unit_tests": {
+      "core": {
+        "tests": 122,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "cli": {
+        "tests": 7,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "i18n": {
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "platform-api": {
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "protocol": {
+        "tests": 10,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "hub": {
+        "tests": 74,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "fabric/logic": {
+        "tests": 69,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "paper/common": {
+        "tests": 42,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "final_build_artifacts_sha256": {
+    "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar": "36029fc1938fa8de533b9e5baa72d8cb09b195cdd4f8dc58d45d0ab6f43fcaea",
+    "fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar": "0bb980851a37e2ed8f7a52613ce8470a3548e3045d129dba416d04b822d1d1bb",
+    "fabric/mc26_2/build/libs/worldgit-fabric-26.2-0.1.0-SNAPSHOT.jar": "10ee19332948a062f6a0cd0c6b9feed1afa7f6eaf665718f4894f47e994f550d",
+    "cli/build/libs/wgit.jar": "058c6f0d21dc7aba1e2ffe8b6820a37537b5b497108f0cf05bd12cf445b3533c"
+  },
+  "screenshot": {
+    "path": "fabric/docs/screenshots/axiom/fabric-1.21.11.png",
+    "sha256": "f1a354faef44a4597c0f680583c593b64c4fca7fa5ad9b82d3812fec30e7cd0c",
+    "scope": "真 Axiom 編輯器與 WorldGit 共同啟動、握手、狀態顯示；封包寫入與拒絕另由 bot 驗證。"
+  },
+  "phase5_screenshot_mapping": ".work/axiom/regressions/screenshot-mapping.json",
+  "limitations": [
+    "Folia 不啟用整合。",
+    "Fabric 26.2 已做 bytecode 核對與建置，未做 Axiom 實機驗收；Fabric 單人也未做本輪真 Axiom 驗收。",
+    "作者是 chunk 級摘要；Paper bypass 及缺少來源的路徑保持未知。",
+    "Paper 取消未完成 buffer 不回滾已完成部分；Axiom undo／clipboard／editor cache 不跟隨 WorldGit。",
+    "26.2 clock／註記與其他不支援的 world-meta 須離線還原。",
+    "bulk BE NBT、biome buffer、註記 GUI 未獨立做封包驗收。"
+  ]
+}

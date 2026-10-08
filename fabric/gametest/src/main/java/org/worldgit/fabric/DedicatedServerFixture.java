@@ -75,6 +75,13 @@ public final class DedicatedServerFixture implements ModInitializer {
                             for(var entity:level.getAllEntities()) if(!(entity instanceof net.minecraft.world.entity.player.Player)) rows.add(entity.getType().builtInRegistryHolder().key().identifier()+":"+entity.getUUID());
                             Collections.sort(rows);say(source,"WGENTITIES "+level.dimension().identifier()+" "+rows);
                         }
+                        case "be-remove", "be-check" -> {
+                            var at=new BlockPos(Integer.parseInt(args[1]),Integer.parseInt(args[2]),Integer.parseInt(args[3]));
+                            var chunk=level.getChunkAt(at);
+                            if(args[0].equals("be-remove")) chunk.removeBlockEntity(at);
+                            boolean present=chunk.getBlockEntity(at,net.minecraft.world.level.chunk.LevelChunk.EntityCreationType.CHECK)!=null;
+                            say(source,"WGBE present="+present);
+                        }
                         case "auto" -> {rt.autoCommit(org.worldgit.fabric.logic.Msg.of(org.worldgit.fabric.logic.MessageKeys.COMMIT_AUTO_LOGOUT,"player","fixture"));say(source,"WGAUTO queued");}
                         case "protection" -> {
                             var player=source.getServer().getPlayerList().getPlayerByName(args[1]);

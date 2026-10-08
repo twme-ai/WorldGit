@@ -19,11 +19,19 @@ public final class OfflineWorld implements LiveWorld {
   private final OfflineSnapshotSource source;
   private final WorldLayout.Dimension dimension;
   private final Consumer<String> notify;
+  private final EntityTagRegistry.PackResolver packs;
 
   public OfflineWorld(
       WorldLayout layout, WorldLayout.Dimension dimension, Consumer<String> notify) {
+    this(layout, dimension, notify, null);
+  }
+
+  public OfflineWorld(
+      WorldLayout layout, WorldLayout.Dimension dimension, Consumer<String> notify,
+      EntityTagRegistry.PackResolver packs) {
     this.layout = layout;
-    this.source = new OfflineSnapshotSource(layout, dimension);
+    this.source = new OfflineSnapshotSource(layout, dimension, packs);
+    this.packs = packs;
     this.dimension = dimension;
     this.notify = Objects.requireNonNull(notify);
   }
@@ -118,7 +126,7 @@ public final class OfflineWorld implements LiveWorld {
     try {
       if (!plan.dimension().equals(dimension())) throw new IOException("apply 維度不符");
       source.close();
-      var applier = new OfflineApplier(layout);
+      var applier = new OfflineApplier(layout, packs);
       applier.validateMetadata(plan);
       if (editGuard == null) applier.apply(plan); else applier.apply(plan, editGuard.coreLock());
       return CompletableFuture.completedFuture(null);

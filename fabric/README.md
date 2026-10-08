@@ -4,6 +4,17 @@
 
 Phase 5 任務 4：玩家預設操作所在維度，`/wg init` 只初始化該維度；主世界可點選追加地獄／終界／全部。`wg`、`wgit`、`git`、`worldgit` 共用命令；`--dimension <id>` 與 `--all` 支援逐維度非原子操作。新增聊天分支圖、可捲動圖畫面、BossBar／HUD、明確完成摘要、錯誤複製與 `.wgignore` 編輯器；新 creative repo 使用 `entities: player-touched`。完整契約、實作與驗收見 [Phase 5 設計](../docs/16-phase5-design.md)。
 
+## Axiom
+
+單人整合伺服器或 dedicated 的 Fabric 1.21.11／26.2，可搭配對應版 Axiom 6.1.3；dedicated 要在伺服器與使用工具的客戶端安裝 Axiom，Paper 連線則由伺服器安裝 AxiomPaper。WorldGit 不附帶 Axiom；未安裝時不啟用專用 mixin，也沒有 Axiom 編譯相依。
+
+Axiom 的同步 server handler 由選用 mixin 包裝。方塊／BE／biome 的 markUnsaved 記 dirty 及玩家 cause=axiom；生成與操作的實體納入 creative player-touched。多人來源限定單次呼叫；無可定位來源保持未知。WorldGit 任何套用進行時會暫時拒絕 Axiom 編輯，含其他維度的請求，並以玩家語系通知／重送區塊及確認序號。
+
+套用後重整 Axiom 編輯預覽，clipboard／undo 不跟隨 WorldGit；重疊外框可先 `/wg clear`。1.21.11 不版本化日間時計／Axiom 註記；26.2 的 world clocks／Axiom 註記 saved-data 則會捕捉，時間變動也可能使線上 switch 因 metadata 預檢拒絕，須離線還原。其他屬性沿用既有 metadata 限制。整合限定已研究的 6.1.3 同步入口，未來版本若改成非同步或更換入口必須重驗；不宣稱任意 Axiom 版本、renderer／Sodium／Iris 組合都相容。
+
+離線 CLI 需提供同版模組資源：`wgit --world <世界> --mod-pack axiom=<Axiom.jar> verify HEAD`。此選項只讀取 datapack tags，不執行 Axiom；缺少的未知 pack 仍明確拒絕。研究及驗收見 [Axiom 互通性](../docs/17-axiom.md)。26.2 註記沒有專屬線上快取重載整合。
+
+
 ## 安裝與建置
 
 | Minecraft | Java | Loader | Fabric API | Adventure Fabric | Loom |

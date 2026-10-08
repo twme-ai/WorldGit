@@ -5,7 +5,7 @@ api-version: "1.21"
 folia-supported: true
 description: Minecraft 世界的 git 式版本控制（commit、status、diff、自動存檔點、作者歸屬）
 website: https://github.com/twme-ai/WorldGit
-softdepend: [FastAsyncWorldEdit, WorldEdit]
+softdepend: [AxiomPaper, FastAsyncWorldEdit, WorldEdit]
 permissions:
   worldgit.admin:
     description: 所有 WorldGit 指令與通知

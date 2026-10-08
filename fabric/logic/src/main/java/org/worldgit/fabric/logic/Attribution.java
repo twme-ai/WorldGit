@@ -14,7 +14,7 @@ public final class Attribution {
 
   private static final class Touch {
     final Map<UUID, String> players = new LinkedHashMap<>();
-    final Set<String> causes = new TreeSet<>();
+    final Map<UUID, Set<String>> causes = new LinkedHashMap<>();
     long generation;
   }
 
@@ -22,10 +22,10 @@ public final class Attribution {
   public static final class Snapshot {
     private final Map<Key, Long> generations;
     private final Map<Key, Map<UUID, String>> players;
-    private final Map<Key, Set<String>> causes;
+    private final Map<Key, Map<UUID, Set<String>>> causes;
 
     private Snapshot(
-        Map<Key, Long> generations, Map<Key, Map<UUID, String>> players, Map<Key, Set<String>> causes) {
+        Map<Key, Long> generations, Map<Key, Map<UUID, String>> players, Map<Key, Map<UUID, Set<String>>> causes) {
       this.generations = generations;
       this.players = players;
       this.causes = causes;
@@ -66,7 +66,7 @@ public final class Attribution {
         for (var p : e.getValue().entrySet()) {
           chunks.computeIfAbsent(p.getKey(), k -> new TreeSet<>()).add(e.getKey().chunk());
           names.put(p.getKey(), p.getValue());
-          why.computeIfAbsent(p.getKey(), k -> new TreeSet<>()).addAll(causes.get(e.getKey()));
+          why.computeIfAbsent(p.getKey(), k -> new TreeSet<>()).addAll(causes.get(e.getKey()).get(p.getKey()));
         }
       }
       var result = new ArrayList<CommitMetadata.Contribution>();
@@ -98,7 +98,7 @@ public final class Attribution {
       DimensionId dimension, ChunkPos chunk, UUID player, String name, String cause) {
     var t = touches.computeIfAbsent(new Key(dimension, chunk), k -> new Touch());
     t.players.put(player, name);
-    t.causes.add(cause);
+    t.causes.computeIfAbsent(player, k -> new TreeSet<>()).add(cause);
     t.generation = ++generation;
   }
 
@@ -114,13 +114,15 @@ public final class Attribution {
   private Snapshot capture(java.util.function.Predicate<DimensionId> select) {
     var g = new HashMap<Key, Long>();
     var p = new HashMap<Key, Map<UUID, String>>();
-    var c = new HashMap<Key, Set<String>>();
+    var c = new HashMap<Key, Map<UUID, Set<String>>>();
     touches.forEach(
         (k, t) -> {
           if (!select.test(k.dimension())) return;
           g.put(k, t.generation);
           p.put(k, new LinkedHashMap<>(t.players));
-          c.put(k, new TreeSet<>(t.causes));
+          var causes = new LinkedHashMap<UUID, Set<String>>();
+          t.causes.forEach((player, values) -> causes.put(player, Set.copyOf(values)));
+          c.put(k, Map.copyOf(causes));
         });
     return new Snapshot(g, p, c);
   }

@@ -118,6 +118,21 @@ final class Phase5ClientGameTest {
       String action = request.get("action").getAsString();
       var out = new JsonObject();
       switch (action) {
+        case "axiom-editor" -> {
+          // Optional interoperability probe: press the real keybinding; Axiom retains its permission/licensing checks.
+          ctx.runOnClient(c -> {
+            try {
+              var events = Class.forName("com.moulberry.axiom.ClientEvents");
+              var key = (net.minecraft.client.KeyMapping) events.getField("toggleEditorUiKeyBind").get(null);
+              net.minecraft.client.KeyMapping.click(key.getDefaultKey());
+            } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+          });
+          ctx.waitTicks(20);
+          out.addProperty("enabled", ctx.<Boolean, RuntimeException>computeOnClient(c -> {
+            try { return (Boolean) Class.forName("com.moulberry.axiom.editor.EditorUI").getMethod("isEnabled").invoke(null); }
+            catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+          }));
+        }
         case "command" -> {
           String command = request.get("command").getAsString();
           ctx.runOnClient(c -> c.getConnection().sendCommand(command));

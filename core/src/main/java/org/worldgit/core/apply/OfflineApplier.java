@@ -12,9 +12,15 @@ import org.worldgit.core.normalize.*;
 /** 僅限持有 session.lock 的離線寫回；一次僅開一個 region writer。操作狀態由 WorldOperations 管理。 */
 public final class OfflineApplier {
   private final WorldLayout layout;
+  private final EntityTagRegistry.PackResolver packs;
 
   public OfflineApplier(WorldLayout layout) {
+    this(layout, null);
+  }
+
+  public OfflineApplier(WorldLayout layout, EntityTagRegistry.PackResolver packs) {
     this.layout = layout;
+    this.packs = packs;
   }
 
   public void apply(ApplyPlan plan) throws IOException {
@@ -42,7 +48,7 @@ public final class OfflineApplier {
     EntitySemantics semantics =
         plans.stream()
                 .anyMatch(p -> p.chunks().values().stream().anyMatch(ApplyPlan.ChunkOp::delete))
-            ? EntityTagRegistry.load(layout.world(), layout.dataVersion(), null)
+            ? EntityTagRegistry.load(layout.world(), layout.dataVersion(), packs)
             : EntitySemantics.OFFLINE;
     int timestamp = (int) (System.currentTimeMillis() / 1000);
     for (var plan : plans) applyTerrain(plan, timestamp);

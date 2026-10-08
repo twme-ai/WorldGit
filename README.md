@@ -68,4 +68,4 @@ python3 scripts/benchmark-scale.py
 
 ## 設計文件
 
-[概念](docs/01-concept-mapping.md)、[資料模型](docs/02-data-model.md)、[儲存](docs/03-storage-backend.md)、[commit/status](docs/04-commit-and-status.md)、[diff](docs/06-diff-merge.md)、[架構](docs/08-architecture.md)、[決策與路線圖](docs/09-roadmap-open-questions.md)、[Phase 1 實作與驗收](docs/11-phase1-progress.md)、[Phase 4 進度](docs/14-phase4-progress.md)、[Phase 5 設計與驗收](docs/16-phase5-design.md)、[使用手冊](docs/15-user-guide.md)。Phase 0 原型保留於 `experiments/`，正式程式不依賴它們。
+[概念](docs/01-concept-mapping.md)、[資料模型](docs/02-data-model.md)、[儲存](docs/03-storage-backend.md)、[commit/status](docs/04-commit-and-status.md)、[diff](docs/06-diff-merge.md)、[架構](docs/08-architecture.md)、[決策與路線圖](docs/09-roadmap-open-questions.md)、[Phase 1 實作與驗收](docs/11-phase1-progress.md)、[Phase 4 進度](docs/14-phase4-progress.md)、[Phase 5 設計與驗收](docs/16-phase5-design.md)、[Axiom 互通性](docs/17-axiom.md)、[使用手冊](docs/15-user-guide.md)。Phase 0 原型保留於 `experiments/`，正式程式不依賴它們。

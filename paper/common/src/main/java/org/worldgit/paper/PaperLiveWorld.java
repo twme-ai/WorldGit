@@ -343,7 +343,7 @@ final class PaperLiveWorld implements LiveWorld {
   @Override public AutoCloseable lockEdits(Collection<ChunkPos> chunks,String reason) throws IOException {
     var lock=plugin.edits().lock(world,chunks); var f=new CompletableFuture<AutoCloseable>();
     try {
-      plugin.platform().global(()->{ try { f.complete(plugin.edits().freeze(world)); } catch(Throwable e) { f.completeExceptionally(e); } });
+      plugin.platform().global(()->{ try { plugin.quiesceAxiom(world); f.complete(plugin.edits().freeze(world)); } catch(Throwable e) { f.completeExceptionally(e); } });
       var frozen=f.get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);
       return ()->{ lock.close(); if(!plugin.repo().stopping()) { var done=new CompletableFuture<Void>();
         plugin.platform().global(()->{ try { frozen.close(); done.complete(null); } catch(Throwable e) { done.completeExceptionally(e); } });

@@ -33,6 +33,29 @@ class AttributionTest {
   }
 
   @Test
+  void sharedChunkKeepsAxiomCauseWithItsPlayerAndSnapshot() {
+    var a = new Attribution();
+    var chunk = new ChunkPos(0, 0);
+    a.record(DimensionId.OVERWORLD, chunk, alice, "Alice", "axiom");
+    a.record(DimensionId.OVERWORLD, chunk, bob, "Bob", "place");
+    var before = a.capture();
+    a.record(DimensionId.OVERWORLD, chunk, alice, "Alice", "break");
+    a.record(NETHER, chunk, bob, "Bob", "axiom");
+    var contributions = before.contributions(DimensionId.OVERWORLD, "d.local");
+    assertEquals("axiom", contributions.stream().filter(c -> alice.equals(c.playerId())).findFirst().orElseThrow().cause());
+    assertEquals("place", contributions.stream().filter(c -> bob.equals(c.playerId())).findFirst().orElseThrow().cause());
+    assertTrue(before.contributions(NETHER, "d.local").isEmpty());
+    a.acknowledge(before);
+    assertEquals(2, a.pendingChunks());
+    var after = a.capture();
+    assertEquals("axiom,break", after.contributions(DimensionId.OVERWORLD, "d.local").stream()
+        .filter(c -> alice.equals(c.playerId())).findFirst().orElseThrow().cause());
+    assertEquals("place", after.contributions(DimensionId.OVERWORLD, "d.local").stream()
+        .filter(c -> bob.equals(c.playerId())).findFirst().orElseThrow().cause());
+    assertEquals("axiom", after.contributions(NETHER, "d.local").getFirst().cause());
+  }
+
+  @Test
   void acknowledgeKeepsLaterTouches() {
     var a = new Attribution();
     var chunk = new ChunkPos(0, 0);

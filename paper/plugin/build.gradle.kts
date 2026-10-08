@@ -1,3 +1,5 @@
+import java.util.zip.ZipFile
+
 // 發佈用的單一插件 jar：版本無關本體（paper:common）＋ core/platform-api/protocol ＋ 每個 Minecraft 版本一個 NMS 轉接層。
 // 執行時依 Bukkit.getMinecraftVersion() 只載入符合的轉接層（見 NmsBridges）。
 val adapters = listOf(":paper:v1_21_11", ":paper:v26_2")
@@ -27,3 +29,17 @@ tasks.jar {
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "module-info.class", "META-INF/versions/**/module-info.class", "org/slf4j/**")
 }
 tasks.named("assemble") { dependsOn(tasks.jar) }
+
+val verifyOptionalApi = tasks.register("verifyOptionalApi") {
+    dependsOn(tasks.jar)
+    val artifact = tasks.jar.flatMap { it.archiveFile }
+    inputs.file(artifact)
+    doLast {
+        ZipFile(artifact.get().asFile).use { zip ->
+            check(zip.entries().asSequence().none { it.name.startsWith("com/moulberry/axiom/") }) {
+                "Axiom compileOnly API must not be bundled in WorldGit"
+            }
+        }
+    }
+}
+tasks.named("check") { dependsOn(verifyOptionalApi) }

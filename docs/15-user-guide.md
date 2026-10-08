@@ -4,6 +4,17 @@
 
 ---
 
+## Axiom 建築工具
+
+Paper 玩家在客戶端安裝對應 Minecraft 版的 Axiom，管理員在伺服器另裝 AxiomPaper；Fabric 單人直接搭配 Axiom，dedicated 則兩端安裝。已核對 Axiom 6.1.3／AxiomPaper 6.0.1 的 1.21.11 與 26.2。Folia 不啟用 Axiom 整合。
+
+Axiom 編輯後照常 `/wg status`、`/wg commit -m <訊息>`。方塊、BE、biome 按內容追蹤；creative 也記錄 Axiom 生成／操作的實體。作者是 chunk 級貢獻摘要；Paper 的區域 bypass 權限及缺乏來源的操作可能保持未知。1.21.11 不追蹤日間時計／Axiom 註記；26.2 的 world clocks／註記則由 saved-data 捕捉，時間變動也可能使線上 switch 因 metadata 預檢拒絕，須離線還原。gamerules 等設定沿用 world-meta 規則與平台限制。
+
+WorldGit 正在 switch／restore／merge 等套用時，Axiom 修改會被拒絕並顯示訊息。Paper 局部鎖保守擋該世界，Fabric 保守擋全部 Axiom 請求；請等完成再編輯。尚未完成的 Paper buffer 會取消，不在完成後重播。客戶端區塊會重送，但 Axiom 自己的 undo／clipboard／editor cache 不會改寫，套用或拒絕後需重整預覽。外框／鬼影重疊時用 `/wg clear`；ghost 是歷史疊圖，不能當成已套用的世界。
+
+Fabric 存檔的離線 CLI 需提供同版 jar：`wgit --world <世界> --mod-pack axiom=<Axiom.jar> verify HEAD`；只讀 datapack 資源，不執行模組。完整研究與驗收證據見 [17 — Axiom](17-axiom.md)。26.2 註記沒有專屬線上快取重載整合。
+
+
 ## 目錄
 
 1. [WorldGit 是什麼](#1-worldgit-是什麼)
