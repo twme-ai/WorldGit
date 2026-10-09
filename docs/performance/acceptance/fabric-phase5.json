@@ -1,0 +1,2815 @@
+{
+  "platform": "fabric",
+  "mode": "dedicated",
+  "version": "1.21.11",
+  "success": true,
+  "steps": [
+    {
+      "name": "/wg help works",
+      "ok": true,
+      "chat": [
+        "/wg merge rev [--no-commit] | merge --abort|--continue | conflict-select id ours|theirs|base | resolve id|all [--ours|--theirs|--base|--manual] | revert rev | cherry-pick rev | conflicts",
+        "/wg log [n] [--graph] [--all] | graph [--all] | ignore list|add|remove|move|enable|disable|test|check|preview|confirm|gui | tag [list|create|delete] | verify [rev]",
+        "Commands act on your current dimension. Add --dimension <id> or --all (one dimension at a time, not atomic). Aliases: /wgit, /git.",
+        "help finished: SUCCESS · minecraft:overworld (133 ms)"
+      ]
+    },
+    {
+      "name": "/wgit help works",
+      "ok": true,
+      "chat": [
+        "/wg merge rev [--no-commit] | merge --abort|--continue | conflict-select id ours|theirs|base | resolve id|all [--ours|--theirs|--base|--manual] | revert rev | cherry-pick rev | conflicts",
+        "/wg log [n] [--graph] [--all] | graph [--all] | ignore list|add|remove|move|enable|disable|test|check|preview|confirm|gui | tag [list|create|delete] | verify [rev]",
+        "Commands act on your current dimension. Add --dimension <id> or --all (one dimension at a time, not atomic). Aliases: /wgit, /git.",
+        "help finished: SUCCESS · minecraft:overworld (4 ms)"
+      ]
+    },
+    {
+      "name": "/git help works",
+      "ok": true,
+      "chat": [
+        "/wg merge rev [--no-commit] | merge --abort|--continue | conflict-select id ours|theirs|base | resolve id|all [--ours|--theirs|--base|--manual] | revert rev | cherry-pick rev | conflicts",
+        "/wg log [n] [--graph] [--all] | graph [--all] | ignore list|add|remove|move|enable|disable|test|check|preview|confirm|gui | tag [list|create|delete] | verify [rev]",
+        "Commands act on your current dimension. Add --dimension <id> or --all (one dimension at a time, not atomic). Aliases: /wgit, /git.",
+        "help finished: SUCCESS · minecraft:overworld (4 ms)"
+      ]
+    },
+    {
+      "name": "/worldgit help works",
+      "ok": true,
+      "chat": [
+        "/wg merge rev [--no-commit] | merge --abort|--continue | conflict-select id ours|theirs|base | resolve id|all [--ours|--theirs|--base|--manual] | revert rev | cherry-pick rev | conflicts",
+        "/wg log [n] [--graph] [--all] | graph [--all] | ignore list|add|remove|move|enable|disable|test|check|preview|confirm|gui | tag [list|create|delete] | verify [rev]",
+        "Commands act on your current dimension. Add --dimension <id> or --all (one dimension at a time, not atomic). Aliases: /wgit, /git.",
+        "help finished: SUCCESS · minecraft:overworld (3 ms)"
+      ]
+    },
+    {
+      "name": "init in the nether only initializes the nether",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Initializing (saving the world and creating the first full snapshot; large worlds take a while)...",
+        "[WorldGit] Initialization complete: 1 dimension(s), snapshot fe40c085.",
+        "  minecraft:the_nether 60bf0d1b5b  +2550823 -0 ~0 !0",
+        "init finished: SUCCESS · minecraft:the_nether · minecraft:the_nether 60bf0d1b: added 2,550,823 blocks, 887 sections, 1,936 biome changes, 138 world data changes (6895 ms)"
+      ]
+    },
+    {
+      "name": "nether init has no append buttons",
+      "ok": true
+    },
+    {
+      "name": "nether init completion is human readable",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Initializing (saving the world and creating the first full snapshot; large worlds take a while)...",
+        "[WorldGit] Initialization complete: 1 dimension(s), snapshot fe40c085.",
+        "  minecraft:the_nether 60bf0d1b5b  +2550823 -0 ~0 !0",
+        "init finished: SUCCESS · minecraft:the_nether · minecraft:the_nether 60bf0d1b: added 2,550,823 blocks, 887 sections, 1,936 biome changes, 138 world data changes (6895 ms)"
+      ]
+    },
+    {
+      "name": "overworld init offers the missing End only (nether already initialized)",
+      "ok": true,
+      "clicks": [
+        "/wg init --dimension minecraft:the_end --template creative"
+      ]
+    },
+    {
+      "name": "init is hover-described",
+      "ok": true
+    },
+    {
+      "name": "creative init defaults to entities: player-touched",
+      "ok": true
+    },
+    {
+      "name": "overworld init did not touch the End",
+      "ok": true
+    },
+    {
+      "name": "append button command initializes the End",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Initializing (saving the world and creating the first full snapshot; large worlds take a while)...",
+        "[WorldGit] Initialization complete: 1 dimension(s), snapshot 30071e23.",
+        "  minecraft:the_end ca940558a9  +421660 -0 ~0 !0",
+        "init finished: SUCCESS · minecraft:the_end · minecraft:the_end ca940558: added 421,660 blocks, 173 sections, 576 biome changes, 3 world data changes (5006 ms)"
+      ]
+    },
+    {
+      "name": "chat graph has lanes, colored labels, hover and suggest",
+      "ok": true,
+      "chat": [
+        "[WorldGit] minecraft:overworld branch graph, page 1",
+        "* d2242e5c [main] [HEAD] Initialize world",
+        "log finished: SUCCESS · minecraft:overworld · 1 item(s) (17 ms)"
+      ]
+    },
+    {
+      "name": "graph hover carries the full commit id",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg remote",
+      "ok": true,
+      "chat": [
+        "[WorldGit] /wg remote add|remove|list|set-url …; fetch [remote]; push [remote] [branch] [--tags]; pull [remote] [branch]; pull confirm <code>; pr create <title> [--source b] [--target main]|list|view <#>; comments [show|hide] [pr #] [--here|--dimension d]; comment <#> <text> [--here] [Copy]",
+        "remote finished: FAILED · minecraft:overworld (15 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg status",
+      "ok": true,
+      "chat": [
+        "[WorldGit] No uncommitted changes.",
+        "minecraft:overworld  0 chunks, 0 sections  +0 -0 ~0 !0",
+        "status finished: SUCCESS · minecraft:overworld · minecraft:overworld: clean (52 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg status --full",
+      "ok": true,
+      "chat": [
+        "[WorldGit] No uncommitted changes.",
+        "minecraft:overworld  0 chunks, 0 sections  +0 -0 ~0 !0",
+        "status finished: SUCCESS · minecraft:overworld · minecraft:overworld: clean (8111 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg commit -m nothing",
+      "ok": true,
+      "chat": [
+        "[WorldGit] No changes, so no commit was created.",
+        "  minecraft:overworld no changes",
+        "commit finished: NO_OP · minecraft:overworld · minecraft:overworld: no changes (58 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg commit -m first-change",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot 2353d09b.",
+        "  minecraft:overworld 5f0187e7a4  +1 -0 ~0 !0",
+        "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 5f0187e7: added 1 blocks, 1 sections (210 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg log",
+      "ok": true,
+      "chat": [
+        "[WorldGit] History (newest first):",
+        "    minecraft:overworld",
+        "5f0187e7 first-change WgBot  2026-10-09 04:52:04Z",
+        "d2242e5c Initialize world WgBot  2026-10-09 04:51:33Z",
+        "log finished: SUCCESS · minecraft:overworld · 2 item(s) (9 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg log --graph",
+      "ok": true,
+      "chat": [
+        "[WorldGit] minecraft:overworld branch graph, page 1",
+        "* 5f0187e7 [main] [HEAD] first-change",
+        "* d2242e5c Initialize world",
+        "log finished: SUCCESS · minecraft:overworld · 2 item(s) (8 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg graph",
+      "ok": true,
+      "chat": [
+        "[WorldGit] The graph screen needs the WorldGit Fabric client; showing the chat graph instead.",
+        "[WorldGit] minecraft:overworld branch graph, page 1",
+        "* 5f0187e7 [main] [HEAD] first-change",
+        "* d2242e5c Initialize world",
+        "graph finished: SUCCESS · minecraft:overworld · 2 item(s) (6 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg diff",
+      "ok": true,
+      "chat": [
+        "[WorldGit] HEAD -> current world",
+        "minecraft:overworld  0 chunks, 0 sections  +0 -0 ~0 !0",
+        "diff finished: SUCCESS · minecraft:overworld (38 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg diff --blocks",
+      "ok": true,
+      "chat": [
+        "[WorldGit] HEAD -> current world",
+        "minecraft:overworld  0 chunks, 0 sections  +0 -0 ~0 !0",
+        "diff finished: SUCCESS · minecraft:overworld (37 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg branch list",
+      "ok": true,
+      "chat": [
+        "* main {minecraft:overworld=5f0187e7a424c358f1f659ea0730f9be2ebe036e}",
+        "branch finished: SUCCESS · minecraft:overworld · 1 item(s) (44 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg branch create m1",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Branch updated: m1",
+        "branch finished: SUCCESS · minecraft:overworld (18 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg tag create t1",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Created tag t1.",
+        "tag finished: SUCCESS · minecraft:overworld (6 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg tag list",
+      "ok": true,
+      "chat": [
+        "t1 5f0187e7",
+        "tag finished: SUCCESS · minecraft:overworld · 1 item(s) (4 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg tag delete t1",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Deleted tag t1.",
+        "tag finished: SUCCESS · minecraft:overworld (4 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg verify",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Verified HEAD: the world matches.",
+        "verify finished: SUCCESS · minecraft:overworld · minecraft:overworld: no changes (8132 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg info",
+      "ok": true,
+      "chat": [
+        "  World: /root/projects/ProjectCollection/WorldGit/.work/fabric-phase5/dedicated-1.21.11-1791521423/session-a/server/world",
+        "  Repository: /root/projects/ProjectCollection/WorldGit/.work/fabric-phase5/dedicated-1.21.11-1791521423/session-a/server/world/.worldgit",
+        "  Your client handshake: NO_MOD 沒有在 120 ticks 內回覆 hello",
+        "  Tracked dimensions: minecraft:overworld, minecraft:the_end, minecraft:the_nether",
+        "info finished: SUCCESS · minecraft:overworld (6 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg reload",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Language overrides reloaded.",
+        "reload finished: SUCCESS · minecraft:overworld (3 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg clear",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Preview cleared.",
+        "clear finished: SUCCESS · minecraft:overworld (0 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg cancel",
+      "ok": true,
+      "chat": [
+        "[WorldGit] No active operation.",
+        "cancel finished: SUCCESS · minecraft:overworld (0 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg conflicts",
+      "ok": true,
+      "chat": [
+        "No conflict regions.",
+        "conflicts finished: SUCCESS · minecraft:overworld (1 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg stash push saved",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Completed stash push saved.",
+        "[WorldGit] Complete: 1 sections, 0 entity operations.",
+        "stash finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；main @ 5f0187e7 (407 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg stash list",
+      "ok": true,
+      "chat": [
+        "stash@{0} a61819a4-1224-4d9a-98bc-cba55030eb85 2026-10-09T04:52:26.265029292Z saved",
+        "stash finished: SUCCESS · minecraft:overworld (16 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg stash pop",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Completed stash pop.",
+        "[WorldGit] Complete: 1 sections, 0 entity operations.",
+        "stash finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；main @ 5f0187e7 (286 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg commit -m stash-result",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot 4e549931.",
+        "  minecraft:overworld f8d6d4e7cd  +1 -0 ~0 !0",
+        "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld f8d6d4e7: added 1 blocks, 1 sections (122 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg switch m1",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Completed switch m1.",
+        "[WorldGit] Complete: 1 sections, 0 entity operations.",
+        "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；m1 @ 5f0187e7 (251 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg switch main",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Completed switch main.",
+        "[WorldGit] Complete: 1 sections, 0 entity operations.",
+        "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；main @ f8d6d4e7 (291 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg restore HEAD --dry-run",
+      "ok": true,
+      "chat": [
+        "[WorldGit] dry run: 0 sections, 0 entity operations.",
+        "restore finished: SUCCESS · minecraft:overworld · dry run, nothing written (minecraft:overworld: no changes) (110 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg reset --hard --dry-run",
+      "ok": true,
+      "chat": [
+        "[WorldGit] dry run: 0 sections, 0 entity operations.",
+        "reset finished: SUCCESS · minecraft:overworld · dry run, nothing written (minecraft:overworld: no changes) (38 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg branch delete m1",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Branch updated: m1",
+        "branch finished: SUCCESS · minecraft:overworld (17 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg preview HEAD",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Your client does not have the WorldGit mod, or the handshake has not finished, so outlines and ghosts cannot be shown. Handshake state: NO_MOD 沒有在 120 ticks 內回覆 hello [Copy]",
+        "preview finished: FAILED · minecraft:overworld (2 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "error message has a separate copy button",
+      "ok": true,
+      "clicks": [
+        "code=FABRIC_OPERATION operation=preview id=6a31b3db-1f31-47ec-a55a-e967fc7d8533 dimension=minecraft:overworld WorldGit=0.1.0-SNAPSHOT Minecraft=1.21.11 platform=Fabric Loader 0.19.5 dedicated UTC=2026-10-09T04:52:34.438394141Z\n[WorldGit] Your client does not have the WorldGit mod, or the handshake has not finished, so outlines and ghosts cannot be shown. Handshake state: NO_MOD 沒有在 120 ticks 內回覆 hello",
+        "code=FABRIC_OPERATION operation=preview id=6a31b3db-1f31-47ec-a55a-e967fc7d8533 dimension=minecraft:overworld WorldGit=0.1.0-SNAPSHOT Minecraft=1.21.11 platform=Fabric Loader 0.19.5 dedicated UTC=2026-10-09T04:52:34.439493414Z\npreview"
+      ]
+    },
+    {
+      "name": "completion message: wg fetch",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] Invalid Hub response or request. [Copy]",
+        "fetch finished: FAILED · minecraft:overworld (12 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg push",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] Invalid Hub response or request. [Copy]",
+        "push finished: FAILED · minecraft:overworld (5 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg pull",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] Invalid Hub response or request. [Copy]",
+        "pull finished: FAILED · minecraft:overworld (5 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg pr list",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] Invalid Hub response or request. [Copy]",
+        "pr finished: FAILED · minecraft:overworld (4 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg comments",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] Invalid Hub response or request. [Copy]",
+        "comments finished: FAILED · minecraft:overworld (7 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg remote list",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] No entries.",
+        "remote finished: SUCCESS · minecraft:overworld (4 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg switch phase5-arbitrary-secret",
+      "ok": true,
+      "chat": [
+        "Error: 無法解析 commit：[REDACTED] [Copy]",
+        "switch finished: FAILED · minecraft:overworld (16 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "copy report masks the environment token and keeps fields",
+      "ok": true,
+      "copies": [
+        "code=FABRIC_OPERATION operation=switch id=f2be36fc-ae29-4784-bead-84e0e836b25d dimension=minecraft:overworld WorldGit=0.1.0-SNAPSHOT Minecraft=1.21.11 platform=Fabric Loader 0.19.5 dedicated UTC=2026-10-09T04:52:39.712618473Z\n無法解析 commit：[REDACTED]\nError: 無法解析 commit：[REDACTED]",
+        "code=FABRIC_OPERATION operation=switch id=f2be36fc-ae29-4784-bead-84e0e836b25d dimension=minecraft:overworld WorldGit=0.1.0-SNAPSHOT Minecraft=1.21.11 platform=Fabric Loader 0.19.5 dedicated UTC=2026-10-09T04:52:39.712618473Z\n無法解析 commit：[REDACTED]\nError: 無法解析 commit：[REDACTED]"
+      ]
+    },
+    {
+      "name": "completion message: wg switch yaml-arbitrary-secret",
+      "ok": true,
+      "chat": [
+        "Error: 無法解析 commit：[REDACTED] [Copy]",
+        "switch finished: FAILED · minecraft:overworld (13 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "copy report masks the credentials file token",
+      "ok": true,
+      "copies": [
+        "code=FABRIC_OPERATION operation=switch id=9048a54b-74b8-43fe-a554-f5aae71b7056 dimension=minecraft:overworld WorldGit=0.1.0-SNAPSHOT Minecraft=1.21.11 platform=Fabric Loader 0.19.5 dedicated UTC=2026-10-09T04:52:40.461227275Z\n無法解析 commit：[REDACTED]\nError: 無法解析 commit：[REDACTED]",
+        "code=FABRIC_OPERATION operation=switch id=9048a54b-74b8-43fe-a554-f5aae71b7056 dimension=minecraft:overworld WorldGit=0.1.0-SNAPSHOT Minecraft=1.21.11 platform=Fabric Loader 0.19.5 dedicated UTC=2026-10-09T04:52:40.461227275Z\n無法解析 commit：[REDACTED]\nError: 無法解析 commit：[REDACTED]"
+      ]
+    },
+    {
+      "name": "copy hover text comes from i18n",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg remote add origin https://hub.invalid/alice/world",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] Remote configuration updated.",
+        "remote finished: SUCCESS · minecraft:overworld (10 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg remote list",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] origin → https://hub.invalid/git/alice/world/minecraft.overworld.git",
+        "remote finished: SUCCESS · minecraft:overworld (2 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg remote set-url origin https://hub.invalid/bob/world",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] Remote configuration updated.",
+        "remote finished: SUCCESS · minecraft:overworld (8 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg remote remove origin",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Processing remote operation in the background…",
+        "[WorldGit] Remote configuration updated.",
+        "remote finished: SUCCESS · minecraft:overworld (6 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg init --dimension minecraft:the_nether",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Initializing (saving the world and creating the first full snapshot; large worlds take a while)...",
+        "[WorldGit] Initialization complete: 0 dimension(s), snapshot b4a73e85.",
+        "  minecraft:the_nether is already initialized, skipped",
+        "init finished: NO_OP · minecraft:the_nether · minecraft:the_nether already initialized, skipped (14 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg status --all",
+      "ok": true,
+      "chat": [
+        "  entities 0, biomes 0, metadata 3",
+        "  c.-4.3 s.7  +20 -0 ~0 !0",
+        "  c.0.1 s.2  +8 -0 ~0 !0",
+        "status finished: SUCCESS · minecraft:the_nether · minecraft:the_nether: added 28 blocks, 2 sections, 3 world data changes (6839 ms)",
+        "status finished: SUCCESS · all · minecraft:overworld SUCCESS；minecraft:the_end SUCCESS；minecraft:the_nether SUCCESS (6893 ms)"
+      ]
+    },
+    {
+      "name": "--all reports each dimension separately and then the batch",
+      "ok": true,
+      "finished": [
+        "status finished: SUCCESS · minecraft:overworld · minecraft:overworld: clean (27 ms)",
+        "status finished: SUCCESS · minecraft:the_end · minecraft:the_end: clean (18 ms)",
+        "status finished: SUCCESS · minecraft:the_nether · minecraft:the_nether: added 28 blocks, 2 sections, 3 world data changes (6839 ms)",
+        "status finished: SUCCESS · all · minecraft:overworld SUCCESS；minecraft:the_end SUCCESS；minecraft:the_nether SUCCESS (6893 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg log --graph --all",
+      "ok": true,
+      "chat": [
+        "log finished: SUCCESS · minecraft:the_end · 1 item(s) (7 ms)",
+        "[WorldGit] minecraft:the_nether branch graph, page 1",
+        "* 60bf0d1b [main] [HEAD] Initialize world",
+        "log finished: SUCCESS · minecraft:the_nether · 1 item(s) (3 ms)",
+        "log finished: SUCCESS · all · minecraft:overworld SUCCESS；minecraft:the_end SUCCESS；minecraft:the_nether SUCCESS (19 ms)"
+      ]
+    },
+    {
+      "name": "--dimension targets one dimension",
+      "ok": true,
+      "clicks": [
+        "/wg diff f8d6d4e7cd8a37d4ca17f745990dff9d19fca251 --dimension minecraft:overworld",
+        "/wg diff 5f0187e7a424c358f1f659ea0730f9be2ebe036e --dimension minecraft:overworld",
+        "/wg diff d2242e5c924cdc5e4a0e50d5460aac8f37e9c102 --dimension minecraft:overworld",
+        "/wg diff ca940558a905744dc0c570a52825aa9a51703f72 --dimension minecraft:the_end",
+        "/wg diff 60bf0d1b5b46620e87cb48dcd61b9346b1ec31f0 --dimension minecraft:the_nether"
+      ]
+    },
+    {
+      "name": "completion message: wg branch create only-nether --dimension minecraft:the_nether",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Branch updated: only-nether",
+        "branch finished: SUCCESS · minecraft:the_nether (17 ms)"
+      ]
+    },
+    {
+      "name": "--dimension isolates the branch",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg commit -m natural-cow",
+      "ok": true,
+      "chat": [
+        "[WorldGit] No changes, so no commit was created.",
+        "  minecraft:overworld no changes",
+        "commit finished: NO_OP · minecraft:overworld · minecraft:overworld: no changes (54 ms)"
+      ]
+    },
+    {
+      "name": "natural cow is not committed",
+      "ok": true,
+      "entities": []
+    },
+    {
+      "name": "completion message: wg commit -m named-cow",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot 0a2c2194.",
+        "  minecraft:overworld 2fcc947d9f  +0 -0 ~0 !0",
+        "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 2fcc947d: 1 entity changes, 1 world data changes (8173 ms)"
+      ]
+    },
+    {
+      "name": "named cow becomes player-touched and is committed",
+      "ok": true,
+      "interact": {
+        "name": "name_tag",
+        "components": [
+          {
+            "type": "custom_name",
+            "data": {
+              "type": "string",
+              "value": "\"Named\""
+            }
+          }
+        ]
+      },
+      "entities": [
+        "39733891-6593-4923-a2cb-ca13bd3ca54d"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore list",
+      "ok": true,
+      "chat": [
+        "4 # # entity minecraft:item              # 掉落物",
+        "5 # # entity minecraft:experience_orb    # 經驗球",
+        "6 # # entity #minecraft:arrows           # 箭",
+        "7 # # entity * !persistent               # 自然刷出、會自然消失的生物",
+        "ignore finished: SUCCESS · minecraft:overworld (7 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore check",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Rules are valid: 7 lines.",
+        "ignore finished: SUCCESS · minecraft:overworld (3 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore add entity minecraft:cow",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Preview: 0 blocks, 0 block entities, 1 entities, 0 biome samples, 0 metadata fields; samples entity 39733891-6593-4923-a2cb-ca13bd3ca54d",
+        "[Confirm change 9e3d90ad]",
+        "ignore finished: SUCCESS · minecraft:overworld (3764 ms)"
+      ]
+    },
+    {
+      "name": "ignore add previews before any change and offers a confirm click",
+      "ok": true,
+      "clicks": [
+        "/wg ignore --dimension minecraft:overworld confirm 9e3d90ad"
+      ]
+    },
+    {
+      "name": "ignore file unchanged before confirmation",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg ignore --dimension minecraft:overworld confirm 9e3d90ad",
+      "ok": true,
+      "chat": [
+        "[WorldGit] .wgignore updated. The next commit stores the rule history.",
+        "ignore finished: SUCCESS · minecraft:overworld (9 ms)"
+      ]
+    },
+    {
+      "name": "ignore confirmed writes the rule",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg ignore test entity minecraft:cow 0,64,0",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Excluded: true; last matching line 8: entity minecraft:cow",
+        "ignore finished: SUCCESS · minecraft:overworld (14 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore move 1 1",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Preview: 0 blocks, 0 block entities, 1 entities, 0 biome samples, 0 metadata fields; samples entity 39733891-6593-4923-a2cb-ca13bd3ca54d",
+        "[Confirm change 61d616cc]",
+        "ignore finished: SUCCESS · minecraft:overworld (3719 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore cancel",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Pending ignore change discarded.",
+        "ignore finished: SUCCESS · minecraft:overworld (0 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore disable 1",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Preview: 0 blocks, 0 block entities, 1 entities, 0 biome samples, 0 metadata fields; samples entity 39733891-6593-4923-a2cb-ca13bd3ca54d",
+        "[Confirm change 1b62ac7e]",
+        "ignore finished: SUCCESS · minecraft:overworld (3806 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore --dimension minecraft:overworld confirm 1b62ac7e",
+      "ok": true,
+      "chat": [
+        "[WorldGit] .wgignore updated. The next commit stores the rule history.",
+        "ignore finished: SUCCESS · minecraft:overworld (8 ms)"
+      ]
+    },
+    {
+      "name": "disabled rule is kept as a restorable line",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg ignore enable 1",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Preview: 0 blocks, 0 block entities, 1 entities, 0 biome samples, 0 metadata fields; samples entity 39733891-6593-4923-a2cb-ca13bd3ca54d",
+        "[Confirm change 2506ec0b]",
+        "ignore finished: SUCCESS · minecraft:overworld (3415 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore --dimension minecraft:overworld confirm 2506ec0b",
+      "ok": true,
+      "chat": [
+        "[WorldGit] .wgignore updated. The next commit stores the rule history.",
+        "ignore finished: SUCCESS · minecraft:overworld (7 ms)"
+      ]
+    },
+    {
+      "name": "non-privileged player cannot use ignore (permission)",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg commit -m ignored-cow",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot d50e4ff8.",
+        "  minecraft:overworld 525e05814c  +0 -0 ~0 !0",
+        "Note: .wgignore 已修改；新規則排除的已追蹤內容會在下次 commit 從快照移除。",
+        "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 525e0581: 1 entity changes, 1 world data changes (8133 ms)"
+      ]
+    },
+    {
+      "name": "committed ignore rule excludes the cow from the next snapshot",
+      "ok": true
+    },
+    {
+      "name": "placed armor stand exists",
+      "ok": true,
+      "entities": "[04:53:52] [Server thread/INFO]: WGENTITIES minecraft:overworld [minecraft:armor_stand:116cc38d-4508-4226-ad75-1d77cb06ba57, minecraft:cow:39733891-6593-4923-a2cb-ca13bd3ca54d]"
+    },
+    {
+      "name": "completion message: wg commit -m armor-stand",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot 9fb2d1c2.",
+        "  minecraft:overworld e96b79871d  +0 -0 ~0 !0",
+        "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld e96b7987: 1 entity changes, 1 world data changes (8103 ms)"
+      ]
+    },
+    {
+      "name": "placed armor stand is player-touched and committed",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg restore HEAD",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Completed restore HEAD.",
+        "[WorldGit] Complete: 0 sections, 1 entity operations.",
+        "restore finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 entity operations；main @ e96b7987 (206 ms)"
+      ]
+    },
+    {
+      "name": "armor stand restored; natural cow created after the commit is preserved",
+      "ok": true,
+      "entities": "[04:54:04] [Server thread/INFO]: WGENTITIES minecraft:overworld [minecraft:armor_stand:116cc38d-4508-4226-ad75-1d77cb06ba57, minecraft:cow:39733891-6593-4923-a2cb-ca13bd3ca54d, minecraft:cow:5e6e753f-10f7-43da-bfed-ac1d355a50ad]"
+    },
+    {
+      "name": "transferred armor stand is present in the destination before restore",
+      "ok": true,
+      "entities": "[04:54:07] [Server thread/INFO]: WGKNOWN minecraft:the_nether true"
+    },
+    {
+      "name": "completion message: wg restore HEAD",
+      "ok": true,
+      "chat": [
+        "Entity 116cc38d-4508-4226-ad75-1d77cb06ba57 already exists in minecraft:the_nether; refusing to create a duplicate UUID. Move or remove it first. [Copy]",
+        "restore finished: FAILED · minecraft:overworld (100 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "cross-dimension duplicate UUID is rejected before writing and names the dimension",
+      "ok": true,
+      "chat": [
+        "Entity 116cc38d-4508-4226-ad75-1d77cb06ba57 already exists in minecraft:the_nether; refusing to create a duplicate UUID. Move or remove it first. [Copy]",
+        "restore finished: FAILED · minecraft:overworld (100 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg commit --dimension minecraft:the_nether -m transferred",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot c8780df1.",
+        "  minecraft:the_nether d5b6520bbd  +28 -0 ~0 !0",
+        "commit finished: SUCCESS · minecraft:the_nether · minecraft:the_nether d5b6520b: added 28 blocks, 2 sections, 1 entity changes, 4 world data changes (6858 ms)"
+      ]
+    },
+    {
+      "name": "destination dimension inherits the touched UUID",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg commit -m departed",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot fda12e43.",
+        "  minecraft:overworld 780303eb18  +0 -0 ~0 !0",
+        "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 780303eb: 1 entity changes, 1 world data changes (71 ms)"
+      ]
+    },
+    {
+      "name": "source dimension drops the departed UUID on the next commit",
+      "ok": true
+    },
+    {
+      "name": "completion message: wg branch create base-p5",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Branch updated: base-p5",
+        "branch finished: SUCCESS · minecraft:overworld (20 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg switch base-p5",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Completed switch base-p5.",
+        "[WorldGit] Complete: 0 sections, 0 entity operations.",
+        "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: no changes；base-p5 @ 780303eb (8112 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg commit -m theirs-side",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot d77649f0.",
+        "  minecraft:overworld 820e674dc9  +1 -0 ~0 !0",
+        "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 820e674d: added 1 blocks, 1 sections (68 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg branch create theirs-p5",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Branch updated: theirs-p5",
+        "branch finished: SUCCESS · minecraft:overworld (19 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg switch main",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Completed switch main.",
+        "[WorldGit] Complete: 1 sections, 0 entity operations.",
+        "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；main @ 780303eb (274 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg commit -m ours-side",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Committed: 1 dimension(s), snapshot ced70129.",
+        "  minecraft:overworld 0e5d09a46e  +1 -0 ~0 !0",
+        "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 0e5d09a4: added 1 blocks, 1 sections (104 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg branch create ours-p5",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Branch updated: ours-p5",
+        "branch finished: SUCCESS · minecraft:overworld (20 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg merge theirs-p5",
+      "ok": true,
+      "chat": [
+        "[WorldGit] MERGING: 1 unresolved regions.",
+        "[WorldGit] MERGING: 1 unresolved regions.",
+        "merge finished: SUCCESS · minecraft:overworld · 1 unresolved conflict regions (266 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg conflicts",
+      "ok": true,
+      "chat": [
+        "[WorldGit] MERGING: 1/1 unresolved regions.",
+        "! #1 minecraft:overworld BlockBox[minX=5, minY=64, minZ=5, maxX=5, maxY=64, maxZ=5] (1 blocks) ours: WgBot <bf106328-e87d-38fb-af6a-43e60f8a3ea8@players.worldgit.local>; theirs: WgBot <bf106328-e87d-38fb-af6a-43e60f8a3ea8@players.worldgit.local>; choice: OURS; resolved: false; redstone: false",
+        "conflicts finished: SUCCESS · minecraft:overworld (11 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg ignore add entity minecraft:pig",
+      "ok": true,
+      "chat": [
+        "[WorldGit] .wgignore cannot be changed while MERGING. [Copy]",
+        "ignore finished: FAILED · minecraft:overworld (6 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "ignore edits are refused while MERGING",
+      "ok": true,
+      "chat": [
+        "[WorldGit] .wgignore cannot be changed while MERGING. [Copy]",
+        "ignore finished: FAILED · minecraft:overworld (6 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg commit -m while-merging",
+      "ok": true,
+      "chat": [
+        "Error: 尚有 1 個衝突區域未解決 [Copy]",
+        "commit finished: FAILED · minecraft:overworld (21 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "completion message: wg conflict-select 1 theirs",
+      "ok": true,
+      "chat": [
+        "[WorldGit] MERGING: 1 unresolved regions.",
+        "[WorldGit] MERGING: 1 unresolved regions.",
+        "conflict-select finished: SUCCESS · minecraft:overworld · 1 unresolved conflict regions (266 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg resolve 1 ours",
+      "ok": true,
+      "chat": [
+        "[WorldGit] MERGING: 0 unresolved regions.",
+        "[WorldGit] MERGING: 0 unresolved regions.",
+        "resolve finished: SUCCESS · minecraft:overworld · no unresolved conflicts (239 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg merge --continue",
+      "ok": true,
+      "chat": [
+        "[WorldGit] COMPLETE: 0 unresolved regions.",
+        "[WorldGit] COMPLETE: 0 unresolved regions.",
+        "merge finished: SUCCESS · minecraft:overworld · commits minecraft:overworld f844d253, no unresolved conflicts (8213 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg switch ours-p5",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Completed switch ours-p5.",
+        "[WorldGit] Complete: 0 sections, 0 entity operations.",
+        "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: no changes；ours-p5 @ 0e5d09a4 (84 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg merge theirs-p5",
+      "ok": true,
+      "chat": [
+        "[WorldGit] MERGING: 1 unresolved regions.",
+        "[WorldGit] MERGING: 1 unresolved regions.",
+        "merge finished: SUCCESS · minecraft:overworld · 1 unresolved conflict regions (216 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg merge --abort",
+      "ok": true,
+      "chat": [
+        "[WorldGit] COMPLETE: 0 unresolved regions.",
+        "[WorldGit] COMPLETE: 0 unresolved regions.",
+        "merge finished: SUCCESS · minecraft:overworld · no unresolved conflicts (132 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg revert HEAD",
+      "ok": true,
+      "chat": [
+        "[WorldGit] COMPLETE: 0 unresolved regions.",
+        "[WorldGit] COMPLETE: 0 unresolved regions.",
+        "revert finished: SUCCESS · minecraft:overworld · commits minecraft:overworld f975bf06, no unresolved conflicts (520 ms)"
+      ]
+    },
+    {
+      "name": "completion message: wg cherry-pick theirs-p5",
+      "ok": true,
+      "chat": [
+        "[WorldGit] COMPLETE: 0 unresolved regions.",
+        "[WorldGit] COMPLETE: 0 unresolved regions.",
+        "cherry-pick finished: SUCCESS · minecraft:overworld · commits minecraft:overworld 3bad8e02, no unresolved conflicts (550 ms)"
+      ]
+    },
+    {
+      "name": "status creates exactly one BossBar for the executor",
+      "ok": true,
+      "ids": [
+        "72823dd3-ac54-4742-949d-379b08fc7026"
+      ]
+    },
+    {
+      "name": "bossbar added, updated with progress, shows the terminal state and is removed",
+      "ok": true,
+      "id": "72823dd3-ac54-4742-949d-379b08fc7026",
+      "actions": [
+        0,
+        3,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        2,
+        4,
+        2,
+        3,
+        1
+      ],
+      "packets": [
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 0,
+            "title": {
+              "type": "string",
+              "value": ""
+            },
+            "health": 1,
+            "color": 1,
+            "dividers": 0,
+            "flags": 0
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Starting · … · ETA —"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 1% · ETA 4s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.012345679104328156
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 3% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.03703703731298447
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 4% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.04938271641731262
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 7% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.07407407462596893
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 9% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.09876543283462524
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 11% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.1111111119389534
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 13% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.1358024626970291
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 14% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.14814814925193787
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 17% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.17283950746059418
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 18% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.18518517911434174
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 20% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.20987653732299805
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 22% · ETA 6s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.2222222238779068
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 24% · ETA 5s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.2469135820865631
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 25% · ETA 5s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.25925925374031067
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 28% · ETA 5s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.2839506268501282
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 30% · ETA 5s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.3086419701576233
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 33% · ETA 5s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.3333333432674408
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 34% · ETA 5s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.34567901492118835
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 37% · ETA 5s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.37037035822868347
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 39% · ETA 4s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.395061731338501
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 40% · ETA 4s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.40509259700775146
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 42% · ETA 4s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.4297839403152466
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 45% · ETA 4s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.4544753134250641
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 47% · ETA 4s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.4791666567325592
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 50% · ETA 3s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.5038580298423767
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 51% · ETA 3s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.5162037014961243
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 54% · ETA 3s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.5408950448036194
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 56% · ETA 3s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.5625
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 58% · ETA 3s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.5871913433074951
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 59% · ETA 3s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.5995370149612427
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 62% · ETA 3s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.6242284178733826
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 64% · ETA 2s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.6489197611808777
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 67% · ETA 2s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.6736111044883728
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 68% · ETA 2s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.6859567761421204
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 71% · ETA 2s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.7106481194496155
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 72% · ETA 2s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.7229938507080078
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 74% · ETA 2s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.7476851940155029
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 76% · ETA 1s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.7600308656692505
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 78% · ETA 1s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.7847222089767456
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 79% · ETA 1s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.7970678806304932
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 82% · ETA 1s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.8217592835426331
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 83% · ETA 1s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.8341049551963806
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 85% · ETA 1s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.8587962985038757
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 88% · ETA 0s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.8834876418113708
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 90% · ETA 0s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.908178985118866
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 92% · ETA 0s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.9205247163772583
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 94% · ETA 0s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.9452160596847534
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 95% · ETA 0s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.957561731338501
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 96% · ETA 0s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.9699074029922485
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status · minecraft:overworld · Capturing · 99% · ETA 0s"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 0.9945987462997437
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 4,
+            "color": 3,
+            "dividers": 0
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 2,
+            "health": 1
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 3,
+            "title": {
+              "type": "string",
+              "value": "status finished: SUCCESS · minecraft:overworld (8169 ms)"
+            }
+          }
+        },
+        {
+          "ev": "bossbar",
+          "packet": {
+            "entityUUID": "72823dd3-ac54-4742-949d-379b08fc7026",
+            "action": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "auto commit has a terminal message (log + authorized player)",
+      "ok": true,
+      "log": "erver thread/INFO]: WGAUTO queued\n[04:55:07] [WorldGit-repo/INFO]: WORLDGIT AUTO_COMMIT reason=Auto-save on logout: fixture changedDimensions=1 success=true\n[04:55:07] [Server thread/INFO]: WORLDGIT RESULT <aqua>auto.commit finished: SUCCESS</aqua><gray> · all · minecraft:overworld cc754ba2: added 1 blocks, 1 sections; minecraft:the_end: no changes; minecraft:the_nether: no changes (119 ms)</gray>"
+    },
+    {
+      "name": "logout commit has a terminal message",
+      "ok": true,
+      "log": "[04:55:10] [Server thread/INFO]: WORLDGIT RESULT <aqua>logout.commit finished: SUCCESS</aqua><gray> · all · minecraft:overworld 615087f7: added 1 blocks, 1 sections; minecraft:the_end: no changes; minecraft:the_nether: no changes (93 ms)</gray>"
+    },
+    {
+      "name": "shutdown commit has a terminal message",
+      "ok": true,
+      "log": "[04:55:10] [Server thread/INFO]: WORLDGIT RESULT <aqua>shutdown.commit finished: NO_OP</aqua><gray> · all · minecraft:overworld: no changes; minecraft:the_end: no changes; minecraft:the_nether: no changes (105 ms)</gray>"
+    },
+    {
+      "name": "server log has no unexpected ERROR",
+      "ok": true,
+      "problems": [
+        "[04:52:39] [Server thread/WARN]: WORLDGIT command failed: 無法解析 commit：[REDACTED]",
+        "[04:52:40] [Server thread/WARN]: WORLDGIT command failed: 無法解析 commit：[REDACTED]",
+        "[04:54:07] [Server thread/WARN]: WORLDGIT command failed: 目標實體 UUID 116cc38d-4508-4226-ad75-1d77cb06ba57 已存在於維度 minecraft:the_nether；為避免 UUID 重複，已在寫入前拒絕",
+        "[04:54:35] [Server thread/WARN]: WORLDGIT command failed: fabric.ignore.merging",
+        "[04:54:36] [Server thread/WARN]: WORLDGIT command failed: 尚有 1 個衝突區域未解決"
+      ]
+    },
+    {
+      "name": "offline verify has zero differences",
+      "ok": true,
+      "stdout": "         }\n        },\n        \"elapsedMillis\" : 3999,\n        \"nextSteps\" : [ ],\n        \"error\" : null\n      }\n    }\n  },\n  \"result\" : {\n    \"operationId\" : \"8cde63e0-cf46-49c3-8306-e780f36fe456\",\n    \"operation\" : \"verify\",\n    \"status\" : \"SUCCESS\",\n    \"dimension\" : null,\n    \"summary\" : {\n      \"dimensions\" : 3\n    },\n    \"elapsedMillis\" : 3999,\n    \"nextSteps\" : [ ],\n    \"error\" : null\n  }\n}\n"
+    },
+    {
+      "name": "true client receives nether, End and All append buttons",
+      "ok": true,
+      "clicks": [
+        "/wg init --dimension minecraft:the_nether --template creative",
+        "/wg init --dimension minecraft:the_end --template creative",
+        "/wg init --all --template creative"
+      ]
+    },
+    {
+      "name": "client append command initializes minecraft:the_nether",
+      "ok": true
+    },
+    {
+      "name": "client append command initializes minecraft:the_end",
+      "ok": true
+    },
+    {
+      "name": "UI capability negotiated",
+      "ok": true
+    },
+    {
+      "name": "long scan shows running HUD",
+      "ok": true,
+      "hud": {
+        "ok": true,
+        "summary": "RUNNING|status|start|-1"
+      }
+    },
+    {
+      "name": "vanilla BossBar appears with HUD",
+      "ok": true,
+      "state": {
+        "count": 1,
+        "summary": "RUNNING|status|start|-1",
+        "bars": [
+          "status · minecraft:overworld · Capturing · 2% · ETA 5s"
+        ]
+      }
+    },
+    {
+      "name": "HUD displays the terminal state",
+      "ok": true,
+      "hud": {
+        "ok": true,
+        "summary": "SUCCESS|status|capture|100"
+      }
+    },
+    {
+      "name": "BossBar displays the same terminal state",
+      "ok": true,
+      "state": {
+        "count": 1,
+        "summary": "SUCCESS|status|capture|100",
+        "bars": [
+          "status finished: SUCCESS · minecraft:overworld (8218 ms)"
+        ]
+      }
+    },
+    {
+      "name": "completion is human readable",
+      "ok": true,
+      "chat": [
+        "[WorldGit] No uncommitted changes.",
+        "minecraft:overworld  0 chunks, 0 sections  +0 -0 ~0 !0",
+        "status finished: SUCCESS · minecraft:overworld · minecraft:overworld: clean (8218 ms)"
+      ]
+    },
+    {
+      "name": "terminal HUD disappears after TTL",
+      "ok": true
+    },
+    {
+      "name": "terminal BossBar disappears after TTL",
+      "ok": true
+    },
+    {
+      "name": "armor stand is tracked before the GUI edit",
+      "ok": true
+    },
+    {
+      "name": "client chat graph has hover and suggest",
+      "ok": true
+    },
+    {
+      "name": "graph Screen opens",
+      "ok": true
+    },
+    {
+      "name": "graph Screen displays server nodes",
+      "ok": true,
+      "nodes": 2
+    },
+    {
+      "name": "graph refresh publishes a new server generation",
+      "ok": true
+    },
+    {
+      "name": "copy commit button works",
+      "ok": true
+    },
+    {
+      "name": "graph copies the full commit id",
+      "ok": true
+    },
+    {
+      "name": "diff button fills chat",
+      "ok": true
+    },
+    {
+      "name": "suggested diff is bound to the graph dimension",
+      "ok": true
+    },
+    {
+      "name": "client business error has copy and i18n hover",
+      "ok": true
+    },
+    {
+      "name": "copy hover is hit by the real mouse",
+      "ok": true
+    },
+    {
+      "name": "ignore Screen opens",
+      "ok": true
+    },
+    {
+      "name": "ignore Screen preserves comments without a duplicated marker",
+      "ok": true,
+      "rows": [
+        " # WorldGit 創造模式範本：完整追蹤方塊／BE／biome／地形。",
+        " # 新 repo 使用 entities: player-touched，只追蹤玩家放出／更改的實體（玩家除外）。",
+        " # 以下規則可再排除已追蹤內容；有需要時取消註解：",
+        " # entity minecraft:item              # 掉落物",
+        " # entity minecraft:experience_orb    # 經驗球",
+        " # entity #minecraft:arrows           # 箭",
+        " # entity * !persistent               # 自然刷出、會自然消失的生物"
+      ]
+    },
+    {
+      "name": "live syntax errors disable Add",
+      "ok": true,
+      "buttons": [
+        "Close|true",
+        "Reload|true",
+        "Add rule|false",
+        "Delete|false",
+        "Disable|false",
+        "↑|false",
+        "↓|false",
+        "Test aim|true",
+        "Preview|true"
+      ]
+    },
+    {
+      "name": "valid typing enables Add without rebuilding the Screen",
+      "ok": true,
+      "buttons": [
+        "Close|true",
+        "Reload|true",
+        "Add rule|true",
+        "Delete|false",
+        "Disable|false",
+        "↑|false",
+        "↓|false",
+        "Test aim|true",
+        "Preview|true"
+      ]
+    },
+    {
+      "name": "Add sends a server preview request",
+      "ok": true
+    },
+    {
+      "name": "preview requires explicit confirmation",
+      "ok": true,
+      "buttons": [
+        "Close|true",
+        "Reload|true",
+        "Add rule|false",
+        "Confirm change|true",
+        "Cancel|true"
+      ]
+    },
+    {
+      "name": "Confirm sends the preview code",
+      "ok": true
+    },
+    {
+      "name": "confirmed and committed GUI rule takes effect",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Excluded: true; last matching line 8: entity minecraft:armor_stand",
+        "ignore finished: SUCCESS · minecraft:overworld (23 ms)"
+      ]
+    },
+    {
+      "name": "superseded preview cannot be confirmed",
+      "ok": true,
+      "chat": [
+        "[WorldGit] The ignore preview is stale (rules or HEAD changed). Preview again. [Copy]",
+        "ignore finished: FAILED · minecraft:overworld (12 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "GUI preview-confirm-commit excludes an actual tracked armor stand",
+      "ok": true
+    },
+    {
+      "name": "stale authorized Screen still sends the confirm request",
+      "ok": true
+    },
+    {
+      "name": "server refuses GUI confirmation after permission is revoked and sends copy error",
+      "ok": true,
+      "chat": [
+        "[WorldGit] Editing .wgignore needs the ignore permission (op level 2 by default). [Copy]",
+        "ignore.confirm finished: FAILED · minecraft:overworld (3 ms) [Copy]"
+      ]
+    },
+    {
+      "name": "revoked GUI confirmation leaves the rules unchanged",
+      "ok": true
+    },
+    {
+      "name": "/wgit disabled by YAML",
+      "ok": true,
+      "chat": [
+        "Unknown or incomplete command. See below for error",
+        "wgit help<--[HERE]"
+      ]
+    },
+    {
+      "name": "/git disabled by YAML",
+      "ok": true,
+      "chat": [
+        "Unknown or incomplete command. See below for error",
+        "git help<--[HERE]"
+      ]
+    },
+    {
+      "name": "/wg still works with disabled",
+      "ok": true
+    },
+    {
+      "name": "/worldgit still works with disabled",
+      "ok": true
+    },
+    {
+      "name": "existing third-party /git is preserved",
+      "ok": true,
+      "chat": [
+        "OTHER_GIT"
+      ]
+    },
+    {
+      "name": "/git conflict is logged once",
+      "ok": true
+    },
+    {
+      "name": "/wg still works with conflict",
+      "ok": true
+    },
+    {
+      "name": "/worldgit still works with conflict",
+      "ok": true
+    },
+    {
+      "name": "/wgit works when /git conflicts",
+      "ok": true
+    }
+  ],
+  "evidence": ".work/fabric-phase5/dedicated-1.21.11-1791521423",
+  "artifacts": {
+    "worldgit.jar": "db85dcf3d4651dbc7b28f2f1600508d1da3b65d396611be5bc980612d4d62076",
+    "fixture.jar": "a47f51f38d92b834f670b4a2217f29284dbda562a1aa48f1a30ae59ff20e86c8",
+    "wgit.jar": "c5d1527ddc32d0e092b6cd9ebd960b3c0c24da0a1ec12a14e8a19754260f2215"
+  },
+  "matrix": [
+    {
+      "command": "wg remote",
+      "finished": "remote finished: FAILED · minecraft:overworld (15 ms) [Copy]"
+    },
+    {
+      "command": "wg status",
+      "finished": "status finished: SUCCESS · minecraft:overworld · minecraft:overworld: clean (52 ms)"
+    },
+    {
+      "command": "wg status --full",
+      "finished": "status finished: SUCCESS · minecraft:overworld · minecraft:overworld: clean (8111 ms)"
+    },
+    {
+      "command": "wg commit -m nothing",
+      "finished": "commit finished: NO_OP · minecraft:overworld · minecraft:overworld: no changes (58 ms)"
+    },
+    {
+      "command": "wg commit -m first-change",
+      "finished": "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 5f0187e7: added 1 blocks, 1 sections (210 ms)"
+    },
+    {
+      "command": "wg log",
+      "finished": "log finished: SUCCESS · minecraft:overworld · 2 item(s) (9 ms)"
+    },
+    {
+      "command": "wg log --graph",
+      "finished": "log finished: SUCCESS · minecraft:overworld · 2 item(s) (8 ms)"
+    },
+    {
+      "command": "wg graph",
+      "finished": "graph finished: SUCCESS · minecraft:overworld · 2 item(s) (6 ms)"
+    },
+    {
+      "command": "wg diff",
+      "finished": "diff finished: SUCCESS · minecraft:overworld (38 ms)"
+    },
+    {
+      "command": "wg diff --blocks",
+      "finished": "diff finished: SUCCESS · minecraft:overworld (37 ms)"
+    },
+    {
+      "command": "wg branch list",
+      "finished": "branch finished: SUCCESS · minecraft:overworld · 1 item(s) (44 ms)"
+    },
+    {
+      "command": "wg branch create m1",
+      "finished": "branch finished: SUCCESS · minecraft:overworld (18 ms)"
+    },
+    {
+      "command": "wg tag create t1",
+      "finished": "tag finished: SUCCESS · minecraft:overworld (6 ms)"
+    },
+    {
+      "command": "wg tag list",
+      "finished": "tag finished: SUCCESS · minecraft:overworld · 1 item(s) (4 ms)"
+    },
+    {
+      "command": "wg tag delete t1",
+      "finished": "tag finished: SUCCESS · minecraft:overworld (4 ms)"
+    },
+    {
+      "command": "wg verify",
+      "finished": "verify finished: SUCCESS · minecraft:overworld · minecraft:overworld: no changes (8132 ms)"
+    },
+    {
+      "command": "wg info",
+      "finished": "info finished: SUCCESS · minecraft:overworld (6 ms)"
+    },
+    {
+      "command": "wg reload",
+      "finished": "reload finished: SUCCESS · minecraft:overworld (3 ms)"
+    },
+    {
+      "command": "wg clear",
+      "finished": "clear finished: SUCCESS · minecraft:overworld (0 ms)"
+    },
+    {
+      "command": "wg cancel",
+      "finished": "cancel finished: SUCCESS · minecraft:overworld (0 ms)"
+    },
+    {
+      "command": "wg conflicts",
+      "finished": "conflicts finished: SUCCESS · minecraft:overworld (1 ms)"
+    },
+    {
+      "command": "wg stash push saved",
+      "finished": "stash finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；main @ 5f0187e7 (407 ms)"
+    },
+    {
+      "command": "wg stash list",
+      "finished": "stash finished: SUCCESS · minecraft:overworld (16 ms)"
+    },
+    {
+      "command": "wg stash pop",
+      "finished": "stash finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；main @ 5f0187e7 (286 ms)"
+    },
+    {
+      "command": "wg commit -m stash-result",
+      "finished": "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld f8d6d4e7: added 1 blocks, 1 sections (122 ms)"
+    },
+    {
+      "command": "wg switch m1",
+      "finished": "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；m1 @ 5f0187e7 (251 ms)"
+    },
+    {
+      "command": "wg switch main",
+      "finished": "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；main @ f8d6d4e7 (291 ms)"
+    },
+    {
+      "command": "wg restore HEAD --dry-run",
+      "finished": "restore finished: SUCCESS · minecraft:overworld · dry run, nothing written (minecraft:overworld: no changes) (110 ms)"
+    },
+    {
+      "command": "wg reset --hard --dry-run",
+      "finished": "reset finished: SUCCESS · minecraft:overworld · dry run, nothing written (minecraft:overworld: no changes) (38 ms)"
+    },
+    {
+      "command": "wg branch delete m1",
+      "finished": "branch finished: SUCCESS · minecraft:overworld (17 ms)"
+    },
+    {
+      "command": "wg preview HEAD",
+      "finished": "preview finished: FAILED · minecraft:overworld (2 ms) [Copy]"
+    },
+    {
+      "command": "wg fetch",
+      "finished": "fetch finished: FAILED · minecraft:overworld (12 ms) [Copy]"
+    },
+    {
+      "command": "wg push",
+      "finished": "push finished: FAILED · minecraft:overworld (5 ms) [Copy]"
+    },
+    {
+      "command": "wg pull",
+      "finished": "pull finished: FAILED · minecraft:overworld (5 ms) [Copy]"
+    },
+    {
+      "command": "wg pr list",
+      "finished": "pr finished: FAILED · minecraft:overworld (4 ms) [Copy]"
+    },
+    {
+      "command": "wg comments",
+      "finished": "comments finished: FAILED · minecraft:overworld (7 ms) [Copy]"
+    },
+    {
+      "command": "wg remote list",
+      "finished": "remote finished: SUCCESS · minecraft:overworld (4 ms)"
+    },
+    {
+      "command": "wg switch phase5-arbitrary-secret",
+      "finished": "switch finished: FAILED · minecraft:overworld (16 ms) [Copy]"
+    },
+    {
+      "command": "wg switch yaml-arbitrary-secret",
+      "finished": "switch finished: FAILED · minecraft:overworld (13 ms) [Copy]"
+    },
+    {
+      "command": "wg remote add origin https://hub.invalid/alice/world",
+      "finished": "remote finished: SUCCESS · minecraft:overworld (10 ms)"
+    },
+    {
+      "command": "wg remote list",
+      "finished": "remote finished: SUCCESS · minecraft:overworld (2 ms)"
+    },
+    {
+      "command": "wg remote set-url origin https://hub.invalid/bob/world",
+      "finished": "remote finished: SUCCESS · minecraft:overworld (8 ms)"
+    },
+    {
+      "command": "wg remote remove origin",
+      "finished": "remote finished: SUCCESS · minecraft:overworld (6 ms)"
+    },
+    {
+      "command": "wg init --dimension minecraft:the_nether",
+      "finished": "init finished: NO_OP · minecraft:the_nether · minecraft:the_nether already initialized, skipped (14 ms)"
+    },
+    {
+      "command": "wg status --all",
+      "finished": "status finished: SUCCESS · all · minecraft:overworld SUCCESS；minecraft:the_end SUCCESS；minecraft:the_nether SUCCESS (6893 ms)"
+    },
+    {
+      "command": "wg log --graph --all",
+      "finished": "log finished: SUCCESS · all · minecraft:overworld SUCCESS；minecraft:the_end SUCCESS；minecraft:the_nether SUCCESS (19 ms)"
+    },
+    {
+      "command": "wg branch create only-nether --dimension minecraft:the_nether",
+      "finished": "branch finished: SUCCESS · minecraft:the_nether (17 ms)"
+    },
+    {
+      "command": "wg commit -m natural-cow",
+      "finished": "commit finished: NO_OP · minecraft:overworld · minecraft:overworld: no changes (54 ms)"
+    },
+    {
+      "command": "wg commit -m named-cow",
+      "finished": "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 2fcc947d: 1 entity changes, 1 world data changes (8173 ms)"
+    },
+    {
+      "command": "wg ignore list",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (7 ms)"
+    },
+    {
+      "command": "wg ignore check",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (3 ms)"
+    },
+    {
+      "command": "wg ignore add entity minecraft:cow",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (3764 ms)"
+    },
+    {
+      "command": "wg ignore --dimension minecraft:overworld confirm 9e3d90ad",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (9 ms)"
+    },
+    {
+      "command": "wg ignore test entity minecraft:cow 0,64,0",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (14 ms)"
+    },
+    {
+      "command": "wg ignore move 1 1",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (3719 ms)"
+    },
+    {
+      "command": "wg ignore cancel",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (0 ms)"
+    },
+    {
+      "command": "wg ignore disable 1",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (3806 ms)"
+    },
+    {
+      "command": "wg ignore --dimension minecraft:overworld confirm 1b62ac7e",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (8 ms)"
+    },
+    {
+      "command": "wg ignore enable 1",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (3415 ms)"
+    },
+    {
+      "command": "wg ignore --dimension minecraft:overworld confirm 2506ec0b",
+      "finished": "ignore finished: SUCCESS · minecraft:overworld (7 ms)"
+    },
+    {
+      "command": "wg commit -m ignored-cow",
+      "finished": "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 525e0581: 1 entity changes, 1 world data changes (8133 ms)"
+    },
+    {
+      "command": "wg commit -m armor-stand",
+      "finished": "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld e96b7987: 1 entity changes, 1 world data changes (8103 ms)"
+    },
+    {
+      "command": "wg restore HEAD",
+      "finished": "restore finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 entity operations；main @ e96b7987 (206 ms)"
+    },
+    {
+      "command": "wg restore HEAD",
+      "finished": "restore finished: FAILED · minecraft:overworld (100 ms) [Copy]"
+    },
+    {
+      "command": "wg commit --dimension minecraft:the_nether -m transferred",
+      "finished": "commit finished: SUCCESS · minecraft:the_nether · minecraft:the_nether d5b6520b: added 28 blocks, 2 sections, 1 entity changes, 4 world data changes (6858 ms)"
+    },
+    {
+      "command": "wg commit -m departed",
+      "finished": "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 780303eb: 1 entity changes, 1 world data changes (71 ms)"
+    },
+    {
+      "command": "wg branch create base-p5",
+      "finished": "branch finished: SUCCESS · minecraft:overworld (20 ms)"
+    },
+    {
+      "command": "wg switch base-p5",
+      "finished": "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: no changes；base-p5 @ 780303eb (8112 ms)"
+    },
+    {
+      "command": "wg commit -m theirs-side",
+      "finished": "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 820e674d: added 1 blocks, 1 sections (68 ms)"
+    },
+    {
+      "command": "wg branch create theirs-p5",
+      "finished": "branch finished: SUCCESS · minecraft:overworld (19 ms)"
+    },
+    {
+      "command": "wg switch main",
+      "finished": "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: 1 sections, 1 chunks；main @ 780303eb (274 ms)"
+    },
+    {
+      "command": "wg commit -m ours-side",
+      "finished": "commit finished: SUCCESS · minecraft:overworld · minecraft:overworld 0e5d09a4: added 1 blocks, 1 sections (104 ms)"
+    },
+    {
+      "command": "wg branch create ours-p5",
+      "finished": "branch finished: SUCCESS · minecraft:overworld (20 ms)"
+    },
+    {
+      "command": "wg merge theirs-p5",
+      "finished": "merge finished: SUCCESS · minecraft:overworld · 1 unresolved conflict regions (266 ms)"
+    },
+    {
+      "command": "wg conflicts",
+      "finished": "conflicts finished: SUCCESS · minecraft:overworld (11 ms)"
+    },
+    {
+      "command": "wg ignore add entity minecraft:pig",
+      "finished": "ignore finished: FAILED · minecraft:overworld (6 ms) [Copy]"
+    },
+    {
+      "command": "wg commit -m while-merging",
+      "finished": "commit finished: FAILED · minecraft:overworld (21 ms) [Copy]"
+    },
+    {
+      "command": "wg conflict-select 1 theirs",
+      "finished": "conflict-select finished: SUCCESS · minecraft:overworld · 1 unresolved conflict regions (266 ms)"
+    },
+    {
+      "command": "wg resolve 1 ours",
+      "finished": "resolve finished: SUCCESS · minecraft:overworld · no unresolved conflicts (239 ms)"
+    },
+    {
+      "command": "wg merge --continue",
+      "finished": "merge finished: SUCCESS · minecraft:overworld · commits minecraft:overworld f844d253, no unresolved conflicts (8213 ms)"
+    },
+    {
+      "command": "wg switch ours-p5",
+      "finished": "switch finished: SUCCESS · minecraft:overworld · minecraft:overworld: no changes；ours-p5 @ 0e5d09a4 (84 ms)"
+    },
+    {
+      "command": "wg merge theirs-p5",
+      "finished": "merge finished: SUCCESS · minecraft:overworld · 1 unresolved conflict regions (216 ms)"
+    },
+    {
+      "command": "wg merge --abort",
+      "finished": "merge finished: SUCCESS · minecraft:overworld · no unresolved conflicts (132 ms)"
+    },
+    {
+      "command": "wg revert HEAD",
+      "finished": "revert finished: SUCCESS · minecraft:overworld · commits minecraft:overworld f975bf06, no unresolved conflicts (520 ms)"
+    },
+    {
+      "command": "wg cherry-pick theirs-p5",
+      "finished": "cherry-pick finished: SUCCESS · minecraft:overworld · commits minecraft:overworld 3bad8e02, no unresolved conflicts (550 ms)"
+    }
+  ],
+  "server_problems_a": [
+    "[04:52:39] [Server thread/WARN]: WORLDGIT command failed: 無法解析 commit：[REDACTED]",
+    "[04:52:40] [Server thread/WARN]: WORLDGIT command failed: 無法解析 commit：[REDACTED]",
+    "[04:54:07] [Server thread/WARN]: WORLDGIT command failed: 目標實體 UUID 116cc38d-4508-4226-ad75-1d77cb06ba57 已存在於維度 minecraft:the_nether；為避免 UUID 重複，已在寫入前拒絕",
+    "[04:54:35] [Server thread/WARN]: WORLDGIT command failed: fabric.ignore.merging",
+    "[04:54:36] [Server thread/WARN]: WORLDGIT command failed: 尚有 1 個衝突區域未解決"
+  ],
+  "screenshots": [
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-init-append-buttons.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-progress-running.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-progress-terminal.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-chat-graph.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-graph-screen.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-error-copy-hover.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-ignore-editor.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-ignore-syntax-error.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-ignore-preview.png",
+    "fabric/docs/screenshots/phase5/dedicated-1.21.11-completion-message.png"
+  ],
+  "ports_closed": {
+    "25701": true,
+    "25702": true
+  }
+}

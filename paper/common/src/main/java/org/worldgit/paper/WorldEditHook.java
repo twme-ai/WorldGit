@@ -60,7 +60,7 @@ final class WorldEditHook {
     }
 
     void blockChunk(int chunkX, int chunkZ) {
-      if(plugin.edits().locked(world)) throw new IllegalStateException("WorldGit 正在套用；WorldEdit 寫入被鎖定");
+      if(plugin.edits().locked(world,chunkX,chunkZ)) throw new IllegalStateException("WorldGit 正在套用；WorldEdit 寫入被鎖定");
       if (!seen.add(((long) chunkX << 32) ^ (chunkZ & 0xffffffffL))) return;
       plugin.touchByName(world, chunkX, chunkZ, player, name, "worldedit");
       // 標記發生在實際寫入之前；稍後補標一次，避免 commit 剛好夾在中間而錯過寫入（旗標普查是第二道保險）。

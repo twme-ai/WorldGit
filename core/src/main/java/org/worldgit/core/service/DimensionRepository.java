@@ -121,6 +121,7 @@ public final class DimensionRepository implements AutoCloseable {
       throws IOException {
     Capture c = capture(source, dimensions, tolerance, full, detail, window);
     c.index.save(directory.resolve("worldgit.index"));
+    source.indexSaved();
     return c.status;
   }
 
@@ -187,15 +188,22 @@ public final class DimensionRepository implements AutoCloseable {
             c.index.scannedAt(),
             c.index.chunks())
         .save(directory.resolve("worldgit.index"));
+    source.indexSaved();
     return new CommitResult(id, status);
   }
 
-  /** 全量 capture 的中性 tree；不移動 HEAD。apply 不可依賴舊 index 的候選猜測。 */
+  /** 中性 working tree；沿用來源的保守候選索引，不移動 HEAD。強制完整比對用 full overload。 */
   public String workingTree(
       SnapshotSource source, Map<DimensionId, String> dimensions, double tolerance)
       throws IOException {
-    Capture capture = capture(source, dimensions, tolerance, true, DiffEngine.Detail.SUMMARY, null);
+    return workingTree(source, dimensions, tolerance, false);
+  }
+
+  public String workingTree(SnapshotSource source, Map<DimensionId, String> dimensions,
+      double tolerance, boolean full) throws IOException {
+    Capture capture = capture(source, dimensions, tolerance, full, DiffEngine.Detail.SUMMARY, null);
     capture.index.save(directory.resolve("worldgit.index"));
+    source.indexSaved();
     return capture.tree;
   }
 
@@ -207,6 +215,31 @@ public final class DimensionRepository implements AutoCloseable {
 
   public void invalidateIndex() throws IOException {
     Files.deleteIfExists(directory.resolve("worldgit.index"));
+  }
+
+  /** verify 必須重新擷取實際寫入的 chunk；其他 chunk 仍由來源重新掃描保守證明。 */
+  public void forceRecapture(Collection<ChunkPos> chunks) throws IOException {
+    Path path = directory.resolve("worldgit.index");
+    ScanIndex index;
+    try { index = ScanIndex.read(path); }
+    catch (IOException | RuntimeException e) { invalidateIndex(); return; }
+    var stamps = new HashMap<>(index.chunks());
+    for (var pos : chunks) {
+      var s = stamps.get(pos);
+      if (s != null) stamps.put(pos, new ScanIndex.Stamp(s.terrainFile(), s.terrainTime(),
+          s.terrainLocation(), "", s.entityFile(), s.entityTime(), s.entityLocation(), ""));
+    }
+    new ScanIndex(index.head(), index.rules(), index.tree(), index.scannedAt(), stamps).save(path);
+  }
+
+  /** 已驗證 working tree 不因僅移動 HEAD 再全量失效；規則 fingerprint 仍由下次 capture 核對。 */
+  public void rebindIndex() throws IOException {
+    Path path = directory.resolve("worldgit.index");
+    try {
+      var index = ScanIndex.read(path);
+      if (!index.tree().isEmpty()) new ScanIndex(store.head(), index.rules(), index.tree(),
+          index.scannedAt(), index.chunks()).save(path);
+    } catch (IOException | RuntimeException e) { invalidateIndex(); }
   }
 
   private Capture capture(
@@ -274,22 +307,28 @@ public final class DimensionRepository implements AutoCloseable {
     }
     if (!Objects.equals(old.head(), head == null ? "" : head) || !old.rules().equals(rulesHash))
       old = ScanIndex.empty();
-    full |= old.tree().isEmpty() || playerTouched && !touched.isEmpty();
+    full |= CaptureOptions.full() || old.tree().isEmpty()
+        || playerTouched && !touched.isEmpty() && !source.entityCensusAvailable();
     // 全量 capture 從空樹重建，否則遺失 index 時會保留已從磁碟刪除的舊 chunk。
     String working = full ? null : old.tree();
     var editor = new TreeEditor(store, working);
     org.worldgit.core.operation.OperationProgress.report(dimension, "scan", 0, null, org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
     SnapshotSource.Scan scan = source.scan(old, full);
+    var positions = new ArrayList<>(new TreeSet<>(scan.candidates()));
+    var pending = new ArrayDeque<java.util.concurrent.CompletionStage<Optional<ChunkSnapshot>>>();
+    int requested = 0, snapshotWindow = Math.max(1, Math.min(64, source.snapshotWindow()));
     long completed = 0;
-    for (ChunkPos pos : new TreeSet<>(scan.candidates())) {
+    for (ChunkPos pos : positions) {
       org.worldgit.core.operation.OperationProgress.report(dimension, "capture", completed++, (long) scan.candidates().size(), org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
-      if (modified.isPresent() && !modified.get().contains(pos)) {
-        editor.remove(pos.treePath());
-        continue;
+      while (requested < positions.size() && pending.size() < snapshotWindow) {
+        var next = positions.get(requested++);
+        pending.add(modified.isPresent() && !modified.get().contains(next)
+            ? java.util.concurrent.CompletableFuture.completedFuture(Optional.empty())
+            : source.snapshot(next, rules));
       }
       Optional<ChunkSnapshot> snapshot;
       try {
-        snapshot = source.snapshot(pos, rules).toCompletableFuture().join();
+        snapshot = pending.removeFirst().toCompletableFuture().join();
       } catch (CompletionException e) {
         throw new IOException("讀取 chunk " + pos + " 失敗", e.getCause());
       }
@@ -298,14 +337,17 @@ public final class DimensionRepository implements AutoCloseable {
         if (!pos.equals(snapshot.get().pos())) throw new IOException("來源回傳錯誤 chunk 座標");
         var chunk = snapshot.get();
         if (playerTouched) {
-          var raw = source.snapshot(pos, IgnoreRules.none()).toCompletableFuture().join();
-          if (raw.isPresent()) for (var entity : raw.get().entities()) PlayerTouchedEntities.collect(entity.data(), seenEntities);
+          if (!touched.isEmpty()) {
+            var raw = source.snapshot(pos, IgnoreRules.none()).toCompletableFuture().join();
+            if (raw.isPresent()) for (var entity : raw.get().entities()) PlayerTouchedEntities.collect(entity.data(), seenEntities);
+          }
           chunk = PlayerTouchedEntities.filter(chunk, touched);
         }
         editor.replaceTree(pos.treePath(), SnapshotCodec.chunkFiles(chunk));
       }
     }
     if (playerTouched) {
+      if (source.entityCensusAvailable()) seenEntities.addAll(source.unchangedEntityIds(scan.candidates()));
       touched.retainAll(seenEntities);
       editor.putBlob(PlayerTouchedEntities.FILE, PlayerTouchedEntities.bytes(touched));
     }

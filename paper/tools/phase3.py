@@ -72,9 +72,9 @@ def run(platform, version):
         save();return wall if action=='cycle' else None
     def builds(bot,x,item):
         s.cmd(f'tp {bot.name} {x+5} 65 8');time.sleep(1)
-        s.cmd('wg debug freeze off',r'WGFREEZE restored');time.sleep(.5)
+        s.cmd('wg debug guard off',r'WGCHUNKGUARD restored');time.sleep(.5)
         bot.ask('give '+item,'give');bot.ask(f'place {x} 63 8 0 1 0','placed',30);time.sleep(.5)
-        s.cmd('wg debug freeze on',r'WGFREEZE frozen')
+        s.cmd('wg debug guard on',r'WGCHUNKGUARD locked')
     def variant(material,fence,power):
         # 快照保存實際來源 state；完整 section hash 隨後取 repo，不靠方塊名稱斷言。
         for c in ('15 64 2','15 65 2','16 64 2','17 64 2'):s.cmd('setblock '+c+' air')
@@ -100,7 +100,7 @@ def run(platform, version):
             bots=[s.bot('WgBot',mod=True),s.bot('WgBot2')]
             for i,p in enumerate(bots):s.cmd(f'tp {p.name} {8+24*i} 65 8');s.cmd(f'gamemode creative {p.name}')
             time.sleep(4)
-            s.cmd('wg debug freeze on',r'WGFREEZE frozen');s.cmd('gamerule natural_health_regeneration false');s.cmd('kill @e[type=!player]')
+            s.cmd('wg debug guard on',r'WGCHUNKGUARD locked');s.cmd('gamerule natural_health_regeneration false');s.cmd('kill @e[type=!player]')
             variant('oak','oak',0)
             out=cmd('wg conflict-select 1 ours',r'No merge is in progress|沒有 MERGING',True)
             check('非 MERGING conflict-select 被擋',state() is None,output=out)
@@ -118,7 +118,7 @@ def run(platform, version):
             for bot,cx in [(bots[0],0),(bots[1],2)]:sample(bot,cx,0,revision='merged-clean')
             s.stop();out=wgit(['--world',s.world,'verify','merged-clean']);check('clean merge 離線 verify=0','COMPLETE' in out and 'PARTIAL' not in out,output=out)
             # 离線完整 NBT：兩份 BE 與兩個 UUID（不只看 packet）。
-            s.start();result['console'].append(os.path.relpath(s.evidence_log,ROOT));bots=[s.bot('WgBot',mod=True),s.bot('WgBot2')];time.sleep(4);s.cmd('wg debug freeze on',r'WGFREEZE frozen')
+            s.start();result['console'].append(os.path.relpath(s.evidence_log,ROOT));bots=[s.bot('WgBot',mod=True),s.bot('WgBot2')];time.sleep(4);s.cmd('wg debug guard on',r'WGCHUNKGUARD locked')
             cmd('wg switch base',r'已切換到|Switched|錯誤|Error|PARTIAL');branch('ours-work');cmd('wg switch ours-work',r'已切換到|Switched|錯誤|Error|PARTIAL')
             variant('spruce','spruce',5);commit('ours');branch('ours-original');ours=git('rev-parse','HEAD')
             cmd('wg switch base',r'已切換到|Switched|錯誤|Error|PARTIAL');branch('theirs-work');cmd('wg switch theirs-work',r'已切換到|Switched|錯誤|Error|PARTIAL')
@@ -147,7 +147,7 @@ def run(platform, version):
             out=cmd('wg commit -m blocked',r'衝突區域未解決|unresolved|錯誤|Error',True);check('unresolved commit 被擋',git('rev-parse','HEAD')==ours)
             # 重啟：與 CLI 的清單逐欄一致，狀態／bar／outline／工具重新可用。
             s.stop();cli_regions=cli_data(wgit(['--world',s.world,'--dimension','minecraft:overworld','--format=json','conflicts']));norm=lambda rs:[{'id':r['id'],'dim':r['dimension']['value'] if isinstance(r['dimension'],dict) else r['dimension'],'bounds':r['bounds'],'count':r['blockCount'],'redstone':r['redstone'],'choice':r['choice'].upper(),'atoms':r['atoms']} for r in rs];check('區域清單／bbox 與 CLI 一致',norm(cli_regions)==norm(regions),cli=cli_regions)
-            s.start();result['console'].append(os.path.relpath(s.evidence_log,ROOT));bots=[s.bot('WgBot',mod=True),s.bot('WgBot2')];time.sleep(4);s.cmd('wg debug freeze on',r'WGFREEZE frozen')
+            s.start();result['console'].append(os.path.relpath(s.evidence_log,ROOT));bots=[s.bot('WgBot',mod=True),s.bot('WgBot2')];time.sleep(4);s.cmd('wg debug guard on',r'WGCHUNKGUARD locked')
             for bot in bots:s.cmd(f'tp {bot.name} 17.5 65 2.5');s.cmd(f'gamemode creative {bot.name}')
             time.sleep(3);wait_state('OURS',False)
             displays=[p.ask('entities','entities')['displays'] for p in bots]
@@ -172,7 +172,7 @@ def run(platform, version):
             s.cmd('setblock 20 65 5 gold_block');cmd('wg merge --abort');check('abort HEAD／狀態恢復',state() is None and git('rev-parse','HEAD')==ours)
             for bot in bots:sample(bot,0,0,revision='ours-original');sample(bot,1,0,revision='ours-original')
             s.stop();out=wgit(['--world',s.world,'verify','ours-original']);check('abort 全世界離線 verify=0','COMPLETE' in out and 'PARTIAL' not in out,output=out)
-            s.start();result['console'].append(os.path.relpath(s.evidence_log,ROOT));bots=[s.bot('WgBot',mod=True),s.bot('WgBot2')];time.sleep(4);s.cmd('wg debug freeze on',r'WGFREEZE frozen')
+            s.start();result['console'].append(os.path.relpath(s.evidence_log,ROOT));bots=[s.bot('WgBot',mod=True),s.bot('WgBot2')];time.sleep(4);s.cmd('wg debug guard on',r'WGCHUNKGUARD locked')
             cmd('wg merge theirs-original');cmd('wg resolve all theirs');commit('resolved-merge');check('全部 resolve 後 commit 兩 parent',state() is None and git('rev-list','--parents','-n','1','HEAD').split()[1:]==[ours,theirs]);branch('resolved-result')
             cmd('wg switch ours-original',r'已切換到|Switched|錯誤|Error|PARTIAL');cmd('wg merge theirs-original');s.cmd('setblock 17 64 2 diamond_block');cmd('wg resolve all manual');cmd('wg merge --continue');check('manual 使用目前世界',bots[0].ask('block 17 64 2','block')['name']=='diamond_block');branch('manual-result')
             # patch 的乾淨例；單 parent 提交。

@@ -15,7 +15,7 @@ public record BlockState(String name, SortedMap<String, String> properties) {
   }
 
   public boolean air() {
-    return Set.of("minecraft:air", "minecraft:cave_air", "minecraft:void_air").contains(name);
+    return name.equals("minecraft:air") || name.equals("minecraft:cave_air") || name.equals("minecraft:void_air");
   }
 
   public boolean fluid() {

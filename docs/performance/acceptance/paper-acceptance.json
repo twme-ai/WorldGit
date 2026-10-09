@@ -1,0 +1,329 @@
+{
+ "server": "paper-1.21.11",
+ "steps": [
+  {
+   "step": "init 建立三個維度 repo 與第一個 commit",
+   "ok": true,
+   "commits_overworld": 1
+  },
+  {
+   "step": "沒人動時連續 commit 兩次：沒有新 commit",
+   "ok": true,
+   "noop1": 2,
+   "noop2": 2,
+   "commits": 1
+  },
+  {
+   "step": "bot 放置一格",
+   "ok": true,
+   "block": [
+    10,
+    64,
+    8
+   ]
+  },
+  {
+   "step": "status 恰好 1 個 section",
+   "ok": true,
+   "status_before": "[23:56:10 INFO]: [WorldGit] status · minecraft:overworld · capture · 5% · ETA 1s\n[23:56:11 INFO]: [WorldGit] status · minecraft:overworld · capture · 100% · ETA 0s\n[23:56:11 INFO]: [WorldGit] minecraft:overworld candidates=169 live=169 payloadsRead=0 ms=1163 copy{chunks=169 totalMs=7.798847 avgUs=46 maxUs=2082 failures=0} census{loaded=169 unsaved=169 entityChunks=1 dirty=169}\n[23:56:11 INFO]: [WorldGit] 自上次 commit 以來的變動\n[23:56:11 INFO]: minecraft:overworld  0  section 0\n[23:56:11 INFO]:   沒有變動（檢查了 169 個候選 chunk）。\n[23:56:11 INFO]: [WorldGit] status 完成：SUCCESS minecraft:overworld minecraft:overworld：乾淨；main @ eb271868（1171 ms）",
+   "status_after": "[23:56:15 INFO]: [WorldGit] status · minecraft:overworld · capture · 4% · ETA 0s\n[23:56:16 INFO]: [WorldGit] status · minecraft:overworld · capture · 100% · ETA 0s\n[23:56:16 INFO]: [WorldGit] minecraft:overworld candidates=169 live=169 payloadsRead=0 ms=1189 copy{chunks=169 totalMs=19.45247 avgUs=115 maxUs=13432 failures=0} census{loaded=169 unsaved=169 entityChunks=1 dirty=169}\n[23:56:16 INFO]: [WorldGit] 自上次 commit 以來的變動\n[23:56:16 INFO]: minecraft:overworld  +1  section 1\n[23:56:16 INFO]:   [r.0.0 c.0.0 y4] \n[23:56:16 INFO]: [WorldGit] 作者（chunk 數）：WgBot(1)\n[23:56:16 INFO]: [WorldGit] status 完成：SUCCESS minecraft:overworld minecraft:overworld：新增 1 方塊、1 sections；main @ eb271868（1203 ms）"
+  },
+  {
+   "step": "commit 後 overworld 多一個 commit",
+   "ok": true,
+   "commit_output": "[23:56:17 INFO]: [WorldGit] 建立存檔點…\n[23:56:17 INFO]: [WorldGit] commit · minecraft:overworld · capture · 5% · ETA 1s\n[23:56:18 INFO]: [WorldGit] commit · minecraft:overworld · capture · 100% · ETA 0s\n[23:56:18 INFO]: [WorldGit] minecraft:overworld candidates=169 live=169 payloadsRead=0 ms=1171 copy{chunks=169 totalMs=6.767508 avgUs=40 maxUs=562 failures=0} census{loaded=169 unsaved=169 entityChunks"
+  },
+  {
+   "step": "CLI wgit log 看到插件的 commit",
+   "ok": true,
+   "log": "minecraft:overworld main\n16cfadf1 (main, HEAD) bot-block\neb271868  初始化世界\n✓ 成功完成：log（326 ms）\n"
+  },
+  {
+   "step": "CLI wgit diff HEAD~1 HEAD 看到同一格",
+   "ok": true,
+   "diff": "minecraft:overworld：1 chunks，1 sections，+1 -0 ~0 !0；實體 0，biome 0，metadata 0\n  c.0.0 s.4  +1 -0 ~0 !0\n    + (10,64,8) minecraft:air → minecraft:stone\n✓ 成功完成：diff minecraft:overworld（393 ms）\n"
+  },
+  {
+   "step": "插件沒有 WARN/ERROR 輸出",
+   "ok": true,
+   "problems": []
+  },
+  {
+   "step": "commit 帶兩位作者（primary + co-author trailer）",
+   "ok": true,
+   "head": "WgBot|bf106328-e87d-38fb-af6a-43e60f8a3ea8@players.worldgit.invalid|WorldGit Server|two-authors\n\nWorldGit-DataVersion: 4671\nWorldGit-Dimension: minecraft:overworld\nWorldGit-Source: plugin\nWorldGit-Auto: false\nWorldGit-Snapshot: 1505f9d6-3ee0-429b-a9ff-4c6e6496ec94\nWorldGit-Time: 2026-10-08T23:56:46.139790723Z\nCo-authored-by: WgBot <bf106328-e87d-38fb-af6a-43e60f8a3ea8@players.worldgit.invalid>\nWorldGit-Contribution: CgAACAAFY2F1c2UAC2Jsb2NrLXBsYWNlCQAGY2h1bmtzCAAAAAEAAzAsMAgABWVtYWlsAD1iZjEwNjMyOC1lODdkLTM4ZmItYWY2YS00M2U2MGY4YTNlYThAcGxheWVycy53b3JsZGdpdC5pbnZhbGlkCAAEbmFtZQAFV2dCb3QIAAZwbGF5ZXIAJGJmMTA2MzI4LWU4N2QtMzhmYi1hZjZhLTQzZTYwZjhhM2VhOAA\nCo-authored-by: WgBot2 <019b028a-9f2e-3bf4-9f52-f9196a4fe8b4@players.worldgit.invalid>\nWorldGit-Contribution: CgAACAAFY2F1c2UAC2Jsb2NrLXBsYWNlCQAGY2h1bmtzCAAAAAEAAzYsNggABWVtYWlsAD0wMTliMDI4YS05ZjJlLTNiZjQtOWY1Mi1mOTE5NmE0ZmU4YjRAcGxheWVycy53b3",
+   "blocks": [
+    [
+     8,
+     64,
+     8
+    ],
+    [
+     106,
+     64,
+     104
+    ]
+   ]
+  },
+  {
+   "step": "兩個 bot 的 chunk 不同且各自歸屬",
+   "ok": true,
+   "chunks": [
+    [
+     0,
+     0
+    ],
+    [
+     6,
+     6
+    ]
+   ],
+   "contribution_trailers": [
+    "WorldGit-Contribution: CgAACAAFY2F1c2UAC2Jsb2NrLXBsYWNlCQAGY2h1bmtzCAAAAAEAAzAsMAgABWVtYWlsAD1iZjEwNjMyOC1lODdkLTM4ZmItYWY2YS00M2U2MGY4YTNlYThAcGxheWVycy53b3JsZGdpdC5pbnZhbGlkCAAEbmFtZQAFV2dCb3QIAAZwbGF5ZXIAJGJmMTA2MzI4LWU4N2QtMzhmYi1hZjZhLTQzZTYwZjhhM2VhOAA",
+    "WorldGit-Contribution: CgAACAAFY2F1c2UAC2Jsb2NrLXBsYWNlCQAGY2h1bmtzCAAAAAEAAzYsNggABWVtYWlsAD0wMTliMDI4YS05ZjJlLTNiZjQtOWY1Mi1mOTE5NmE0ZmU4YjRAcGxheWVycy53b3JsZGdpdC5pbnZhbGlkCAAEbmFtZQAGV2dCb3QyCAAGcGxheWVyACQwMTliMDI4YS05ZjJlLTNiZjQtOWY1Mi1mOTE5NmE0ZmU4YjQA"
+   ]
+  },
+  {
+   "step": "Fabric 模組握手（bot 模擬）：收到 hello 並回覆",
+   "ok": true,
+   "stats": {
+    "hello": 1,
+    "status": 0,
+    "diff": 0,
+    "clear": 0,
+    "conflicts": 1,
+    "conflictPreview": 0,
+    "statusEntries": 0,
+    "diffEntries": 0,
+    "bytes": 228,
+    "previews": {}
+   }
+  },
+  {
+   "step": "/wg status --show：模組端收到 status 封包",
+   "ok": true,
+   "received": {
+    "hello": 1,
+    "status": 1,
+    "diff": 0,
+    "clear": 0,
+    "conflicts": 1,
+    "conflictPreview": 0,
+    "statusEntries": 0,
+    "diffEntries": 0,
+    "bytes": 319,
+    "previews": {
+     "1791503733829": {
+      "kind": 3,
+      "parts": 1,
+      "total": 1,
+      "seen": 1
+     }
+    }
+   }
+  },
+  {
+   "step": "/wg diff --show：模組端收到 diff（鬼影）封包且分包收齊",
+   "ok": true,
+   "received": {
+    "hello": 1,
+    "status": 1,
+    "diff": 1,
+    "clear": 0,
+    "conflicts": 1,
+    "conflictPreview": 0,
+    "statusEntries": 0,
+    "diffEntries": 0,
+    "bytes": 401,
+    "previews": {
+     "1791503733829": {
+      "kind": 3,
+      "parts": 1,
+      "total": 1,
+      "seen": 1
+     },
+     "1791503733830": {
+      "kind": 2,
+      "parts": 1,
+      "total": 1,
+      "seen": 1
+     }
+    }
+   }
+  },
+  {
+   "step": "/wg clear：模組端收到 clear",
+   "ok": true,
+   "received": {
+    "hello": 1,
+    "status": 1,
+    "diff": 1,
+    "clear": 1,
+    "conflicts": 2,
+    "conflictPreview": 0,
+    "statusEntries": 0,
+    "diffEntries": 0,
+    "bytes": 496,
+    "previews": {}
+   }
+  },
+  {
+   "step": "沒有模組的玩家：聊天中有提示與清單",
+   "ok": true,
+   "chats": [
+    "minecraft:overworld  +1  sections 1",
+    "  [r.0.0 c.0.0 y4] ",
+    "[WorldGit] Authors (chunks): WgBot2(1)、WgBot3(1)",
+    "[WorldGit] Your client does not have the WorldGit mod, so outlines cannot be shown. The chat list above has clickable coordinates.",
+    "[WorldGit] No client mod: drew changed regions as display-entity boxes (12 entities, 0 section(s) omitted by the entity cap). They disappear after 10 s; /wg clear removes them now.",
+    "[WorldGit] status finished: SUCCESS minecraft:overworld minecraft:overworld: added 1 blocks, 1 sections; main @ ce2a1716 (1956 ms)"
+   ]
+  },
+  {
+   "step": "display：前置放置兩格",
+   "ok": true,
+   "blocks": [
+    [
+     11,
+     64,
+     9
+    ],
+    [
+     7,
+     64,
+     8
+    ]
+   ]
+  },
+  {
+   "step": "display：沒模組的請求者看到 2 個 BlockDisplay、旁邊沒請求的玩家看到 0、伺服器端有 2 個標記實體",
+   "ok": true,
+   "requester": 2,
+   "observer": 0,
+   "server_tagged": 2
+  },
+  {
+   "step": "display：聊天仍有沒有模組的提示與 display 說明",
+   "ok": true,
+   "chats": [
+    "  + 11,64,9",
+    "[WorldGit] Your client does not have the WorldGit mod, so ghosts cannot be shown. The list above has clickable coordinates.",
+    "[WorldGit] No client mod: showing 2 block outline(s) as display entities only you can see (0 omitted by the entity cap). They disappear after 10 s; /wg clear removes them now.",
+    "[WorldGit] diff finished: SUCCESS minecraft:overworld minecraft:overworld: added 2 blocks, 1 sections; main @ e834286a (1939 ms)"
+   ]
+  },
+  {
+   "step": "display：預覽實體不進入 WorldGit 的實體快照（status 沒有實體變動、section 數等於兩格所在的 chunk 數）",
+   "ok": true,
+   "status": "[23:57:58 INFO]: [WorldGit] status · minecraft:overworld · capture · 2% · ETA 1s\n[23:57:59 INFO]: [WorldGit] status · minecraft:overworld · capture · 57% · ETA 0s\n[23:58:00 INFO]: [WorldGit] minecraft:overworld candidates=295 live=295 payloadsRead=0 ms=1915 copy{chunks=295 totalMs=6.243484 avgUs=21 maxUs=1269 failures=0} census{loaded=295 unsaved=295 entityChunks=1 dirty=295}\n[23:58:00 INFO]: [WorldGit] 自上次 commit 以來的變動\n[23:58:00 INFO]: minecraft:overworld  +2  section 1\n[23:58:00 INFO]:   [r.0.0 c.0.0 y4] \n[23:58:00 INFO]: [WorldGit] 作者（chunk 數）：WgBot(1)\n[23:58:00 INFO]: [WorldGit] status 完成：SUCCESS minecraft:overworld minecraft:overworld：新增 2 方塊、1 sections；main @ e834286a（1922 ms）",
+   "entity_counts": []
+  },
+  {
+   "step": "display：/wg clear 清掉請求者的實體（客戶端與伺服器端）",
+   "ok": true,
+   "requester": 0,
+   "server_tagged": 0
+  },
+  {
+   "step": "display：status --show 畫區域包圍盒（每個 section 12 條邊；上限 20 → 只畫 1 個 section、其餘省略），只對請求者可見",
+   "ok": true,
+   "requester": 12,
+   "observer": 0,
+   "server_tagged": 12
+  },
+  {
+   "step": "display：display-seconds 到期後自動移除",
+   "ok": true,
+   "requester": 0,
+   "server_tagged": 0
+  },
+  {
+   "step": "display：玩家登出後實體被移除",
+   "ok": true,
+   "before_quit": 2,
+   "after_quit": 0
+  },
+  {
+   "step": "display：commit 成功且沒有因預覽實體產生額外 commit 錯誤",
+   "ok": true,
+   "out": "[23:58:37 INFO]: [WorldGit] 建立存檔點…\n[23:58:37 INFO]: [WorldGit] commit · minecraft:overworld · capture · 3% · ETA 2s\n[23:58:38 INFO]: [WorldGit] commit · minecraft:overworld · capture · 57% · ETA 0s\n[23:58:39 INFO]: [WorldGit] minecraft:overworld candidates=295 live=295 payloadsRead=0 ms=1919 copy{ch"
+  },
+  {
+   "step": "FAWE //set 大範圍編輯被偵測到",
+   "ok": true,
+   "sections": 16,
+   "status": "[23:58:51 INFO]: [WorldGit] status · minecraft:overworld · capture · 2% · ETA 2s\n[23:58:52 INFO]: [WorldGit] status · minecraft:overworld · capture · 57% · ETA 0s\n[23:58:53 INFO]: [WorldGit] minecraft:overworld candidates=295 live=295 payloadsRead=0 ms=1937 copy{chunks=295 totalMs=7.753583 avgUs=26 maxUs=409 failures=0} census{loaded=295 unsaved=295 entityChunks=1 dirty=295}\n[23:58:53 INFO]: [WorldGit] 自上次 commit 以來的變動\n[23:58:53 INFO]: minecraft:overworld  +12005  section 16\n[23:58:53 INFO]:   ["
+  },
+  {
+   "step": "WorldEdit 作者歸屬：commit 的作者含 WgBot 與 worldedit 原因",
+   "ok": true,
+   "head": "WgBot|worldedit-set\n\nWorldGit-DataVersion: 4671\nWorldGit-Dimension: minecraft:overworld\nWorldGit-Source: plugin\nWorldGit-Auto: false\nWorldGit-Snapshot: 79499ad2-8007-4c68-884b-b67b06c6f0ca\nWorldGit-Time: 2026-10-08T23:58:53.538745841Z\nCo-authored-by: WgBot <bf106328-e87d-38fb-af6a-43e60f8a3ea8@players.worldgit.invalid>\nWorldGit-Contribution: CgAACAAFY2F1c2UACXdvcmxkZWRpdAkABmNodW5rcwgAAAAQAAUtMSwtMQAELTEsMAAELTEsMQAELTEsMgAEMCwtMQADMCwwAAMwLDEAAzAsMgAEMSwtMQADMSwwAAMxLDEAAzEsMgAEMiwtMQADMiwwAAMyLDEAAzIsMggABWVtYWlsAD1iZjEwNjMyOC1lODdkLTM4ZmItYWY2YS00M2U2MGY4YTNlYThAcGxheWVycy53b3JsZGdpdC5pbnZh"
+  },
+  {
+   "step": "插件掛接 WorldEdit/FAWE 的 log",
+   "ok": true,
+   "log": [
+    " - FastAsyncWorldEdit (2.15.0+59372c5), WorldGit (0.1.0-SNAPSHOT)",
+    "[23:55:33 INFO]: [WorldGit] 已掛接 FastAsyncWorldEdit 的 EditSessionEvent（作者歸屬與 chunk 標記）",
+    "[23:55:33 INFO]: [WorldGit] FAWE 預設會丟掉第三方 Extent：請在 FAWE config.yml 的 extent.allowed-plugins 加入 org.worldgit.paper，否則 WorldEdit 作者歸屬無法記錄（變動仍由旗標普查偵測）。"
+   ]
+  },
+  {
+   "step": "伺服器關閉前自動 commit",
+   "ok": true,
+   "before": 6,
+   "after": 7,
+   "head": "伺服器關閉前自動存檔點|伺服器關閉前自動存檔點\n\nWorldGit-DataVersion: 4671\nWorldGit-Dimension: minecraft:overworld\nWorldGit-Source: plugin\nWorldGit-Auto: true\nWorldGit-Snapshot: f4e2134e-fb4f-40d9-9f0d-203d8be552b3\nWorldGit-Time: 2026-10-08T23:58:59.494848422Z\nCo-authored-by: WgBot <bf106328-e87d-38fb-af6a-43e60f8a3ea8@pl"
+  },
+  {
+   "step": "伺服器停止後離線 CLI status 沒有變動（線上快照與磁碟內容一致）",
+   "ok": true,
+   "status": "minecraft:overworld main @ acae6694 COMPLETE\nminecraft:overworld：0 chunks，0 sections，+0 -0 ~0 !0；實體 0，biome 0，metadata 0\n  candidates=295 payloads-read=1296\nminecraft:the_end main @ 68ef7326 COMPLETE\nminecraft:the_end：0 chunks，0 sections，+0 -0 ~0 !0；實體 0，biome 0，metadata 0\n  candidates=0 payloads-read=0\nminecraft:the_nether main @ 42c0389a COMPLETE\nminecraft:the_nether：0 chunks，0 sections，+0 -0 ~0 !0；實體 0，biome 0，metadata 0\n  candidates=0 payloads-read=0\n✓ 成功完成：status（1489 ms）\n"
+  },
+  {
+   "step": "自動 commit（定時）觸發並標記 auto、作者為放方塊的玩家",
+   "ok": true,
+   "waited_s": 39,
+   "head": "WgBot|WorldGit Server|定時自動存檔點\n\nWorldGit-DataVersion: 4671\nWorldGit-Dimension: minecraft:overworld\nWorldGit-Source: plugin\nWorldGit-Auto: true\nWorldGit-Snapshot: 853f9b55-fca6-4d3c-a6b6-ff89610960a1\nWorldGit-Time: 2026-10-09T00:00:30.515217286Z\nCo-authored-by: WgBot <bf106328-e87d-38fb-af6a-43e60f8a3ea8@players.worldgit.invalid>\nWorldGit-Contribution: CgAACAAFY2F1c2UAC2Jsb2NrLXBsYWNlCQAGY2h1bmtzCAAAAAEAAzAsMAgABWVtYWlsAD1iZjEwNjMyOC1lODdkLTM4ZmItYWY2YS00M2U2MGY4YTNlYThAcGxheWVycy53b3JsZGdpdC5pbnZ"
+  },
+  {
+   "step": "沒有變動時自動 commit 不產生新 commit",
+   "ok": true,
+   "commits": 2
+  },
+  {
+   "step": "玩家登出觸發自動 commit",
+   "ok": true,
+   "head": "玩家登出自動存檔點（WgBot）|玩家登出自動存檔點（WgBot）\n\nWorldGit-DataVersion: 4671\nWorldGit-Dimension: minecraft:overworld\nWorldGit-Source: plugin\nWorldGit-Auto: true\nWorldGit-Snapshot: da0e9157-8c88-4f7b-86ee-efd5546c3f4d\nWorldGit-Time: 2026-10-09T00:02:24.749522505Z\nCo-authored-by: WgBot <bf106328-e87d-38fb-af6a-43e60f8a3ea8@players.worldgit.invalid>\nWorldGit-Contribution: CgAACAAFY2F1c2UAFWJsb2NrLXBsYWNlK2NvbnRhaW5"
+  }
+ ],
+ "started": "2026-10-08 23:55:02",
+ "scenarios": [
+  "basic",
+  "attribution",
+  "mod",
+  "display",
+  "worldedit",
+  "shutdown",
+  "auto"
+ ],
+ "previous_evidence": ".work/paper-delivery/results/history/paper-1.21.11-20261008-235502.json",
+ "fixture_kind": "synthetic-flat",
+ "console_log": ".work/paper-delivery/logs/paper-1.21.11-20261008-235513-console.log",
+ "plugin_enable_log": [
+  " - FastAsyncWorldEdit (2.15.0+59372c5), WorldGit (0.1.0-SNAPSHOT)",
+  "[23:55:31 INFO]: [WorldGit] Loading server plugin WorldGit v0.1.0-SNAPSHOT",
+  "[23:55:33 INFO]: [WorldGit] Enabling WorldGit v0.1.0-SNAPSHOT",
+  "[23:55:33 INFO]: [WorldGit] 已掛接 FastAsyncWorldEdit 的 EditSessionEvent（作者歸屬與 chunk 標記）",
+  "[23:55:33 INFO]: [WorldGit] FAWE 預設會丟掉第三方 Extent：請在 FAWE config.yml 的 extent.allowed-plugins 加入 org.worldgit.paper，否則 WorldEdit 作者歸屬無法記錄（變動仍由旗標普查偵測）。",
+  "[23:55:33 INFO]: [WorldGit] WorldGit 已啟用：Minecraft 1.21.11、Paper、Java 21、追蹤世界 [703822d2-332c-462a-8fb2-1b426e379a12, c1307184-bcb6-4132-aa63-bebee04e68e8, 583222e0-a853-4bc9-938e-ae8253682991]"
+ ],
+ "fixture_gamerules": [
+  "[23:55:37 INFO]: Gamerule random_tick_speed is now set to: 0",
+  "[23:55:38 INFO]: Gamerule spawn_mobs is now set to: false",
+  "[23:55:38 INFO]: Gamerule advance_weather is now set to: false"
+ ],
+ "fixture_settle_commit": "[23:56:04 INFO]: [WorldGit] 建立存檔點…\n[23:56:04 INFO]: [WorldGit] commit · minecraft:overworld · capture · 5% · ETA 1s\n[23:56:05 INFO]: [WorldGit] commit · minecraft:overworld · capture · 100% · ETA 0s\n[23:56:05 INFO]: [WorldGit] minecraft:overworld candidates=169 live=169 payloadsRead=0 ms=1169 copy{chunks=169 totalMs=16.137236 avgUs=95 maxUs=2814 failures=0} census{loaded=169 unsaved=169 entityChunks=1 dirty=169}\n[23:56:05 INFO]: [WorldGit]   minecraft:overworld 沒有變動，沒有產生 commit。\n[23:56:05 INFO]: [WorldGit] commit 完成：NO_OP minecraft:overworld minecraft:overworld：沒有變動；main @ eb271868（1185 ms）",
+ "plugin_problem_lines": [],
+ "finished": "2026-10-09 00:02:28"
+}

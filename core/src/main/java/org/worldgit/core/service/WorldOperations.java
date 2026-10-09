@@ -91,6 +91,9 @@ public final class WorldOperations implements AutoCloseable {
       return () -> {};
     }
 
+    /** 在真正寫入前只鎖定受影響 chunk 與邊界；完整的擷取／預檢在鎖外。 */
+    default AutoCloseable guardApply(Collection<ApplyPlan> plans) throws IOException { return () -> {}; }
+
     default void applyRegions(Collection<ApplyPlan> plans) throws IOException {
       applyAll(plans);
     }
@@ -303,10 +306,12 @@ public final class WorldOperations implements AutoCloseable {
 
   public Result verify(String revision, DimensionId dimension, Scope scope, boolean metadata)
       throws IOException {
+    try (var full = new org.worldgit.core.capture.CaptureOptions(true)) {
     var prepared = prepare(resolve(revision), dimension, scope, metadata, false);
     boolean zero = prepared.plans.values().stream().allMatch(ApplyPlan::empty);
     return new Result(
         zero ? State.COMPLETE : State.PARTIAL, stats(prepared), zero ? null : "世界與目標仍有差異");
+    }
   }
 
   public Result restore(
@@ -328,9 +333,10 @@ public final class WorldOperations implements AutoCloseable {
     requireNotMerging();
     if (!force) requireComplete();
     var prepared = prepare(resolve(revision), null, Scope.all(), true, delete);
-    if (dirty() && !force && !stash)
+    boolean dirty = dirty(false, prepared);
+    if (dirty && !force && !stash)
       throw new IOException("工作區有未提交變動；請 commit、stash push、switch --stash 或 --force。");
-    if (stash && !dryRun && dirty()) saveStash("switch 前自動 stash");
+    if (stash && !dryRun && dirty) saveStash("switch 前自動 stash");
     boolean branch =
         repos.values().stream()
             .allMatch(
@@ -341,6 +347,35 @@ public final class WorldOperations implements AutoCloseable {
                     return false;
                   }
                 });
+    // 一個操作只選一個維度。完整 working tree 與目前／目標樹皆相同時只移動 HEAD。
+    if (!force && !stash && repos.size() == 1) {
+      var repo = repos.get(repos.firstKey());
+      var target = prepared.commits.get(repo.dimension());
+      var prior = repo.refs().headState();
+      if (prior.commit() != null && target.tree().equals(repo.refs().readCommit(prior.commit()).tree())
+          && target.tree().equals(prepared.plans.get(repo.dimension()).baseTree())) {
+        if (dryRun) return new Result(State.DRY_RUN, stats(prepared), null);
+        if (live != null) live.beforeComplete();
+        String operation = org.worldgit.core.operation.OperationProgress.operationId().toString();
+        var row = new LinkedHashMap<String,Object>();
+        row.put("from", prior.commit()); row.put("from-branch", prior.branch()); row.put("to", target.id());
+        row.put("scope", prepared.plans.get(repo.dimension()).scope().toString()); row.put("applied", true);
+        var journal = new LinkedHashMap<String,Object>();
+        journal.put("version",1); journal.put("operation",operation); journal.put("mode","switch");
+        journal.put("state","COMPLETE"); journal.put("head-only",true); journal.put("time",Instant.now().toString());
+        journal.put("dimensions",Map.of(repo.dimension().value(),row));
+        repo.refs().updateRef("refs/worldgit/operations/"+operation+"/from",null,prior.commit());
+        repo.refs().updateRef("refs/worldgit/operations/"+operation+"/to",null,target.id());
+        var next = new RefStore.Head(target.id(), branch ? revision : null);
+        repo.refs().checkout(prior, next);
+        try { repo.rebindIndex(); writeJournal(journal); }
+        catch (IOException failure) {
+          try { repo.refs().checkout(next, prior); } catch (IOException rollback) { failure.addSuppressed(rollback); }
+          throw failure;
+        }
+        return new Result(State.COMPLETE, stats(prepared), null);
+      }
+    }
     return execute("switch", prepared, branch ? revision : null, true, dryRun);
   }
 
@@ -361,10 +396,14 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   private boolean dirty(boolean includeUntracked) throws IOException {
+    return dirty(includeUntracked, null);
+  }
+
+  private boolean dirty(boolean includeUntracked, Prepared prepared) throws IOException {
     for (var repo : repos.values()) {
       String head = repo.refs().head();
       if (head == null) return true;
-      String tree = capture(repo);
+      String tree = prepared == null ? capture(repo) : prepared.plans.get(repo.dimension()).baseTree();
       var editor = new TreeEditor(repo.objects(), tree);
       // switch 保留且標記的 untracked chunk 不阻擋後續切換；explicit commit 會重新追蹤它們。
       if (!includeUntracked)
@@ -404,6 +443,26 @@ public final class WorldOperations implements AutoCloseable {
       boolean dryRun,
       PersistCompletion persistence)
       throws IOException {
+    if (dryRun) return new Result(State.DRY_RUN, stats(prepared), null);
+    boolean writes = prepared.plans.values().stream().anyMatch(p -> !p.empty());
+    try (var paused = live != null && writes ? live.guardApply(prepared.plans.values()) : (AutoCloseable)() -> {}) {
+      // 預檢時 tick 照常前進；取得套用屏障後重新核對，拒絕覆蓋窗口中的新變動。
+      if (live != null && writes) for (var entry : prepared.plans.entrySet()) {
+        var repo = repos.get(entry.getKey());
+        String plannedRules = TreeFilter.rules(repo.objects(), entry.getValue().baseTree());
+        String currentRules = Files.exists(repo.ignorePath()) ? Files.readString(repo.ignorePath()) : "";
+        String current = plannedRules.equals(currentRules) ? capture(repo) : captureRules(repo, plannedRules);
+        if (!new DiffEngine(repo.objects()).compare(entry.getKey(),entry.getValue().baseTree(),
+            current,tolerance,DiffEngine.Detail.SUMMARY,LiveApplyVerification.affected(entry.getValue())).empty())
+          throw new IOException("預檢期間世界已變動，尚未寫入；請重試操作");
+      }
+      return executeGuarded(mode,prepared,branch,moveHead,false,persistence);
+    } catch (IOException e) { throw e; }
+      catch (Exception e) { throw new IOException("chunk 套用屏障失敗",e); }
+  }
+
+  private Result executeGuarded(String mode, Prepared prepared, String branch, boolean moveHead,
+      boolean dryRun, PersistCompletion persistence) throws IOException {
     org.worldgit.core.operation.OperationProgress.report(repos.firstKey(), "preflight", 0, null, org.worldgit.core.operation.OperationProgress.Unit.SECTION);
     if (dryRun) return new Result(State.DRY_RUN, stats(prepared), null);
     var old = new TreeMap<DimensionId, RefStore.Head>();
@@ -479,7 +538,12 @@ public final class WorldOperations implements AutoCloseable {
         else {
           updateTouched(repo, entry.getValue());
         }
-        repos.get(entry.getKey()).invalidateIndex();
+        var changed = new TreeSet<>(entry.getValue().chunks().keySet());
+        for (var entity : entry.getValue().entities()) {
+          if (entity.hint() != null) changed.add(entity.hint());
+          if (entity.targetChunk() != null) changed.add(entity.targetChunk());
+        }
+        repo.forceRecapture(changed);
         @SuppressWarnings("unchecked")
         var row = (Map<String, Object>) rows.get(entry.getKey().value());
         row.put("applied", true);
@@ -487,16 +551,15 @@ public final class WorldOperations implements AutoCloseable {
       }
       org.worldgit.core.operation.OperationProgress.report(repos.firstKey(), "verify", 0, null, org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
       try (var timing = OperationTimings.stage("verify")) {
-        var checked =
-            prepare(
-                prepared.commits,
-                null,
-                prepared.plans.get(prepared.plans.firstKey()).scope(),
-                prepared.plans.values().stream().anyMatch(p -> !p.worldMeta().isEmpty()),
-                false);
-        for (var entry : checked.plans.entrySet())
-          if (!entry.getValue().empty())
-            throw new IOException("套用驗證失敗：" + entry.getKey() + " " + entry.getValue().stats());
+        if(live==null) {
+          var checked=prepare(prepared.commits,null,prepared.plans.get(prepared.plans.firstKey()).scope(),prepared.plans.values().stream().anyMatch(p->!p.worldMeta().isEmpty()),false);
+          for(var entry:checked.plans.entrySet()) if(!entry.getValue().empty()) throw new IOException("套用驗證失敗："+entry.getKey()+" "+entry.getValue().stats());
+        } else for(var entry:prepared.plans.entrySet()) {
+          var repo=repos.get(entry.getKey());var plan=entry.getValue();
+          var observed=LiveApplyVerification.observedFootprint(repo.objects(),plan,capture(repo));
+          var checked=ApplyPlanner.plan(repo.objects(),entry.getKey(),observed,plan.targetTree(),plan.scope(),options(repo,prepared.commits.get(entry.getKey()),!plan.worldMeta().isEmpty(),false));
+          if(!checked.empty()) throw new IOException("受影響 chunk 套用驗證失敗："+entry.getKey()+" "+checked.stats());
+        }
       }
       if (live != null) live.beforeComplete();
       if (moveHead)
@@ -515,7 +578,7 @@ public final class WorldOperations implements AutoCloseable {
           if (!entry.getValue().scope().touchesChunk(pos)) kept.add(pos);
         saveUntracked(repo.directory(), new ArrayList<>(kept));
         if (moveHead) restoreConfig(repo, prepared.commits.get(entry.getKey()));
-        repo.invalidateIndex();
+        repo.rebindIndex();
       }
       persistence.write();
       journal.put("state", "COMPLETE");
@@ -1549,19 +1612,16 @@ public final class WorldOperations implements AutoCloseable {
     boolean attempted = false;
     var locking = new TreeMap<>(affected);
     var entityIds = regionEntityIds(state, selected);
-    if (!entityIds.isEmpty()) repos.keySet().forEach(id -> locking.put(id, Set.of()));
+    if (!entityIds.isEmpty())
+      for (var dimension : layout.dimensions().values()) if (repos.containsKey(dimension.id())) {
+        var positions=entityChunks(dimension,entityIds);
+        if(!positions.isEmpty()) {
+          var expanded=new TreeSet<>(affected.getOrDefault(dimension.id(),Set.of()));expanded.addAll(positions);affected.put(dimension.id(),expanded);
+        }
+      }
+    locking=new TreeMap<>(affected);
     try (var lockTiming = OperationTimings.stage("region-operation");
         AutoCloseable lock = live == null ? () -> {} : live.lockChunks(locking)) {
-      if (!entityIds.isEmpty())
-        for (var dimension : layout.dimensions().values())
-          if (repos.containsKey(dimension.id())) {
-            var positions = entityChunks(dimension, entityIds);
-            if (!positions.isEmpty()) {
-              var expanded = new TreeSet<>(affected.getOrDefault(dimension.id(), Set.of()));
-              expanded.addAll(positions);
-              affected.put(dimension.id(), expanded);
-            }
-          }
       var rows = new TreeMap<String, Object>();
       for (var entry : affected.entrySet()) {
         var repo = repos.get(entry.getKey());
@@ -1893,7 +1953,7 @@ public final class WorldOperations implements AutoCloseable {
       }
       for (var e : targets.entrySet()) {
         org.worldgit.core.capture.PlayerTouchedEntities.restore(repos.get(e.getKey()).objects(), trees.get(e.getKey()), repos.get(e.getKey()).directory());
-        repos.get(e.getKey()).invalidateIndex();
+        repos.get(e.getKey()).rebindIndex();
         Files.deleteIfExists(repos.get(e.getKey()).directory().resolve("untracked.yml"));
       }
       state.write(stateRoot.resolve("last-merge-report.bin"));

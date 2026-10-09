@@ -82,9 +82,9 @@ flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
 
 寫入命令同時支援單人整合伺服器與 Fabric 專用伺服器，沿用寫入 op 等級（預設 2）；console 的局部 restore 使用命令來源的維度／座標。`restore` 不移動 HEAD，chunk 半徑以玩家為中心，box 包含端點並逐格裁切方塊／BE，biome 以 4×4×4 sample 起點裁切。`switch` 只切選定維度，hash 為 detached HEAD；dirty 工作區需 commit、`--stash` 或 `--force`。stash pop 要求原基底及乾淨工作區，不做跨分支合併。`reset --hard` 無 revision 只丟棄未提交變動；指定 revision 會改寫歷史且要求 `--force`。
 
-套用期間顯示 bossbar，暫停世界 tick、關閉容器、攔截玩家物品／容器／實體互動及一般 LevelChunk 方塊寫入；不移動玩家、不加藥水效果。範圍內玩家（含中途進入者）在操作全程及結束後 10 秒免受摔落、窒息、溺水傷害，其他傷害照常。原本的 frozen 狀態會恢復，第三方模組若直接改 section／BE 或實體需配合 `ServerRuntime.editsLocked()`，不能繞過鎖寫入。
+套用期間顯示 bossbar，關閉受影響範圍的容器，攔截玩家物品／容器／實體互動及一般 LevelChunk 方塊寫入；小變動在單一 owner tick 寫入並擷取驗證資料，較大變動只隔離受影響 chunk 與一圈邊界的模擬。其他 chunk 與維度持續 tick。不移動玩家、不加藥水效果；範圍內玩家（含中途進入者）在操作全程及結束後 10 秒免受摔落、窒息、溺水傷害，其他傷害照常。第三方模組若直接改 section／BE 或實體，須配合座標範圍的 `ServerRuntime.editsLocked(dimension, chunk)`，不能繞過鎖寫入；門檻與限制見 [18](../docs/18-performance.md)。
 
-所有套用、heightmap／光照／POI 與 chunk 更新在 server owner 執行；未載入 chunk 加 ticket 等 entity IO，不寫線上 `.mca`。使用共用 ApplyBudget（有玩家：4 section／5 ms／16 chunk；無玩家：8／5 ms／24 chunk），不可搶占的單次工作採軟時間上限；目標維度內受追蹤 UUID 先移除再生成，其他維度先檢查重複 UUID。完成後 flush、完整驗證目標維度才更新其 HEAD，並清除舊 status／diff／preview。`cancel` 等在途清理，已寫入的世界保留 PARTIAL、HEAD 不動；用該維度全範圍的 `switch <rev> --force`／`reset --hard` 恢復，PARTIAL 阻擋該維度的新 commit／普通 switch／stash。
+所有套用、heightmap／光照／POI 與 chunk 更新在 server owner 執行；未載入 chunk 加 ticket 等 entity IO，不寫線上 `.mca`。使用共用 ApplyBudget（有玩家：4 section／5 ms／16 chunk；無玩家：8／5 ms／24 chunk），不可搶占的單次工作採軟時間上限；目標維度內受追蹤 UUID 先移除再生成，其他維度先檢查重複 UUID。完成後等待 flush／光照，受影響內容零差異驗證通過才更新 HEAD，並清除舊 status／diff／preview；遠處自然變動保留為 dirty，明確 `verify HEAD` 仍完整擷取。`cancel` 等在途清理，已寫入的世界保留 PARTIAL、HEAD 不動；用該維度全範圍的 `switch <rev> --force`／`reset --hard` 恢復，PARTIAL 阻擋該維度的新 commit／普通 switch／stash。
 
 ## Phase 3：合併與衝突解決
 
@@ -211,13 +211,17 @@ python3 fabric/tools/accept-paper.py 26.2
 
 線上不刪除 chunk：stash 若需刪除 HEAD 沒有的新增 chunk，預檢會拒絕，須關閉世界後使用 CLI stash；一般 switch 預設保留這些 chunk 並標 untracked。線上 metadata 目前只接出生點、1.21.11 的 gamerules／難度／邊界等 level.dat 設定，地圖／scoreboard／26.2 各維度 saved-data、世界生成等變動會在任何寫入前拒絕，須離線還原。跨 DataVersion、規則不同仍明確拒絕；沒有 DataFixer；合併流程見上方 Phase 3 章節。legacy `ChunkPatch` 套用入口仍拒絕，正式 Phase 2 使用 ApplyPlan。
 
-尚無準星「舊→新」UI、實體／biome 模型、流體或特殊 block entity renderer、Mod Menu 畫面、資源包重載後模型快取重建、Sodium／Iris 或硬體 GPU 驗收。鬼影使用固定光照與 quad 順序，沒有透明面排序／內部面消除；既有大量格數驗收是 3,072 格、6 sections，不能據此宣稱 100,000 格效能。Phase 2 使用受控平坦世界及凍結 tick，不是大型自然生物世界的 TPS 量測。
+尚無準星「舊→新」UI、實體／biome 模型、流體或特殊 block entity renderer、Mod Menu 畫面、資源包重載後模型快取重建、Sodium／Iris 或硬體 GPU 驗收。鬼影使用固定光照與 quad 順序，沒有透明面排序／內部面消除；既有大量格數驗收是 3,072 格、6 sections，不能據此宣稱 100,000 格效能。早期 Phase 2 使用受控平坦世界及凍結 tick，不是大型自然生物世界的 TPS 量測；現行不凍結驗收另見 [18](../docs/18-performance.md)。
 
 ## 局部區域切換（2026-10-02）
 
-`conflict-select`／`resolve` 經共用 core 的局部 source、精確 atoms mask、完整受影響 chunk 驗證及增量 MERGING journal。Fabric 在 server owner 以 vanilla ChunkMap serializer、entity storage 與 POI flush 只排入指定 chunk，三種 storage 分別保存（terrain 卸載不代表 entity／POI 已卸載），保留光照／chunk 封包／IO barrier；不寫使用中的 `.mca`。一般區域的 LevelChunk 寫入鎖限受影響 chunk；短暫 tick freeze 及容器／指令屏障保留，防止 vanilla 或跨位置編輯穿越操作。continue／commit 再完整 capture／驗證目標維度，abort 保留該維度完整恢復。
+2026-10-08 使用者決定：套用不使用全伺服器／整世界 freeze、agent 或 attach。小變動在單一 owner tick 寫入並複製驗證資料；較大變動只鎖受影響 chunk 與一圈邊界，保留 scheduled ticks 的剩餘延遲。其他世界及同世界遠處 chunk 照常模擬。預設原子門檻為 1 chunk／1 section／8 個實體操作，設定與逐平台量測、Folia 邊界見 [18](../docs/18-performance.md)。
 
 `merge-state.bin.updates` 須與基底一起讀取／保存，當機恢復仍用 abort。區域外其他 chunk 的 manual 編輯在 continue 捕捉；其交界提示於 continue 完整重算。全域 IO queue 積壓與 UUID 定位仍可能增加延遲；大型自然世界及第三方忽略鎖的寫入不在本次效能保證內。
+
+一般套用不修改 `ServerLevel` 或全伺服器的 tick manager。capture／預檢在 chunk 鎖外完成；大變動取得受影響 chunk 與一圈邊界的鎖後重新核對，直到光照、IO 與零差異 verify 完成才解除。mixin 只攔截受鎖 chunk 的模擬與跨界寫入，其他 chunk 及維度持續運作；跨維度 console／Axiom 編輯仍有保守屏障。快照用 16 個在途工作與 2 個背景正規化執行緒，owner 每 tick 最多 8 copies／5 ms 軟預算；寫世界預算保持 #72。見 [效能與多世界驗收](../docs/18-performance.md)。
+
+常用操作 benchmark：`python3 fabric/tools/benchmark.py 1.21.11 --label after --require-isolation`。單人正式 jar 用 `python3 tools/performance/single.py 1.21.11 --label after --artifact fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar --require-isolation`；耗時取客戶端實際送出／收到完成訊息，兩者自行拿 bench.lock。
 
 `WG_PHASE3=1 JAVA_TOOL_OPTIONS=-Dworldgit.profile=true ALSOFT_DRIVERS=null fabric/tools/run-gametest.sh <版本> --record` 會保留 UI 命令→完成的逐次延遲與 core 分段計時（result.json），同時執行原 Phase 3 客戶端驗收。根因與兩版數字見 [docs/13 區域切換延遲](../docs/13-phase3-progress.md#區域切換延遲)。
 
@@ -234,7 +238,7 @@ python3 fabric/tools/accept-paper-phase3.py folia 26.2
 
 ## Fabric 專用伺服器寫入與合併
 
-專用伺服器使用相同 live coordinator，不直接改寫使用中的 Anvil 檔。套用期間有目標維度／局部 chunk 編輯鎖、全伺服器 vanilla tick freeze、玩家保護與 bossbar；完成驗證後廣播 MiniMessage。活塞、爆炸與肥料的批量變更在受鎖維度開始前整體攔截，避免部分寫入；玩家容器／互動與操作期間非 WorldGit 命令採保守屏障。MERGING 閒置時可手動編輯，manual resolve 以目前世界為準。
+本節的舊 tick 暫停流程已由 2026-10-08 使用者決定取代，現行 chunk 隔離與門檻見 [18](../docs/18-performance.md)。
 
 連線的 Fabric 客戶端可使用清單、Ghost、Set blocks、Resolve 與傳送。伺服器公告 merge／select 能力，握手後推送持久化清單；多位檢視者在選擇／解決後同步更新。重啟恢復 MERGING；登出、定時與關機的自動 commit 均依 #60 跳過，手動 commit 等同 continue。
 

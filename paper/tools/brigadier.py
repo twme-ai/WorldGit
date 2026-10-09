@@ -57,7 +57,7 @@ def run(args):
         time.sleep(10)
         command('forceload add 0 0','Marked chunk|already marked')
         time.sleep(2)
-        command('wg debug freeze on','WGFREEZE frozen')
+        command('wg debug guard on','WGCHUNKGUARD locked')
         command('wg init --world world --all','Initialized|Initialization complete')
         command('wg branch topic','Branches')
         for bot in dimension_bots.values():player_command(bot,'wg branch topic','Branches')
@@ -86,7 +86,7 @@ def run(args):
         start=time.time();client=client_module().Process(['xvfb-run','-a','-s','-screen 0 1280x720x24 -ac','./gradlew','--no-daemon','--configure-on-demand','--max-workers=1','-I',str(init),
           '-PwgtestPaperPort='+str(server.port),'-PwgtestPaperReady='+str(ready),':fabric:'+project+':runClientGameTest'],ROOT,work/'client.log',env)
         line=client.wait('BRIGADIER connected=',600);player=re.search(r'connected=(\S+)',line)[1];server.cmd('op '+player)
-        command('wg debug comment-camera '+player,'WGCOMMENTCAM success=true');command('wg debug freeze off','WGFREEZE restored')
+        command('wg debug comment-camera '+player,'WGCOMMENTCAM success=true');command('wg debug guard off','WGCHUNKGUARD restored')
         ready.write_text('{}');client.wait('BRIGADIER deop-ready',600);server.cmd('deop '+player);Path(str(ready)+'.deop').write_text('{}')
         client.wait('BRIGADIER DONE',300);client.proc.wait(90)
         if client.proc.returncode:raise RuntimeError('真客戶端 fixture 失敗')

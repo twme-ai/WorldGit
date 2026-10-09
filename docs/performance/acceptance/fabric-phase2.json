@@ -1,0 +1,10 @@
+[
+  {
+    "name": "single-26.2-phase2",
+    "exit": 0,
+    "seconds": 150.87233638763428,
+    "log": ".work/fabric-phase4/regressions-1791551129/single-26.2-phase2.log",
+    "result": ".work/fabric-acceptance/phase2-26.2-20261009-130741/result.json",
+    "success": true
+  }
+]

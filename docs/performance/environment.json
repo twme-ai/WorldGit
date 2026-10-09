@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-09",
+  "kernel": "Linux-6.8.0-146-generic-x86_64-with-glibc2.39",
+  "logical_cpus": 3,
+  "affinity_cpus": 3,
+  "cpu_model": "AMD EPYC 7402P 24-Core Processor",
+  "benchmark_date": "2026-10-08–2026-10-09",
+  "gradle_max_workers": 1,
+  "parallel_heavy_runners": 1,
+  "cli_jvm": "OpenJDK 21, -Xmx1G, fresh process per command",
+  "fabric_client_jvm": "OpenJDK 21 (1.21.11), OpenJDK 25 (26.2); Gradle launcher OpenJDK 25",
+  "fabric_single_renderer": "llvmpipe, LP_NUM_THREADS=3",
+  "fabric_single_fps_cap": 20,
+  "fabric_single_afk_throttle": false,
+  "online_players": 0,
+  "single_players": 1,
+  "baseline_source_head": "ffd61fa4d16d883540b15f46258eed4dea3088f1"
+}

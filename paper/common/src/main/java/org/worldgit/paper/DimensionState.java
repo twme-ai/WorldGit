@@ -75,6 +75,8 @@ public final class DimensionState {
           if (hasEntities) entities.add(pos);
         });
     for (ChunkPos pos : unsaved) dirty.mark(pos);
+    // 先前沿用線上內容的 chunk 卸載後，必須重新以磁碟內容核對。
+    for (ChunkPos pos : census.loaded()) if(!loaded.contains(pos)) dirty.mark(pos);
     // 實體跨 chunk 移動或被移除時，來源 chunk 可能已沒有實體且 terrain 不會設 unsaved。
     // 來源與目的地都必須再擷取，否則 HEAD 會留著來源的 UUID，而目的地又加進同一個 UUID。
     for (ChunkPos pos : census.entityChunks()) dirty.mark(pos);

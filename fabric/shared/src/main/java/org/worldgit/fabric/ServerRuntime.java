@@ -52,6 +52,26 @@ public final class ServerRuntime {
                         t.setDaemon(true);
                         return t;
                     });
+    private final ExecutorService normalizer=Executors.newFixedThreadPool(2,r->{
+        var thread=new Thread(r,"WorldGit-normalize");thread.setDaemon(true);return thread;
+    });
+    Executor normalizer() { return normalizer; }
+    private final Queue<Runnable> captureTasks=new ConcurrentLinkedQueue<>();
+    private int captureTick=-1,captureCount;
+    private long captureNanos;
+    private boolean captureScheduled;
+    void postCapture(Runnable task) { captureTasks.add(task); postToServer(this::drainCaptureTasks); }
+    private void drainCaptureTasks() {
+        int tick=server.getTickCount();
+        if(tick!=captureTick) { captureTick=tick;captureCount=0;captureNanos=0; }
+        Runnable task;
+        while((closed || stoppingServer || captureCount<8 && captureNanos<5_000_000L) && (task=captureTasks.poll())!=null) {
+            long start=System.nanoTime();task.run();captureNanos+=System.nanoTime()-start;captureCount++;
+        }
+        if(!captureTasks.isEmpty() && !captureScheduled) {
+            captureScheduled=true;nextTick(()->{captureScheduled=false;drainCaptureTasks();});
+        }
+    }
     private final Attribution attribution = new Attribution();
     private final OperationUi ui = new OperationUi(this);
     private final TouchedEntities touchedEntities = new TouchedEntities(this);
@@ -183,7 +203,7 @@ public final class ServerRuntime {
         return new DimensionId(level.dimension().identifier().toString());
     }
 
-    static ChunkPos corePos(net.minecraft.world.level.ChunkPos pos) {
+    public static ChunkPos corePos(net.minecraft.world.level.ChunkPos pos) {
         return new ChunkPos(pos.getMinBlockX() >> 4, pos.getMinBlockZ() >> 4);
     }
 
@@ -198,8 +218,11 @@ public final class ServerRuntime {
     }
 
     void chunkUnloaded(ServerLevel level, LevelChunk chunk) {
-        var set = loaded.get(dimensionId(level));
-        if (set != null) set.remove(corePos(chunk.getPos()));
+        var dimension=dimensionId(level);var pos=corePos(chunk.getPos());
+        var set = loaded.get(dimension);
+        if (set != null) set.remove(pos);
+        // 上一次索引可能使用線上內容，卸載後必須改以磁碟內容重新證明。
+        tracker(dimension).mark(pos);
     }
 
     /** 玩家放置／破壞：標記 chunk dirty 並記錄歸屬。伺服器執行緒。 */
@@ -306,38 +329,13 @@ public final class ServerRuntime {
         }
     }
 
-    /** 把所有維度與世界資料寫回磁碟並等待寫入完成（等同 /save-all flush）。 */
-    void flushBlocking() {
-        onServer(() -> server.saveEverything(true, true, true));
-    }
+    /** Owner serializes in bounded batches; the repository thread awaits IO. */
+    void flushBlocking() {ChunkSaveQueue.flush(this,null,true);}
 
-    /** 只排入指定 chunk 的 terrain／entity／POI；最後等待 IO queue（不掃其他 chunk）。 */
-    void flushChunks(Map<DimensionId,Set<ChunkPos>> chunks) {
-        var timings=org.worldgit.core.service.OperationTimings.current();
-        onServer(()->{
-            for(var entry:chunks.entrySet()) {
-                var level=server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(entry.getKey().value())));
-                var entities=((org.worldgit.fabric.mixin.ServerLevelAccess)level).worldgit$entities();
-                @SuppressWarnings("unchecked") var entityAccess=(org.worldgit.fabric.mixin.EntityManagerAccess<net.minecraft.world.entity.Entity>)(Object)entities;
-                var map=level.getChunkSource().chunkMap;
-                for(var pos:entry.getValue()) {
-                    var chunk=level.getChunkSource().getChunkNow(pos.x(),pos.z());
-                    // entity／POI 可以仍在記憶體中，而 terrain 已卸載；三種 storage 分別保存。
-                    if(!entityAccess.worldgit$store(((long)pos.x() & 0xffffffffL) | ((long)pos.z() << 32),e->{}))
-                        throw new IOException("entity IO 尚未完成："+pos);
-                    if(chunk!=null) {
-                        // capture/apply 已等待 loaded entity chunks；未 ready 時不能假裝持久化完成。
-                        ((org.worldgit.fabric.mixin.ChunkMapAccess)map).worldgit$save(chunk);
-                    }
-                    level.getPoiManager().flush(new net.minecraft.world.level.ChunkPos(pos.x(),pos.z()));
-                }
-                long ioStarted=System.nanoTime(); entityAccess.worldgit$storage().flush(false); map.synchronize(true).join();
-                ((org.worldgit.fabric.mixin.SectionStorageAccess)level.getPoiManager()).worldgit$region().synchronize(true).join();
-                if(timings!=null) timings.record("io-barrier",System.nanoTime()-ioStarted);
-            }
-            return null;
-        });
-    }
+    void flushChunks(Map<DimensionId,Set<ChunkPos>> chunks) {ChunkSaveQueue.flush(this,chunks,false);}
+
+    private volatile boolean stoppingServer;
+    boolean stoppingServer() {return stoppingServer;}
 
     <T> CompletableFuture<T> runRepo(Callable<T> task) {
         var future = new CompletableFuture<T>();
@@ -393,22 +391,39 @@ public final class ServerRuntime {
         }
     }
     private volatile int editLocks;
-    private boolean mutation, wasFrozen;
-    private int wasStepping;
+    private final Map<DimensionId,Set<ChunkPos>> entityCensusChunks=new HashMap<>();
+    Set<ChunkPos> previousEntityChunks(DimensionId dimension,Set<ChunkPos> current) {
+        var previous=entityCensusChunks.put(dimension,Set.copyOf(current));
+        return previous==null ? Set.of() : previous;
+    }
+    private boolean mutation;
     public boolean editsLocked() { return editLocks>0; }
     private volatile Map<DimensionId,Set<ChunkPos>> regionEditChunks;
     public boolean editsLocked(DimensionId dimension,ChunkPos chunk) {
         var scope=regionEditChunks;
-        return editLocks>0 && (scope==null || scope.getOrDefault(dimension,Set.of()).contains(chunk));
+        return editLocks>0 && (scope==null || scope.containsKey(dimension)
+            && (scope.get(dimension).isEmpty() || scope.get(dimension).contains(chunk)));
     }
     public boolean editsLocked(DimensionId dimension) {
         var scope=regionEditChunks;
         return editLocks>0 && (scope==null || scope.containsKey(dimension));
     }
+    private volatile Map<DimensionId,Set<ChunkPos>> tickingLocks=Map.of();
+    public boolean ticksLocked(DimensionId dimension,ChunkPos pos) {return tickingLocks.getOrDefault(dimension,Set.of()).contains(pos);}
+    AutoCloseable guardChunks(Map<DimensionId,Set<ChunkPos>> affected) {
+        var scope=new TreeMap<DimensionId,Set<ChunkPos>>();
+        affected.forEach((dimension,chunks)->{var ring=new TreeSet<ChunkPos>();for(var p:chunks)for(int x=-1;x<=1;x++)for(int z=-1;z<=1;z++)ring.add(new ChunkPos(p.x()+x,p.z()+z));scope.put(dimension,Set.copyOf(ring));});
+        return onServer(()->{
+            if(!tickingLocks.isEmpty()) throw new IllegalStateException("Chunk tick lock already active");
+            tickingLocks=Map.copyOf(scope);
+            var ticks=new ChunkTickLocks(this,scope);
+            try {ticks.acquire();}catch(Throwable e){try {ticks.close();}catch(Throwable cleanup){e.addSuppressed(cleanup);}tickingLocks=Map.of();throw e;}
+            return (AutoCloseable)()->onServer(()->{try {ticks.close();}finally {tickingLocks=Map.of();}return null;});
+        });
+    }
     AutoCloseable lockChunks(Map<DimensionId,Set<ChunkPos>> chunks) {
-        var lock=lockWorld();
-        regionEditChunks=chunks.values().stream().anyMatch(Set::isEmpty) ? null : Map.copyOf(chunks);
-        return ()->{ regionEditChunks=null; lock.close(); };
+        var ticks=guardChunks(chunks);var edit=lockWorld(tickingLocks);
+        return ()->onServer(()->{try {ticks.close();}finally {edit.close();}return null;});
     }
     public boolean internalMutation() { return server.isSameThread() && mutation; }
     @FunctionalInterface interface Mutation { void run() throws Exception; }
@@ -416,19 +431,18 @@ public final class ServerRuntime {
         boolean before=mutation; mutation=true;
         try { action.run(); } finally { mutation=before; }
     }
-    AutoCloseable lockWorld() {
+    AutoCloseable lockWorld(DimensionId dimension) { return lockWorld(Map.of(dimension,Set.of())); }
+    private AutoCloseable lockWorld(Map<DimensionId,Set<ChunkPos>> chunks) {
         onServer(()->{
             if(editLocks++==0) {
-                var ticks=server.tickRateManager();
-                wasFrozen=ticks.isFrozen(); wasStepping=ticks.frozenTicksToRun();
-                ticks.setFrozenTicksToRun(0); ticks.setFrozen(true);
-                for(var player:server.getPlayerList().getPlayers()) player.closeContainer();
+                regionEditChunks=Map.copyOf(chunks);
+                for(var player:server.getPlayerList().getPlayers())
+                    if(chunks.containsKey(dimensionId((ServerLevel)player.level()))) player.closeContainer();
             }
             return null;
         });
         return ()->onServer(()->{ if(--editLocks==0) {
-            var ticks=server.tickRateManager();ticks.setFrozen(wasFrozen);
-            if(wasFrozen && wasStepping>0) ticks.stepGameIfPaused(wasStepping);
+            regionEditChunks=null;
         } return null; });
     }
     private volatile UUID operation;
@@ -493,7 +507,7 @@ public final class ServerRuntime {
         }
         var future=runRepo(()->{
             UUID id=operation;
-            try(var timing=org.worldgit.core.service.OperationTimings.start("fabric-live"); var editLock=region ? (AutoCloseable)()->{} : lockWorld()) {
+            try(var timing=org.worldgit.core.service.OperationTimings.start("fabric-live"); var editLock=(AutoCloseable)()->{}) {
                 if(!region) try(var timingFlush=org.worldgit.core.service.OperationTimings.stage("flush")) { flushBlocking(); }
                 if(cancel.get()) throw new IOException("作業已取消，尚未寫入世界");
                 var layout=WorldLayout.discover(worldRoot());
@@ -897,6 +911,7 @@ public final class ServerRuntime {
 
     /** 伺服器關閉（或離開單人世界）時的最後一次自動 commit：阻塞伺服器執行緒，但持續處理排入的伺服器工作。 */
     void stopping() {
+        stoppingServer=true;
         remote.close();commentsOutbound.clear();
         if(operationActive()) {
             cancelApply();
@@ -908,7 +923,7 @@ public final class ServerRuntime {
             // 關閉流程中仍由伺服器執行緒處理 repo 執行緒排入的工作（chunk 存檔／複製）。
             server.managedBlock(
                     () -> {
-                        drainServerTasks();
+                        drainServerTasks();drainTickTasks(true);
                         return done.isDone();
                     });
             try {
@@ -941,6 +956,7 @@ public final class ServerRuntime {
     }
 
     void shutdown() {
+        normalizer.shutdown();
         remote.close();commentsOutbound.clear();
         ui.close();
         for(var bar:mergeBars.values()) bar.removeAllPlayers();mergeBars.clear();

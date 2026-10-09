@@ -1,0 +1,892 @@
+{
+  "platform": "paper",
+  "version": "1.21.11",
+  "label": "before-comparable",
+  "rounds": 1,
+  "success": true,
+  "rows": {
+    "init": {
+      "samples": [
+        38.205593698017765
+      ],
+      "probes": [
+        {
+          "b_tps": 19.582,
+          "b_ticks": 749,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 1021.511,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "AIR",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 38.205593698017765,
+      "max": 38.205593698017765
+    },
+    "branch": {
+      "samples": [
+        0.19596036901930347
+      ],
+      "probes": [
+        {
+          "b_tps": 12.008,
+          "b_ticks": 3,
+          "locked_samples": 1,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 51.061,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 0.19596036901930347,
+      "max": 0.19596036901930347
+    },
+    "status-noop": {
+      "samples": [
+        1.3497011119616218
+      ],
+      "probes": [
+        {
+          "b_tps": 19.285,
+          "b_ticks": 27,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 54.923,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "WATER"
+        }
+      ],
+      "p50": 1.3497011119616218,
+      "max": 1.3497011119616218
+    },
+    "commit-noop": {
+      "samples": [
+        1.1459774459945038
+      ],
+      "probes": [
+        {
+          "b_tps": 19.159,
+          "b_ticks": 23,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 50.329,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "WATER"
+        }
+      ],
+      "p50": 1.1459774459945038,
+      "max": 1.1459774459945038
+    },
+    "switch-noop": {
+      "samples": [
+        52.201740209013224,
+        51.80073897301918
+      ],
+      "probes": [
+        {
+          "b_tps": 0.057,
+          "b_ticks": 3,
+          "locked_samples": 1041,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 257.959,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1033,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 66.183,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 52.0012395910162,
+      "max": 52.201740209013224
+    },
+    "setup-branch": {
+      "samples": [
+        0.19368753401795402,
+        0.20297266001580283,
+        0.2026204860303551,
+        0.19276463601272553,
+        0.2023267620243132,
+        0.19513300101971254,
+        0.2025836420361884
+      ],
+      "probes": [
+        {
+          "b_tps": 12.036,
+          "b_ticks": 3,
+          "locked_samples": 1,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 57.588,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 12.002,
+          "b_ticks": 3,
+          "locked_samples": 1,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 50.454,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 11.994,
+          "b_ticks": 3,
+          "locked_samples": 1,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 50.434,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 12.003,
+          "b_ticks": 3,
+          "locked_samples": 1,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 50.648,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 12.0,
+          "b_ticks": 3,
+          "locked_samples": 1,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 50.18,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 11.977,
+          "b_ticks": 3,
+          "locked_samples": 1,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 50.302,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 12.003,
+          "b_ticks": 3,
+          "locked_samples": 1,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 50.304,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 0.2023267620243132,
+      "max": 0.20297266001580283
+    },
+    "setup-switch": {
+      "samples": [
+        51.099190564011224,
+        51.64743849897059,
+        51.45259042800171,
+        52.09527158300625,
+        51.65365989599377,
+        51.80063655797858,
+        52.04807281901594,
+        51.298603806993924,
+        51.84473571903072,
+        52.7502425230341,
+        51.845156275026966,
+        52.39549948798958,
+        52.2991186560248,
+        61.00154420500621
+      ],
+      "probes": [
+        {
+          "b_tps": 0.059,
+          "b_ticks": 3,
+          "locked_samples": 1019,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 69.861,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1030,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 70.953,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1026,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 66.096,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1039,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 67.159,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1030,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 68.206,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1033,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 72.056,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1038,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 70.464,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1023,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 61.466,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1034,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 62.523,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.057,
+          "b_ticks": 3,
+          "locked_samples": 1052,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 102.499,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1034,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 59.049,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.057,
+          "b_ticks": 3,
+          "locked_samples": 1045,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 85.439,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.057,
+          "b_ticks": 3,
+          "locked_samples": 1043,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 62.258,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.049,
+          "b_ticks": 3,
+          "locked_samples": 1212,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 541.452,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 51.844945997028844,
+      "max": 61.00154420500621
+    },
+    "commit-1": {
+      "samples": [
+        25.75687362602912
+      ],
+      "probes": [
+        {
+          "b_tps": 19.961,
+          "b_ticks": 515,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 68.182,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "WATER"
+        }
+      ],
+      "p50": 25.75687362602912,
+      "max": 25.75687362602912
+    },
+    "switch-1": {
+      "samples": [
+        51.65161454200279,
+        51.992148439981975
+      ],
+      "probes": [
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1030,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 67.404,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1037,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 81.092,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 51.82188149099238,
+      "max": 51.992148439981975
+    },
+    "merge-1": {
+      "samples": [
+        128.99514095595805
+      ],
+      "probes": [
+        {
+          "b_tps": 0.023,
+          "b_ticks": 3,
+          "locked_samples": 2577,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 67.309,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 128.99514095595805,
+      "max": 128.99514095595805
+    },
+    "commit-10": {
+      "samples": [
+        25.954764541995246
+      ],
+      "probes": [
+        {
+          "b_tps": 19.962,
+          "b_ticks": 519,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 62.735,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "WATER"
+        }
+      ],
+      "p50": 25.954764541995246,
+      "max": 25.954764541995246
+    },
+    "switch-10": {
+      "samples": [
+        51.998098623007536,
+        52.40141614899039
+      ],
+      "probes": [
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "locked_samples": 1037,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 70.256,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.057,
+          "b_ticks": 3,
+          "locked_samples": 1045,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 68.378,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 52.199757385998964,
+      "max": 52.40141614899039
+    },
+    "merge-10": {
+      "samples": [
+        130.6990175159881
+      ],
+      "probes": [
+        {
+          "b_tps": 0.023,
+          "b_ticks": 3,
+          "locked_samples": 2611,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 73.093,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 130.6990175159881,
+      "max": 130.6990175159881
+    },
+    "commit-100": {
+      "samples": [
+        25.848025646992028
+      ],
+      "probes": [
+        {
+          "b_tps": 19.962,
+          "b_ticks": 517,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 66.694,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "WATER"
+        }
+      ],
+      "p50": 25.848025646992028,
+      "max": 25.848025646992028
+    },
+    "switch-100": {
+      "samples": [
+        52.85177339398069,
+        52.39929456700338
+      ],
+      "probes": [
+        {
+          "b_tps": 0.057,
+          "b_ticks": 3,
+          "locked_samples": 1054,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 207.449,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.057,
+          "b_ticks": 3,
+          "locked_samples": 1045,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 100.383,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 52.62553398049204,
+      "max": 52.85177339398069
+    },
+    "merge-100": {
+      "samples": [
+        140.59798337402754
+      ],
+      "probes": [
+        {
+          "b_tps": 0.021,
+          "b_ticks": 3,
+          "locked_samples": 2809,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 81.238,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 140.59798337402754,
+      "max": 140.59798337402754
+    },
+    "commit-1000": {
+      "samples": [
+        26.799408873019274
+      ],
+      "probes": [
+        {
+          "b_tps": 19.963,
+          "b_ticks": 536,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 59.232,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "WATER"
+        }
+      ],
+      "p50": 26.799408873019274,
+      "max": 26.799408873019274
+    },
+    "switch-1000": {
+      "samples": [
+        61.19779932999518,
+        61.20237630099291
+      ],
+      "probes": [
+        {
+          "b_tps": 0.049,
+          "b_ticks": 3,
+          "locked_samples": 1209,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 613.067,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        },
+        {
+          "b_tps": 0.049,
+          "b_ticks": 3,
+          "locked_samples": 1216,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 549.802,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 61.200087815494044,
+      "max": 61.20237630099291
+    },
+    "verify": {
+      "samples": [
+        26.54162047500722
+      ],
+      "probes": [
+        {
+          "b_tps": 0.113,
+          "b_ticks": 3,
+          "locked_samples": 528,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 172.917,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0,
+          "far_source": "WATER",
+          "far_neighbor": "AIR"
+        }
+      ],
+      "p50": 26.54162047500722,
+      "max": 26.54162047500722
+    }
+  },
+  "isolation": [
+    {
+      "b_tps": 0.049,
+      "b_ticks": 3,
+      "locked_samples": 1209,
+      "a_game_time_advances": 0,
+      "b_advances_while_locked": 0,
+      "b_flow_while_locked": 0,
+      "b_redstone_while_locked": 0,
+      "max_gap_ms": 613.067,
+      "far_ticks": 0,
+      "far_flow": 0,
+      "far_redstone": 0,
+      "far_source": "WATER",
+      "far_neighbor": "AIR"
+    },
+    {
+      "b_tps": 0.049,
+      "b_ticks": 3,
+      "locked_samples": 1216,
+      "a_game_time_advances": 0,
+      "b_advances_while_locked": 0,
+      "b_flow_while_locked": 0,
+      "b_redstone_while_locked": 0,
+      "max_gap_ms": 549.802,
+      "far_ticks": 0,
+      "far_flow": 0,
+      "far_redstone": 0,
+      "far_source": "WATER",
+      "far_neighbor": "AIR"
+    }
+  ],
+  "fixture": "online-flat-2704-target-32x32",
+  "players": 0,
+  "latency_only": true,
+  "legacy_baseline": true,
+  "artifact_sha256": "36029fc1938fa8de533b9e5baa72d8cb09b195cdd4f8dc58d45d0ab6f43fcaea",
+  "checks": {
+    "full_verify": true,
+    "adversary": false,
+    "storage_last_entity_removal": false
+  },
+  "server_log": ".work/paper-delivery/logs/paper-1.21.11-20261009-190046-console.log"
+}

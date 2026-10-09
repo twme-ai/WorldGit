@@ -1,0 +1,67 @@
+{
+  "checked_utc": "2026-10-09T20:22:55.534085+00:00",
+  "source_head_unchanged": "ffd61fa4d16d883540b15f46258eed4dea3088f1",
+  "diff_check": "passed",
+  "experiments_diff": [],
+  "production_scan": {
+    "files": 236,
+    "forbidden_pattern": "Instrumentation|VirtualMachine|agentmain|premain|tick-agent|javaagent|jdk\\.attach|TickIsolation|prepareTickIsolation|setFrozen|ProcessBuilder|Runtime\\s*\\.\\s*getRuntime\\(\\)\\s*\\.\\s*exec",
+    "matches": [],
+    "source_content_sha256": "d97b6d8b94568cd4bd2dc520ab9ea4720024681eef145a686723f9015d8e89b4",
+    "tick_agent_directory_absent": true
+  },
+  "final_artifacts": {
+    "cli": {
+      "path": "cli/build/libs/wgit.jar",
+      "sha256": "c5d1527ddc32d0e092b6cd9ebd960b3c0c24da0a1ec12a14e8a19754260f2215"
+    },
+    "paper": {
+      "path": "paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar",
+      "sha256": "96dca4244157c1181545992dcb60918528604f26ac4948ffb047e725a664dcc6"
+    },
+    "fabric": {
+      "path": "fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar",
+      "sha256": "c3050bfd7d91877d25e8eb11d5b2ffe0cd2e5374962df69c97cb10c036148a23"
+    }
+  },
+  "all_final_matrices_match_current_artifacts": true,
+  "jar_agent_entry_scan": "passed",
+  "inherited_runners": "all latest jobs exit 0; finalize ends with cli-extra-after",
+  "bench_lock": "released",
+  "test_ports_closed": {
+    "8098": true,
+    "25671": true,
+    "25672": true,
+    "25673": true,
+    "25674": true,
+    "25701": true,
+    "25702": true,
+    "25703": true,
+    "25704": true,
+    "25711": true,
+    "25712": true,
+    "25713": true,
+    "25714": true
+  },
+  "process_visibility": "pgrep only sees the sandbox PID namespace. Host runner retirement is cross-checked using terminal ledgers, released bench.lock, closed ports, client FABRIC5 DONE/BUILD SUCCESSFUL and server stop logs; harnesses wait and stop process groups.",
+  "before_cli_provenance": {
+    "raw_result": ".work/perf/before-matrix/result.json",
+    "raw_result_sha256": "54f6d073f3eea149747e6e1191a8dc46f2740a2391621d1bb457bd03c451bd0c",
+    "completion_log": ".work/codex-prompts/perf-task-muzfrimg-l5ja44.log",
+    "completion_line": "[2026-10-08T12:24:24.040Z] Command completed: /bin/bash -lc 'python3 tools/performance/benchmark.py --label before-matrix --jar .work/perf/... (exit 0)",
+    "legacy_format_has_no_success_field": true
+  },
+  "intermediate_evidence_bytes": {
+    "roots": {
+      ".work/perf": 978538496,
+      ".work/worlds/fabric-gametest": 259325952,
+      ".work/fabric-phase4": 1126940672,
+      ".work/fabric-phase5": 288260096,
+      ".work/paper-phase4": 6012928,
+      ".work/paper-phase5": 102199296,
+      ".work/fabric-acceptance/phase2-26.2-20261009-130741": 1290240
+    },
+    "total": 2762567680,
+    "scope": "performance evidence, game-test cache and affected acceptance roots; Gradle caches and existing baselines excluded"
+  }
+}

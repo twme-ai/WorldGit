@@ -72,31 +72,19 @@ final class PaperOperations implements AutoCloseable {
           var world=mapping.worlds().get(dimension.id());
           if(world==null) throw new IOException("維度未在線："+dimension.id());
           var source=new PaperLiveWorld(plugin,plugin.state(dimension.id(),world),world,layout,false);
+          source.receipts(atomicReceipts.getOrDefault(dimension.id(),Map.of()));
           try(var timing=OperationTimings.stage("flush")) { await(source.flush()); return source; } catch(IOException e) { source.close(); throw e; }
         }
         public SnapshotSource source(WorldLayout.Dimension dimension,Set<ChunkPos> chunks) throws IOException {
           var world=mapping.worlds().get(dimension.id());
           var source=new PaperLiveWorld(plugin,plugin.state(dimension.id(),world),world,layout,false);
+          source.receipts(atomicReceipts.getOrDefault(dimension.id(),Map.of()));
           try(var timing=OperationTimings.stage("flush")) {
             await(source.flush(chunks)); source.captureOnly(chunks); return source;
           } catch(IOException ex) { source.close(); throw ex; }
         }
         public Set<ChunkPos> entityChunks(WorldLayout.Dimension dimension,Set<UUID> ids) throws IOException {
-          var source=live.get(dimension.id());
-          var found=new TreeSet<ChunkPos>(source.storedEntityChunks(ids));
-          var world=mapping.worlds().get(dimension.id());
-          // 背景 census 可能仍是 UUID 移動前的位置；在全組鎖內重新普查。
-          for(var pos:plugin.state(dimension.id(),world).refresh(plugin.bridge(),world).entityChunks()) {
-            var done=new CompletableFuture<Boolean>();
-            plugin.platform().region(world,pos.x(),pos.z(),()->{
-              try { var raw=plugin.bridge().copy(world,pos.x(),pos.z());
-                var matches=new HashSet<UUID>(); if(raw!=null) raw.entities().forEach(n->collectIds(n,matches));
-                done.complete(!Collections.disjoint(ids,matches));
-              } catch(Throwable e) { done.completeExceptionally(e); }
-            });
-            if(await(done)) found.add(pos);
-          }
-          return found;
+          return matchingEntityChunks(dimension.id(),ids);
         }
         public AutoCloseable lockChunks(Map<DimensionId,Set<ChunkPos>> chunks) throws IOException {
           var locks=new ArrayList<AutoCloseable>();
@@ -122,6 +110,7 @@ final class PaperOperations implements AutoCloseable {
         public void beforeComplete() throws IOException {
           if(queue.stopping || queue.cancelled.get() || Thread.currentThread().isInterrupted()) throw new IOException("操作已取消或插件關閉中");
         }
+        public AutoCloseable guardApply(Collection<ApplyPlan> plans) throws IOException { return guardAffectedChunks(plans); }
         public void validate(ApplyPlan plan) throws IOException { beforeComplete(); validateOnline(plan); }
         public void applyAll(Collection<ApplyPlan> plans) throws IOException {
           var all=new TreeMap<DimensionId,ApplyPlan>(); plans.forEach(p->all.put(p.dimension(),p));
@@ -216,9 +205,12 @@ final class PaperOperations implements AutoCloseable {
     return Collections.unmodifiableSortedMap(prepare(resolve(revision),dimension,scope,metadata,delete).plans);
   }
   public Result verify(String revision,DimensionId dimension,Scope scope,boolean metadata) throws IOException {
-    var prepared=prepare(resolve(revision),dimension,scope,metadata,false);
-    boolean zero=prepared.plans.values().stream().allMatch(ApplyPlan::empty);
-    return new Result(zero ? State.COMPLETE : State.PARTIAL,stats(prepared),zero ? null : "世界與目標仍有差異");
+    try(var full=new org.worldgit.core.capture.CaptureOptions(true)) {
+      captured.clear();
+      var prepared=prepare(resolve(revision),dimension,scope,metadata,false);
+      boolean zero=prepared.plans.values().stream().allMatch(ApplyPlan::empty);
+      return new Result(zero ? State.COMPLETE : State.PARTIAL,stats(prepared),zero ? null : "世界與目標仍有差異");
+    }
   }
   public Result restore(String revision,DimensionId dimension,Scope scope,boolean dryRun,boolean delete) throws IOException {
     requireComplete();
@@ -232,6 +224,29 @@ final class PaperOperations implements AutoCloseable {
     if(dirty() && !force && !stash) throw new IOException("工作區有未提交變動；請 commit、stash push、switch --stash 或 --force。");
     if(stash && !dryRun && dirty()) saveStash("switch 前自動 stash");
     boolean branch=repos.values().stream().allMatch(r->{try{return r.refs().branches().containsKey(revision);}catch(IOException e){return false;}});
+    if(!force && !stash && repos.size()==1) {
+      var repo=repos.get(repos.firstKey());var target=prepared.commits.get(repo.dimension());var prior=repo.refs().headState();
+      if(prior.commit()!=null && target.tree().equals(repo.refs().readCommit(prior.commit()).tree())
+          && target.tree().equals(prepared.plans.get(repo.dimension()).baseTree())) {
+        if(dryRun) return new Result(State.DRY_RUN,stats(prepared),null);
+        synchronized(plugin.repo()) {
+          if(queue.cancelled.get() || queue.stopping) throw new IOException("操作已取消");
+          String operation=UUID.randomUUID().toString();var row=new LinkedHashMap<String,Object>();
+          row.put("from",prior.commit());row.put("from-branch",prior.branch());row.put("to",target.id());
+          row.put("scope",prepared.plans.get(repo.dimension()).scope().toString());row.put("applied",true);
+          var journal=new LinkedHashMap<String,Object>();journal.put("version",1);journal.put("operation",operation);
+          journal.put("mode","switch");journal.put("state","COMPLETE");journal.put("head-only",true);
+          journal.put("time",Instant.now().toString());journal.put("dimensions",Map.of(repo.dimension().value(),row));
+          repo.refs().updateRef("refs/worldgit/operations/"+operation+"/from",null,prior.commit());
+          repo.refs().updateRef("refs/worldgit/operations/"+operation+"/to",null,target.id());
+          var next=new RefStore.Head(target.id(),branch ? revision : null);repo.refs().checkout(prior,next);
+          try {repo.rebindIndex();writeJournal(journal);} catch(IOException failure) {
+            try {repo.refs().checkout(next,prior);}catch(IOException rollback){failure.addSuppressed(rollback);}throw failure;
+          }
+        }
+        return new Result(State.COMPLETE,stats(prepared),null);
+      }
+    }
     return execute("switch",prepared,branch ? revision : null,true,dryRun);
   }
   public Result resetHard(String revision,boolean force,boolean dryRun) throws IOException {
@@ -259,6 +274,65 @@ final class PaperOperations implements AutoCloseable {
 
   private Result execute(String mode,Prepared prepared,String branch,boolean moveHead,boolean dryRun) throws IOException {
     if(dryRun) return new Result(State.DRY_RUN,stats(prepared),null);
+    boolean writes=prepared.plans.values().stream().anyMatch(p->!p.empty());
+    try(var pause=writes ? guardAffectedChunks(prepared.plans.values()) : (AutoCloseable)()->{}) {
+      if(writes) {
+        captured.clear();
+        for(var entry:prepared.plans.entrySet()) {
+          var repo=repos.get(entry.getKey());
+          if(!new DiffEngine(repo.objects()).compare(entry.getKey(),entry.getValue().baseTree(),
+              capture(repo),tolerance,DiffEngine.Detail.SUMMARY,LiveApplyVerification.affected(entry.getValue())).empty())
+            throw new IOException("預檢期間世界已變動，尚未寫入；請重試操作");
+        }
+      }
+      return executeGuarded(mode,prepared,branch,moveHead);
+    } catch(IOException e) {throw e;} catch(Exception e) {throw new IOException("世界 tick 屏障失敗",e);}
+  }
+
+  private Set<ChunkPos> matchingEntityChunks(DimensionId dimension,Set<UUID> ids) throws IOException {
+    var source=live.get(dimension);
+    var found=new TreeSet<ChunkPos>(source.storedEntityChunks(ids));
+    var world=mapping.worlds().get(dimension);
+    // Census is only a candidate list; lock chunks containing the requested UUIDs.
+    for(var pos:plugin.state(dimension,world).refresh(plugin.bridge(),world).entityChunks()) {
+      var done=new CompletableFuture<Boolean>();
+      plugin.platform().region(world,pos.x(),pos.z(),()->{
+        try { var raw=plugin.bridge().copy(world,pos.x(),pos.z());
+          var matches=new HashSet<UUID>(); if(raw!=null) raw.entities().forEach(n->collectIds(n,matches));
+          done.complete(!Collections.disjoint(ids,matches));
+        } catch(Throwable e) { done.completeExceptionally(e); }
+      });
+      if(await(done)) found.add(pos);
+    }
+    return found;
+  }
+
+  private boolean atomicApply;
+  private final Map<DimensionId,Map<ChunkPos,NmsBridge.RawChunk>> atomicReceipts=new TreeMap<>();
+  private AutoCloseable guardAffectedChunks(Collection<ApplyPlan> plans) throws IOException {
+    atomicApply=!plugin.platform().folia() && plans.size()==1 && plans.stream().allMatch(p->plugin.settings().atomicApply().eligible(p)
+        && live.get(p.dimension()).entityChunks().stream().allMatch(c->p.entities().isEmpty() || LiveApplyVerification.affected(p).contains(c))
+        && plugin.state(p.dimension(),mapping.worlds().get(p.dimension())).refresh(plugin.bridge(),mapping.worlds().get(p.dimension())).loaded().containsAll(LiveApplyVerification.affected(p)));
+    if(atomicApply) {
+      var plan=plans.iterator().next();var world=mapping.worlds().get(plan.dimension());var pos=LiveApplyVerification.affected(plan).iterator().next();
+      var safe=new CompletableFuture<Boolean>();plugin.platform().region(world,pos.x(),pos.z(),()->{try {safe.complete(plugin.bridge().atomicLightingSafe(world,plan));}catch(Throwable error){safe.completeExceptionally(error);}});
+      try {atomicApply=safe.get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);}catch(Exception error){throw new IOException("Atomic lighting preflight failed",error);}
+    }
+    if(atomicApply) return ()->{atomicApply=false;};
+    var locks=new ArrayList<AutoCloseable>();
+    try {
+      for(var plan:plans) if(!plan.empty()) {
+        var chunks=new TreeSet<>(plan.chunks().keySet());
+        var ids=new HashSet<UUID>();
+        for(var entity:plan.entities()) { ids.add(entity.uuid()); if(entity.hint()!=null)chunks.add(entity.hint());if(entity.targetChunk()!=null)chunks.add(entity.targetChunk()); }
+        if(!ids.isEmpty())chunks.addAll(matchingEntityChunks(plan.dimension(),ids));
+        locks.add(live.get(plan.dimension()).lockEdits(chunks,"WorldGit apply"));
+      }
+      return ()->{for(int i=locks.size()-1;i>=0;i--) locks.get(i).close();};
+    } catch(IOException e) {for(var lock:locks) try {lock.close();}catch(Exception cleanup){e.addSuppressed(cleanup);}throw e;}
+  }
+
+  private Result executeGuarded(String mode,Prepared prepared,String branch,boolean moveHead) throws IOException {
     var old=new TreeMap<DimensionId,RefStore.Head>();
     var journal=new LinkedHashMap<String,Object>();
     journal.put("version",1); journal.put("operation",UUID.randomUUID().toString()); journal.put("mode",mode);
@@ -288,14 +362,25 @@ final class PaperOperations implements AutoCloseable {
       captured.clear();
       for(var entry:prepared.plans.entrySet()) {
         if(entry.getValue().scope().kind()==Scope.Kind.ALL) restoreConfig(repos.get(entry.getKey()),prepared.commits.get(entry.getKey()));
-        repos.get(entry.getKey()).invalidateIndex();
+        var changed=new TreeSet<>(entry.getValue().chunks().keySet());
+        for(var entity:entry.getValue().entities()) {
+          if(entity.hint()!=null) changed.add(entity.hint());
+          if(entity.targetChunk()!=null) changed.add(entity.targetChunk());
+        }
+        repos.get(entry.getKey()).forceRecapture(changed);
         @SuppressWarnings("unchecked") var row=(Map<String,Object>)rows.get(entry.getKey().value());
         row.put("applied",true); writeJournal(journal);
       }
       org.worldgit.core.operation.OperationProgress.report(selectedDimension,"verify",0,null,org.worldgit.core.operation.OperationProgress.Unit.CHUNK);
-      var checked=prepare(prepared.commits,nullForSelection(prepared),prepared.plans.get(prepared.plans.firstKey()).scope(),
-          prepared.plans.values().stream().anyMatch(p->!p.worldMeta().isEmpty()),false);
-      for(var entry:checked.plans.entrySet()) if(!entry.getValue().empty()) throw new IOException("套用驗證失敗："+entry.getKey()+" "+entry.getValue().stats());
+      var checkedPlans=new TreeMap<DimensionId,ApplyPlan>();
+      for(var entry:prepared.plans.entrySet()) {
+        var repo=repos.get(entry.getKey());var plan=entry.getValue();
+        var observed=LiveApplyVerification.observedFootprint(repo.objects(),plan,capture(repo));
+        var check=ApplyPlanner.plan(repo.objects(),entry.getKey(),observed,plan.targetTree(),plan.scope(),options(repo,prepared.commits.get(entry.getKey()),!plan.worldMeta().isEmpty(),false));
+        if(!check.empty()) throw new IOException("受影響 chunk 套用驗證失敗："+entry.getKey()+" "+check.stats());
+        checkedPlans.put(entry.getKey(),check);
+      }
+      var checked=new Prepared(prepared.commits,checkedPlans);
       synchronized(plugin.repo()) {
         if(queue.cancelled.get() || queue.stopping) throw new IOException("操作已取消");
         if(moveHead) for(var entry:prepared.commits.entrySet()) {
@@ -311,7 +396,7 @@ final class PaperOperations implements AutoCloseable {
           for(var pos:untracked(repo.directory())) if(!entry.getValue().scope().touchesChunk(pos)) kept.add(pos);
           saveUntracked(repo.directory(),new ArrayList<>(kept));
           if(moveHead) restoreConfig(repo,prepared.commits.get(entry.getKey()));
-          repo.invalidateIndex();
+          repo.rebindIndex();
         }
         if(queue.cancelled.get() || queue.stopping) throw new IOException("操作已取消");
         journal.put("state","COMPLETE"); writeJournal(journal);
@@ -491,8 +576,47 @@ final class PaperOperations implements AutoCloseable {
     for(var op:plan.chunks().values()) if(op.delete()) throw new IOException("線上不刪除 chunk；stash 請先 commit 新增地形，或離線清理");
     if(!plan.worldMeta().isEmpty()) throw new IOException("線上 world-meta 還原尚不支援："+plan.worldMeta().keySet()+"；請離線還原設定");
   }
+  private void applyAtomic(ApplyPlan plan) throws IOException {
+    var world=mapping.worlds().get(plan.dimension());var path=worlds.tracked().get(plan.dimension());
+    var checks=new TreeMap<ChunkPos,AtomicChunkCheck>();var rules=IgnoreRules.parse(plan.ignoreRules());
+    var source=live.get(plan.dimension());var registry=source.registry();
+    // Core already owns RepoLock for merge; a read-only object handle does not reacquire it.
+    try(var store=new org.worldgit.core.store.JGitStore(path,false)) {
+      var config=WorldGitConfig.readRepo(path.resolve("worldgit-repo.yml"));
+      var touched=config.entities()==WorldGitConfig.Entities.PLAYER_TOUCHED ? org.worldgit.core.capture.PlayerTouchedEntities.read(path) : null;
+      for(var pos:LiveApplyVerification.affected(plan))checks.put(pos,new AtomicChunkCheck(store,plan.baseTree(),pos,touched));
+      for(var op:plan.chunks().values())for(var section:op.sections().values())section.section();
+    }
+    var done=new CompletableFuture<Void>();var first=checks.firstKey();
+    plugin.platform().region(world,first.x(),first.z(),()->{
+      try {
+        if(queue.cancelled.get() || queue.stopping)throw new IOException("操作已取消");
+        plugin.quiesceAxiom(world);
+        long start=System.nanoTime();
+        // Last preflight, all writes and detached verification data share this owner tick.
+        for(var entry:checks.entrySet()) {
+          var pos=entry.getKey();var raw=plugin.bridge().copy(world,pos.x(),pos.z());
+          if(raw==null || !entry.getValue().matches(new org.worldgit.core.normalize.ChunkNormalizer(rules,registry).normalize(pos,raw.terrain(),raw.entities())))
+            throw new IOException("受影響 chunk 在預檢後已變動，尚未寫入；請重試");
+        }
+        var ids=new HashSet<UUID>();for(var op:plan.entities()) {ids.add(op.uuid());collectIds(op.target()==null ? null : op.target().data(),ids);}
+        for(var pos:checks.keySet()) {var raw=plugin.bridge().copy(world,pos.x(),pos.z());if(raw!=null)for(var entity:raw.entities())rememberEntity(entity,ids);plugin.bridge().removeEntities(world,pos.x(),pos.z(),ids);}
+        for(var op:plan.chunks().values())plugin.bridge().applyChunk(world,op,rules);
+        for(var op:plan.entities())if(op.target()!=null) {var n=op.target().data();mergeEntityFields(n,rules);plugin.edits().spawn(world,new EntitySnapshot(op.uuid(),n));}
+        var receipts=new TreeMap<ChunkPos,NmsBridge.RawChunk>();
+        for(var pos:checks.keySet())receipts.put(pos,plugin.bridge().copy(world,pos.x(),pos.z()));
+        atomicReceipts.put(plan.dimension(),Map.copyOf(receipts));source.receipts(receipts);
+        plugin.getLogger().info("WorldGit atomic chunks="+checks.size()+" sections="+plan.stats().sections()+" ownerNanos="+(System.nanoTime()-start));
+        done.complete(null);
+      } catch(Throwable e) {done.completeExceptionally(e);}
+    });
+    await(done);await(source.finishApply(checks.keySet()));await(source.flush(checks.keySet()));
+  }
+
   private ApplyBudget budget() { return plugin.getServer().getOnlinePlayers().isEmpty() ? ApplyBudget.DEFAULT : ApplyBudget.WITH_PLAYERS; }
   private void applyAll(SortedMap<DimensionId,ApplyPlan> plans) throws IOException {
+    if(atomicApply) {applyAtomic(plans.values().iterator().next());return;}
+    if(plans.values().stream().allMatch(ApplyPlan::empty)) return;
     org.worldgit.core.operation.OperationProgress.report(selectedDimension,"apply",0,null,org.worldgit.core.operation.OperationProgress.Unit.SECTION);
     var timings=OperationTimings.current();
     var ids=new HashSet<UUID>();

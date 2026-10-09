@@ -36,6 +36,9 @@ final class ChunkCapture {
         CompoundTag tag = SerializableChunkData.copyOf(level, chunk).write();
         if (!tag.contains("DataVersion")) tag.putInt("DataVersion", currentDataVersion());
         var pos = chunk.getPos();
+        long elapsed=ChunkTickLocks.elapsed(level,ServerRuntime.corePos(pos));
+        for(var key:List.of("block_ticks","fluid_ticks")) for(var value:tag.getListOrEmpty(key)) if(value instanceof CompoundTag tick)
+            tick.putInt("t",Math.toIntExact(tick.getIntOr("t",0)+elapsed));
         int minX = pos.getMinBlockX(), minZ = pos.getMinBlockZ();
         var box = new AABB(minX, level.getMinY() - 1, minZ, minX + 16, level.getMaxY() + 2, minZ + 16);
         var entities = new ArrayList<CompoundTag>();

@@ -91,6 +91,9 @@ public final class Wgit implements Runnable {
 
   @Option(names = "--all", scope = ScopeType.INHERIT, description = "各已 init 維度獨立執行；log 時含所有分支")
   boolean all;
+  @Option(names = "--full", scope = ScopeType.INHERIT, hidden = true,
+      description = "除錯：強制完整 capture，略過索引")
+  boolean full;
   private DimensionId activeDimension;
   private Object jsonData;
   private OperationProgress progress;
@@ -151,7 +154,8 @@ public final class Wgit implements Runnable {
       if (parsed.isUsageHelpRequested() || parsed.isVersionHelpRequested() || leaf.isUsageHelpRequested())
         return new CommandLine.RunLast().execute(parsed);
       root.jsonData = null; root.outcome = OperationResult.Status.SUCCESS; root.summary = new LinkedHashMap<>(); root.nextSteps = new ArrayList<>();
-      try (var context = new OperationProgress(operation, event -> root.renderProgress(event)); var signal = CancelSignal.install(context)) {
+      try (var context = new OperationProgress(operation, event -> root.renderProgress(event)); var signal = CancelSignal.install(context);
+          var captureOptions = new org.worldgit.core.capture.CaptureOptions(root.full)) {
         root.progress = context;
         int code;
         var dimensions = new LinkedHashMap<String, Object>();
@@ -580,8 +584,6 @@ public final class Wgit implements Runnable {
 
   @Command(name = "status", mixinStandardHelpOptions = true, description = "顯示未提交變動；使用離線 index 快取")
   static final class Status extends Subcommand {
-    @Option(names = "--full", description = "重新雜湊所有 chunk")
-    boolean full;
 
     @Override
     public Integer call() throws Exception {
@@ -589,7 +591,7 @@ public final class Wgit implements Runnable {
       var repos = root.repositories(layout);
       var local = root.local(repos);
       try (var guard = SessionGuard.acquire(layout)) {
-        var batch = repos.status(root.selected(), local.entityTolerance(), full);
+        var batch = repos.status(root.selected(), local.entityTolerance(), root.full);
         var states = new TreeMap<String, Object>();
         List<WorldRemotes.Tracking> tracking;
         try (var remote = root.remoteOperations(true)) { tracking = remote.tracking(); }

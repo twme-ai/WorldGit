@@ -45,7 +45,7 @@ final class Debug {
           sender.sendMessage(Component.text(q == null ? "WGAPPLY idle" : "WGAPPLY sections=" + q.sections.get() + " tickets=" + q.tickets.get() + " peak=" + q.peak.get()));
         }
         case "sample" -> sample(sender, request.number("cx", 0), request.number("cz", 0), request.number("sy", 0));
-        case "freeze.on", "freeze.off" -> freeze(sender, mode.endsWith(".on"));
+        case "guard.on", "guard.off" -> guard(sender, mode.endsWith(".on"));
         case "protection" -> protection(sender, player);
         case "comment-camera" -> {
           var target = player;
@@ -135,19 +135,22 @@ final class Debug {
     },()->{});
   }
 
-  private AutoCloseable fixtureFreeze;
-  /** Folia 沒有 /tick；驗收用同一套全域 freeze，操作期間的引用計數不會解除它。 */
-  private void freeze(CommandSender sender, boolean on) {
-    plugin.platform().global(()->{
-      try {
-        if(on) {
-          if(fixtureFreeze==null) fixtureFreeze=plugin.edits().freeze(Bukkit.getWorlds().getFirst());
-        } else if(fixtureFreeze!=null) {
-          fixtureFreeze.close(); fixtureFreeze=null;
-        }
-        sender.sendMessage(Component.text("WGFREEZE "+(fixtureFreeze==null ? "restored" : "frozen")));
-      } catch(Exception e) { sender.sendMessage(Component.text("WGFREEZE failed "+e)); }
-    });
+  private final java.util.Map<org.worldgit.core.model.ChunkPos,AutoCloseable> fixtureGuards=new java.util.concurrent.ConcurrentHashMap<>();
+  /** Acceptance fixture only: bounded chunk square around (0,0), no world/tick-rate changes. */
+  private void guard(CommandSender sender, boolean on) {
+    plugin.repo().submit(()->{
+      var world=Bukkit.getWorlds().getFirst();var jobs=new java.util.ArrayList<java.util.concurrent.CompletableFuture<Void>>();
+      if(on) for(var pos:plugin.state(org.worldgit.core.model.DimensionId.OVERWORLD,world).refresh(plugin.bridge(),world).loaded()) {
+        if(Math.abs(pos.x())>2 || Math.abs(pos.z())>2 || fixtureGuards.containsKey(pos)) continue;
+        var done=new java.util.concurrent.CompletableFuture<Void>();jobs.add(done);
+        plugin.platform().region(world,pos.x(),pos.z(),()->{try {fixtureGuards.put(pos,plugin.bridge().lockChunkTicks(world,pos.x(),pos.z()));done.complete(null);}catch(Throwable e){done.completeExceptionally(e);}});
+      }
+      if(!on) for(var entry:fixtureGuards.entrySet()) {var pos=entry.getKey();var done=new java.util.concurrent.CompletableFuture<Void>();jobs.add(done);
+        plugin.platform().region(world,pos.x(),pos.z(),()->{try {entry.getValue().close();fixtureGuards.remove(pos);done.complete(null);}catch(Throwable e){done.completeExceptionally(e);}});
+      }
+      java.util.concurrent.CompletableFuture.allOf(jobs.toArray(java.util.concurrent.CompletableFuture[]::new)).get(60,java.util.concurrent.TimeUnit.SECONDS);
+      sender.sendMessage(Component.text("WGCHUNKGUARD "+(on ? "locked" : "restored")));return null;
+    }).exceptionally(e->{sender.sendMessage(Component.text("WGCHUNKGUARD failed "+e));return null;});
   }
 
   private static final List<UUID> ENTITY_IDS=List.of(UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),UUID.fromString("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"),UUID.fromString("cccccccc-dddd-eeee-ffff-111111111111"));

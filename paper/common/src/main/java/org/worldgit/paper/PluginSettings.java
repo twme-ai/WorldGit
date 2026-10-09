@@ -8,6 +8,7 @@ import org.bukkit.configuration.ConfigurationSection;
  * 由 plugin 在啟用時以明確訊息停用，不使用默默改回預設值的寬鬆行為。
  */
 public record PluginSettings(
+    org.worldgit.platform.AtomicApplyLimits atomicApply,
     int pollIntervalTicks,
     int chunksPerTick,
     int snapshotWindow,
@@ -62,11 +63,12 @@ public record PluginSettings(
   }
 
   public static PluginSettings from(ConfigurationSection c) {
-    validateTypes(c, Integer.class, "dirty-poll-interval-ticks", "commit.chunks-per-tick", "commit.snapshot-window", "commit.timeout-seconds",
+    validateTypes(c, Integer.class, "apply.atomic-max-chunks", "apply.atomic-max-sections", "apply.atomic-max-entities", "dirty-poll-interval-ticks", "commit.chunks-per-tick", "commit.snapshot-window", "commit.timeout-seconds",
         "auto-commit.interval-minutes", "auto-commit.max-wait-minutes", "auto-commit.min-changed-sections", "auto-commit.quit-delay-seconds", "show.radius-chunks", "show.max-cells", "show.display-max-entities", "show.display-seconds");
     validateTypes(c, Boolean.class, "auto-commit.enabled", "auto-commit.entity-only-triggers", "auto-commit.on-quit", "auto-commit.on-shutdown");
     validateTypes(c, String.class, "language", "server-identity.name", "server-identity.email");
     return new PluginSettings(
+        new org.worldgit.platform.AtomicApplyLimits(c.getInt("apply.atomic-max-chunks",1),c.getInt("apply.atomic-max-sections",1),c.getInt("apply.atomic-max-entities",8)),
         c.getInt("dirty-poll-interval-ticks", 40),
         c.getInt("commit.chunks-per-tick", 8),
         c.getInt("commit.snapshot-window", 256),

@@ -34,6 +34,7 @@ final class Phase2ClientGameTest {
             server.runCommand("tp @p 7 -57 3 0 27");ctx.waitTicks(160);
             server.runCommand("tp @p 7 -57 -4 0 27");
             ctx.waitTicks(240);
+            // 測試環境專用：地獄天然排程 tick 的剩餘延遲會隨遊戲時間變動，離線 ticks.bin 因此會變；此舊功能測試以全服凍結取得決定性基準。產品程式不凍結（凍結隔離由 benchmark／accept 驗收）。
             server.runCommand("tick freeze");
             for(var dimension:List.of(net.minecraft.world.level.Level.NETHER,net.minecraft.world.level.Level.END)) {
                 String name=dimension.equals(net.minecraft.world.level.Level.NETHER)?"minecraft:the_nether":"minecraft:the_end";

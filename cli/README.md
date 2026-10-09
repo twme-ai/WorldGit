@@ -2,6 +2,8 @@
 
 Java 21+ 的離線世界版本控制。世界寫入與 migrate 必須在遊戲停止後執行；使用真正的 session.lock 檢查。Phase 5 的完整契約、實測紀錄及後續任務見 [設計](../docs/16-phase5-design.md)。Paper／Fabric／Hub 的使用介面由後續任務更新。
 
+常用操作的量測、索引失效與多世界 tick 隔離見 [效能紀錄](../docs/18-performance.md)。隱藏的全域 `--full` 可在 `status`、`commit`、`switch` 等指令強制完整擷取，供增量結果比對；`verify HEAD` 一律完整核對。
+
 ```sh
 export GRADLE_USER_HOME="$PWD/.work/gradle-home"
 ./gradlew :cli:fatJar --no-daemon --configure-on-demand --max-workers=1

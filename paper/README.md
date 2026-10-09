@@ -156,9 +156,13 @@ CI 對選定 adapter 與其內部類別檢查 NMS 方法／欄位描述子、存
 
 repo executor 在目標維度編輯鎖內完成 flush、capture、預檢、journal、套用與驗證。chunk 由伺服器 async IO 載入，加 plugin ticket 後交由真正 owner 替換 section／BE／biome／scheduled ticks／structures，明確更新 POI、heightmap、光照及 unsaved。Starlight 完成回呼後重送 chunk，最後完成 terrain／entity／POI IO barrier；不直接寫使用中的 `.mca`。Folia 依當下 region ID／tick 共用預算、多 lane 並行；Paper 全維度共用同一個 tick 預算。有玩家時 4 section／5 ms／16 ticket，無玩家時 8／5 ms／24 ticket；section 不可搶占，時間是軟上限。
 
+2026-10-08 使用者決定：套用不使用全伺服器／整世界 freeze、agent 或 attach。小變動在單一 owner tick 寫入並複製驗證資料；較大變動只鎖受影響 chunk 與一圈邊界，保留 scheduled ticks 的剩餘延遲。其他世界及同世界遠處 chunk 照常模擬。預設原子門檻為 1 chunk／1 section／8 個實體操作，設定與逐平台量測、Folia 邊界見 [18](../docs/18-performance.md)。
+
+常用操作 benchmark：`python3 paper/tools/benchmark.py --latency paper 1.21.11 --label after --require-isolation`；Folia 改第一個平台參數。自行拿 bench.lock，不外包 flock；完整量測三輪及 1／10／100／1000 chunk。
+
 實體先預檢其他維度的活 UUID；若重複則拒絕並指出維度。只在目標維度 ticket 載入含操作 UUID 的磁碟 chunk，先移除舊 passengers，再生成；集合外自然實體保留。正規化省略的乘客位置在 LOAD 前補母實體位置，避免加入原點或錯誤的 Folia region。剛生成實體不以 Folia `isValid()` 作成功判準；以全組 capture／存檔後 verify 為準。明確忽略的 BE／實體頂層欄位保留。套用後清除模組 status／diff 分包與 display fallback。
 
-操作期間使用 vanilla 全伺服器 tick freeze，保存並恢復原 freeze／step 狀態；玩家仍可移動。事件攔截玩家編輯、容器、活塞、流體、紅石、爆炸、生物改方塊與 WorldEdit／FAWE。第三方直接寫 NMS 的插件須先查詢 `WorldGitPlugin.isEditLocked(world)` 配合，Bukkit 沒有通用攔截任意插件寫入的機制。WorldEdit `--selection` 目前接受 cuboid。
+本節的舊 tick 暫停流程已由 2026-10-08 使用者決定取代，現行 chunk 隔離與門檻見 [18](../docs/18-performance.md)。
 
 玩家不被傳送；FALL／SUFFOCATION／DROWNING 保護涵蓋整個操作與結束後 10 秒，也涵蓋中途進入範圍的玩家。bossbar／通知排到各玩家 EntityScheduler。只有該維度驗證成功才廣播「已切換到 X @ abc1234」並更新 HEAD。
 
@@ -174,7 +178,7 @@ Paper／Folia 的 1.21.11／26.2 四平台 Phase 2 驗收已通過，涵蓋原�
 
 合併工具、`/wg conflict-select` 與 `/wg resolve` 使用共用 core 的局部 source／chunk journal。一般方塊區域只讀取與保存受影響 chunk，owner 使用 Moonrise `NewChunkHolder.save(false)` 同步排入 terrain／entity／POI；保持 Starlight 完成回呼與 IO barrier，再驗證整個受影響 chunk，最後保存 MERGING 增量。精確 atoms mask 不重寫同 section 的其他 BE，也不觸發鄰居更新。merge 開始、continue／commit、abort 仍走完整世界驗證。
 
-短暫 tick freeze 保留以隔離 vanilla tick；一般區域的編輯鎖涵蓋指定 chunk，跨 chunk 互動檢查真正目標，活塞／多格放置／爆炸／肥料檢查全部影響位置；容器／發射器／第三方 world-level 協調仍採保守屏障。UUID storage 定位期間保守鎖全組，並納入 root／巢狀乘客 UUID 的所有牽涉 chunk，包含拆離或改騎另一載具的位置。IO barrier 仍等待平台既有 queue，其他 IO 積壓可能增加耗時。`merge-state.bin.updates` 與基底必須一起保存／讀取；伺服器重啟仍能恢復選擇。合併切換留下 PARTIAL 時使用 `/wg merge --abort`，不套用 Phase 2 的 switch 恢復入口。
+本節的舊 tick 暫停流程已由 2026-10-08 使用者決定取代，現行 chunk 隔離與門檻見 [18](../docs/18-performance.md)。
 
 Phase 3 驗收新增 6 次工具切換、在大世界的 200 個衝突區域中切換一個區域 6 次，報告中位數／最大值。開啟分段計時：`JAVA_TOOL_OPTIONS=-Dworldgit.profile=true python3 paper/tools/acceptance.py paper 1.21.11 phase3`。較短的 4 格重現：`JAVA_TOOL_OPTIONS=-Dworldgit.profile=true python3 paper/tools/profile-region.py paper 1.21.11 optimized`。兩者自行取得 bench.lock。結果與完整限制見 [docs/13 區域切換延遲](../docs/13-phase3-progress.md#區域切換延遲)。
 

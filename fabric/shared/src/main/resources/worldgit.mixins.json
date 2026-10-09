@@ -9,6 +9,10 @@
     "AxiomWorldPropertyMixin",
     "AxiomEntityLookupMixin",
     "LevelChunkMixin",
+    "ChunkSimulationMixin",
+    "LevelTicksAccess",
+    "BlockEntityTickMixin",
+    "EntityChunkBoundaryMixin",
     "EditPacketsMixin",
     "PistonEditMixin",
     "ExplosionEditMixin",
@@ -25,7 +29,10 @@
     "TouchScopeEggMixin",
     "TouchScopeConvertMixin",
     "TouchScopeAddEntityMixin",
-    "TouchScopeEntityMixin"
+    "TouchScopeEntityMixin",
+    "ServerStorageAccess",
+    "SavedDataAccess",
+    "EntityStorageAccess"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -92,7 +92,7 @@ class CommandTreeTest {
         "fetch", "fetch origin", "push", "push origin main", "pull", "pull origin main", "pull confirm 1234abcd", "pr list",
         "pr view 1", "pr view #2", "pr create title --source topic --target main", "comments", "comments pr 2", "comments show 1",
         "comments hide", "comments hide pr 1", "comment 1 two words --here", "help", "help restore", "debug apply", "debug fill 2 gold_block 3 8",
-        "debug sample 0 1 -2", "debug entities overworld 0 0 inspect", "debug freeze on", "debug protection Test",
+        "debug sample 0 1 -2", "debug entities overworld 0 0 inspect", "debug guard on", "debug protection Test",
         "debug fixture-container 0 64 0 stone", "debug fixture-clean-items", "debug merge-tool Test cycle", "debug merge-gui Test 3",
         "debug comment-camera Test", "debug comment-teleport Test minecraft:overworld", "debug comment-displays 0 0", "debug release",
         "debug probe start", "debug probe stop", "debug measurements")) {

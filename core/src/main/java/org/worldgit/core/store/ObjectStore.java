@@ -17,7 +17,11 @@ public interface ObjectStore {
           || name.equals(".")
           || name.equals("..")) throw new IllegalArgumentException("tree entry name");
       Objects.requireNonNull(kind);
-      if (!id.matches("[0-9a-f]{40}")) throw new IllegalArgumentException("object id");
+      if (id.length()!=40) throw new IllegalArgumentException("object id");
+      for (int i=0;i<40;i++) {
+        char c=id.charAt(i);
+        if (!(c>='0' && c<='9' || c>='a' && c<='f')) throw new IllegalArgumentException("object id");
+      }
     }
   }
 

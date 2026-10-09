@@ -39,7 +39,19 @@ public final class SnapshotCodec {
     var bytes = new ByteArrayOutputStream();
     var out = new DataOutputStream(bytes);
     var palette = new LinkedHashMap<BlockState, Integer>();
-    for (BlockState s : section.blocks()) palette.computeIfAbsent(s, k -> palette.size());
+    // 正規化與 decoder 的 4096 格共享 palette 物件。先以 identity 查表，只對每個不同
+    // 物件做一次 properties hash；equals palette 仍維持原本的首次出現順序與 wire bytes。
+    var identities = new IdentityHashMap<BlockState, Integer>();
+    int[] indices = new int[4096];
+    for (int i = 0; i < 4096; i++) {
+      BlockState state = section.block(i);
+      Integer index = identities.get(state);
+      if (index == null) {
+        index = palette.computeIfAbsent(state, k -> palette.size());
+        identities.put(state, index);
+      }
+      indices[i] = index;
+    }
     out.writeShort(palette.size());
     for (var state : palette.keySet()) {
       out.writeUTF(state.name());
@@ -53,7 +65,7 @@ public final class SnapshotCodec {
     out.writeByte(bits);
     byte[] packed = new byte[(4096 * bits + 7) / 8];
     for (int i = 0; i < 4096; i++) {
-      int index = palette.get(section.block(i));
+      int index = indices[i];
       for (int bit = 0; bit < bits; bit++)
         if ((index & (1 << bit)) != 0) {
           int off = i * bits + bit;

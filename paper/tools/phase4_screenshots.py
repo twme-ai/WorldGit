@@ -29,7 +29,7 @@ def capture(server,work,version):
       # 由玩家 owner 設定真正 server flight/no-gravity 並 teleportAsync，避免 ability packet 與凍結狀態競爭。
       server.cmd('wg debug comment-camera '+player,r'WGCOMMENTCAM success=true');time.sleep(.5)
       ready.write_text('{}');client.wait('PAPER4 flying=true',120)
-      # 客戶端 fixture 只解除自己的 renderer tick freeze；伺服器與受追蹤世界保持凍結。
+      # 客戶端 fixture 只解除自己的 renderer tick freeze；受影響 chunk 由 fixture guard 保護。
       view_ready.write_text('{}')
       client.wait('PAPER4 DONE',600);client.proc.wait(90)
       if client.proc.returncode:raise RuntimeError('screenshot client failed')

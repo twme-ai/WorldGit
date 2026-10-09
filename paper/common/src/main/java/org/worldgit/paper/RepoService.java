@@ -74,15 +74,7 @@ public final class RepoService implements AutoCloseable {
         try(var timing=OperationTimings.start(target)) {
         var mapping=plugin.mapping();
         try(var ops=new PaperOperations(plugin,mapping,q,merge,dimension)) {
-          // capture、stash 保存、計畫、驗證、HEAD 均在同一編輯鎖內。
-          try(var lockTiming=OperationTimings.stage("lock")) {
-          if(!region) for(var entry:mapping.worlds().entrySet()) {
-            if(!entry.getKey().equals(dimension)) continue;
-            var live=new PaperLiveWorld(plugin,plugin.state(entry.getKey(),entry.getValue()),entry.getValue(),mapping.layout(),false);
-            locks.add(live.lockEdits(Set.of(),"WorldGit "+target));
-            live.close();
-          }
-          }
+          // Preflight runs with normal ticks; only the planned chunks are guarded before writes.
           return work.run(ops);
         }
         }

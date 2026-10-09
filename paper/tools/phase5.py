@@ -61,7 +61,7 @@ def run(platform,version,conflict=False,disabled=False):
               for child in value:yield from clicks(child)
           def entities(dim='minecraft:overworld'):
             return subprocess.check_output(['/usr/lib/jvm/java-21-openjdk-amd64/bin/java','-cp',str(ROOT/'cli/build/libs/wgit.jar'),str(ROOT/'paper/tools/phase5-fixture/Phase5RepoProbe.java'),str(repository(server.world,dim,version,True))],text=True).splitlines()
-          server.cmd('wg debug freeze on','WGFREEZE frozen')
+          server.cmd('wg debug guard on','WGCHUNKGUARD locked')
           for alias in ['wgit','git','worldgit:git','worldgit']:
             if alias=='git' and conflict:
               mark=len(bot.lines);bot.ask('chat /git','chat_sent');time.sleep(1);check('existing git preserved',any('OTHER_GIT' in r['t'] for r in chats(mark)));continue
@@ -79,10 +79,10 @@ def run(platform,version,conflict=False,disabled=False):
           def name_entity(uid,label):
             server.cmd('wgfixture WgBot give-name '+label,'HELD=NAME_TAG');time.sleep(.5)
             # 真實玩家互動期間恢復 ticks；命名仍必須由命名牌封包完成。
-            server.cmd('wg debug freeze off','WGFREEZE restored')
+            server.cmd('wg debug guard off','WGCHUNKGUARD restored')
             try:
               bot.ask('interact_uuid '+uid,'entity_interacted');time.sleep(1)
-            finally:server.cmd('wg debug freeze on','WGFREEZE frozen')
+            finally:server.cmd('wg debug guard on','WGCHUNKGUARD locked')
             observed=server.cmd('wgfixture WgBot inspect-name '+uid,'NAMED=')
             check('real name tag '+label,'NAME='+label in observed,named=observed)
           if platform=='paper':

@@ -24,6 +24,11 @@ def terminate(signum, frame):
 
 
 def main():
+    if '--latency' in sys.argv:
+        from pathlib import Path
+        sys.path.insert(0,str(Path(ROOT)/'tools/performance'))
+        from online import main as latency
+        return latency([arg for arg in sys.argv[1:] if arg!='--latency'])
     platform, version, count = sys.argv[1], sys.argv[2], int(sys.argv[3])
     if count not in (1000, 10000):
         raise SystemExit('count must be 1000 or 10000')

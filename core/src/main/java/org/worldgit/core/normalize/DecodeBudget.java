@@ -54,6 +54,9 @@ public final class DecodeBudget {
     if (b != null) b.work = take(b.work, n, "解析工作量");
   }
 
+  /** 路徑查詢快取在聚合 scope 內保留原本逐 tree 的計費路徑。 */
+  public static boolean scoped() { return CURRENT.get() != null; }
+
   /** 在配置容器前檢查，不先扣款；逐節點 read 時再實際扣款。 */
   public static void checkNodes(long n) throws Exceeded {
     var b = CURRENT.get();

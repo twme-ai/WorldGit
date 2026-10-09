@@ -79,6 +79,20 @@ afterEvaluate {
         inputFile.set(dedicatedFixture.flatMap { it.archiveFile })
         archiveClassifier.set("dedicated-fixture-remapped")
     }
+    providers.gradleProperty("wgtestPerformanceArtifact").orNull?.let { artifact ->
+        dependencies.add("productionRuntimeMods", "net.fabricmc.fabric-api:fabric-api:0.141.6+1.21.11")
+        dependencies.add("productionRuntimeMods", fabricApi.module("fabric-client-gametest-api-v1", "0.141.6+1.21.11"))
+        dependencies.add("productionRuntimeMods", fabricApi.module("fabric-gametest-api-v1", "0.141.6+1.21.11"))
+        tasks.register<net.fabricmc.loom.task.prod.ClientProductionRunTask>("runPerformanceClient") {
+            dependsOn("remapDedicatedFixtureJar")
+            mods.setFrom(files(artifact), configurations.named("productionRuntimeMods"), tasks.named("remapDedicatedFixtureJar"))
+            runDir.set(rootProject.layout.projectDirectory.dir(".work/worlds/fabric-gametest/$mcVersion-phase5"))
+            jvmArgs.addAll("-Dfabric.client.gametest", "-Dfabric.client.gametest.disableNetworkSynchronizer=true",
+                "-Dworldgit.acceptance=true", "-Dwgtest.performance=true", "-Dwgtest.phase5=true", "-Dwgtest.phase5Dir=${providers.gradleProperty("wgtestPhase5Dir").get()}",
+                "-Dwgtest.phase5Single=true", "-Dwgtest.phase5Language=en_us", "-Xmx2G", "-XX:ActiveProcessorCount=3", "-XX:-UsePerfData")
+            programArgs.addAll("--username", "PerfPlayer", "--width", "1280", "--height", "720")
+        }
+    }
     // 正式 jar 客戶端驗收：不使用 development classpath，避免漏包被 Gradle 掩蓋。
     if (providers.gradleProperty("wgtestPhase4").isPresent) {
         dependencies.add("productionRuntimeMods", "net.fabricmc.fabric-api:fabric-api:0.141.6+1.21.11")

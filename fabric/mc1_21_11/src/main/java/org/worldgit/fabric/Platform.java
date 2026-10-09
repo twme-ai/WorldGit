@@ -10,6 +10,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 /** 1.21.11 的版本轉接（伺服端／共用）：payload registry 的名稱。 */
 public final class Platform {
     private Platform() {}
+    static int lightDampening(net.minecraft.world.level.block.state.BlockState state) {return state.getLightBlock();}
 
     public static final String MINECRAFT = "1.21.11";
 
@@ -48,4 +49,16 @@ public final class Platform {
     public static net.minecraft.server.level.ServerBossEvent bossbar() {
         return new net.minecraft.server.level.ServerBossEvent(net.minecraft.network.chat.Component.empty(),net.minecraft.world.BossEvent.BossBarColor.BLUE,net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS);
     }
+    static java.util.List<java.util.concurrent.CompletableFuture<?>> saveMetadata(net.minecraft.server.MinecraftServer server,java.util.Collection<net.minecraft.server.level.ServerLevel> levels) {
+        var waits=new java.util.ArrayList<java.util.concurrent.CompletableFuture<?>>();
+        server.getScoreboard().storeToSaveDataIfDirty(server.overworld().getDataStorage().computeIfAbsent(net.minecraft.world.scores.ScoreboardSaveData.TYPE));
+        for(var level:levels) {
+            ((org.worldgit.fabric.mixin.ServerLevelAccess)level).worldgit$saveLevelData(false);
+            waits.add(((org.worldgit.fabric.mixin.SavedDataAccess)level.getDataStorage()).worldgit$pendingWrite());
+        }
+        var data=server.getWorldData();data.setCustomBossEvents(server.getCustomBossEvents().save(server.registryAccess()));
+        ((org.worldgit.fabric.mixin.ServerStorageAccess)server).worldgit$storage().saveDataTag(server.registryAccess(),data,server.getPlayerList().getSingleplayerData());
+        return waits;
+    }
+
 }

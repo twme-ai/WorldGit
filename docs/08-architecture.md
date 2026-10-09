@@ -193,7 +193,7 @@ core 的 `apply.ApplyPlan`／`ApplyPlanner` 不依賴 Minecraft，提供 section
 
 共用 ApplyScheduler 是保守的單維度、單批 coordinator，按 section 限額分批並維持 blocks→全部 entity remove→spawn→metadata 的 barrier。線上世界組呼叫端須先完成所有維度的 remove barrier，再開始任何維度的 spawn；不可逐維度完整套用而刪掉已移到另一維度的 UUID。離線 WorldOperations 透過 `OfflineApplier.applyAll` 已共用此 barrier。取消停止派發，等待在途 future 清理，再完成派出工作的 heightmap／光照／POI／封包／flush，最後解鎖與回報 PARTIAL；observer、光照或存檔任一失敗仍嘗試後續清理。執行緒 executor 必須存活到 result 完成；不在 owner thread 阻塞等另一 region。取消不反向復原。
 
-`lockEdits` 須涵蓋容器、活塞、流體、紅石、生物與第三方插件協調，可使用 tick freeze；close 恢復先前狀態。`finishApply` completion 表示衍生資料與玩家 chunk 封包已完成，`flush` 包含 terrain/entity/POI IO 持久化。通知排在玩家 EntityScheduler／server owner，`ApplyProgress` 含 operation、phase、完成批次／section、取消旗標，可轉為 bossbar／MiniMessage。
+`lockEdits` 須涵蓋容器、活塞、流體、紅石、生物與第三方插件協調，不得使用世界或全伺服器 tick freeze；超出原子預算時只隔離受影響 chunk 與必要邊界，close 保留 scheduled ticks 的剩餘延遲（使用者決定，2026-10-08；見 [18](18-performance.md)）。`finishApply` completion 表示衍生資料與玩家 chunk 封包已完成，`flush` 包含 terrain/entity/POI IO 持久化。通知排在玩家 EntityScheduler／server owner，`ApplyProgress` 含 operation、phase、完成批次／section、取消旗標，可轉為 bossbar／MiniMessage。
 
 `PlayerProtection` 帶 operation UUID 與 active：active=true 的 FALL／SUFFOCATION／DROWNING 保護持續到 active=false（成功、取消、失敗皆結束），再延續 duration=10 秒；須涵蓋中途加入範圍的玩家，不移動玩家、不用 Resistance。observer 在開始／每批／結束持久化操作狀態，失敗停止；只有 COMPLETE 加上呼叫端驗證 barrier 後才移動 HEAD。
 
@@ -204,7 +204,7 @@ core 的 `apply.ApplyPlan`／`ApplyPlanner` 不依賴 Minecraft，提供 section
 
 `core.merge` 不依賴 Minecraft／protocol，`WorldOperations` 提供 merge、revert、cherryPick、merging、regionPreview、selectRegion、markResolved、continueMerge／commitMerge、abortMerge、lastMergeReports。開始與切換都回傳中性 MergeResult：state、MERGING、各維度 MergeReport／ApplyPlan、完成 commits 與 error；線上仍用既有 LiveAccess 及全維度 UUID remove→put barrier。
 
-Paper／Fabric 開始操作前 lockEdits＋flush，於 repo executor 呼叫 WorldOperations.live；每區域切換只鎖本次套用，不在等待玩家解決期間持續 freeze。noCommit=true 可保留無衝突的 MERGING；套用時維持快照中的方塊 state，不觸發 updateShape／鄰居更新（#46），報告的 updateShapes 只是提示清單，可從 last-merge-report.bin 讀取；此次不新增平台 Phase 3 功能。
+Paper／Fabric 在正常 tick 下 capture／preflight，寫入前才取得受影響 chunk 鎖，於 repo executor 呼叫 WorldOperations.live；每區域切換只鎖本次套用，等待玩家解決期間不持有 chunk 鎖。noCommit=true 可保留無衝突的 MERGING；套用時維持快照中的方塊 state，不觸發 updateShape／鄰居更新（#46），報告的 updateShapes 只是提示清單，可從 last-merge-report.bin 讀取；此次不新增平台 Phase 3 功能。
 
 Hub 可以直接使用 ObjectStore＋MergeBases／MergeEngine 計算候選 tree 與衝突區域，再用 MergeEngine.select 在候選 tree 上選擇；不得為無 working world 的 Hub 啟用 OfflineApplier。Hub 的 manual 選擇仍需由可編輯世界提供權威快照，本次未實作 PR／網頁 UI。
 

@@ -68,6 +68,11 @@ public final class OfflineWorld implements LiveWorld {
     return source.snapshot(pos, rules);
   }
 
+  @Override public boolean entityCensusAvailable() { return source.entityCensusAvailable(); }
+  @Override public Set<UUID> unchangedEntityIds(Set<ChunkPos> captured) throws IOException {
+    return source.unchangedEntityIds(captured);
+  }
+
   @Override
   public Map<String, byte[]> worldMetadata() throws IOException {
     return source.worldMetadata();

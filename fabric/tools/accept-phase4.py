@@ -71,7 +71,7 @@ def run(args):
         (data/'worldgit-server.yml').write_text('locale: en_us\npermission-level: 2\nread-permission-level: 0\nauto-commit:\n  on-logout: false\n  on-stop: false\n  interval-minutes: 0\nremote:\n  timeout-seconds: 3\n  webhook:\n    enabled: true\n    port: '+str(webhook_port)+'\n')
         server.start();bot=server.bot('WgBot');viewer=server.bot('WgViewer');remote_bots=dict(zip(DIMENSIONS,[bot,server.bot('WgBot3'),server.bot('WgBot4')]));remote_bot=bot;
         for player in remote_bots.values():server.cmd('op '+player.name);server.cmd('gamemode creative '+player.name)
-        server.cmd('op WgBot');server.cmd('gamemode creative WgBot');server.cmd('tp WgBot 8 225 8');cmd('tick freeze',r'froze')
+        server.cmd('op WgBot');server.cmd('gamemode creative WgBot');server.cmd('tp WgBot 8 225 8');cmd('wg test fixture-stable',r'WGSTABLE')
         if v=='1.21.11':
             # Paper fixture 的 strider 含 Paper-only AgeLocked；先由真正 Fabric 載入，
             # 再建立初始快照，避免後面的換維度檢查才觸發普通原版序列化變化。

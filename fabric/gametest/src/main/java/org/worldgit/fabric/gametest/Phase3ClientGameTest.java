@@ -38,7 +38,7 @@ final class Phase3ClientGameTest {
             server.runCommand("tp @p 24 -57 3 0 27"); ctx.waitTicks(160);
             server.runCommand("tp @p 14.5 -57 2 0 30");
             ctx.waitTicks(240);
-            server.runCommand("tick freeze");
+            server.runCommand("gamerule random_tick_speed 0");
             for(var dimension:List.of(net.minecraft.world.level.Level.NETHER,net.minecraft.world.level.Level.END)) {
                 String name=dimension.equals(net.minecraft.world.level.Level.NETHER)?"minecraft:the_nether":"minecraft:the_end";
                 server.runCommand("execute in "+name+" run forceload add 0 0");

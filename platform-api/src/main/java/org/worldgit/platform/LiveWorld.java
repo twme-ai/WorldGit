@@ -48,7 +48,7 @@ public interface LiveWorld extends SnapshotSource {
 
 
   /** future 完成前涵蓋玩家方塊／容器、生物、活塞、流體、紅石與插件寫入協調；
-   * 平台可實作 tick freeze。close 必須恢復原本狀態。不可在 region thread 阻塞等待別的 owner。 */
+   * 僅限指定 chunk 與必要邊界；不得改變 server／world tick rate。close 必須恢復被延後的模擬。不可在 region thread 阻塞等待別的 owner。 */
   AutoCloseable lockEdits(Collection<ChunkPos> chunks, String reason) throws IOException;
 
   /** 所有 owner 已提交存檔且 chunk/entity/POI IO 已持久化；不得只表示排入 save queue。 */

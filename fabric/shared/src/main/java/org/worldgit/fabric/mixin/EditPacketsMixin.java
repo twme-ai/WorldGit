@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.worldgit.fabric.WorldGitMod;
 
-/** 凍結 tick 仍允許玩家行走；容器／物品／實體互動必須另外攔截。 */
+/** 受影響 chunk 的容器／物品／實體互動另行攔截；遠處玩家照常操作。 */
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class EditPacketsMixin {
     @Shadow public ServerPlayer player;
@@ -17,7 +17,7 @@ public abstract class EditPacketsMixin {
         "handleSignUpdate","handleEditBook","handleSetCommandBlock","handleSetStructureBlock","handleSetJigsawBlock","handleJigsawGenerate"},at=@At("HEAD"),cancellable=true)
     private void worldgit$lock(CallbackInfo ci) {
         var runtime=WorldGitMod.runtime(player.level().getServer());
-        if(runtime!=null && runtime.editsLocked()) ci.cancel();
+        if(runtime!=null && runtime.editsLocked(new org.worldgit.core.model.DimensionId(player.level().dimension().identifier().toString()),org.worldgit.fabric.ServerRuntime.corePos(player.chunkPosition()))) ci.cancel();
     }
 
     @Inject(method="handleChatCommand",at=@At("HEAD"),cancellable=true)

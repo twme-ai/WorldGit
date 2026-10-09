@@ -46,6 +46,10 @@ final class FabricLiveWorld implements LiveWorld {
     private volatile Set<ChunkPos> dirty = Set.of(), entityChunks = Set.of();
     private EntityTagRegistry registry;
     private final FabricApply apply;
+    private final Map<ChunkPos,CompletableFuture<Optional<ChunkCapture.Raw>>> rawCopies =
+        new LinkedHashMap<>(32,.75f,true) {
+          @Override protected boolean removeEldestEntry(Map.Entry<ChunkPos,CompletableFuture<Optional<ChunkCapture.Raw>>> entry) { return size()>32; }
+        };
 
     FabricLiveWorld(ServerRuntime runtime, WorldLayout layout, WorldLayout.Dimension dimension) {
         this(runtime,layout,dimension,new HashMap<>());
@@ -88,7 +92,7 @@ final class FabricLiveWorld implements LiveWorld {
         return disk.worldMetadata();
     }
 
-    private synchronized EntityTagRegistry registry() throws IOException {
+    synchronized EntityTagRegistry registry() throws IOException {
         if (registry == null) registry = EntityTagRegistry.load(layout.world(), dataVersion(), ModPacks.INSTANCE);
         return registry;
     }
@@ -116,17 +120,21 @@ final class FabricLiveWorld implements LiveWorld {
 
     @Override
     public Scan scan(ScanIndex previous, boolean full) throws IOException {
+        rawCopies.clear();
         Scan base = disk.scan(previous, full);
         if (level == null) return base;
         Gathered g = runtime.onServer(this::gather);
+        capturedDirty=runtime.tracker(dimension.id()).indexBatch();
         var present = new HashSet<>(base.present());
         present.addAll(g.loaded());
         var candidates = new HashSet<>(base.candidates());
+        var previousEntities=runtime.previousEntityChunks(dimension.id(),g.entities());
         if (full) candidates.addAll(g.loaded());
         else {
             candidates.addAll(g.unsaved());
             candidates.addAll(g.entities());
-            candidates.addAll(runtime.tracker(dimension.id()).chunks());
+            candidates.addAll(previousEntities);
+            candidates.addAll(capturedDirty.generations().keySet());
             // 新生成、尚未寫入磁碟（index 沒有紀錄）的 chunk
             for (ChunkPos pos : g.loaded()) if (!previous.chunks().containsKey(pos)) candidates.add(pos);
         }
@@ -136,26 +144,63 @@ final class FabricLiveWorld implements LiveWorld {
         ServerRuntime.LOG.debug("WORLDGIT SCAN {} full={} loaded={} unsaved={} entityChunks={} tracker={} candidates={} previous={}", dimension.id(), full, g.loaded().size(), g.unsaved().size(), g.entities().size(), runtime.tracker(dimension.id()).chunks().size(), candidates.size(), previous.chunks().size());
         dirty = Set.copyOf(g.unsaved());
         entityChunks = Set.copyOf(g.entities());
-        return new Scan(present, candidates, base.stamps(), base.payloadsRead(), base.scannedAt());
+        return new Scan(present, candidates, receiptStamps(base.stamps()), base.payloadsRead(), base.scannedAt());
     }
 
+    private org.worldgit.platform.DirtyChunkTracker.Batch capturedDirty;
+    // Receipts precede resumed gameplay and later saves. Never certify those later disk bytes
+  // with an earlier receipt, nor acknowledge dirty generations collected after that receipt.
+  private Map<ChunkPos,ScanIndex.Stamp> receiptStamps(Map<ChunkPos,ScanIndex.Stamp> stamps) {
+    if(receipts.isEmpty())return stamps;
+    var trusted=new HashMap<>(stamps);receipts.keySet().forEach(trusted::remove);return trusted;
+  }
+  @Override public void indexSaved() {
+    if(capturedDirty==null)return;
+    var certified=new HashMap<>(capturedDirty.generations());receipts.keySet().forEach(certified::remove);
+    runtime.tracker(dimension.id()).indexed(new org.worldgit.platform.DirtyChunkTracker.Batch(certified));
+  }
+
+    @Override
+    public int snapshotWindow() { return 16; }
+
+    @Override public boolean entityCensusAvailable() { return true; }
+    @Override public Set<UUID> unchangedEntityIds(Set<ChunkPos> captured) throws IOException {
+        return disk.unchangedEntityIds(captured);
+    }
+
+    private Map<ChunkPos,ChunkCapture.Raw> receipts=Map.of();
+    void receipts(Map<ChunkPos,ChunkCapture.Raw> receipts) {this.receipts=receipts;}
+    FabricApply writer() {return apply;}
     @Override
     public CompletionStage<Optional<ChunkSnapshot>> snapshot(ChunkPos pos, IgnoreRules rules) {
+        if(receipts.containsKey(pos)) return CompletableFuture.supplyAsync(()->{
+            try {var raw=receipts.get(pos);var entities=new ArrayList<org.worldgit.core.anvil.Nbt.Compound>();for(var e:raw.entities())entities.add(ChunkCapture.toCore(e));
+                return Optional.of(new ChunkNormalizer(rules,registry()).normalize(pos,ChunkCapture.toCore(raw.chunk()),entities));
+            } catch(IOException e) {throw new CompletionException(e);}
+        },runtime.normalizer());
         if (level == null) return disk.snapshot(pos, rules);
-        var captured = new CompletableFuture<Optional<ChunkCapture.Raw>>();
-        runtime.postToServer(
+        var captured = rawCopies.get(pos);
+        if(captured==null) {
+          captured = new CompletableFuture<Optional<ChunkCapture.Raw>>();
+          rawCopies.put(pos,captured);
+          var result=captured;
+          runtime.postCapture(
                 () -> {
                     try {
                         LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
-                        captured.complete(chunk == null ? Optional.empty() : Optional.of(ChunkCapture.capture(level, chunk)));
+                        result.complete(chunk == null ? Optional.empty() : Optional.of(ChunkCapture.capture(level, chunk)));
                     } catch (Throwable t) {
-                        captured.completeExceptionally(t);
+                        result.completeExceptionally(t);
                     }
                 });
-        // 沒載入就讀磁碟；已載入則在背景（ForkJoin 公共池，不是伺服器執行緒）正規化。
+        }
+        // thenCompose 可能由完成 raw copy 的 owner 執行：兩條正規化路徑都必須交給背景。
         return captured.thenCompose(
                 raw -> {
-                    if (raw.isEmpty()) return disk.snapshot(pos, rules);
+                    if (raw.isEmpty()) return CompletableFuture.supplyAsync(() -> {
+                        // OfflineSnapshotSource 的 region handles 不可由兩個 worker 同時 seek。
+                        synchronized (disk) { return disk.snapshot(pos, rules).toCompletableFuture().join(); }
+                    }, runtime.normalizer());
                     return CompletableFuture.supplyAsync(
                             () -> {
                                 try {
@@ -167,7 +212,7 @@ final class FabricLiveWorld implements LiveWorld {
                                 } catch (IOException e) {
                                     throw new CompletionException(e);
                                 }
-                            });
+                            }, runtime.normalizer());
                 });
     }
 
@@ -201,7 +246,7 @@ final class FabricLiveWorld implements LiveWorld {
 
     @Override
     public AutoCloseable lockEdits(Collection<ChunkPos> chunks, String reason) {
-        return runtime.lockWorld();
+        return runtime.lockChunks(java.util.Map.of(dimension.id(),java.util.Set.copyOf(chunks)));
     }
 
     @Override public CompletionStage<Void> apply(ApplyPlan batch, ApplyBudget budget) {

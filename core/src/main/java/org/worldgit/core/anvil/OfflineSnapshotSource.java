@@ -122,7 +122,8 @@ public final class OfflineSnapshotSource implements SnapshotSource {
       }
     for (Path path : RegionFile.list(dir)) {
       var attrs = Files.readAttributes(path, BasicFileAttributes.class);
-      String fingerprint = attrs.lastModifiedTime() + ":" + attrs.size() + ":" + attrs.fileKey();
+      String changeTime = changeTime(path);
+      String fingerprint = attrs.lastModifiedTime() + ":" + attrs.size() + ":" + attrs.fileKey() + ":" + changeTime;
       RegionFile r = region(path);
       for (int i = 0; i < 1024; i++)
         if (r.has(i)) {
@@ -141,10 +142,13 @@ public final class OfflineSnapshotSource implements SnapshotSource {
           Path external = externalFiles.get(pos);
           if (external != null) {
             var a = Files.readAttributes(external, BasicFileAttributes.class);
-            file += ":" + a.lastModifiedTime() + ":" + a.size();
+            String externalChangeTime = changeTime(external);
+            file += ":" + a.lastModifiedTime() + ":" + a.size() + ":" + externalChangeTime;
+            if (externalChangeTime == null) uncertain = true;
           }
           String hash = oldHash;
           if (full
+              || changeTime == null
               || old == null
               || !file.equals(oldFile)
               || r.timestamp(i) != oldTime
@@ -158,6 +162,13 @@ public final class OfflineSnapshotSource implements SnapshotSource {
         }
     }
     return result;
+  }
+
+  // 外部工具可能保留 mtime／同秒 timestamp／sector location。Unix ctime 由檔案系統
+  // 更新；不支援 ctime 的 provider 保守雜湊 payload，不把 attrs 當完整內容證明。
+  private static String changeTime(Path path) throws IOException {
+    try { return String.valueOf(Files.getAttribute(path, "unix:ctime")); }
+    catch (UnsupportedOperationException | IllegalArgumentException e) { return null; }
   }
 
   public static String hash(int kind, byte[] data) {
@@ -190,6 +201,16 @@ public final class OfflineSnapshotSource implements SnapshotSource {
     } catch (Exception e) {
       return CompletableFuture.failedFuture(e);
     }
+  }
+
+  @Override public boolean entityCensusAvailable() { return true; }
+
+  @Override public Set<UUID> unchangedEntityIds(Set<ChunkPos> captured) throws IOException {
+    var ids = new HashSet<UUID>();
+    for (var e : entityPaths.entrySet()) if (!captured.contains(e.getKey()))
+      for (var entity : region(e.getValue()).read(e.getKey().regionIndex()).list("Entities").values())
+        org.worldgit.core.capture.PlayerTouchedEntities.collect((Nbt.Compound)entity,ids);
+    return ids;
   }
 
   @Override

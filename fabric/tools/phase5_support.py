@@ -22,17 +22,22 @@ class Recorder:
 
 class Client:
     """Gradle runClientGameTest（Phase5ClientGameTest）；control 目錄以 request/response JSON 溝通。"""
-    def __init__(self,work,version,single,port=0,language='en_us'):
+    def __init__(self,work,version,single,port=0,language='en_us',artifact=None):
         self.sequence=0;self.work=work;self.version=version;self.single=single
         self.control=work/'client-control';self.control.mkdir(parents=True,exist_ok=True)
         self.run=ROOT/'.work/worlds/fabric-gametest'/(version+'-phase5')
         shutil.rmtree(self.run/'screenshots',ignore_errors=True)
+        if artifact:
+            config=self.run/'config';config.mkdir(parents=True,exist_ok=True)
+            (config/'worldgit-server.yml').write_text('locale: en_us\nauto-commit:\n  on-logout: false\n  on-stop: false\n  interval-minutes: 0\n')
         tmp=ROOT/'.work/fabric-tmp';tmp.mkdir(exist_ok=True)
         env={**os.environ,'JAVA_HOME':'/usr/lib/jvm/java-25-openjdk-amd64','GRADLE_USER_HOME':str(ROOT/'.work/gradle-home'),'ALSOFT_DRIVERS':'null','LIBGL_ALWAYS_SOFTWARE':'1','GALLIUM_DRIVER':'llvmpipe','LP_NUM_THREADS':'3','XDG_CACHE_HOME':str(tmp/'cache'),'XDG_CONFIG_HOME':str(tmp/'config'),'TMPDIR':str(tmp)}
         cmd=['xvfb-run','-a','-s','-screen 0 1280x720x24 -ac','./gradlew','--no-daemon','--configure-on-demand','--max-workers=1','-PwgtestPhase5=true','-PwgtestPhase5Dir='+str(self.control),'-PwgtestPhase5Single='+str(single).lower(),'-PwgtestPhase5Language='+language]
         if port:cmd+=['-PwgtestPaperPort='+str(port),'-PwgtestPaperReady='+str(self.control)]
+        if artifact:cmd+=['-PwgtestPerformanceArtifact='+str(Path(artifact).resolve())]
         self.started=time.time()
-        self.process=Process(cmd+[f':fabric:{project(version)}:runClientGameTest'],ROOT,work/'client.log',env)
+        task='runPerformanceClient' if artifact else 'runClientGameTest'
+        self.process=Process(cmd+[f':fabric:{project(version)}:{task}'],ROOT,work/'client.log',env)
         try:self.ready=self.waitfile('ready.json',900)
         except BaseException:self.stop();raise
     def waitfile(self,name,timeout=300):

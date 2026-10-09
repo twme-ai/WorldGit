@@ -20,7 +20,8 @@ class DimensionStateTest {
       public java.util.concurrent.CompletionStage<Void> finishChunk(World w,int x,int z) { throw new UnsupportedOperationException(); }
       public void saveRegion(World w) { throw new UnsupportedOperationException(); }
       public void flushIo(World w) { throw new UnsupportedOperationException(); }
-      public AutoCloseable freeze(World w) { throw new UnsupportedOperationException(); }
+      public AutoCloseable lockChunkTicks(World w,int x,int z) { throw new UnsupportedOperationException(); }
+      public void refreshChunkLock(World w,int x,int z) {}
       public OwnerTick ownerTick(World w) { throw new UnsupportedOperationException(); }
       public String minecraftVersion() { return "test"; }
       public Nbt.Compound copyGameRules(World world) { return new Nbt.Compound(); }

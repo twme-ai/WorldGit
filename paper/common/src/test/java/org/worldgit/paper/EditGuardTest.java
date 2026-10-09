@@ -79,6 +79,34 @@ class EditGuardTest {
     assertFalse(guard.protectedFrom(pa,PlayerProtection.Damage.FALL));
     assertTrue(guard.protectedFrom(pb,PlayerProtection.Damage.FALL));
   }
+  @Test void waterAndPhysicsCheckBothSidesWhileDistantAndOtherWorldChunksRun() throws Exception {
+    var guard=new EditGuard(null);
+    var a=proxy(World.class,Map.of("getUID",UUID.randomUUID()));
+    var b=proxy(World.class,Map.of("getUID",UUID.randomUUID()));
+    try(var lock=guard.lock(a,Set.of(new ChunkPos(1,0)))) {
+      var incoming=new BlockFromToEvent(block(a,15),block(a,16));guard.flow(incoming);assertTrue(incoming.isCancelled());
+      var outgoing=new BlockFromToEvent(block(a,16),block(a,15));guard.flow(outgoing);assertTrue(outgoing.isCancelled());
+      var distant=new BlockFromToEvent(block(a,64),block(a,65));guard.flow(distant);assertFalse(distant.isCancelled());
+      var otherWorld=new BlockFromToEvent(block(b,16),block(b,17));guard.flow(otherWorld);assertFalse(otherWorld.isCancelled());
+      var piston=new BlockPistonExtendEvent(block(a,64),List.of(block(a,65)),BlockFace.EAST);guard.piston(piston);assertFalse(piston.isCancelled());
+    }
+  }
+  @Test void hopperTransfersInDistantChunksAndOtherWorldsContinue() throws Exception {
+    var guard=new EditGuard(null);
+    var a=proxy(World.class,Map.of("getUID",UUID.randomUUID()));
+    var b=proxy(World.class,Map.of("getUID",UUID.randomUUID()));
+    var inside=proxy(org.bukkit.inventory.Inventory.class,Map.of("getLocation",new Location(a,16,65,0)));
+    var far=proxy(org.bukkit.inventory.Inventory.class,Map.of("getLocation",new Location(a,64,65,0)));
+    var other=proxy(org.bukkit.inventory.Inventory.class,Map.of("getLocation",new Location(b,16,65,0)));
+    try(var lock=guard.lock(a,Set.of(new ChunkPos(1,0)))) {
+      var incoming=new org.bukkit.event.inventory.InventoryMoveItemEvent(far,new org.bukkit.inventory.ItemStack() {},inside,true);
+      guard.transfer(incoming);assertTrue(incoming.isCancelled());
+      var distant=new org.bukkit.event.inventory.InventoryMoveItemEvent(far,new org.bukkit.inventory.ItemStack() {},far,true);
+      guard.transfer(distant);assertFalse(distant.isCancelled());
+      var secondWorld=new org.bukkit.event.inventory.InventoryMoveItemEvent(other,new org.bukkit.inventory.ItemStack() {},other,true);
+      guard.transfer(secondWorld);assertFalse(secondWorld.isCancelled());
+    }
+  }
   @Test void everyListenerHasAConcreteBukkitHandlerList() throws Exception {
     for(var method:EditGuard.class.getDeclaredMethods()) if(method.isAnnotationPresent(EventHandler.class)) {
       var event=method.getParameterTypes()[0];

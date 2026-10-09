@@ -46,7 +46,7 @@ def run(platform,version):
         try:
           harness.RUN=str(ROOT/'.work/paper-phase5/run')
           server=harness.Server(platform,version,baseline=str(ROOT/'.work/paper-delivery/fixtures'/('acceptance-flat-'+version)),run_label=out.name,view=2,xmx='1500M',all_entities=False,config={'language':'en_us','auto-commit':{'enabled':False,'on-shutdown':False},'commit':{'chunks-per-tick':1}})
-          server.start();server.cmd('wg debug freeze on','WGFREEZE frozen');result.update(capture(server,out,version));result['success']=True
+          server.start();server.cmd('wg debug guard on','WGCHUNKGUARD locked');result.update(capture(server,out,version));result['success']=True
         finally:
           if server:server.stop();shutil.rmtree(server.dir,ignore_errors=True)
     except BaseException:result['error']=traceback.format_exc();print(result['error'],flush=True)

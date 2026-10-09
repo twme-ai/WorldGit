@@ -10,6 +10,20 @@ import org.worldgit.core.anvil.Nbt;
 import org.worldgit.core.model.ChunkPos;
 
 class LiveCopierTest {
+  @Test void copyChainsNeedOnlyOneOwnerSchedulingHopPerTick() throws Exception {
+    class Ticks implements ChunkScheduler {
+      long tick;final Map<Long,List<Runnable>> tasks=new TreeMap<>();
+      public void region(World w,int x,int z,Runnable r){regionDelayed(w,x,z,1,r);}
+      public void regionDelayed(World w,int x,int z,long delay,Runnable r){tasks.computeIfAbsent(tick+delay,k->new ArrayList<>()).add(r);}
+      void next(){var due=tasks.remove(++tick);if(due!=null)due.forEach(Runnable::run);}
+    }
+    var scheduler=new Ticks();var stats=new LiveCopier.Stats();
+    var copier=new LiveCopier(scheduler,bridge(false),null,8,64,false,stats);
+    var positions=new ArrayList<ChunkPos>();for(int i=0;i<32;i++)positions.add(new ChunkPos(i,0));
+    copier.start(positions);
+    for(int tick=1;tick<=4;tick++){scheduler.next();assertEquals(tick*8,stats.chunks.sum());}
+    for(var pos:positions)assertEquals(pos.x(),copier.take(pos,1).orElseThrow().x());
+  }
   private static final class Scheduler implements ChunkScheduler {
     final Deque<Runnable> tasks = new ArrayDeque<>();
     public void region(World w, int x, int z, Runnable task) { tasks.add(task); }
@@ -27,7 +41,8 @@ class LiveCopierTest {
       public java.util.concurrent.CompletionStage<Void> finishChunk(World w,int x,int z) { throw new UnsupportedOperationException(); }
       public void saveRegion(World w) { throw new UnsupportedOperationException(); }
       public void flushIo(World w) { throw new UnsupportedOperationException(); }
-      public AutoCloseable freeze(World w) { throw new UnsupportedOperationException(); }
+      public AutoCloseable lockChunkTicks(World w,int x,int z) { throw new UnsupportedOperationException(); }
+      public void refreshChunkLock(World w,int x,int z) {}
       public OwnerTick ownerTick(World w) { throw new UnsupportedOperationException(); }
       public String minecraftVersion() { return "test"; }
       public void census(World world, CensusSink sink) {}

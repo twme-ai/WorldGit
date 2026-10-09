@@ -9,4 +9,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(SectionStorage.class)
 public interface SectionStorageAccess {
     @Accessor("simpleRegionStorage") SimpleRegionStorage worldgit$region();
+    @Accessor("dirtyChunks") it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet worldgit$dirtyChunks();
 }

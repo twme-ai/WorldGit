@@ -74,7 +74,7 @@ def run(platform,version,screenshots=False):
      msg=git('log','-1','--format=%B');data=[]
      for token in re.findall('WorldGit-Contribution: (\\S+)',msg):data.append(base64.urlsafe_b64decode(token+'='*((-len(token))%4)).decode('latin1'))
      return msg,data
-    server.cmd('tick freeze','frozen|Frozen')
+    server.cmd('wg debug guard on','WGCHUNKGUARD locked')
     if platform=='paper':server.cmd('wgfixture WgBot pin','PINNED=true')
     else:server.cmd('tp WgBot 8.5 65 8.5','Teleported')
     time.sleep(2);command('init');check('creative uses player-touched','player-touched' in (repository(server.world)/'worldgit-repo.yml').read_text())

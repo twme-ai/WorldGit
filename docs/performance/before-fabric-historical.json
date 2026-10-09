@@ -1,0 +1,24 @@
+{
+  "platform": "fabric-single",
+  "basis": "historical Phase 5 1296 chunk UI no-op commit; reported operation duration, not new benchmark matrix",
+  "samples": [
+    {
+      "seconds": 5.354,
+      "log": ".work/fabric-phase5/single-1.21.11-1791360008/single/client.log",
+      "line": "[08:06:49] [Server thread/INFO] (WorldGit) WORLDGIT RESULT <aqua>shutdown.commit finished: NO_OP</aqua><gray> · all · minecraft:overworld: no changes; minecraft:the_end: no changes; minecraft:the_nether: no changes (5354 ms)</gray>"
+    },
+    {
+      "seconds": 5.011,
+      "log": ".work/fabric-phase5/single-1.21.11-1791365109/single/client.log",
+      "line": "[09:31:31] [Server thread/INFO] (WorldGit) WORLDGIT RESULT <aqua>shutdown.commit finished: NO_OP</aqua><gray> · all · minecraft:overworld: no changes; minecraft:the_end: no changes; minecraft:the_nether: no changes (5011 ms)</gray>"
+    },
+    {
+      "seconds": 5.976,
+      "log": ".work/fabric-phase5/single-1.21.11-1791394475/single/client.log",
+      "line": "[17:41:32] [Server thread/INFO] (WorldGit) WORLDGIT RESULT <aqua>shutdown.commit finished: NO_OP</aqua><gray> · all · minecraft:overworld: no changes; minecraft:the_end: no changes; minecraft:the_nether: no changes (5976 ms)</gray>"
+    }
+  ],
+  "p50": 5.354,
+  "max": 5.976,
+  "date": "2026-10-07"
+}

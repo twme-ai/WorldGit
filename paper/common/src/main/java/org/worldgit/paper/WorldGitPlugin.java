@@ -222,6 +222,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   EditGuard edits() { return edits; }
 
   /** 第三方插件在寫入前可查詢（WE/FAWE 也使用同一政策）。 */
+  public boolean isChunkEditLocked(World world,int x,int z) {return edits!=null && edits.locked(world,x,z);}
   public boolean isEditLocked(World world) { return edits!=null && edits.locked(world); }
 
   RepoService repo() {

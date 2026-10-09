@@ -8,6 +8,8 @@ Phase 5 四個任務已完成並通過驗收（2026-10-07）：core／CLI 的維
 
 **使用方式請看 [使用手冊](docs/15-user-guide.md)**：依單人玩家、伺服器管理員、建築者、CLI、Hub 使用者與架站者分章說明。
 
+常用操作的端到端效能、可重現 benchmark、增量快取正確性及多世界 tick 隔離見 [效能紀錄](docs/18-performance.md)。小變動在單一 tick 內寫入並擷取驗證資料，較大變動只鎖受影響 chunk 與必要邊界；其他 chunk 及世界持續模擬。實測結果與限制以該文件為準。
+
 | 模組 | 責任 | Java |
 |---|---|---|
 | [core](core/README.md) | Anvil/NBT、正規化、JGit、維度 repo、快照／套用／三方合併、YAML 與 `.wgignore` | 21 |

@@ -230,7 +230,7 @@ WorldGit 的 Fabric jar 已內嵌 core、JGit、Jackson、Adventure 等依賴，
 /wg cancel                                  # 中止進行中的套用（留下 PARTIAL，見 §4.4）
 ```
 
-套用期間會顯示 bossbar、暫停世界 tick、攔截編輯；你和範圍內的玩家在操作中與結束後 10 秒不受摔落、窒息、溺水傷害。
+套用期間會顯示 bossbar、攔截受影響範圍的編輯；小變動在單一 owner tick 寫入，較大變動只暫緩受影響 chunk 與一圈邊界的模擬，其他 chunk 和世界持續運作。你和範圍內的玩家在操作中與結束後 10 秒不受摔落、窒息、溺水傷害。門檻及 Folia 限制見 [效能與隔離](18-performance.md)。
 
 ### 5.5 合併與衝突畫面
 
@@ -397,7 +397,7 @@ commit 的 `-m` 與 stash 訊息取後面全部文字；PR 建議 `/wg pr create
 
 沒裝 Fabric 模組的玩家看 `--show` 時，會用只有自己看得到的發光 BlockDisplay 描邊代替鬼影，`show.display-seconds`（預設 60 秒）後自動消失。
 
-**線上套用的保護**：操作期間全伺服器 tick freeze（玩家仍可移動）、攔截玩家編輯／活塞／爆炸／流體／紅石／WorldEdit；範圍內玩家受保護不受摔落、窒息、溺水傷害。只有全部驗證成功才廣播「已切換到 X」。直接改 NMS 的第三方插件需自行呼叫 `WorldGitPlugin.isEditLocked(world)` 配合。
+**線上套用的保護**：依 2026-10-08 使用者決定，原子預算內在同 owner tick 寫入與擷取驗證資料，其餘只鎖受影響 chunk 及邊界；此範圍內攔截玩家編輯／活塞／爆炸／流體／紅石／WorldEdit，其他世界及同世界遠處 chunk 繼續運作；範圍內玩家受保護不受摔落、窒息、溺水傷害。只有全部驗證成功才廣播「已切換到 X」。直接改 NMS 的第三方插件需自行呼叫 `WorldGitPlugin.isChunkEditLocked(world,x,z)` 配合，門檻與限制見 [效能與隔離](18-performance.md)。
 
 量測參考：1,000 chunk 切換，Paper 約 48 秒、Folia 約 34–37 秒，TPS 維持約 19.6–20。
 
@@ -965,7 +965,7 @@ wgit push origin main --tags
 - **座標留言**只顯示當下已載入的 chunk，移動到新區域需重新 show。
 - **Hub**：單一實例；儲存只支援本機磁碟；遠景尚未嵌入 BlueMap；只實測 amd64、Podman；公開註冊的治理政策尚未完成。
 - **客戶端渲染**：沒有流體、特殊方塊實體、實體模型 renderer；未驗證 Sodium／Iris 與硬體 GPU。
-- 量測數字來自受控平坦世界與凍結 tick，不代表大型自然世界或大量真實玩家的負載。
+- 舊階段的量測來自受控平坦世界與凍結 tick。現行模型與不凍結的效能、隔離驗收見 [18](18-performance.md)；受控 fixture 的數字不能代表大型自然世界或大量真實玩家的負載。
 
 各項詳細原因與證據見 [14 Phase 4 進度](14-phase4-progress.md) 的「未完成事項」與各平臺 README。
 

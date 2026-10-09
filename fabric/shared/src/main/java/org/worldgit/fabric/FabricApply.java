@@ -70,6 +70,31 @@ final class FabricApply {
         return done;
     }
 
+    CompletionStage<Map<ChunkPos,ChunkCapture.Raw>> atomic(ApplyPlan plan,Map<ChunkPos,AtomicChunkCheck> checks,org.worldgit.core.config.EntityTagRegistry registry) {
+        var done=new CompletableFuture<Map<ChunkPos,ChunkCapture.Raw>>();
+        try {for(var op:plan.chunks().values())for(var section:op.sections().values())section.section();}
+        catch(IOException e) {return CompletableFuture.failedFuture(e);}
+        runtime.postToServer(()->{
+            try {
+                if(runtime.cancelRequested())throw new IOException("操作已取消");
+                long start=System.nanoTime();var rules=IgnoreRules.parse(plan.ignoreRules());
+                for(var entry:checks.entrySet()) {
+                    var p=entry.getKey();var chunk=level.getChunkSource().getChunkNow(p.x(),p.z());if(chunk==null)throw new IOException("Chunk unloaded after preflight");
+                    var raw=ChunkCapture.capture(level,chunk);var entities=new ArrayList<Nbt.Compound>();for(var e:raw.entities())entities.add(ChunkCapture.toCore(e));
+                    if(!entry.getValue().matches(new org.worldgit.core.normalize.ChunkNormalizer(rules,registry).normalize(p,ChunkCapture.toCore(raw.chunk()),entities)))throw new IOException("受影響 chunk 在預檢後已變動，尚未寫入；請重試");
+                }
+                runtime.mutate(()->{
+                    for(var op:plan.entities())entity(new ApplyPlan.EntityOp(op.uuid(),op.hint(),null),plan.ignoreRules());
+                    for(var op:plan.chunks().values()) {for(var section:op.sections().values())replaceSection(op.pos(),section,section.section(),plan.ignoreRules());chunkData(op,plan);}
+                    for(var op:plan.entities())if(op.target()!=null)entity(op,plan.ignoreRules());
+                });
+                var receipts=new TreeMap<ChunkPos,ChunkCapture.Raw>();for(var p:checks.keySet())receipts.put(p,ChunkCapture.capture(level,level.getChunkSource().getChunkNow(p.x(),p.z())));
+                ServerRuntime.LOG.info("WorldGit atomic chunks={} sections={} ownerNanos={}",checks.size(),plan.stats().sections(),System.nanoTime()-start);
+                done.complete(Map.copyOf(receipts));
+            } catch(Throwable error) {done.completeExceptionally(error);}
+        });return done;
+    }
+
     private void load(Set<ChunkPos> tickets, ArrayDeque<Throwing> work, ApplyBudget budget, CompletableFuture<Void> done) {
         try {
             for(var pos:tickets) level.getChunkSource().addTicketWithRadius(TICKET, mc(pos), 0);
@@ -115,6 +140,24 @@ final class FabricApply {
         if(error==null) done.complete(null); else done.completeExceptionally(error);
     }
 
+    boolean atomicLightingSafe(ApplyPlan plan) throws IOException {
+        for(var pos:LiveApplyVerification.affected(plan)) {
+            var chunk=level.getChunkSource().getChunkNow(pos.x(),pos.z());if(chunk==null || chunk.getBlockEntities().size()>64)return false;
+            var box=new net.minecraft.world.phys.AABB(pos.x()*16,level.getMinY()-1,pos.z()*16,pos.x()*16+16,level.getMaxY()+2,pos.z()*16+16);
+            if(level.getEntities((Entity)null,box,e->!(e instanceof net.minecraft.world.entity.player.Player)).size()>32)return false;
+        }
+        for(var op:plan.chunks().values()) {
+            var chunk=level.getChunkSource().getChunkNow(op.pos().x(),op.pos().z());if(chunk==null)return false;
+            for(var patch:op.sections().values()) {
+                var old=chunk.getSection(chunk.getSectionIndexFromSectionY(patch.y()));
+                for(int i=0;i<4096;i++)if(patch.covers(i)) {
+                    var before=old.getBlockState(i&15,i>>8,(i>>4)&15);var after=state(patch.section().block(i));
+                    if(before!=after && (Platform.lightDampening(before)!=Platform.lightDampening(after) || before.getLightEmission()!=after.getLightEmission() || before.useShapeForLightOcclusion() || after.useShapeForLightOcclusion()))return false;
+                }
+            }
+        }
+        return true;
+    }
     private net.minecraft.world.level.block.state.BlockState state(org.worldgit.core.model.BlockState block) {
         return states.computeIfAbsent(block.canonical(), name->{
             try { return BlockStateParser.parseForBlock(level.registryAccess().lookupOrThrow(Registries.BLOCK),name,false).blockState(); }
@@ -203,6 +246,7 @@ final class FabricApply {
                 level.getFluidTicks().schedule(new SavedTick<>(type,tickPos(t),t.integer("t",0),TickPriority.byValue(t.integer("p",0))).unpack(level.getGameTime(),0));
             }
         }
+        if(op.setTicks()) ChunkTickLocks.replaced(level,op.pos());
         if(op.setStructures()) {
             var raw=ChunkCapture.toCore(SerializableChunkData.copyOf(level,chunk).write());
             raw.put("structures",op.structures()==null ? new Nbt.Compound() : Nbt.read(op.structures()));

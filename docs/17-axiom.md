@@ -46,7 +46,7 @@ Paper 原始碼位於 `packet/impl`、`operations/SetBlockBufferOperation`、`in
 1. 四個可取消事件用 HIGHEST／ignoreCancelled 阻擋被鎖世界。世界有局部鎖時，也保守地拒絕整個該世界的 Axiom 修改，因 modify 事件沒有範圍。
 2. CustomIntegration 的 `canPlaceBlock`／`canBreakBlock`／`checkSection` 提供明確 player、world、chunk。相同 API 也被唯讀 `request_entity_data` 與 debug 使用，因此用有界 StackWalker 核對兩版的 SetBlock／SetBlockBufferPacketListener（含主執行緒 biome lambda）／SetBlockBufferOperation 寫入 frame，才記 cause=axiom 及 dirty；讀取不記來源，不以跨 tick ThreadLocal 承接非同步 buffer。frame 不符時保留未知。section 是嘗試編輯的範圍上界，仍以內容比對決定實際差異；這是 chunk 級貢獻摘要，不是逐格審計。
 3. `axiomadmin.bypass_region_checks` 會跳過 CustomIntegration。此時方塊／BE／biome 內容仍由 unsaved／index 捕捉，缺少的歸屬保持未知，不拿同世界另一個 Axiom 玩家代填。實體事件有玩家與座標，仍可歸屬。多人改同 chunk 可有兩位 contributor，依既有規則選主要 git author。
-4. 所有套用共用 `PaperLiveWorld.lockEdits`：設鎖後、在 server owner 凍結前，以 Axiom queue 的 executionLock → queueLock 移除該世界已有的 SetBlockBufferOperation。否則套用前接受的 buffer，尤其 bypass 玩家，仍可在鎖期間跨 tick 寫入。移除後發通知／重送區塊；不在套用結束後重播過時 buffer。取消前已完成的部分及已排程的 chunk 載入不會反向復原，未完成操作也沒有跨工具原子性。
+4. 所有套用共用 `PaperLiveWorld.lockEdits`：設鎖後、取得 chunk 模擬鎖前，以 Axiom queue 的 executionLock → queueLock 移除該世界已有的 SetBlockBufferOperation。否則套用前接受的 buffer，尤其 bypass 玩家，仍可在鎖期間跨 tick 寫入。移除後發通知／重送區塊；不在套用結束後重播過時 buffer。取消前已完成的部分及已排程的 chunk 載入不會反向復原，未完成操作也沒有跨工具原子性。
 5. tick_blocks 及 set_block 的直送 listener 與 tunnel registry 共用防護代理。前者補上缺漏的鎖；後者拒絕時讀取預測序號並呼叫伺服器確認方法，再重送已載入的玩家視窗區塊，不因拒絕而載入新 chunk。
 6. spawn MONITOR 及 AfterManipulate 記錄成功、仍存在的實體根／乘客；remove 只標 dirty／記歸屬，完整成功 commit 依舊清掉不存在的 touched UUID。
 

@@ -89,7 +89,7 @@ public final class Bridge_26_2 implements NmsBridge {
     NewChunkHolder holder = level.moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(x, z);
     ChunkEntitySlices slices = holder == null ? null : holder.getEntityChunk();
     CompoundTag entities = slices == null ? null : slices.save();
-    return new Raw(x, z, data, entities);
+    return new Raw(x, z, data, entities, org.worldgit.paper.nms.ChunkTickGuard.elapsed(level,x,z));
   }
 
   private static ServerLevel level(World world) { return ((CraftWorld) world).getHandle(); }
@@ -174,11 +174,11 @@ public final class Bridge_26_2 implements NmsBridge {
       long sequence=0;
       for(Object v:n.list("block_ticks").values()) {
         var t=(Nbt.Compound)v; var block=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.parse(t.string("i")));
-        blocks.schedule(new net.minecraft.world.ticks.SavedTick<>(block,new net.minecraft.core.BlockPos(t.integer("x",0),t.integer("y",0),t.integer("z",0)),t.integer("t",0),net.minecraft.world.ticks.TickPriority.byValue(t.integer("p",0))).unpack(level.getGameTime(),sequence++));
+        blocks.schedule(new net.minecraft.world.ticks.SavedTick<>(block,new net.minecraft.core.BlockPos(t.integer("x",0),t.integer("y",0),t.integer("z",0)),t.integer("t",0),net.minecraft.world.ticks.TickPriority.byValue(t.integer("p",0))).unpack(org.worldgit.paper.nms.ChunkTickGuard.scheduleTime(level),sequence++));
       }
       for(Object v:n.list("fluid_ticks").values()) {
         var t=(Nbt.Compound)v; var fluid=net.minecraft.core.registries.BuiltInRegistries.FLUID.getValue(net.minecraft.resources.Identifier.parse(t.string("i")));
-        fluids.schedule(new net.minecraft.world.ticks.SavedTick<>(fluid,new net.minecraft.core.BlockPos(t.integer("x",0),t.integer("y",0),t.integer("z",0)),t.integer("t",0),net.minecraft.world.ticks.TickPriority.byValue(t.integer("p",0))).unpack(level.getGameTime(),sequence++));
+        fluids.schedule(new net.minecraft.world.ticks.SavedTick<>(fluid,new net.minecraft.core.BlockPos(t.integer("x",0),t.integer("y",0),t.integer("z",0)),t.integer("t",0),net.minecraft.world.ticks.TickPriority.byValue(t.integer("p",0))).unpack(org.worldgit.paper.nms.ChunkTickGuard.scheduleTime(level),sequence++));
       }
     }
     if (op.setStructures()) {
@@ -199,6 +199,8 @@ public final class Bridge_26_2 implements NmsBridge {
       }
       chunk.setAllStarts(starts); chunk.setAllReferences(refs);
     }
+    if(op.setTicks()) org.worldgit.paper.nms.ChunkTickGuard.replacedTicks(level,op.pos().x(),op.pos().z());
+    org.worldgit.paper.nms.ChunkTickGuard.refresh(level,op.pos().x(),op.pos().z());
     net.minecraft.world.level.levelgen.Heightmap.primeHeightmaps(chunk,java.util.EnumSet.allOf(net.minecraft.world.level.levelgen.Heightmap.Types.class));
     chunk.initializeLightSources(); chunk.markUnsaved();
   }
@@ -216,6 +218,7 @@ public final class Bridge_26_2 implements NmsBridge {
     if(entity==null) throw new IOException("無法反序列化實體："+snapshot.uuid());
     // LOAD 保留 UUID 與 passengers；不以 Bukkit isValid 判斷非 ticking Folia chunk 的加入結果。
     if(!level(world).tryAddFreshEntityWithPassengers(entity)) throw new IOException("實體 UUID 衝突："+snapshot.uuid());
+    org.worldgit.paper.nms.ChunkTickGuard.refresh(level(world),(entity.chunkPosition().getMinBlockX()>>4),(entity.chunkPosition().getMinBlockZ()>>4));
   }
   @Override public java.util.concurrent.CompletionStage<Void> finishChunk(World world,int x,int z) {
     var level=level(world); var chunk=level.getChunkSource().getChunkNow(x,z);
@@ -232,16 +235,25 @@ public final class Bridge_26_2 implements NmsBridge {
   }
   @Override public void saveRegion(World world) { level(world).moonrise$getChunkTaskScheduler().chunkHolderManager.saveAllChunks(true,false,false,true); }
   @Override public void saveChunk(World world,int x,int z) {
+    org.worldgit.paper.nms.ChunkTickGuard.beforeSave(level(world),x,z);
     var holder=level(world).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(x,z);
     if(holder!=null) holder.save(false); // terrain／entity／POI，在該 chunk owner 排入 IO。
   }
   @Override public void flushIo(World world) { ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush(level(world)); }
-  @Override public AutoCloseable freeze(World world) {
-    var manager=level(world).getServer().tickRateManager(); boolean frozen=manager.isFrozen(); int steps=manager.frozenTicksToRun();
-    if(manager.isSprinting()) throw new IllegalStateException("請先停止 tick sprint 再套用");
-    manager.setFrozenTicksToRun(0); manager.setFrozen(true); manager.tick();
-    return ()->{ manager.setFrozen(frozen); manager.tick(); manager.setFrozenTicksToRun(steps); };
+  @Override public void wakeBoundary(World world,int x,int y,int z,String sourceBlock) {
+    var level=level(world);var pos=new net.minecraft.core.BlockPos(x,y,z);
+    if(sourceBlock==null) {var fluid=level.getFluidState(pos);if(!fluid.isEmpty())level.scheduleTick(pos,fluid.getType(),fluid.getType().getTickDelay(level));}
+    else {var material=org.bukkit.Material.matchMaterial(sourceBlock);if(material!=null)level.neighborChanged(pos,((org.bukkit.craftbukkit.block.data.CraftBlockData)org.bukkit.Bukkit.createBlockData(material)).getState().getBlock(),null);}
   }
+  @Override public boolean atomicLightingSafe(World world,org.worldgit.core.apply.ApplyPlan plan) throws java.io.IOException {return org.worldgit.paper.nms.ChunkTickGuard.atomicLightingSafe(level(world),plan,state->state.getLightDampening());}
+  @Override public AutoCloseable lockChunkTicks(World world,int x,int z) { return org.worldgit.paper.nms.ChunkTickGuard.lock(level(world),x,z); }
+  @Override public void refreshChunkLock(World world,int x,int z) { org.worldgit.paper.nms.ChunkTickGuard.refresh(level(world),x,z); }
+  @Override public void entityBoundary(World world,java.util.Set<org.worldgit.core.model.ChunkPos> scope) {org.worldgit.paper.nms.ChunkTickGuard.entityBoundary(level(world),scope);}
+  @Override public void guardEntities(World world,int x,int z) {org.worldgit.paper.nms.ChunkTickGuard.guardEntities(level(world),x,z);}
+  @Override public void guardEntity(org.bukkit.entity.Entity entity) {org.worldgit.paper.nms.ChunkTickGuard.guardEntity(entity);}
+  @Override public java.util.Collection<org.bukkit.entity.Entity> clearEntityBoundary(World world) {return org.worldgit.paper.nms.ChunkTickGuard.clearEntityBoundary(level(world));}
+  @Override public void restoreEntity(org.bukkit.entity.Entity entity) {org.worldgit.paper.nms.ChunkTickGuard.restoreEntity(entity);}
+
   @Override public OwnerTick ownerTick(World world) {
     try {
       var type=Class.forName("io.papermc.paper.threadedregions.TickRegionScheduler");
@@ -252,10 +264,12 @@ public final class Bridge_26_2 implements NmsBridge {
       catch(ReflectiveOperationException e) { throw new IllegalStateException("無法取得 Folia owner tick",e); }
   }
 
-  private record Raw(int x, int z, SerializableChunkData data, CompoundTag entityTag) implements RawChunk {
+  private record Raw(int x, int z, SerializableChunkData data, CompoundTag entityTag, long heldTicks) implements RawChunk {
     @Override
     public Nbt.Compound terrain() throws IOException {
-      return convert(data.write());
+      var terrain=convert(data.write());
+      org.worldgit.paper.nms.ChunkTickGuard.correctCapturedTicks(terrain,heldTicks);
+      return terrain;
     }
 
     @Override

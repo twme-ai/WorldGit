@@ -14,16 +14,17 @@ import org.worldgit.platform.*;
 
 /** Repo 執行緒上執行；owner futures 的等待不阻塞伺服器。共用 core journal／HEAD／stash 語意。 */
 final class FabricOperations implements WorldOperations.LiveAccess {
-    private boolean regionMode;
+    private boolean regionMode,atomicApply;
+    private final Map<DimensionId,Map<ChunkPos,ChunkCapture.Raw>> atomicReceipts=new TreeMap<>();
     private final ServerRuntime runtime;
     private final WorldLayout layout;
     private final SortedMap<DimensionId,FabricLiveWorld> worlds=new TreeMap<>();
     private final Map<UUID,Nbt.Compound> oldEntities=new HashMap<>();
     FabricOperations(ServerRuntime runtime,WorldLayout layout) { this.runtime=runtime;this.layout=layout; }
-    @Override public SnapshotSource source(WorldLayout.Dimension dimension) { return new FabricLiveWorld(runtime,layout,dimension); }
+    @Override public SnapshotSource source(WorldLayout.Dimension dimension) { var source=new FabricLiveWorld(runtime,layout,dimension);source.receipts(atomicReceipts.getOrDefault(dimension.id(),Map.of()));return source; }
     @Override public SnapshotSource source(WorldLayout.Dimension dimension,Set<ChunkPos> chunks) {
         try(var timing=org.worldgit.core.service.OperationTimings.stage("flush")) { runtime.flushChunks(Map.of(dimension.id(),chunks)); }
-        return new FabricLiveWorld(runtime,layout,dimension);
+        var source=new FabricLiveWorld(runtime,layout,dimension);source.receipts(atomicReceipts.getOrDefault(dimension.id(),Map.of()));return source;
     }
     @Override public AutoCloseable lockChunks(Map<DimensionId,Set<ChunkPos>> chunks) {
         try(var timing=org.worldgit.core.service.OperationTimings.stage("lock")) { return runtime.lockChunks(chunks); }
@@ -43,6 +44,21 @@ final class FabricOperations implements WorldOperations.LiveAccess {
     }
     @Override public void beforeComplete() throws IOException {
         if(runtime.cancelRequested()) throw new IOException("操作已取消");
+    }
+    @Override public AutoCloseable guardApply(Collection<ApplyPlan> plans) throws IOException {
+        var chunks=new TreeMap<DimensionId,Set<ChunkPos>>();
+        for(var plan:plans) if(!plan.empty()) {
+            var affected=new TreeSet<>(plan.chunks().keySet());var ids=new HashSet<UUID>();
+            for(var op:plan.entities()) {ids.add(op.uuid());if(op.hint()!=null)affected.add(op.hint());if(op.targetChunk()!=null)affected.add(op.targetChunk());}
+            if(!ids.isEmpty()) affected.addAll(entityChunks(layout.dimensions().get(plan.dimension()),ids));
+            chunks.put(plan.dimension(),affected);
+        }
+        atomicApply=plans.size()==1 && plans.stream().allMatch(p->runtime.config().atomicApply().eligible(p) && chunks.get(p.dimension()).equals(LiveApplyVerification.affected(p))
+            && runtime.onServer(()->{var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(p.dimension().value())));
+                return level!=null && chunks.get(p.dimension()).stream().allMatch(pos->level.getChunkSource().getChunkNow(pos.x(),pos.z())!=null && level.areEntitiesLoaded(Integer.toUnsignedLong(pos.x())|((long)pos.z()<<32)));}));
+        if(atomicApply) {var plan=plans.iterator().next();atomicApply=runtime.onServer(()->new FabricApply(runtime,runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(plan.dimension().value()))),new HashMap<>()).atomicLightingSafe(plan));}
+        if(atomicApply)return ()->{atomicApply=false;};
+        return runtime.lockChunks(chunks);
     }
     @Override public void applyRegions(Collection<ApplyPlan> plans) throws IOException {
         regionMode=true;
@@ -87,7 +103,11 @@ final class FabricOperations implements WorldOperations.LiveAccess {
             var live=runtime.onServer(()->{
                 var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(other.id().value())));
                 if(level==null) return Optional.<UUID>empty();
-                for(var id:targets) { var entity=level.getEntity(id); if(entity!=null && !entity.isRemoved()) return Optional.of(id); }
+                for(var id:targets) {
+                    var entity=level.getEntity(id); if(entity!=null && !entity.isRemoved()) return Optional.of(id);
+                    // 傳送到尚未載入 entity chunk 的實體不在 getEntity／getAllEntities 內，但已在 entity manager 的 knownUuids；它之後存檔仍會成為重複。
+                    if(((org.worldgit.fabric.mixin.ServerLevelAccess)level).worldgit$entities().isLoaded(id)) return Optional.of(id);
+                }
                 return Optional.<UUID>empty();
             });
             if(live.isPresent()) throw new DuplicateEntityException(live.get(),other.id());
@@ -117,6 +137,8 @@ final class FabricOperations implements WorldOperations.LiveAccess {
         return null;
     }
     @Override public void applyAll(Collection<ApplyPlan> plans) throws IOException {
+        if(plans.stream().allMatch(ApplyPlan::empty)) return;
+        if(atomicApply) {applyAtomic(plans.iterator().next());return;}
         var budget=runtime.onServer(()->runtime.server().getPlayerList().getPlayers().isEmpty() ? ApplyBudget.DEFAULT : ApplyBudget.WITH_PLAYERS);
         var batches=new ArrayList<ApplyPlan>();
         var ids=new TreeSet<UUID>();
@@ -183,6 +205,16 @@ final class FabricOperations implements WorldOperations.LiveAccess {
             if(error instanceof CompletionException && error.getCause()!=null) error=error.getCause();
             throw error instanceof IOException io ? io : new IOException("線上套用失敗",error);
         }
+    }
+    private void applyAtomic(ApplyPlan plan) throws IOException {
+        var source=world(plan.dimension());var checks=new TreeMap<ChunkPos,AtomicChunkCheck>();
+        try(var store=new org.worldgit.core.store.JGitStore(layout.repository(plan.dimension()),false)) {
+            var config=org.worldgit.core.config.WorldGitConfig.readRepo(layout.repository(plan.dimension()).resolve("worldgit-repo.yml"));
+            var touched=config.entities()==org.worldgit.core.config.WorldGitConfig.Entities.PLAYER_TOUCHED ? org.worldgit.core.capture.PlayerTouchedEntities.read(layout.repository(plan.dimension())) : null;
+            for(var pos:LiveApplyVerification.affected(plan))checks.put(pos,new AtomicChunkCheck(store,plan.baseTree(),pos,touched));
+        }
+        var receipts=source.writer().atomic(plan,checks,source.registry()).toCompletableFuture().join();atomicReceipts.put(plan.dimension(),receipts);source.receipts(receipts);
+        source.finishApply(checks.keySet()).toCompletableFuture().join();runtime.flushChunks(Map.of(plan.dimension(),checks.keySet()));
     }
     private FabricLiveWorld world(DimensionId id) { return worlds.computeIfAbsent(id,k->new FabricLiveWorld(runtime,layout,layout.dimensions().get(k),oldEntities)); }
     private static void collect(Nbt.Compound entity,Set<UUID> ids,Set<UUID> unique) throws IOException {

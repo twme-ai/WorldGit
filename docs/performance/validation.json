@@ -1,0 +1,465 @@
+{
+  "sources": {
+    "after-cli.json": {
+      "path": ".work/perf/nofreeze-resume-cli/result.json",
+      "sha256": "531359b4b66b61673841150710db1e3c651f9397966f9d79a1c6da9584b863dd"
+    },
+    "before-cli-real.json": {
+      "path": ".work/perf/before-real-cli/result.json",
+      "sha256": "70f387009b20d585b1993c2a5be7e453777277c49f361d0b3923c835667ac443"
+    },
+    "after-cli-real.json": {
+      "path": ".work/perf/nofreeze-real-cli/result.json",
+      "sha256": "8b4b7717afba00c4d4d3fdd7cf28128ac80c242c67ddbd7dd55734764864794d"
+    },
+    "before-cli-extra.json": {
+      "path": ".work/perf/before-extra-cli/result.json",
+      "sha256": "6c8be59536bb766856163d58cbf66284ac679d4a43ac54ebb6942fc66c3ba77b"
+    },
+    "after-cli-extra.json": {
+      "path": ".work/perf/nofreeze-extra-cli/result.json",
+      "sha256": "3ee776fd4901f013cdffdbced286f79fd82c0a18a3b667730fdd54fb8ed7e801"
+    },
+    "before-paper.json": {
+      "path": ".work/perf/before-comparable-paper-1.21.11/result.json",
+      "sha256": "18a4bf2ce8e206cb67e1573afb948d33abb37dbabaac7603cf7527e28c34cc44"
+    },
+    "after-paper.json": {
+      "path": ".work/perf/nofreeze-resume-paper-1.21.11/result.json",
+      "sha256": "b78e65c04bc7c1f86c7ad886a805cdf320d95d4699fd44e8eafb39031785361f"
+    },
+    "before-folia.json": {
+      "path": ".work/perf/before-comparable-folia-1.21.11/result.json",
+      "sha256": "02e33ea21a748e483e18d331cd85c748b61e0986e38d6cf8a26e9589df10a010"
+    },
+    "after-folia.json": {
+      "path": ".work/perf/nofreeze-complete-folia-1.21.11/result.json",
+      "sha256": "51c51863dbd51b307544130a6af1cc13658f4d0cf0a9e1281dd26be0b72d6449"
+    },
+    "before-fabric-dedicated.json": {
+      "path": ".work/perf/before-comparable-fabric-1.21.11/result.json",
+      "sha256": "034e5e3c135aef369adf2f23684fe742c3ff09c09d185777b49eed7d7291135f"
+    },
+    "after-fabric-dedicated.json": {
+      "path": ".work/perf/nofreeze-save-candidates-fabric-1.21.11/result.json",
+      "sha256": "0c07874a3f547e96cc033faf0f053470647b4d2f8e33555348b612b8c74410b3"
+    },
+    "before-fabric-single.json": {
+      "path": ".work/perf/before-comparable-fabric-single-1.21.11/result.json",
+      "sha256": "e820c164d9559b9334802cdad7db5a70794cbfc26f194db27cb5e7d3ca4280bb"
+    },
+    "after-fabric-single.json": {
+      "path": ".work/perf/nofreeze-complete-fabric-single-1.21.11/result.json",
+      "sha256": "36a4e426550983cba4d7e4346e13cf7454e5c51f32127be21d83b0725269afb9"
+    }
+  },
+  "isolation_checks": {
+    "after-paper.json": {
+      "all_six_windows_pass": true,
+      "minimum_b_tps": 19.977,
+      "maximum_b_tps": 19.978,
+      "maximum_gap_ms": 66.589
+    },
+    "after-folia.json": {
+      "all_six_windows_pass": true,
+      "minimum_b_tps": 19.977,
+      "maximum_b_tps": 19.977,
+      "maximum_gap_ms": 69.145
+    },
+    "after-fabric-dedicated.json": {
+      "all_six_windows_pass": true,
+      "minimum_b_tps": 19.985,
+      "maximum_b_tps": 19.988,
+      "maximum_gap_ms": 70.076
+    },
+    "after-fabric-single.json": {
+      "all_six_windows_pass": true,
+      "minimum_b_tps": 19.84,
+      "maximum_b_tps": 19.868,
+      "maximum_gap_ms": 165.028
+    }
+  },
+  "runners": {
+    "resume": {
+      "folia-matrix": {
+        "name": "folia-matrix",
+        "command": [
+          "python3",
+          "paper/tools/benchmark.py",
+          "--latency",
+          "folia",
+          "1.21.11",
+          "--label",
+          "nofreeze-resume-v3",
+          "--require-isolation"
+        ],
+        "exit": 0,
+        "seconds": 614.7875356674194,
+        "log": ".work/perf/resume-folia-matrix-r3.log",
+        "log_sha256": "6ad05e7d6955c6c17116a1b2e889a9592d7281a84897272575da67b443aad766"
+      },
+      "single-matrix": {
+        "name": "single-matrix",
+        "command": [
+          "python3",
+          "tools/performance/single.py",
+          "1.21.11",
+          "--label",
+          "nofreeze-save-candidates-v3",
+          "--artifact",
+          "fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar",
+          "--require-isolation"
+        ],
+        "exit": 0,
+        "seconds": 1927.4937846660614,
+        "log": ".work/perf/resume-single-matrix-r4.log",
+        "log_sha256": "55fe490f4679a4f38fe1e4b1a8d57831c9aa06eae7c57a71a5c5dc830253cc50"
+      },
+      "cli-matrix": {
+        "name": "cli-matrix",
+        "command": [
+          "python3",
+          "tools/performance/benchmark.py",
+          "--label",
+          "nofreeze-resume-cli"
+        ],
+        "exit": 0,
+        "seconds": 442.3187346458435,
+        "log": ".work/perf/resume-cli-matrix.log",
+        "log_sha256": "a73e51bdead5cf166cc6e7a31304402d07fcbd097d231a6edddfb2b5255085d5"
+      },
+      "cli-real-after": {
+        "name": "cli-real-after",
+        "command": [
+          "python3",
+          "tools/performance/noop.py",
+          "--label",
+          "nofreeze-real-cli"
+        ],
+        "exit": 0,
+        "seconds": 23.568188905715942,
+        "log": ".work/perf/resume-cli-real-after.log",
+        "log_sha256": "9e29fe405646d9520aff2f6700807aacca724c21f5e5fdd1379376c36f5a8b1a"
+      },
+      "cli-real-before": {
+        "name": "cli-real-before",
+        "command": [
+          "python3",
+          "tools/performance/noop.py",
+          "--label",
+          "before-real-cli",
+          "--jar",
+          ".work/perf/before-wgit.jar",
+          "--rounds",
+          "1"
+        ],
+        "exit": 0,
+        "seconds": 89.22322249412537,
+        "log": ".work/perf/resume-cli-real-before.log",
+        "log_sha256": "3fb62b51a4c5bb0798535c0eda48a9ffdb04f2bf1434f51273ba30d5f797d7ee"
+      },
+      "paper-matrix": {
+        "name": "paper-matrix",
+        "command": [
+          "python3",
+          "paper/tools/benchmark.py",
+          "--latency",
+          "paper",
+          "1.21.11",
+          "--label",
+          "nofreeze-resume",
+          "--require-isolation"
+        ],
+        "exit": 0,
+        "seconds": 642.7323696613312,
+        "log": ".work/perf/resume-paper-matrix.log",
+        "log_sha256": "7d914e292aa86e6ce0646ec9141503a7a0c3287a4fc3aa323cad3a867942b000"
+      },
+      "regressions": {
+        "name": "regressions",
+        "command": [
+          "python3",
+          "paper/tools/phase4_regressions.py",
+          "--case",
+          "paper-1.21.11-phase2",
+          "--case",
+          "paper-26.2-phase3",
+          "--case",
+          "folia-1.21.11-phase2"
+        ],
+        "exit": 0,
+        "seconds": 1225.0375921726227,
+        "log": ".work/perf/resume-regressions.log",
+        "log_sha256": "33c7bb8da8064b41329a36f7a8b58bcc857d18b72607683f176dcde19fed151e",
+        "result_path": ".work/paper-phase4/regressions-1791502477/results.json",
+        "result_sha256": "60afadbfb1c032039f0834325882598422d206ca35026c88ef594e8a249eef9b"
+      },
+      "paper-acceptance": {
+        "name": "paper-acceptance",
+        "command": [
+          "python3",
+          "paper/tools/acceptance.py",
+          "paper",
+          "1.21.11"
+        ],
+        "exit": 0,
+        "seconds": 445.964439868927,
+        "log": ".work/perf/resume-paper-acceptance.log",
+        "log_sha256": "22de0ac0261e8ae5623c449d131466b13fec56e4a9d6ed06131d39aa8caaa4d6"
+      },
+      "paper-phase5": {
+        "name": "paper-phase5",
+        "command": [
+          "python3",
+          "paper/tools/phase5.py",
+          "paper",
+          "1.21.11"
+        ],
+        "exit": 0,
+        "seconds": 165.84288620948792,
+        "log": ".work/perf/resume-paper-phase5.log",
+        "log_sha256": "ec4c1f2d70bc75cd873a6c83f7d67f8e86488301e293b8da13f09ff8518a8472",
+        "result_path": ".work/paper-phase5/paper-1.21.11-1791504148/results.json",
+        "result_sha256": "86afb442330996ccd523740dc25aacf224cd0f331b71624814550b97a3d3d8c2"
+      },
+      "fabric-phase5": {
+        "name": "fabric-phase5",
+        "command": [
+          "python3",
+          "fabric/tools/accept-phase5.py",
+          "1.21.11",
+          "--mode",
+          "dedicated"
+        ],
+        "exit": 0,
+        "seconds": 611.2472145557404,
+        "log": ".work/perf/resume-fabric-phase5-r2.log",
+        "log_sha256": "ec001460b7df58163865c9fcd3675d24496daa22dae3370f3ea4e91fc82721da",
+        "result_path": ".work/fabric-phase5/dedicated-1.21.11-1791521423/result.json",
+        "result_sha256": "e9219962b56ce8d72d233d3bfca5fe326219892066c27b248d9b0dfc3bdd770f"
+      },
+      "fabric-phase2": {
+        "name": "fabric-phase2",
+        "command": [
+          "python3",
+          "fabric/tools/regress-phase4.py",
+          "--only",
+          "single-26.2-phase2"
+        ],
+        "exit": 0,
+        "seconds": 151.04961800575256,
+        "log": ".work/perf/resume-fabric-phase2-r6.log",
+        "log_sha256": "aaf931209157d57e19bc7397073958314fbd75358c74bec11fd039972b2b6ef7",
+        "result_path": ".work/fabric-phase4/regressions-1791551129/results.json",
+        "result_sha256": "5e1b69306cc151462bbb5f57308f39e80348c2595a44d066f198b94c4f39d127"
+      },
+      "hub-phase5": {
+        "name": "hub-phase5",
+        "command": [
+          "bash",
+          "hub/scripts/phase5-acceptance.sh"
+        ],
+        "exit": 0,
+        "seconds": 45.79557514190674,
+        "log": ".work/perf/resume-hub-phase5-r2.log",
+        "log_sha256": "4641dd434031f8e065052100988ae6df65a39d8e5fe4e170c50aa1b8bb555f57",
+        "result_path": ".work/phase5-hub-1791551368/results.json",
+        "result_sha256": "03a264bf79bdedec62b1f347b55a36b32816caf5bb336165b6c24bd1ecfe87ee"
+      },
+      "fabric-before": {
+        "name": "fabric-before",
+        "command": [
+          "python3",
+          "fabric/tools/benchmark.py",
+          "1.21.11",
+          "--label",
+          "before-comparable",
+          "--artifact",
+          ".work/perf/before-fabric.jar",
+          "--latency-only",
+          "--rounds",
+          "1"
+        ],
+        "exit": 0,
+        "seconds": 4453.4521288871765,
+        "log": ".work/perf/resume-fabric-before.log",
+        "log_sha256": "05f153ad81a5e4b20da4951e3a11fd69c94d6e4794161a7f95decc9af5e412a6"
+      },
+      "single-before": {
+        "name": "single-before",
+        "command": [
+          "python3",
+          "tools/performance/single.py",
+          "1.21.11",
+          "--label",
+          "before-comparable",
+          "--artifact",
+          ".work/perf/before-fabric.jar",
+          "--latency-only",
+          "--rounds",
+          "1"
+        ],
+        "exit": 0,
+        "seconds": 13166.262650251389,
+        "log": ".work/perf/resume-single-before.log",
+        "log_sha256": "7977f34b1e4e116460f3b0bbf11075479675e1e93e0bc1b773794ba95335ead1"
+      },
+      "full-build": {
+        "name": "full-build",
+        "command": [
+          "flock",
+          ".work/bench.lock",
+          "./gradlew",
+          "--no-daemon",
+          "--configure-on-demand",
+          "--max-workers=1",
+          "build"
+        ],
+        "exit": 0,
+        "seconds": 39.508503437042236,
+        "log": ".work/perf/resume-full-build.log",
+        "log_sha256": "76427f79f565c94542fc3463b47b22cf9246276a1e91e8f2a0e4613ab10901c2"
+      }
+    },
+    "finalize": {
+      "single-final-matrix": {
+        "name": "single-final-matrix",
+        "command": [
+          "python3",
+          "tools/performance/single.py",
+          "1.21.11",
+          "--label",
+          "nofreeze-complete",
+          "--artifact",
+          "fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar",
+          "--require-isolation"
+        ],
+        "exit": 0,
+        "seconds": 1912.2129564285278,
+        "log": ".work/perf/finalize-single-final-matrix.log",
+        "log_sha256": "2bd9ba0adb6310bdd40a5c98cce24a39b7b62f7a4ac9c4d0d3c6838b00c3f172"
+      },
+      "folia-final-matrix": {
+        "name": "folia-final-matrix",
+        "command": [
+          "python3",
+          "paper/tools/benchmark.py",
+          "--latency",
+          "folia",
+          "1.21.11",
+          "--label",
+          "nofreeze-complete",
+          "--require-isolation"
+        ],
+        "exit": 0,
+        "seconds": 627.5492849349976,
+        "log": ".work/perf/finalize-folia-final-matrix.log",
+        "log_sha256": "bbf516559436471517e2a04650a5990fd404912596a85e175c1818ff8aca1d00"
+      },
+      "fabric-final-matrix": {
+        "name": "fabric-final-matrix",
+        "command": [
+          "python3",
+          "fabric/tools/benchmark.py",
+          "1.21.11",
+          "--label",
+          "nofreeze-save-candidates",
+          "--require-isolation"
+        ],
+        "exit": 0,
+        "seconds": 841.1268038749695,
+        "log": ".work/perf/finalize-fabric-final-matrix.log",
+        "log_sha256": "7ae0a0cd2a02ef094505dd1c94a30b8c4e4a79720bbb7438c8644e15755eb847"
+      },
+      "paper-before-comparable": {
+        "name": "paper-before-comparable",
+        "command": [
+          "python3",
+          "paper/tools/benchmark.py",
+          "--latency",
+          "paper",
+          "1.21.11",
+          "--label",
+          "before-comparable",
+          "--artifact",
+          ".work/perf/before-paper.jar",
+          "--latency-only",
+          "--rounds",
+          "1"
+        ],
+        "exit": 0,
+        "seconds": 1896.2531416416168,
+        "log": ".work/perf/finalize-paper-before-comparable.log",
+        "log_sha256": "3caaaf313ede6c58e90473d35544b21c40c79a5b2838fdc966279d3f8b613673"
+      },
+      "folia-before-comparable": {
+        "name": "folia-before-comparable",
+        "command": [
+          "python3",
+          "paper/tools/benchmark.py",
+          "--latency",
+          "folia",
+          "1.21.11",
+          "--label",
+          "before-comparable",
+          "--artifact",
+          ".work/perf/before-paper.jar",
+          "--latency-only",
+          "--rounds",
+          "1"
+        ],
+        "exit": 0,
+        "seconds": 1818.397134065628,
+        "log": ".work/perf/finalize-folia-before-comparable.log",
+        "log_sha256": "c3966f03c8bd814f2e622a701a3b41265765191c5474cb1015735b0f4a667375"
+      },
+      "cli-extra-before": {
+        "name": "cli-extra-before",
+        "command": [
+          "python3",
+          "tools/performance/extra.py",
+          "--label",
+          "before-extra-cli",
+          "--jar",
+          ".work/perf/before-wgit.jar"
+        ],
+        "exit": 0,
+        "seconds": 413.6651256084442,
+        "log": ".work/perf/finalize-cli-extra-before.log",
+        "log_sha256": "8caec319d81d66d1b849f065296a1d3f38a2804946fbffb4410ce11d08636bdc"
+      },
+      "cli-extra-after": {
+        "name": "cli-extra-after",
+        "command": [
+          "python3",
+          "tools/performance/extra.py",
+          "--label",
+          "nofreeze-extra-cli"
+        ],
+        "exit": 0,
+        "seconds": 140.67031741142273,
+        "log": ".work/perf/finalize-cli-extra-after.log",
+        "log_sha256": "dee8ba2155f240f374364df949ea99f9a7a387210bcef56a887ad94914ceafa7"
+      }
+    }
+  },
+  "completed_utc": "2026-10-09T20:19:17.846594+00:00",
+  "source_head": "ffd61fa4d16d883540b15f46258eed4dea3088f1",
+  "committed": false,
+  "paper_acceptance": {
+    "steps": 32,
+    "sha256": "be50017a60d8f3cbf413083cf98ac5bbe00c7f1fc523cfe8694f574b90fe19e4"
+  },
+  "unit_tests": {
+    "suites": 77,
+    "tests": 365,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "baseline_artifacts": {
+    "before-wgit.jar": "058c6f0d21dc7aba1e2ffe8b6820a37537b5b497108f0cf05bd12cf445b3533c",
+    "before-fabric.jar": "9a4141f2bdcc7e5703b0a17f3a916c0b4728d7fb5416adebf32254078a386d06",
+    "before-paper.jar": "36029fc1938fa8de533b9e5baa72d8cb09b195cdd4f8dc58d45d0ab6f43fcaea"
+  }
+}

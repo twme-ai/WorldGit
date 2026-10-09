@@ -22,11 +22,11 @@ public record ServerConfig(
     AutoCommit autoCommit,
     Identity identity,
     Preview preview, org.worldgit.platform.remote.RemoteSettings remote,
-    Aliases aliases, Feedback feedback, int ignorePermissionLevel) {
+    Aliases aliases, Feedback feedback, int ignorePermissionLevel, org.worldgit.platform.AtomicApplyLimits atomicApply) {
   public ServerConfig(String locale, String template, WorldGitConfig.Track track, int write, int read,
       AutoCommit auto, Identity identity, Preview preview) {
     this(locale,template,track,write,read,auto,identity,preview,org.worldgit.platform.remote.RemoteSettings.defaults(),
-        new Aliases(true,true),Feedback.defaults(),2);
+        new Aliases(true,true),Feedback.defaults(),2,org.worldgit.platform.AtomicApplyLimits.DEFAULT);
   }
 
   /** 指令別名：wg 與 worldgit 永遠存在；wgit／git 可停用。已有其他模組的 /git 時一律不覆蓋。 */
@@ -90,6 +90,9 @@ public record ServerConfig(
         fb.integer("console-interval-seconds", 1, 1, 60), fb.bool("auto-notify", true));
     fb.rejectUnknown();
     int ignoreLevel = root.integer("ignore-permission-level", 2, 0, 4);
+    var apply=root.section("apply");
+    var atomic=new org.worldgit.platform.AtomicApplyLimits(apply.integer("atomic-max-chunks",1,0,8),apply.integer("atomic-max-sections",1,0,8),apply.integer("atomic-max-entities",8,0,32));
+    apply.rejectUnknown();
     root.rejectUnknown();
     return new ServerConfig(
         locale,
@@ -99,7 +102,7 @@ public record ServerConfig(
         read,
         autoCommit,
         identity,
-        preview, remote, aliases, feedback, ignoreLevel);
+        preview, remote, aliases, feedback, ignoreLevel, atomic);
   }
 
   private static String identityText(String s, String source) throws IOException {
@@ -126,6 +129,12 @@ public record ServerConfig(
       # 伺服器主控台訊息與寫進 git 歷史的自動 commit 訊息所用的語言（玩家看到的訊息依各自的客戶端語言）。
       # 內建 en_us、zh_tw；可在 config/worldgit/lang/<locale>.yml 覆寫部分訊息。
       locale: en_us
+
+      # Loaded chunks on one owner: atomic write and verification copy in one tick.
+      apply:
+        atomic-max-chunks: 1
+        atomic-max-sections: 1
+        atomic-max-entities: 8
 
       # /wg init 沒指定 --template 時使用的 .wgignore 範本：creative | survival
       default-template: creative

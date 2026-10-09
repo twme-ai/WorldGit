@@ -15,8 +15,8 @@ def run(platform,version):
         with open(os.path.join(evidence,'results.json'),'w') as f: json.dump(result,f,ensure_ascii=False,indent=2)
         print(('PASS ' if ok else 'FAIL ')+name,str(data)[:350],flush=True)
     def cmd(s,text,pattern=r'完成|已切換到|Switched|分支：|Branches|存檔點：|Snapshot:|WGENTITY complete'):
-        output=s.cmd(text,pattern+'|失敗|PARTIAL|WGENTITY failed|WGFREEZE failed',900)
-        if any(x in output for x in ('失敗','PARTIAL','WGENTITY failed','WGFREEZE failed')): raise RuntimeError(text+': '+output[-1600:])
+        output=s.cmd(text,pattern+'|失敗|PARTIAL|WGENTITY failed|WGCHUNKGUARD failed',900)
+        if any(x in output for x in ('失敗','PARTIAL','WGENTITY failed','WGCHUNKGUARD failed')): raise RuntimeError(text+': '+output[-1600:])
         return output
     def inspect(s,dim,x,z):
         return cmd(s,f'wg debug entities {dim} {x} {z} inspect')
@@ -31,7 +31,7 @@ def run(platform,version):
                  config={'auto-commit':{'enabled':False,'on-shutdown':False},'commit':{'timeout-seconds':900}})
         try:
             s.start(); result['console']=os.path.relpath(s.evidence_log,ROOT)
-            cmd(s,'wg debug freeze on',r'WGFREEZE frozen')
+            cmd(s,'wg debug guard on',r'WGCHUNKGUARD locked')
             s.bot('WgBot'); nether_bot=s.bot('WgBot2')
             s.cmd('tp WgBot 200 70 -184')
             s.cmd('execute in minecraft:the_nether run tp WgBot2 -184 70 200')

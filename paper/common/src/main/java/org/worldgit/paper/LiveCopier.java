@@ -109,11 +109,11 @@ final class LiveCopier {
         activeChains.decrementAndGet();
         return;
       }
-      step();
+      step(0);
     }
   }
 
-  private void step() {
+  private void step(long delay) {
     if (cancelled || !window.tryAcquire()) {
       activeChains.decrementAndGet();
       return;
@@ -127,18 +127,20 @@ final class LiveCopier {
     var future = futures.get(pos);
     if (future == null) { // 已被取消或取走
       window.release();
-      step();
+      step(delay);
       return;
     }
     started.add(pos);
     try {
-      platform.region(world, pos.x(), pos.z(), () -> {
+      Runnable copy=() -> {
         try {
           complete(pos, future);
         } finally {
           nextLater(pos);
         }
-      });
+      };
+      if(delay==0) platform.region(world,pos.x(),pos.z(),copy);
+      else platform.regionDelayed(world,pos.x(),pos.z(),delay,copy);
     } catch (RuntimeException e) {
       future.completeExceptionally(e);
       activeChains.decrementAndGet();
@@ -151,7 +153,8 @@ final class LiveCopier {
       return;
     }
     try {
-      platform.regionDelayed(world, last.x(), last.z(), 1, this::step);
+      // 直接排到下一個 chunk 的 owner，避免「等待一 tick → 再 region 排程」花兩 tick。
+      step(1);
     } catch (RuntimeException e) { // 插件關閉等：鏈結束，未完成的 future 由 take 的 timeout 回報
       activeChains.decrementAndGet();
     }

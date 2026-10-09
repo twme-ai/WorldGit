@@ -70,7 +70,7 @@ final class ApplyQueue {
       try { plugin.platform().regionDelayed(task.world(),task.pos().x(),task.pos().z(),1,()->ready(task,chunk,tries+1,result,ticket,cleanup)); }
       catch(Throwable e) { release(task,result,ticket,e); } return;
     }
-    try { task.work().run(task.world(),chunk).whenComplete((v,e)->{
+    try { plugin.edits().ensureChunkTicks(task.world(),task.pos().x(),task.pos().z()); task.work().run(task.world(),chunk).whenComplete((v,e)->{
       try { plugin.platform().region(task.world(),task.pos().x(),task.pos().z(),()->release(task,result,ticket,e)); }
       catch(Throwable scheduling) { result.completeExceptionally(scheduling); }
     }); } catch(Throwable e) { release(task,result,ticket,e); }

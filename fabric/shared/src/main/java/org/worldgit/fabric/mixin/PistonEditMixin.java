@@ -14,6 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class PistonEditMixin {
     @Inject(method="triggerEvent",at=@At("HEAD"),cancellable=true)
     private void worldgit$guard(BlockState state,Level level,BlockPos pos,int type,int data,CallbackInfoReturnable<Boolean> ci) {
-        if(org.worldgit.fabric.EditGuard.locked(level)) ci.setReturnValue(false);
+        if(java.util.stream.IntStream.rangeClosed(-13,13).anyMatch(i->org.worldgit.fabric.EditGuard.locked(level,pos.relative(state.getValue(PistonBaseBlock.FACING),i)))) ci.setReturnValue(false);
     }
 }

@@ -70,7 +70,9 @@ world-meta 支援 field worldgit:level/map/scoreboard/boss_events/gamerules/bord
 
 `DimensionRepository` 建構時取得 repo operation 鎖，請使用 try-with-resources。`SnapshotSource.scan` 提供候選／index stamps，`snapshot` 非 full／不存在時為 empty。平臺在 owner 執行緒複製資料，背景 repo executor 正規化及寫 git；不得在 owner 等另一個 owner 的 future。
 
-offline index 比較 region 標頭、mtime／size／fileKey 與 sector location，同秒不確定窗重讀 compressed payload SHA-256；`status --full` 全量兜底。touched 集合變更也使相關正規化政策失效。
+offline index 比較 region 標頭、mtime／size／fileKey／Unix ctime 與 sector location，同秒不確定窗或沒有 ctime 時重讀 compressed payload SHA-256；外部 `.mcc` 同樣核對。索引 body 附 SHA-256，舊版／損毀回退全量。CLI 全域 `--full` 及明確 `verify HEAD` 強制完整擷取。touched 集合變更也使相關正規化政策失效。
+
+working capture 共用 status 索引；apply 後強制重擷取寫入 chunk，再 scan 全維度，其他 chunk 經來源內容證明才沿用。離線驗證仍比較整棵 working tree；線上 `LiveAccess.guardApply` 只保護受影響 chunk 與邊界，單 tick 套用使用當 tick 的驗證副本。未受影響 chunk 的自然變動保留為 dirty。HEAD 只在寫入部分零差異後移動並重新綁定索引；詳細保證與 benchmark 見 [18](../docs/18-performance.md)。
 
 `DiffEngine.compare` 相同 tree 短路，SUMMARY 提供 section 計數，BLOCKS 才展開逐格方塊／BE／biome。window 限制方塊解碼，實體按該維度 UUID 比對；BE 併入所在格，避免重複統計。動態實體在容許距離內沿用 HEAD 黏性錨點，NoAI 與靜態實體精確比對。
 

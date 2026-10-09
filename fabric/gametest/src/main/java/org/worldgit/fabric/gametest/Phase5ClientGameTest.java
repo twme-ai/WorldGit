@@ -32,7 +32,10 @@ final class Phase5ClientGameTest {
       c.options.renderDistance().set(4);
       c.options.simulationDistance().set(4);
       c.options.enableVsync().set(false);
-      c.options.framerateLimit().set(60);
+      c.options.framerateLimit().set(Boolean.getBoolean("wgtest.performance") ? 20 : 60);
+      // Automated commands do not count as native mouse/keyboard input. Vanilla's
+      // ten-minute AFK limit otherwise throttles the synchronized test server to 10 TPS.
+      c.options.inactivityFpsLimit().set(net.minecraft.client.InactivityFpsLimit.MINIMIZED);
       c.options.languageCode = System.getProperty("wgtest.phase5Language", "en_us");
       c.options.guiScale().set(2);
     });
@@ -41,6 +44,7 @@ final class Phase5ClientGameTest {
       last = message;
       var row = new JsonObject();
       row.addProperty("text", message.getString());
+      row.addProperty("receivedNanos", System.nanoTime());
       try {
         var minecraft = net.minecraft.client.Minecraft.getInstance();
         var access = minecraft.level == null ? net.minecraft.core.RegistryAccess.EMPTY : minecraft.level.registryAccess();
@@ -56,7 +60,7 @@ final class Phase5ClientGameTest {
         var world = ctx.worldBuilder().adjustSettings(ui -> ui.setAllowCommands(false)).create();
         session.world = world;
         world.getServer().runCommand("gamemode creative @a");
-        world.getServer().runCommand("tick freeze");
+        world.getServer().runCommand("gamerule random_tick_speed 0");
         world.getServer().runCommand("gamerule spawn_mobs false");
         world.getServer().runCommand("tp @a 8 -58 8");
         loop(ctx, true);
@@ -135,7 +139,10 @@ final class Phase5ClientGameTest {
         }
         case "command" -> {
           String command = request.get("command").getAsString();
-          ctx.runOnClient(c -> c.getConnection().sendCommand(command));
+          ctx.runOnClient(c -> {
+            out.addProperty("sentNanos", System.nanoTime());
+            c.getConnection().sendCommand(command);
+          });
           ctx.waitTicks(4);
           if (single && !request.has("nowait")) {
             ctx.waitFor(c -> {

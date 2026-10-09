@@ -74,28 +74,37 @@ public final class ChunkNormalizer {
         int y = s.integer("Y", 0);
         var bs = s.compound("block_states");
         var palette = bs.list("palette").values();
-        var blocks = new ArrayList<BlockState>(4096);
+        var blocks = new ArrayList<BlockState>();
         if (!palette.isEmpty()) {
           var states = new ArrayList<BlockState>();
+          boolean needsBlocks = bes.containsKey(y);
           for (Object entry : palette) {
             var p = (Nbt.Compound) entry;
             var properties = new TreeMap<String, String>();
             p.compound("Properties").forEach((k, v) -> properties.put(k, String.valueOf(v)));
-            states.add(new BlockState(p.string("Name"), properties));
+            var state = new BlockState(p.string("Name"), properties);
+            states.add(state);
+            needsBlocks |= !state.air();
           }
-          int[] indices = unpack(bs, states.size(), 4, 4096);
-          for (int i = 0; i < 4096; i++) {
+          int[] indices = states.size() == 1 ? null : unpack(bs, states.size(), 4, 4096);
+          // 單項 palette 的 index 固定為 0；其他 palette 即使全空也保留 unpack 的格式／越界驗證。
+          if (needsBlocks) blocks.ensureCapacity(4096);
+          if (needsBlocks && states.size() == 1 && !rules.hasAreas())
+            blocks.addAll(Collections.nCopies(4096, states.getFirst()));
+          else if (needsBlocks) for (int i = 0; i < 4096; i++) {
             int x = pos.x() * 16 + (i & 15),
                 z = pos.z() * 16 + ((i >> 4) & 15),
                 gy = y * 16 + (i >> 8);
             blocks.add(
                 rules.hasAreas() && rules.ignoredBlock(x, gy, z)
                     ? BlockState.AIR
-                    : states.get(indices[i]));
+                    : states.get(indices == null ? 0 : indices[i]));
           }
-        } else blocks.addAll(Collections.nCopies(4096, BlockState.AIR));
-        Section section = new Section(blocks, bes.getOrDefault(y, Map.of()));
-        if (!section.empty()) sections.put(y, section);
+        } else if (bes.containsKey(y)) blocks.addAll(Collections.nCopies(4096, BlockState.AIR));
+        if (!blocks.isEmpty()) {
+          Section section = new Section(blocks, bes.getOrDefault(y, Map.of()));
+          if (!section.empty()) sections.put(y, section);
+        }
         var b = s.compound("biomes");
         var bp = b.list("palette").values();
         if (!bp.isEmpty()) {

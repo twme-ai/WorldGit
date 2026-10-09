@@ -19,6 +19,11 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
   private final boolean ownsRepo;
   private final ObjectInserter inserter;
   private final ObjectReader reader;
+  private record CachedTree(SortedMap<String, Entry> entries, long bytes) {}
+  // Git object 以 id 不可變；僅限這個 store／操作，不快取 refs。保留聚合解析預算的計費。
+  private final Map<String,CachedTree> trees=new LinkedHashMap<>(128,.75f,true) {
+    @Override protected boolean removeEldestEntry(Map.Entry<String,CachedTree> entry) { return size()>128; }
+  };
 
   /**
    * 唯讀存取一個由呼叫端共享管理的 JGit Repository（例如 Hub 的 RepositoryCache）。每個 store 有自己的
@@ -98,7 +103,13 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
     var result = new TreeMap<String, Entry>();
     if (id == null) return result;
     DecodeBudget.objects(1);
-    DecodeBudget.read(reader.open(ObjectId.fromString(id), Constants.OBJ_TREE).getSize());
+    var cached=trees.get(id);
+    if(cached!=null) {
+      DecodeBudget.read(cached.bytes()); DecodeBudget.work(cached.entries().size());
+      return cached.entries();
+    }
+    long bytes=reader.open(ObjectId.fromString(id), Constants.OBJ_TREE).getSize();
+    DecodeBudget.read(bytes);
     var parser = new CanonicalTreeParser();
     parser.reset(reader, ObjectId.fromString(id));
     while (!parser.eof()) {
@@ -108,7 +119,9 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
       result.put(name, new Entry(name, kind, parser.getEntryObjectId().name()));
       parser.next();
     }
-    return result;
+    var immutable=Collections.unmodifiableSortedMap(result);
+    if(result.size()<=4096) trees.put(id,new CachedTree(immutable,bytes));
+    return immutable;
   }
 
   @Override

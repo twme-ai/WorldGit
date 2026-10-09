@@ -1,0 +1,615 @@
+{
+  "platform": "paper",
+  "version": "1.21.11",
+  "label": "before-r1-v2",
+  "rounds": 1,
+  "success": true,
+  "rows": {
+    "init": {
+      "samples": [
+        17.91202251901268
+      ],
+      "probes": [
+        {
+          "b_tps": 19.88,
+          "b_ticks": 357,
+          "a_paused_samples": 0,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 624.664
+        }
+      ],
+      "p50": 17.91202251901268,
+      "max": 17.91202251901268
+    },
+    "branch": {
+      "samples": [
+        0.20316597798955627
+      ],
+      "probes": [
+        {
+          "b_tps": 12.001,
+          "b_ticks": 3,
+          "a_paused_samples": 1,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.063
+        }
+      ],
+      "p50": 0.20316597798955627,
+      "max": 0.20316597798955627
+    },
+    "status-noop": {
+      "samples": [
+        0.643995588994585
+      ],
+      "probes": [
+        {
+          "b_tps": 18.565,
+          "b_ticks": 13,
+          "a_paused_samples": 0,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.545
+        }
+      ],
+      "p50": 0.643995588994585,
+      "max": 0.643995588994585
+    },
+    "commit-noop": {
+      "samples": [
+        0.5937699170026463
+      ],
+      "probes": [
+        {
+          "b_tps": 18.463,
+          "b_ticks": 12,
+          "a_paused_samples": 0,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 52.053
+        }
+      ],
+      "p50": 0.5937699170026463,
+      "max": 0.5937699170026463
+    },
+    "switch-noop": {
+      "samples": [
+        19.303917375014862,
+        18.5078032159945
+      ],
+      "probes": [
+        {
+          "b_tps": 0.155,
+          "b_ticks": 3,
+          "a_paused_samples": 383,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 90.495
+        },
+        {
+          "b_tps": 0.162,
+          "b_ticks": 3,
+          "a_paused_samples": 367,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 54.833
+        }
+      ],
+      "p50": 18.90586029550468,
+      "max": 19.303917375014862
+    },
+    "setup-branch": {
+      "samples": [
+        0.20487485401099548,
+        0.20226278502377681,
+        0.20420733399805613,
+        0.20232672200654633,
+        0.19230737900943495,
+        0.20317666701157577,
+        0.20238784898538142
+      ],
+      "probes": [
+        {
+          "b_tps": 11.994,
+          "b_ticks": 3,
+          "a_paused_samples": 1,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.071
+        },
+        {
+          "b_tps": 12.049,
+          "b_ticks": 3,
+          "a_paused_samples": 1,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.186
+        },
+        {
+          "b_tps": 12.036,
+          "b_ticks": 3,
+          "a_paused_samples": 1,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.025
+        },
+        {
+          "b_tps": 11.994,
+          "b_ticks": 3,
+          "a_paused_samples": 1,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.065
+        },
+        {
+          "b_tps": 12.001,
+          "b_ticks": 3,
+          "a_paused_samples": 1,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.029
+        },
+        {
+          "b_tps": 11.986,
+          "b_ticks": 3,
+          "a_paused_samples": 1,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.098
+        },
+        {
+          "b_tps": 12.0,
+          "b_ticks": 3,
+          "a_paused_samples": 1,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 50.071
+        }
+      ],
+      "p50": 0.20238784898538142,
+      "max": 0.20487485401099548
+    },
+    "setup-switch": {
+      "samples": [
+        18.297437639004784,
+        18.396704392973334,
+        18.500787672994193,
+        18.44642725799349,
+        18.550681047025137,
+        18.796685802022694,
+        18.553508511016844,
+        18.80110648900154,
+        18.204230692994315,
+        19.494613725022646,
+        18.306973800004926,
+        19.1950060169911,
+        18.893820332014002,
+        40.0053940420039
+      ],
+      "probes": [
+        {
+          "b_tps": 0.163,
+          "b_ticks": 3,
+          "a_paused_samples": 363,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 53.981
+        },
+        {
+          "b_tps": 0.163,
+          "b_ticks": 3,
+          "a_paused_samples": 365,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 56.205
+        },
+        {
+          "b_tps": 0.162,
+          "b_ticks": 3,
+          "a_paused_samples": 367,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 60.686
+        },
+        {
+          "b_tps": 0.162,
+          "b_ticks": 3,
+          "a_paused_samples": 366,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 53.626
+        },
+        {
+          "b_tps": 0.161,
+          "b_ticks": 3,
+          "a_paused_samples": 368,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 56.945
+        },
+        {
+          "b_tps": 0.159,
+          "b_ticks": 3,
+          "a_paused_samples": 373,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 55.099
+        },
+        {
+          "b_tps": 0.161,
+          "b_ticks": 3,
+          "a_paused_samples": 368,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 54.867
+        },
+        {
+          "b_tps": 0.159,
+          "b_ticks": 3,
+          "a_paused_samples": 373,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 54.589
+        },
+        {
+          "b_tps": 0.164,
+          "b_ticks": 3,
+          "a_paused_samples": 361,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 54.248
+        },
+        {
+          "b_tps": 0.153,
+          "b_ticks": 3,
+          "a_paused_samples": 387,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 89.944
+        },
+        {
+          "b_tps": 0.163,
+          "b_ticks": 3,
+          "a_paused_samples": 363,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 53.771
+        },
+        {
+          "b_tps": 0.156,
+          "b_ticks": 3,
+          "a_paused_samples": 381,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 70.566
+        },
+        {
+          "b_tps": 0.158,
+          "b_ticks": 3,
+          "a_paused_samples": 375,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 51.853
+        },
+        {
+          "b_tps": 0.075,
+          "b_ticks": 3,
+          "a_paused_samples": 794,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 431.38
+        }
+      ],
+      "p50": 18.55209477902099,
+      "max": 40.0053940420039
+    },
+    "commit-1": {
+      "samples": [
+        9.227982163021807
+      ],
+      "probes": [
+        {
+          "b_tps": 19.927,
+          "b_ticks": 185,
+          "a_paused_samples": 0,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 52.88
+        }
+      ],
+      "p50": 9.227982163021807,
+      "max": 9.227982163021807
+    },
+    "switch-1": {
+      "samples": [
+        18.652330026001437,
+        18.1948855810042
+      ],
+      "probes": [
+        {
+          "b_tps": 0.16,
+          "b_ticks": 3,
+          "a_paused_samples": 370,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 54.852
+        },
+        {
+          "b_tps": 0.164,
+          "b_ticks": 3,
+          "a_paused_samples": 361,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 55.516
+        }
+      ],
+      "p50": 18.42360780350282,
+      "max": 18.652330026001437
+    },
+    "merge-1": {
+      "samples": [
+        46.09684013298829
+      ],
+      "probes": [
+        {
+          "b_tps": 0.065,
+          "b_ticks": 3,
+          "a_paused_samples": 919,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 55.316
+        }
+      ],
+      "p50": 46.09684013298829,
+      "max": 46.09684013298829
+    },
+    "commit-10": {
+      "samples": [
+        9.14569221198326
+      ],
+      "probes": [
+        {
+          "b_tps": 19.891,
+          "b_ticks": 183,
+          "a_paused_samples": 0,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 54.389
+        }
+      ],
+      "p50": 9.14569221198326,
+      "max": 9.14569221198326
+    },
+    "switch-10": {
+      "samples": [
+        18.697858658008045,
+        18.80577232298674
+      ],
+      "probes": [
+        {
+          "b_tps": 0.16,
+          "b_ticks": 3,
+          "a_paused_samples": 371,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 56.072
+        },
+        {
+          "b_tps": 0.159,
+          "b_ticks": 3,
+          "a_paused_samples": 373,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 53.517
+        }
+      ],
+      "p50": 18.751815490497393,
+      "max": 18.80577232298674
+    },
+    "merge-10": {
+      "samples": [
+        46.9411881279957
+      ],
+      "probes": [
+        {
+          "b_tps": 0.064,
+          "b_ticks": 3,
+          "a_paused_samples": 936,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 62.944
+        }
+      ],
+      "p50": 46.9411881279957,
+      "max": 46.9411881279957
+    },
+    "commit-100": {
+      "samples": [
+        9.350824874010868
+      ],
+      "probes": [
+        {
+          "b_tps": 19.895,
+          "b_ticks": 187,
+          "a_paused_samples": 0,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 56.508
+        }
+      ],
+      "p50": 9.350824874010868,
+      "max": 9.350824874010868
+    },
+    "switch-100": {
+      "samples": [
+        19.5958241840126,
+        19.835860391991446
+      ],
+      "probes": [
+        {
+          "b_tps": 0.153,
+          "b_ticks": 3,
+          "a_paused_samples": 389,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 128.117
+        },
+        {
+          "b_tps": 0.151,
+          "b_ticks": 3,
+          "a_paused_samples": 394,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 85.269
+        }
+      ],
+      "p50": 19.715842288002023,
+      "max": 19.835860391991446
+    },
+    "merge-100": {
+      "samples": [
+        51.6021841079928
+      ],
+      "probes": [
+        {
+          "b_tps": 0.058,
+          "b_ticks": 3,
+          "a_paused_samples": 1029,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 81.094
+        }
+      ],
+      "p50": 51.6021841079928,
+      "max": 51.6021841079928
+    },
+    "commit-1000": {
+      "samples": [
+        16.55266803500126
+      ],
+      "probes": [
+        {
+          "b_tps": 19.94,
+          "b_ticks": 331,
+          "a_paused_samples": 0,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 66.704
+        }
+      ],
+      "p50": 16.55266803500126,
+      "max": 16.55266803500126
+    },
+    "switch-1000": {
+      "samples": [
+        40.601796405011555,
+        40.19455163402017
+      ],
+      "probes": [
+        {
+          "b_tps": 0.074,
+          "b_ticks": 3,
+          "a_paused_samples": 800,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 548.504
+        },
+        {
+          "b_tps": 0.075,
+          "b_ticks": 3,
+          "a_paused_samples": 797,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 481.62
+        }
+      ],
+      "p50": 40.398174019515864,
+      "max": 40.601796405011555
+    },
+    "verify": {
+      "samples": [
+        16.49996025901055
+      ],
+      "probes": [
+        {
+          "b_tps": 0.181,
+          "b_ticks": 3,
+          "a_paused_samples": 327,
+          "a_game_time_changes": 0,
+          "b_advances_while_a_paused": 0,
+          "flow_advances_while_a_paused": 0,
+          "max_gap_ms": 148.925
+        }
+      ],
+      "p50": 16.49996025901055,
+      "max": 16.49996025901055
+    }
+  },
+  "isolation": [
+    {
+      "b_tps": 0.074,
+      "b_ticks": 3,
+      "a_paused_samples": 800,
+      "a_game_time_changes": 0,
+      "b_advances_while_a_paused": 0,
+      "flow_advances_while_a_paused": 0,
+      "max_gap_ms": 548.504
+    },
+    {
+      "b_tps": 0.075,
+      "b_ticks": 3,
+      "a_paused_samples": 797,
+      "a_game_time_changes": 0,
+      "b_advances_while_a_paused": 0,
+      "flow_advances_while_a_paused": 0,
+      "max_gap_ms": 481.62
+    }
+  ],
+  "fixture": "acceptance-flat-1296",
+  "players": 0,
+  "artifact_sha256": "36029fc1938fa8de533b9e5baa72d8cb09b195cdd4f8dc58d45d0ab6f43fcaea",
+  "server_log": ".work/paper-delivery/logs/paper-1.21.11-20261008-125703-console.log"
+}

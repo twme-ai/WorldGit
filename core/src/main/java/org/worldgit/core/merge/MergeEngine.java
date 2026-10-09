@@ -21,6 +21,11 @@ public final class MergeEngine {
   private final List<String> oursAuthors, theirsAuthors;
   private final List<Atom> conflicts = new ArrayList<>();
   private final Set<String> changedSections = new TreeSet<>();
+  private record Lookup(String tree, String path) {}
+  private final Map<Lookup,Optional<String>> lookups=new LinkedHashMap<>(128,.75f,true) {
+    @Override protected boolean removeEldestEntry(Map.Entry<Lookup,Optional<String>> entry) { return size()>256; }
+  };
+  private static final Section AIR=Section.air();
   private final Map<String, Section> cache =
       new LinkedHashMap<>(32, .75f, true) {
         @Override
@@ -554,7 +559,7 @@ public final class MergeEngine {
   }
 
   private Section decode(String id) throws IOException {
-    if (id == null) return Section.air();
+    if (id == null) return AIR;
     var s = cache.get(id);
     if (s == null) {
       s = SnapshotCodec.section(store.readBlob(id));
@@ -568,7 +573,11 @@ public final class MergeEngine {
   }
 
   private String blob(String tree, String path) throws IOException {
-    return id(TreeEditor.find(store, tree, path));
+    if (org.worldgit.core.normalize.DecodeBudget.scoped()) return id(TreeEditor.find(store, tree, path));
+    var key=new Lookup(tree,path);
+    var found=lookups.get(key);
+    if(found==null) { found=Optional.ofNullable(id(TreeEditor.find(store,tree,path))); lookups.put(key,found); }
+    return found.orElse(null);
   }
 
   private Nbt.Compound nbt(String id) throws IOException {

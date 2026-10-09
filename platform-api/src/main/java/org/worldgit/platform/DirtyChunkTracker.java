@@ -15,9 +15,12 @@ public final class DirtyChunkTracker {
 
   private final AtomicLong generation = new AtomicLong();
   private final ConcurrentMap<ChunkPos, Long> dirty = new ConcurrentHashMap<>();
+  private final ConcurrentMap<ChunkPos, Long> unindexed = new ConcurrentHashMap<>();
 
   public void mark(ChunkPos chunk) {
-    dirty.compute(chunk, (key, old) -> generation.incrementAndGet());
+    dirty.compute(chunk, (key, old) -> {
+      long next=generation.incrementAndGet();unindexed.put(key,next);return next;
+    });
   }
 
   public Set<ChunkPos> chunks() {
@@ -28,7 +31,12 @@ public final class DirtyChunkTracker {
     return new Batch(dirty);
   }
 
+  /** capture 游標獨立於 commit 游標；status 建立索引不會吞掉自動 commit 的觸發。 */
+  public Batch indexBatch() { return new Batch(unindexed); }
+  public void indexed(Batch batch) { batch.generations.forEach((chunk,g)->unindexed.remove(chunk,g)); }
+
   public void acknowledge(Batch batch) {
     batch.generations.forEach((chunk, g) -> dirty.remove(chunk, g));
+    indexed(batch);
   }
 }

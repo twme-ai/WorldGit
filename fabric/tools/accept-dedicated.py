@@ -124,7 +124,7 @@ def run(args):
             player=re.search(r'\b([A-Za-z0-9_]{1,16}) joined the game',joined)[1]
             server.cmd('op '+player);server.cmd('gamemode creative '+player)
             server.cmd(f'tp {player} 15.5 66 -4 0 20');server.cmd('forceload add 0 0 31 15')
-            server.cmd('tick freeze',r'froze');server.cmd('kill @e[type=!player]')
+            server.cmd('wg test fixture-stable',r'WGSTABLE');server.cmd('kill @e[type=!player]')
             variant('oak','oak',1,'diamond');cmd('wg init --all',r'Initialization complete|失敗',900)
             observe()
             op_rows=json.loads((Path(server.dir)/'ops.json').read_text());check('client operator level 2',any(row['name']==player and row['level']==2 for row in op_rows))
@@ -186,7 +186,7 @@ def run(args):
             client.wait('WGPAIR restart_ready',120)
             client.wait('WGPAIR disconnected state-reset=true',120)
             observer.stop();server.stop();server.bots=[];server.start()
-            server.cmd('tick freeze',r'froze')
+            server.cmd('wg test fixture-stable',r'WGSTABLE')
             check('shutdown and restart preserve MERGING and HEAD',inspect()['regions']==expected['regions'] and head()==original_head)
             signal_client('restarted.json');client.wait('WGPAIR restart_restored',300);observe();multi_sync(expected['regions']);signal_client('restart-checked.json')
             client.wait('WGPAIR ghosts_done',900)

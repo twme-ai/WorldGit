@@ -32,18 +32,11 @@ final class Phase4ClientGameTest {
     directory=Path.of(System.getProperty("wgtest.phase4Dir"));
     ctx.runOnClient(c->{c.options.renderDistance().set(3);c.options.enableVsync().set(false);c.options.framerateLimit().set(60);c.options.languageCode="en_us";});
     boolean single=Boolean.getBoolean("wgtest.phase4Single");
-    if(single) net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTING.register(server->{
-      if(!server.isDedicatedServer()) {
-        // Clones retain forced Nether chunks and pending fluid ticks. Freeze before any world tick.
-        server.tickRateManager().setFrozen(true);
-        WorldGitClientGameTest.LOG.info("FABRIC4 integrated server frozen before world ticks");
-      }
-    });
     var session=new Session();
     try {
       if(single) {
         var world=ctx.worldBuilder().adjustSettings(ui->ui.setAllowCommands(false)).create();session.initial=world;
-        world.getServer().runCommand("tick freeze");
+        world.getServer().runCommand("gamerule random_tick_speed 0");
         world.getServer().runCommand("gamemode creative @a");
         world.getServer().runCommand("tp @a 8 225 8");
         loop(ctx,true,session);

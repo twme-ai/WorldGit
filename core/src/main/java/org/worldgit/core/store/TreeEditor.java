@@ -62,6 +62,12 @@ public final class TreeEditor {
         .put(name(path), new Node(store.writeBlob(data), ObjectStore.Kind.BLOB));
   }
 
+  /** Reuse an immutable Git entry without decoding or rewriting its contents. */
+  public void putEntry(String path, ObjectStore.Entry entry) throws IOException {
+    if (entry == null) { remove(path); return; }
+    parent(path, true).children().put(name(path), new Node(entry.id(), entry.kind()));
+  }
+
   public void remove(String path) throws IOException {
     Node parent = parent(path, false);
     if (parent != null) parent.children().remove(name(path));

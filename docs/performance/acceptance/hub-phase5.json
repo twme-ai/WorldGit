@@ -1,0 +1,620 @@
+{
+  "independentMerge": true,
+  "mergeProgress": {
+    "id": "d0231072-3ab6-46c8-b774-fccc67271f1f",
+    "operation": "merge",
+    "dimension": {
+      "value": "minecraft:the_nether"
+    },
+    "sequence": 3,
+    "events": [
+      {
+        "operationId": "d0231072-3ab6-46c8-b774-fccc67271f1f",
+        "operation": "merge",
+        "dimension": {
+          "value": "minecraft:the_nether"
+        },
+        "phase": "merge-write",
+        "completed": 1,
+        "total": 1,
+        "unit": "COMMIT",
+        "remainingMillis": 0,
+        "cancellable": false,
+        "ratePerSecond": 7692307.692307692
+      },
+      {
+        "operationId": "d0231072-3ab6-46c8-b774-fccc67271f1f",
+        "operation": "merge",
+        "dimension": {
+          "value": "minecraft:the_nether"
+        },
+        "phase": "complete",
+        "completed": 1,
+        "total": 1,
+        "unit": "OBJECT",
+        "remainingMillis": 0,
+        "cancellable": false,
+        "ratePerSecond": 4347826.0869565215
+      }
+    ],
+    "result": {
+      "operationId": "d0231072-3ab6-46c8-b774-fccc67271f1f",
+      "operation": "merge",
+      "status": "SUCCESS",
+      "dimension": {
+        "value": "minecraft:the_nether"
+      },
+      "summary": {
+        "message": "PR 合併完成"
+      },
+      "elapsedMillis": 153,
+      "nextSteps": [],
+      "error": null
+    },
+    "data": {
+      "id": "22d9c85f-318a-4687-bde5-4c4bf7d1dff8",
+      "number": 1,
+      "authorId": "0b39bf30-a8a0-4221-a78b-3ab765b6f6d9",
+      "author": "admin",
+      "source": "cavern",
+      "target": "main",
+      "title": "地獄單維度 PR",
+      "description": "",
+      "status": "merged",
+      "fingerprint": "150bdefb8756ee39e5eafae1920b07ec5dc61f2f",
+      "selectionsInvalidated": false,
+      "createdAt": 1791551388192,
+      "updatedAt": 1791551388405,
+      "snapshot": "5be47101-d7c2-4ee4-81ba-790b5df81824",
+      "commits": {
+        "minecraft:the_nether": "ba1965b126ffe57495eeb76d6a5445c6d4a02e3d"
+      },
+      "dimension": "minecraft:the_nether",
+      "legacy": false
+    },
+    "cancellable": false,
+    "download": false
+  },
+  "graph": {
+    "merges": [
+      {
+        "id": "22d9c85f-318a-4687-bde5-4c4bf7d1dff8",
+        "number": 1,
+        "commit": "ba1965b126ffe57495eeb76d6a5445c6d4a02e3d"
+      }
+    ],
+    "graph": {
+      "nodes": [
+        {
+          "id": "ba1965b126ffe57495eeb76d6a5445c6d4a02e3d",
+          "parents": [
+            "0007447057808f8270905f82ebeaf68d97c0b347",
+            "b86dbf88eeb3e7bece2fcf57173012427d3d4750"
+          ],
+          "snapshot": "5be47101-d7c2-4ee4-81ba-790b5df81824",
+          "time": "2026-10-09T13:09:48.339733936Z",
+          "message": "Merge PR #1: 地獄單維度 PR",
+          "author": "admin <admin@users.worldgit.invalid>",
+          "lane": 0,
+          "before": [
+            "ba1965b126ffe57495eeb76d6a5445c6d4a02e3d"
+          ],
+          "after": [
+            "0007447057808f8270905f82ebeaf68d97c0b347",
+            "b86dbf88eeb3e7bece2fcf57173012427d3d4750"
+          ],
+          "edges": [
+            {
+              "parent": "0007447057808f8270905f82ebeaf68d97c0b347",
+              "fromLane": 0,
+              "toLane": 0
+            },
+            {
+              "parent": "b86dbf88eeb3e7bece2fcf57173012427d3d4750",
+              "fromLane": 0,
+              "toLane": 1
+            }
+          ],
+          "labels": [
+            {
+              "kind": "branch",
+              "name": "main"
+            },
+            {
+              "kind": "HEAD",
+              "name": "HEAD"
+            }
+          ]
+        },
+        {
+          "id": "b86dbf88eeb3e7bece2fcf57173012427d3d4750",
+          "parents": [
+            "0007447057808f8270905f82ebeaf68d97c0b347"
+          ],
+          "snapshot": "e868b99f-bcfe-48d4-9222-620de82cc3c6",
+          "time": "2026-10-09T13:09:44.271090962Z",
+          "message": "地獄獨立變更",
+          "author": "root <worldgit@localhost>",
+          "lane": 1,
+          "before": [
+            "0007447057808f8270905f82ebeaf68d97c0b347",
+            "b86dbf88eeb3e7bece2fcf57173012427d3d4750"
+          ],
+          "after": [
+            "0007447057808f8270905f82ebeaf68d97c0b347"
+          ],
+          "edges": [
+            {
+              "parent": "0007447057808f8270905f82ebeaf68d97c0b347",
+              "fromLane": 1,
+              "toLane": 0
+            }
+          ],
+          "labels": [
+            {
+              "kind": "branch",
+              "name": "cavern"
+            },
+            {
+              "kind": "tag",
+              "name": "nether-tag"
+            }
+          ]
+        },
+        {
+          "id": "0007447057808f8270905f82ebeaf68d97c0b347",
+          "parents": [],
+          "snapshot": "d22f36b9-f15f-419f-b1ec-4702a76716dc",
+          "time": "2026-10-09T13:09:35.518265381Z",
+          "message": "初始化世界",
+          "author": "root <worldgit@localhost>",
+          "lane": 0,
+          "before": [
+            "0007447057808f8270905f82ebeaf68d97c0b347"
+          ],
+          "after": [],
+          "edges": [],
+          "labels": []
+        }
+      ],
+      "truncated": false,
+      "lanes": 2
+    },
+    "dimension": "minecraft:the_nether",
+    "defaultBranch": "main"
+  },
+  "zipProgress": {
+    "id": "6544f8d8-f2df-4ae1-ab11-566478d2418e",
+    "operation": "release-zip",
+    "dimension": {
+      "value": "minecraft:overworld"
+    },
+    "sequence": 6,
+    "events": [
+      {
+        "operationId": "6544f8d8-f2df-4ae1-ab11-566478d2418e",
+        "operation": "release-zip",
+        "dimension": {
+          "value": "minecraft:overworld"
+        },
+        "phase": "apply-terrain",
+        "completed": 0,
+        "total": 1,
+        "unit": "OBJECT",
+        "remainingMillis": null,
+        "cancellable": true,
+        "ratePerSecond": null
+      },
+      {
+        "operationId": "6544f8d8-f2df-4ae1-ab11-566478d2418e",
+        "operation": "release-zip",
+        "dimension": {
+          "value": "minecraft:overworld"
+        },
+        "phase": "apply-terrain",
+        "completed": 0,
+        "total": 1,
+        "unit": "OBJECT",
+        "remainingMillis": null,
+        "cancellable": true,
+        "ratePerSecond": null
+      },
+      {
+        "operationId": "6544f8d8-f2df-4ae1-ab11-566478d2418e",
+        "operation": "release-zip",
+        "dimension": {
+          "value": "minecraft:the_end"
+        },
+        "phase": "assemble",
+        "completed": 53053,
+        "total": null,
+        "unit": "BYTES",
+        "remainingMillis": null,
+        "cancellable": true,
+        "ratePerSecond": 7700169.873123472
+      },
+      {
+        "operationId": "6544f8d8-f2df-4ae1-ab11-566478d2418e",
+        "operation": "release-zip",
+        "dimension": {
+          "value": "minecraft:the_nether"
+        },
+        "phase": "apply-terrain",
+        "completed": 0,
+        "total": 1,
+        "unit": "OBJECT",
+        "remainingMillis": null,
+        "cancellable": true,
+        "ratePerSecond": null
+      },
+      {
+        "operationId": "6544f8d8-f2df-4ae1-ab11-566478d2418e",
+        "operation": "release-zip",
+        "dimension": {
+          "value": "minecraft:overworld"
+        },
+        "phase": "complete",
+        "completed": 1,
+        "total": 1,
+        "unit": "OBJECT",
+        "remainingMillis": 0,
+        "cancellable": true,
+        "ratePerSecond": 20000000.0
+      }
+    ],
+    "result": {
+      "operationId": "6544f8d8-f2df-4ae1-ab11-566478d2418e",
+      "operation": "release-zip",
+      "status": "SUCCESS",
+      "dimension": {
+        "value": "minecraft:overworld"
+      },
+      "summary": {
+        "message": "世界 ZIP 已準備完成"
+      },
+      "elapsedMillis": 472,
+      "nextSteps": [],
+      "error": null
+    },
+    "data": {
+      "bytes": 37674
+    },
+    "cancellable": false,
+    "download": true
+  },
+  "maskedError": {
+    "code": "not-found",
+    "error": "找不到維度分支：minecraft:the_nether / [REDACTED]",
+    "errorReport": {
+      "code": "not-found",
+      "operationId": "f03630fa-2923-4d59-ade1-8aefe9f9d53d",
+      "operation": "POST /api/v1/worlds/admin/phase5/pulls",
+      "dimension": "minecraft:the_nether",
+      "worldGitVersion": "0.1.0-SNAPSHOT",
+      "minecraftVersion": "unknown",
+      "platformVersion": "Hub 0.1.0-SNAPSHOT",
+      "utc": "2026-10-09T13:09:49.124591474Z",
+      "message": "找不到維度分支：minecraft:the_nether / [REDACTED]",
+      "text": "code=not-found operation=POST /api/v1/worlds/admin/phase5/pulls id=f03630fa-2923-4d59-ade1-8aefe9f9d53d dimension=minecraft:the_nether WorldGit=0.1.0-SNAPSHOT Minecraft=unknown platform=Hub 0.1.0-SNAPSHOT UTC=2026-10-09T13:09:49.124591474Z\n找不到維度分支：minecraft:the_nether / [REDACTED]"
+    },
+    "result": {
+      "operationId": "f03630fa-2923-4d59-ade1-8aefe9f9d53d",
+      "operation": "POST /api/v1/worlds/admin/phase5/pulls",
+      "status": "FAILED",
+      "dimension": {
+        "value": "minecraft:the_nether"
+      },
+      "summary": {
+        "message": "找不到維度分支：minecraft:the_nether / [REDACTED]"
+      },
+      "elapsedMillis": 9,
+      "nextSteps": [],
+      "error": {
+        "code": "not-found",
+        "operationId": "f03630fa-2923-4d59-ade1-8aefe9f9d53d",
+        "operation": "POST /api/v1/worlds/admin/phase5/pulls",
+        "dimension": "minecraft:the_nether",
+        "worldGitVersion": "0.1.0-SNAPSHOT",
+        "minecraftVersion": "unknown",
+        "platformVersion": "Hub 0.1.0-SNAPSHOT",
+        "utc": "2026-10-09T13:09:49.124591474Z",
+        "message": "找不到維度分支：minecraft:the_nether / [REDACTED]",
+        "text": "code=not-found operation=POST /api/v1/worlds/admin/phase5/pulls id=f03630fa-2923-4d59-ade1-8aefe9f9d53d dimension=minecraft:the_nether WorldGit=0.1.0-SNAPSHOT Minecraft=unknown platform=Hub 0.1.0-SNAPSHOT UTC=2026-10-09T13:09:49.124591474Z\n找不到維度分支：minecraft:the_nether / [REDACTED]"
+      }
+    }
+  },
+  "pushOperations": [
+    {
+      "id": "ef88d5d3-d5b8-458b-9f0f-dce56157275b",
+      "operation": "push-processing",
+      "dimension": {
+        "value": "minecraft:the_nether"
+      },
+      "sequence": 2,
+      "events": [
+        {
+          "operationId": "ef88d5d3-d5b8-458b-9f0f-dce56157275b",
+          "operation": "push-processing",
+          "dimension": {
+            "value": "minecraft:the_nether"
+          },
+          "phase": "complete",
+          "completed": 1,
+          "total": 1,
+          "unit": "OBJECT",
+          "remainingMillis": 0,
+          "cancellable": false,
+          "ratePerSecond": 12500000.0
+        }
+      ],
+      "result": {
+        "operationId": "ef88d5d3-d5b8-458b-9f0f-dce56157275b",
+        "operation": "push-processing",
+        "status": "SUCCESS",
+        "dimension": {
+          "value": "minecraft:the_nether"
+        },
+        "summary": {
+          "message": "索引與 Webhook 排程完成"
+        },
+        "elapsedMillis": 8,
+        "nextSteps": [],
+        "error": null
+      },
+      "data": {
+        "refs": 1,
+        "dimension": "minecraft:the_nether"
+      },
+      "cancellable": false,
+      "download": false
+    },
+    {
+      "id": "06579fe0-e360-4400-9ac9-c8655a2a5518",
+      "operation": "push-processing",
+      "dimension": {
+        "value": "minecraft:the_nether"
+      },
+      "sequence": 2,
+      "events": [
+        {
+          "operationId": "06579fe0-e360-4400-9ac9-c8655a2a5518",
+          "operation": "push-processing",
+          "dimension": {
+            "value": "minecraft:the_nether"
+          },
+          "phase": "complete",
+          "completed": 1,
+          "total": 1,
+          "unit": "OBJECT",
+          "remainingMillis": 0,
+          "cancellable": false,
+          "ratePerSecond": 6666666.666666667
+        }
+      ],
+      "result": {
+        "operationId": "06579fe0-e360-4400-9ac9-c8655a2a5518",
+        "operation": "push-processing",
+        "status": "SUCCESS",
+        "dimension": {
+          "value": "minecraft:the_nether"
+        },
+        "summary": {
+          "message": "索引與 Webhook 排程完成"
+        },
+        "elapsedMillis": 6,
+        "nextSteps": [],
+        "error": null
+      },
+      "data": {
+        "refs": 1,
+        "dimension": "minecraft:the_nether"
+      },
+      "cancellable": false,
+      "download": false
+    },
+    {
+      "id": "92f98981-d975-4138-95d8-f8198cae42a0",
+      "operation": "push-processing",
+      "dimension": {
+        "value": "minecraft:overworld"
+      },
+      "sequence": 2,
+      "events": [
+        {
+          "operationId": "92f98981-d975-4138-95d8-f8198cae42a0",
+          "operation": "push-processing",
+          "dimension": {
+            "value": "minecraft:overworld"
+          },
+          "phase": "complete",
+          "completed": 1,
+          "total": 1,
+          "unit": "OBJECT",
+          "remainingMillis": 0,
+          "cancellable": false,
+          "ratePerSecond": 10000000.0
+        }
+      ],
+      "result": {
+        "operationId": "92f98981-d975-4138-95d8-f8198cae42a0",
+        "operation": "push-processing",
+        "status": "SUCCESS",
+        "dimension": {
+          "value": "minecraft:overworld"
+        },
+        "summary": {
+          "message": "索引與 Webhook 排程完成"
+        },
+        "elapsedMillis": 5,
+        "nextSteps": [],
+        "error": null
+      },
+      "data": {
+        "refs": 1,
+        "dimension": "minecraft:overworld"
+      },
+      "cancellable": false,
+      "download": false
+    },
+    {
+      "id": "1a2d251c-71ef-48ed-b54a-5998486cd82d",
+      "operation": "push-processing",
+      "dimension": {
+        "value": "minecraft:the_nether"
+      },
+      "sequence": 2,
+      "events": [
+        {
+          "operationId": "1a2d251c-71ef-48ed-b54a-5998486cd82d",
+          "operation": "push-processing",
+          "dimension": {
+            "value": "minecraft:the_nether"
+          },
+          "phase": "complete",
+          "completed": 1,
+          "total": 1,
+          "unit": "OBJECT",
+          "remainingMillis": 0,
+          "cancellable": false,
+          "ratePerSecond": 11111111.111111112
+        }
+      ],
+      "result": {
+        "operationId": "1a2d251c-71ef-48ed-b54a-5998486cd82d",
+        "operation": "push-processing",
+        "status": "SUCCESS",
+        "dimension": {
+          "value": "minecraft:the_nether"
+        },
+        "summary": {
+          "message": "索引與 Webhook 排程完成"
+        },
+        "elapsedMillis": 7,
+        "nextSteps": [],
+        "error": null
+      },
+      "data": {
+        "refs": 1,
+        "dimension": "minecraft:the_nether"
+      },
+      "cancellable": false,
+      "download": false
+    },
+    {
+      "id": "c2233de0-a6cb-4479-bcb3-1038f8194d35",
+      "operation": "push-processing",
+      "dimension": {
+        "value": "minecraft:the_end"
+      },
+      "sequence": 2,
+      "events": [
+        {
+          "operationId": "c2233de0-a6cb-4479-bcb3-1038f8194d35",
+          "operation": "push-processing",
+          "dimension": {
+            "value": "minecraft:the_end"
+          },
+          "phase": "complete",
+          "completed": 1,
+          "total": 1,
+          "unit": "OBJECT",
+          "remainingMillis": 0,
+          "cancellable": false,
+          "ratePerSecond": 12500000.0
+        }
+      ],
+      "result": {
+        "operationId": "c2233de0-a6cb-4479-bcb3-1038f8194d35",
+        "operation": "push-processing",
+        "status": "SUCCESS",
+        "dimension": {
+          "value": "minecraft:the_end"
+        },
+        "summary": {
+          "message": "索引與 Webhook 排程完成"
+        },
+        "elapsedMillis": 11,
+        "nextSteps": [],
+        "error": null
+      },
+      "data": {
+        "refs": 1,
+        "dimension": "minecraft:the_end"
+      },
+      "cancellable": false,
+      "download": false
+    },
+    {
+      "id": "37d5c37b-73c4-4535-8fa3-bb1e43a154c5",
+      "operation": "push-processing",
+      "dimension": {
+        "value": "minecraft:overworld"
+      },
+      "sequence": 2,
+      "events": [
+        {
+          "operationId": "37d5c37b-73c4-4535-8fa3-bb1e43a154c5",
+          "operation": "push-processing",
+          "dimension": {
+            "value": "minecraft:overworld"
+          },
+          "phase": "complete",
+          "completed": 1,
+          "total": 1,
+          "unit": "OBJECT",
+          "remainingMillis": 0,
+          "cancellable": false,
+          "ratePerSecond": 8333333.333333334
+        }
+      ],
+      "result": {
+        "operationId": "37d5c37b-73c4-4535-8fa3-bb1e43a154c5",
+        "operation": "push-processing",
+        "status": "SUCCESS",
+        "dimension": {
+          "value": "minecraft:overworld"
+        },
+        "summary": {
+          "message": "索引與 Webhook 排程完成"
+        },
+        "elapsedMillis": 22,
+        "nextSteps": [],
+        "error": null
+      },
+      "data": {
+        "refs": 1,
+        "dimension": "minecraft:overworld"
+      },
+      "cancellable": false,
+      "download": false
+    }
+  ],
+  "browser": {
+    "assertions": [
+      "dimension graph, core lanes, PR link, keyboard, mobile scroll, light/dark, success notification",
+      "PR dimension selector separates branches",
+      "release ZIP real operation, progress, SSE, browser download",
+      "SSE failure falls back to bounded polling",
+      "real API error, copy button, selected-text clipboard fallback, aria-live closeable notifications"
+    ],
+    "screenshots": [
+      "graph-light.png",
+      "graph-dark.png",
+      "graph-mobile.png",
+      "success-notification.png",
+      "pr-dimension-selector.png",
+      "operation-progress.png",
+      "error-notification-copy.png",
+      "copy-fallback.png"
+    ],
+    "errors": [],
+    "violations": [],
+    "operationTransports": [
+      "SSE",
+      "SSE",
+      "poll",
+      "poll"
+    ]
+  },
+  "phase4Migration": true
+}

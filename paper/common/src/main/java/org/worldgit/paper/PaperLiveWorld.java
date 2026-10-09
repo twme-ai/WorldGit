@@ -47,6 +47,8 @@ final class PaperLiveWorld implements LiveWorld {
   // core 對 player-touched 會用同一份快照測試忽略前的 UUID；只保留最後一份副本。
   private ChunkPos copiedPosition;
   private Optional<NmsBridge.RawChunk> copiedRaw;
+  private Map<ChunkPos,NmsBridge.RawChunk> receipts=Map.of();
+  void receipts(Map<ChunkPos,NmsBridge.RawChunk> receipts) {this.receipts=receipts;}
 
   PaperLiveWorld(WorldGitPlugin plugin, DimensionState state, World world, WorldLayout layout, boolean inline) {
     this.plugin = plugin;
@@ -141,7 +143,7 @@ final class PaperLiveWorld implements LiveWorld {
     catch (ExecutionException | TimeoutException e) { throw new IOException("gamerule 快照失敗", e); }
   }
 
-  private EntityTagRegistry registry() throws IOException {
+  EntityTagRegistry registry() throws IOException {
     if (registry == null) registry = EntityTagRegistry.load(layout.world(), layout.dataVersion());
     return registry;
   }
@@ -152,20 +154,36 @@ final class PaperLiveWorld implements LiveWorld {
     copiedPosition=null; copiedRaw=null;
     Scan disk = offline.scan(previous, full);
     DimensionState.Census census = state.refresh(plugin.bridge(), world);
+    capturedDirty=state.dirty().indexBatch();
     lastLoaded = census.loaded();
     var live = new TreeSet<ChunkPos>();
-    for (ChunkPos pos : state.dirty().chunks()) if (census.loaded().contains(pos)) live.add(pos);
+    live.addAll(capturedDirty.generations().keySet());
     live.addAll(census.entityChunks());
     if (full) live.addAll(census.loaded());
-    liveSet = Collections.unmodifiableSet(live);
     var candidates = new TreeSet<>(disk.candidates());
     candidates.addAll(live);
+    live.retainAll(census.loaded());
+    for(var pos:disk.candidates()) if(census.loaded().contains(pos))live.add(pos);
+    liveSet = Collections.unmodifiableSet(live);
     var present = new HashSet<>(disk.present());
     present.addAll(census.loaded());
     var settings = plugin.settings();
     copier = new LiveCopier(plugin.platform(), plugin.bridge(), world, settings.chunksPerTick(), settings.snapshotWindow(), inline, stats);
     copier.start(live);
-    return new Scan(present, candidates, disk.stamps(), disk.payloadsRead(), disk.scannedAt());
+    return new Scan(present, candidates, receiptStamps(disk.stamps()), disk.payloadsRead(), disk.scannedAt());
+  }
+
+  private org.worldgit.platform.DirtyChunkTracker.Batch capturedDirty;
+  // Receipts precede resumed gameplay and later saves. Never certify those later disk bytes
+  // with an earlier receipt, nor acknowledge dirty generations collected after that receipt.
+  private Map<ChunkPos,ScanIndex.Stamp> receiptStamps(Map<ChunkPos,ScanIndex.Stamp> stamps) {
+    if(receipts.isEmpty())return stamps;
+    var trusted=new HashMap<>(stamps);receipts.keySet().forEach(trusted::remove);return trusted;
+  }
+  @Override public void indexSaved() {
+    if(capturedDirty==null)return;
+    var certified=new HashMap<>(capturedDirty.generations());receipts.keySet().forEach(certified::remove);
+    state.dirty().indexed(new org.worldgit.platform.DirtyChunkTracker.Batch(certified));
   }
 
   void captureOnly(Set<ChunkPos> chunks) {
@@ -181,13 +199,8 @@ final class PaperLiveWorld implements LiveWorld {
     var timings=OperationTimings.current();
     var loaded=state.refresh(plugin.bridge(),world).loaded();
     var tasks=new ArrayList<CompletableFuture<Void>>();
-    for(var pos:chunks) if(loaded.contains(pos)) {
-      var done=new CompletableFuture<Void>(); tasks.add(done);
-      try { plugin.platform().region(world,pos.x(),pos.z(),()->{
-        try { plugin.bridge().saveChunk(world,pos.x(),pos.z()); done.complete(null); }
-        catch(Throwable e) { done.completeExceptionally(e); }
-      }); } catch(Throwable e) { done.completeExceptionally(e); }
-    }
+    var scheduling=new ChunkLockQueue(plugin);
+    for(var pos:chunks) if(loaded.contains(pos)) tasks.add(scheduling.submit(world,pos,()->plugin.bridge().saveChunk(world,pos.x(),pos.z())));
     return CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new)).thenRunAsync(()->{
       long started=System.nanoTime(); plugin.bridge().flushIo(world);
       if(timings!=null) timings.record("io-barrier",System.nanoTime()-started);
@@ -197,6 +210,12 @@ final class PaperLiveWorld implements LiveWorld {
   @Override
   public CompletionStage<Optional<ChunkSnapshot>> snapshot(ChunkPos pos, IgnoreRules rules) {
     return snapshotRaw(pos, rules).thenApply(o -> o.map(c -> dedupeEntities(pos, c)));
+  }
+
+  @Override public boolean entityCensusAvailable() { return true; }
+  @Override public Set<UUID> unchangedEntityIds(Set<ChunkPos> captured) throws IOException {
+    // 線上含實體的 chunk 及上一輪來源 chunk 全部是候選，剩下的原始 UUID 在磁碟普查。
+    return offline.unchangedEntityIds(captured);
   }
 
   /**
@@ -217,6 +236,10 @@ final class PaperLiveWorld implements LiveWorld {
 
   private CompletionStage<Optional<ChunkSnapshot>> snapshotRaw(ChunkPos pos, IgnoreRules rules) {
     try {
+      if(receipts.containsKey(pos)) {
+        var raw=receipts.get(pos);
+        return CompletableFuture.completedFuture(Optional.of(new ChunkNormalizer(rules,registry()).normalize(pos,raw.terrain(),raw.entities())));
+      }
       if (copier != null && (copier.has(pos) || pos.equals(copiedPosition))) {
         Optional<NmsBridge.RawChunk> raw = pos.equals(copiedPosition) ? copiedRaw : copier.take(pos, plugin.settings().commitTimeoutSeconds());
         copiedPosition=pos; copiedRaw=raw;
@@ -341,28 +364,58 @@ final class PaperLiveWorld implements LiveWorld {
     return CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new));
   }
   @Override public AutoCloseable lockEdits(Collection<ChunkPos> chunks,String reason) throws IOException {
-    var lock=plugin.edits().lock(world,chunks); var f=new CompletableFuture<AutoCloseable>();
+    if(chunks.isEmpty()) return ()->{};
+    var scope=new TreeSet<ChunkPos>();
+    for(var pos:chunks) for(int dx=-1;dx<=1;dx++) for(int dz=-1;dz<=1;dz++) scope.add(new ChunkPos(pos.x()+dx,pos.z()+dz));
+    var edit=plugin.edits().lock(world,scope);
+    var held=new ConcurrentHashMap<ChunkPos,AutoCloseable>();
+    var jobs=new ArrayList<CompletableFuture<Void>>();
+    plugin.edits().registerTicks(world,scope,held);
     try {
-      plugin.platform().global(()->{ try { plugin.quiesceAxiom(world); f.complete(plugin.edits().freeze(world)); } catch(Throwable e) { f.completeExceptionally(e); } });
-      var frozen=f.get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);
-      return ()->{ lock.close(); if(!plugin.repo().stopping()) { var done=new CompletableFuture<Void>();
-        plugin.platform().global(()->{ try { frozen.close(); done.complete(null); } catch(Throwable e) { done.completeExceptionally(e); } });
-        done.get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);
-      } };
-    } catch(Exception e) { try { lock.close(); } catch(Exception ignored) {} throw new IOException("無法鎖定世界",e); }
+      plugin.bridge().entityBoundary(world,scope);
+      var census=state.refresh(plugin.bridge(),world);var loaded=census.loaded();
+      var scheduling=new ChunkLockQueue(plugin);
+      if(!plugin.platform().folia())jobs.add(scheduling.submit(world,chunks.iterator().next(),()->plugin.quiesceAxiom(world)));
+      for(var pos:census.entityChunks())jobs.add(scheduling.submit(world,pos,()->plugin.bridge().guardEntities(world,pos.x(),pos.z())));
+      for(var pos:scope) if(loaded.contains(pos)) jobs.add(scheduling.submit(world,pos,()->plugin.edits().ensureChunkTicks(world,pos.x(),pos.z())));
+      CompletableFuture.allOf(jobs.toArray(CompletableFuture[]::new)).get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);
+      return ()->{
+        plugin.edits().unregisterTicks(world);
+        var restored=new ArrayList<CompletableFuture<Void>>();
+        var schedulingRestore=new ChunkLockQueue(plugin);
+        for(var entry:held.entrySet()) restored.add(schedulingRestore.submit(world,entry.getKey(),()->{entry.getValue().close();plugin.bridge().saveChunk(world,entry.getKey().x(),entry.getKey().z());}));
+        try {CompletableFuture.allOf(restored.toArray(CompletableFuture[]::new)).get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);plugin.bridge().flushIo(world);}
+        finally {try {restoreEntityBoundary();}finally {edit.close();}}
+      };
+    } catch(Exception error) {
+      plugin.edits().unregisterTicks(world);
+      // Every already-acquired owner lock must be restored on that owner, including failed acquisition.
+      for(var entry:held.entrySet()) {var pos=entry.getKey();plugin.platform().region(world,pos.x(),pos.z(),()->{try {entry.getValue().close();}catch(Exception e){plugin.getLogger().severe(e.toString());}});}
+      try {restoreEntityBoundary();}catch(Exception cleanup){error.addSuppressed(cleanup);}
+      try {edit.close();}catch(Exception cleanup){error.addSuppressed(cleanup);}
+      var cause=error;while(cause.getCause() instanceof Exception next)cause=next;
+      throw new IOException("無法鎖定受影響 chunk："+cause.getMessage(),error);
+    }
+  }
+  private CompletableFuture<Void> restoreBoundaryEntity(org.bukkit.entity.Entity entity,int attempt) {
+    var done=new CompletableFuture<Void>();var at=entity.getLocation();
+    plugin.platform().region(at.getWorld(),at.getBlockX()>>4,at.getBlockZ()>>4,()->{
+      try {
+        if(entity.isValid() && !Bukkit.isOwnedByCurrentRegion(entity)) {
+          if(attempt>=128)throw new IllegalStateException("Entity owner kept moving during guard cleanup");
+          restoreBoundaryEntity(entity,attempt+1).whenComplete((ignored,error)->{if(error==null)done.complete(null);else done.completeExceptionally(error);});return;
+        }
+        plugin.bridge().restoreEntity(entity);done.complete(null);
+      }catch(Throwable error){done.completeExceptionally(error);}
+    });return done;
+  }
+  private void restoreEntityBoundary() throws Exception {
+    var jobs=new ArrayList<CompletableFuture<Void>>();
+    for(var entity:plugin.bridge().clearEntityBoundary(world))jobs.add(restoreBoundaryEntity(entity,0));
+    CompletableFuture.allOf(jobs.toArray(CompletableFuture[]::new)).get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);
   }
   @Override public CompletionStage<Void> flush() {
-    var loaded=state.refresh(plugin.bridge(),world).loaded();
-    var owners=ConcurrentHashMap.<Long>newKeySet();
-    var tasks=new ArrayList<CompletableFuture<Void>>();
-    for(var pos:loaded) {
-      var f=new CompletableFuture<Void>(); tasks.add(f);
-      try { plugin.platform().region(world,pos.x(),pos.z(),()->{
-        try { if(owners.add(plugin.bridge().ownerTick(world).owner())) plugin.bridge().saveRegion(world); f.complete(null); }
-        catch(Throwable e) { f.completeExceptionally(e); }
-      }); } catch(Throwable e) { f.completeExceptionally(e); }
-    }
-    return CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new)).thenRunAsync(()->plugin.bridge().flushIo(world));
+    return flush(state.refresh(plugin.bridge(),world).loaded());
   }
 
   @Override

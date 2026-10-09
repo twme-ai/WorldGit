@@ -323,7 +323,7 @@ final class CommandTree {
 
   private void debug(LiteralArgumentBuilder<CommandSourceStack> node) {
     for (String mode : List.of("apply", "release", "measurements", "fixture-clean-items")) node.then(exec(lit(mode), "debug." + mode));
-    for (String mode : List.of("probe", "freeze")) {
+    for (String mode : List.of("probe", "guard")) {
       var option = lit(mode);
       for (String value : mode.equals("probe") ? List.of("start", "stop") : List.of("on", "off")) option.then(exec(lit(value), "debug." + mode + "." + value));
       node.then(option);

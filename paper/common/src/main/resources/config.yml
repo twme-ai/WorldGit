@@ -79,3 +79,10 @@ feedback:
   title: false
   sound: false
   auto-notify: true
+
+# Single tick apply: loaded chunks on one owner. Set either size limit to 0 to disable.
+# Larger/cross-region changes use affected chunk locks plus a one-chunk boundary.
+apply:
+  atomic-max-chunks: 1
+  atomic-max-sections: 1
+  atomic-max-entities: 8

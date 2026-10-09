@@ -1,0 +1,1641 @@
+{
+  "platform": "fabric-single",
+  "version": "1.21.11",
+  "label": "nofreeze-complete",
+  "success": true,
+  "rows": {
+    "init": {
+      "samples": [
+        21.54576017
+      ],
+      "probes": [
+        {
+          "b_tps": 17.863,
+          "b_ticks": 402,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 114.619,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 21.54576017,
+      "max": 21.54576017
+    },
+    "branch": {
+      "samples": [
+        0.220288215
+      ],
+      "probes": [
+        {
+          "b_tps": 18.501,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 68.088,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 0.220288215,
+      "max": 0.220288215
+    },
+    "status-noop": {
+      "samples": [
+        0.233989879,
+        0.159122498,
+        0.197267163
+      ],
+      "probes": [
+        {
+          "b_tps": 16.333,
+          "b_ticks": 20,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 102.65,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.913,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 61.718,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.186,
+          "b_ticks": 20,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 72.146,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 0.197267163,
+      "max": 0.233989879
+    },
+    "commit-noop": {
+      "samples": [
+        0.220922568,
+        0.207457078,
+        0.251588107
+      ],
+      "probes": [
+        {
+          "b_tps": 18.571,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 67.1,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.942,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 63.342,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 17.966,
+          "b_ticks": 20,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 73.245,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 0.220922568,
+      "max": 0.251588107
+    },
+    "switch-noop": {
+      "samples": [
+        0.384249891,
+        0.377129491,
+        0.398695809,
+        0.382032509,
+        0.350648772,
+        0.328197483
+      ],
+      "probes": [
+        {
+          "b_tps": 17.457,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 90.338,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.742,
+          "b_ticks": 28,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 79.153,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.618,
+          "b_ticks": 28,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 63.866,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.73,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 70.165,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.639,
+          "b_ticks": 28,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 71.844,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.877,
+          "b_ticks": 28,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 60.826,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 0.379581,
+      "max": 0.398695809
+    },
+    "setup-branch": {
+      "samples": [
+        0.171209504,
+        0.15764049,
+        0.203572788,
+        0.20012716,
+        0.151055013,
+        0.351629625,
+        0.401029865,
+        0.358262746,
+        0.350971914,
+        1.307597283,
+        1.255729911,
+        0.050642715,
+        1.253395866
+      ],
+      "probes": [
+        {
+          "b_tps": 17.96,
+          "b_ticks": 20,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 67.577,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.941,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 66.985,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.967,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 70.586,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.052,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 64.749,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.05,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 68.588,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.284,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 59.209,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.294,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 60.743,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.157,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 60.788,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.294,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 60.342,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.495,
+          "b_ticks": 45,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 62.747,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.495,
+          "b_ticks": 45,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 61.845,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.041,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 51.145,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.528,
+          "b_ticks": 45,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 66.554,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 0.350971914,
+      "max": 1.307597283
+    },
+    "setup-switch": {
+      "samples": [
+        0.328097321,
+        1.017811372,
+        0.376519258,
+        1.154242008,
+        0.351331297,
+        0.867665067,
+        0.390968905,
+        1.013371968,
+        0.35114724,
+        1.827809908,
+        0.603243748,
+        2.63049034,
+        0.557134114,
+        2.764500037,
+        0.551533587,
+        3.000274949,
+        0.57486692,
+        19.908176493,
+        1.500683216,
+        19.197028097,
+        1.572552806,
+        20.17951254,
+        1.270328324,
+        20.062183151,
+        1.543598608,
+        178.130671059
+      ],
+      "probes": [
+        {
+          "b_tps": 18.416,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 69.33,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 17.025,
+          "b_ticks": 34,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 268.933,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.702,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 66.769,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 15.686,
+          "b_ticks": 36,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 283.638,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.642,
+          "b_ticks": 28,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 75.025,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 16.641,
+          "b_ticks": 34,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 268.684,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.764,
+          "b_ticks": 28,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 61.101,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 17.235,
+          "b_ticks": 33,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 272.082,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.297,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 63.87,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.421,
+          "b_ticks": 53,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 63.293,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.486,
+          "b_ticks": 28,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 77.876,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.487,
+          "b_ticks": 68,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 60.933,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.225,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 56.701,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.574,
+          "b_ticks": 77,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 61.584,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.289,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 74.934,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.98,
+          "b_ticks": 75,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 69.208,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.007,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 61.374,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.837,
+          "b_ticks": 412,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 84.981,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.114,
+          "b_ticks": 44,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 62.573,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.755,
+          "b_ticks": 401,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 78.998,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.531,
+          "b_ticks": 51,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 75.463,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.724,
+          "b_ticks": 417,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 78.969,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.382,
+          "b_ticks": 45,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 57.516,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.797,
+          "b_ticks": 419,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 69.353,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.125,
+          "b_ticks": 52,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 72.342,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.816,
+          "b_ticks": 3546,
+          "locked_samples": 3233,
+          "a_game_time_advances": 3232,
+          "b_advances_while_locked": 3232,
+          "b_flow_while_locked": 3228,
+          "b_redstone_while_locked": 1078,
+          "max_gap_ms": 155.471,
+          "far_ticks": 3233,
+          "far_flow": 3228,
+          "far_redstone": 1078
+        }
+      ],
+      "p50": 1.212285166,
+      "max": 178.130671059
+    },
+    "commit-1": {
+      "samples": [
+        0.286651353,
+        0.281547629,
+        0.343876159
+      ],
+      "probes": [
+        {
+          "b_tps": 17.38,
+          "b_ticks": 19,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 76.908,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.322,
+          "b_ticks": 20,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 71.156,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.376,
+          "b_ticks": 21,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 81.618,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 0.286651353,
+      "max": 0.343876159
+    },
+    "switch-1": {
+      "samples": [
+        1.167120669,
+        1.196793325,
+        1.04363002,
+        0.934960551,
+        1.139502481,
+        1.002219108
+      ],
+      "probes": [
+        {
+          "b_tps": 15.962,
+          "b_ticks": 37,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 274.063,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 16.536,
+          "b_ticks": 38,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 284.624,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 16.295,
+          "b_ticks": 35,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 277.945,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 16.964,
+          "b_ticks": 32,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 286.032,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 15.332,
+          "b_ticks": 31,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 278.627,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 17.166,
+          "b_ticks": 33,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 273.233,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 1.0915662505000001,
+      "max": 1.196793325
+    },
+    "merge-1": {
+      "samples": [
+        1.252117646,
+        1.211963781,
+        1.070593866
+      ],
+      "probes": [
+        {
+          "b_tps": 16.987,
+          "b_ticks": 40,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 270.763,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 17.706,
+          "b_ticks": 41,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 258.051,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 17.173,
+          "b_ticks": 33,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 276.755,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 1.211963781,
+      "max": 1.252117646
+    },
+    "commit-10": {
+      "samples": [
+        0.501649191,
+        0.417817066,
+        0.359464874
+      ],
+      "probes": [
+        {
+          "b_tps": 17.405,
+          "b_ticks": 27,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 95.744,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.146,
+          "b_ticks": 28,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 77.539,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.155,
+          "b_ticks": 29,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 63.244,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 0.417817066,
+      "max": 0.501649191
+    },
+    "switch-10": {
+      "samples": [
+        2.296295284,
+        3.00324942,
+        2.836383534,
+        2.996217513,
+        2.927791923,
+        2.850019897
+      ],
+      "probes": [
+        {
+          "b_tps": 19.37,
+          "b_ticks": 60,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 63.774,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.204,
+          "b_ticks": 75,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 64.888,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.556,
+          "b_ticks": 77,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 60.077,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.157,
+          "b_ticks": 75,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 74.957,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.6,
+          "b_ticks": 77,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 60.213,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.044,
+          "b_ticks": 75,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 66.848,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 2.88890591,
+      "max": 3.00324942
+    },
+    "merge-10": {
+      "samples": [
+        3.387647185,
+        3.676633062,
+        3.268817849
+      ],
+      "probes": [
+        {
+          "b_tps": 19.061,
+          "b_ticks": 81,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 68.589,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.612,
+          "b_ticks": 88,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 86.252,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.445,
+          "b_ticks": 84,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 66.378,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 3.387647185,
+      "max": 3.676633062
+    },
+    "commit-100": {
+      "samples": [
+        1.603846199,
+        1.511656341,
+        1.424991454
+      ],
+      "probes": [
+        {
+          "b_tps": 19.21,
+          "b_ticks": 52,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 67.922,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 18.943,
+          "b_ticks": 44,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 91.779,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.344,
+          "b_ticks": 45,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 60.603,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 1.511656341,
+      "max": 1.603846199
+    },
+    "switch-100": {
+      "samples": [
+        17.377512004,
+        19.440660856,
+        18.807922918,
+        14.527917642,
+        19.090869322,
+        19.735874683
+      ],
+      "probes": [
+        {
+          "b_tps": 19.758,
+          "b_ticks": 364,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 76.139,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.74,
+          "b_ticks": 403,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 85.191,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.749,
+          "b_ticks": 387,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 84.977,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.526,
+          "b_ticks": 304,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 73.51,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.751,
+          "b_ticks": 395,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 85.126,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.703,
+          "b_ticks": 410,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 93.021,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 18.94939612,
+      "max": 19.735874683
+    },
+    "merge-100": {
+      "samples": [
+        20.375956441,
+        20.930562414,
+        20.51650761
+      ],
+      "probes": [
+        {
+          "b_tps": 19.692,
+          "b_ticks": 417,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 78.828,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.698,
+          "b_ticks": 433,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 87.073,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.705,
+          "b_ticks": 426,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 87.924,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 20.51650761,
+      "max": 20.930562414
+    },
+    "commit-1000": {
+      "samples": [
+        13.323346289,
+        13.229874083,
+        13.388705144
+      ],
+      "probes": [
+        {
+          "b_tps": 19.406,
+          "b_ticks": 279,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 97.89,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.503,
+          "b_ticks": 280,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 91.195,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        },
+        {
+          "b_tps": 19.5,
+          "b_ticks": 280,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 79.276,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 13.323346289,
+      "max": 13.388705144
+    },
+    "switch-1000": {
+      "samples": [
+        165.651638948,
+        183.886243065,
+        183.357807725,
+        183.768331032,
+        182.943734187,
+        179.487367507
+      ],
+      "probes": [
+        {
+          "b_tps": 19.849,
+          "b_ticks": 3305,
+          "locked_samples": 3275,
+          "a_game_time_advances": 3274,
+          "b_advances_while_locked": 3274,
+          "b_flow_while_locked": 3270,
+          "b_redstone_while_locked": 1092,
+          "max_gap_ms": 82.333,
+          "far_ticks": 3275,
+          "far_flow": 3270,
+          "far_redstone": 1092
+        },
+        {
+          "b_tps": 19.844,
+          "b_ticks": 3671,
+          "locked_samples": 3347,
+          "a_game_time_advances": 3346,
+          "b_advances_while_locked": 3346,
+          "b_flow_while_locked": 3342,
+          "b_redstone_while_locked": 1116,
+          "max_gap_ms": 115.203,
+          "far_ticks": 3347,
+          "far_flow": 3342,
+          "far_redstone": 1116
+        },
+        {
+          "b_tps": 19.849,
+          "b_ticks": 3661,
+          "locked_samples": 3336,
+          "a_game_time_advances": 3335,
+          "b_advances_while_locked": 3335,
+          "b_flow_while_locked": 3331,
+          "b_redstone_while_locked": 1112,
+          "max_gap_ms": 165.028,
+          "far_ticks": 3336,
+          "far_flow": 3331,
+          "far_redstone": 1112
+        },
+        {
+          "b_tps": 19.84,
+          "b_ticks": 3669,
+          "locked_samples": 3345,
+          "a_game_time_advances": 3344,
+          "b_advances_while_locked": 3344,
+          "b_flow_while_locked": 3340,
+          "b_redstone_while_locked": 1116,
+          "max_gap_ms": 91.042,
+          "far_ticks": 3345,
+          "far_flow": 3340,
+          "far_redstone": 1116
+        },
+        {
+          "b_tps": 19.868,
+          "b_ticks": 3658,
+          "locked_samples": 3336,
+          "a_game_time_advances": 3335,
+          "b_advances_while_locked": 3335,
+          "b_flow_while_locked": 3331,
+          "b_redstone_while_locked": 1112,
+          "max_gap_ms": 88.327,
+          "far_ticks": 3336,
+          "far_flow": 3331,
+          "far_redstone": 1112
+        },
+        {
+          "b_tps": 19.846,
+          "b_ticks": 3583,
+          "locked_samples": 3268,
+          "a_game_time_advances": 3267,
+          "b_advances_while_locked": 3267,
+          "b_flow_while_locked": 3263,
+          "b_redstone_while_locked": 1090,
+          "max_gap_ms": 95.822,
+          "far_ticks": 3268,
+          "far_flow": 3263,
+          "far_redstone": 1090
+        }
+      ],
+      "p50": 183.15077095599997,
+      "max": 183.886243065
+    },
+    "verify": {
+      "samples": [
+        16.281564026
+      ],
+      "probes": [
+        {
+          "b_tps": 19.555,
+          "b_ticks": 336,
+          "locked_samples": 0,
+          "a_game_time_advances": 0,
+          "b_advances_while_locked": 0,
+          "b_flow_while_locked": 0,
+          "b_redstone_while_locked": 0,
+          "max_gap_ms": 83.187,
+          "far_ticks": 0,
+          "far_flow": 0,
+          "far_redstone": 0
+        }
+      ],
+      "p50": 16.281564026,
+      "max": 16.281564026
+    }
+  },
+  "isolation": [
+    {
+      "b_tps": 19.849,
+      "b_ticks": 3305,
+      "locked_samples": 3275,
+      "a_game_time_advances": 3274,
+      "b_advances_while_locked": 3274,
+      "b_flow_while_locked": 3270,
+      "b_redstone_while_locked": 1092,
+      "max_gap_ms": 82.333,
+      "far_ticks": 3275,
+      "far_flow": 3270,
+      "far_redstone": 1092
+    },
+    {
+      "b_tps": 19.844,
+      "b_ticks": 3671,
+      "locked_samples": 3347,
+      "a_game_time_advances": 3346,
+      "b_advances_while_locked": 3346,
+      "b_flow_while_locked": 3342,
+      "b_redstone_while_locked": 1116,
+      "max_gap_ms": 115.203,
+      "far_ticks": 3347,
+      "far_flow": 3342,
+      "far_redstone": 1116
+    },
+    {
+      "b_tps": 19.849,
+      "b_ticks": 3661,
+      "locked_samples": 3336,
+      "a_game_time_advances": 3335,
+      "b_advances_while_locked": 3335,
+      "b_flow_while_locked": 3331,
+      "b_redstone_while_locked": 1112,
+      "max_gap_ms": 165.028,
+      "far_ticks": 3336,
+      "far_flow": 3331,
+      "far_redstone": 1112
+    },
+    {
+      "b_tps": 19.84,
+      "b_ticks": 3669,
+      "locked_samples": 3345,
+      "a_game_time_advances": 3344,
+      "b_advances_while_locked": 3344,
+      "b_flow_while_locked": 3340,
+      "b_redstone_while_locked": 1116,
+      "max_gap_ms": 91.042,
+      "far_ticks": 3345,
+      "far_flow": 3340,
+      "far_redstone": 1116
+    },
+    {
+      "b_tps": 19.868,
+      "b_ticks": 3658,
+      "locked_samples": 3336,
+      "a_game_time_advances": 3335,
+      "b_advances_while_locked": 3335,
+      "b_flow_while_locked": 3331,
+      "b_redstone_while_locked": 1112,
+      "max_gap_ms": 88.327,
+      "far_ticks": 3336,
+      "far_flow": 3331,
+      "far_redstone": 1112
+    },
+    {
+      "b_tps": 19.846,
+      "b_ticks": 3583,
+      "locked_samples": 3268,
+      "a_game_time_advances": 3267,
+      "b_advances_while_locked": 3267,
+      "b_flow_while_locked": 3263,
+      "b_redstone_while_locked": 1090,
+      "max_gap_ms": 95.822,
+      "far_ticks": 3268,
+      "far_flow": 3263,
+      "far_redstone": 1090
+    }
+  ],
+  "artifact_sha256": "c3050bfd7d91877d25e8eb11d5b2ffe0cd2e5374962df69c97cb10c036148a23",
+  "fixture": "gametest-flat-1296-loaded",
+  "players": 1,
+  "client_renderer": "llvmpipe",
+  "client_fps_cap": 20,
+  "client_afk_throttle": false,
+  "latency_only": false,
+  "legacy_baseline": false,
+  "auto_commit": "disabled",
+  "checks": {
+    "full_verify": true,
+    "adversary": true,
+    "storage_last_entity_removal": true,
+    "isolation": true
+  }
+}

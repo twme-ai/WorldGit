@@ -134,7 +134,7 @@ def run(args):
             player=re.search(r'\b([A-Za-z0-9_]{1,16}) joined the game',joined)[1]
             server.cmd('op '+player);server.cmd('gamemode creative '+player)
             server.cmd(f'tp {player} 15.5 66 -4 0 20');server.cmd('forceload add 0 0 31 15')
-            server.cmd('wg debug freeze on',r'WGFREEZE frozen');server.cmd('kill @e[type=!player]')
+            server.cmd('wg debug guard on',r'WGCHUNKGUARD locked');server.cmd('kill @e[type=!player]')
             variant('oak','oak',1,'diamond')
             if args.platform=='paper':server.cmd('save-all flush',r'Saved the game',180)
             cmd('wg init --world world --all',r'init 完成|Initialized|Initialization|失敗',900);branch('pair-base');branch('pair-theirs')

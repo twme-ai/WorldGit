@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "cases": [
+    {
+      "name": "paper-1.21.11-phase2",
+      "exit": 0,
+      "seconds": 325.9138847400027,
+      "log": ".work/paper-phase4/regressions-1791502477/paper-1.21.11-phase2.log"
+    },
+    {
+      "name": "paper-26.2-phase3",
+      "exit": 0,
+      "seconds": 581.0811482979916,
+      "log": ".work/paper-phase4/regressions-1791502477/paper-26.2-phase3.log"
+    },
+    {
+      "name": "folia-1.21.11-phase2",
+      "exit": 0,
+      "seconds": 317.99545110799954,
+      "log": ".work/paper-phase4/regressions-1791502477/folia-1.21.11-phase2.log"
+    }
+  ]
+}

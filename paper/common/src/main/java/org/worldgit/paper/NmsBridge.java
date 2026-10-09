@@ -66,8 +66,17 @@ public interface NmsBridge {
   /** repo 背景執行緒等待 terrain/entity/POI IO 強制落盤。 */
   default void saveChunk(World world, int x, int z) { saveRegion(world); }
   void flushIo(World world);
-  /** 全域 scheduler，保存／恢復 vanilla freeze 與 step 狀態。 */
-  AutoCloseable freeze(World world);
+  /** 真正 chunk owner 上停用此 chunk 的 vanilla 模擬；保留 IO、光照與世界時間。 */
+  default void wakeBoundary(World world,int x,int y,int z,String sourceBlock) {}
+  default boolean atomicLightingSafe(World world,org.worldgit.core.apply.ApplyPlan plan) throws java.io.IOException {return false;}
+  AutoCloseable lockChunkTicks(World world, int x, int z);
+  /** 套用新增的 section／BE／entity 必須在返回遊戲迴圈前加入同一鎖。 */
+  void refreshChunkLock(World world, int x, int z);
+  default void entityBoundary(World world,java.util.Set<org.worldgit.core.model.ChunkPos> scope) {}
+  default void guardEntities(World world,int x,int z) {}
+  default void guardEntity(org.bukkit.entity.Entity entity) {}
+  default java.util.Collection<org.bukkit.entity.Entity> clearEntityBoundary(World world) {return java.util.List.of();}
+  default void restoreEntity(org.bukkit.entity.Entity entity) {}
   /** 真正 region ID/current tick；Paper 使用 server tick。 */
   record OwnerTick(long owner, long tick) {}
   OwnerTick ownerTick(World world);

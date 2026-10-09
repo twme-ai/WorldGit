@@ -110,7 +110,7 @@ def run(args):
         remote_bots=dict(zip(DIMENSIONS,[bots[0],server.bot('WgBot3'),server.bot('WgBot4')]))
         remote_bot=bots[0]
         for p in list(dict.fromkeys([*bots,*remote_bots.values()])):server.cmd('tp '+p.name+' 8 225 8');server.cmd('gamemode creative '+p.name)
-        server.cmd('wg debug freeze on',r'WGFREEZE frozen');time.sleep(3)
+        server.cmd('wg debug guard on',r'WGCHUNKGUARD locked');time.sleep(3)
         for dimension,player in remote_bots.items():
             server.cmd('wg debug comment-teleport '+player.name+' '+dimension,r'WGCOMMENTTP success=true')
         move('minecraft:overworld');time.sleep(10)

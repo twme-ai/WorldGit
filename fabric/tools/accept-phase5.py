@@ -143,7 +143,7 @@ def session_a(args,work,result,check,sessions):
     check('chat graph has lanes, colored labels, hover and suggest',any('[main]' in r['t'] and '* ' in r['t'] for r in rows) and events(rows,'suggest_command') and any('/wg diff ' in c and '--dimension minecraft:overworld' in c for c in events(rows,'suggest_command')),chat=texts(rows)[-4:])
     check('graph hover carries the full commit id',any(re.search(r'[0-9a-f]{40}',h) for h in hover_text(rows)))
     # ---- 每個動作的完成訊息 ----
-    srv.cmd('tick freeze',r'froze')
+    srv.cmd('wg test fixture-stable',r'WGSTABLE')
     matrix=[]
     def act(command,expect_status=None,summary=None,absent=None,timeout=300,all_dims=False,**kw):
         rows,_=chat.say(command,timeout=timeout,all_dims=all_dims,**kw);lines=texts(rows)
@@ -221,6 +221,9 @@ def session_a(args,work,result,check,sessions):
     entities=srv.cmd('wg test entities',r'WGENTITIES minecraft:overworld')
     check('armor stand restored; natural cow created after the commit is preserved',armor in entities and cow2 in entities,entities=entities)
     srv.cmd(f'execute in minecraft:the_nether run tp {armor} 8 70 8',r'Teleported');time.sleep(2)
+    # 目的地 entity chunk 可能未載入（不凍結後 chunk 會正常卸載）：實體在 entity manager 內但不在可見清單，故以 knownUuids 判斷。
+    transferred=srv.cmd(f'execute in minecraft:the_nether run wg test known {armor}',r'WGKNOWN minecraft:the_nether')
+    check('transferred armor stand is present in the destination before restore','true' in transferred,entities=transferred)
     rows=act('wg restore HEAD','FAILED');raw=json.dumps(rows,ensure_ascii=False)
     check('cross-dimension duplicate UUID is rejected before writing and names the dimension','minecraft:the_nether' in raw and 'duplicate UUID' in raw,chat=texts(rows)[-4:])
     act('wg commit --dimension minecraft:the_nether -m transferred','SUCCESS');check('destination dimension inherits the touched UUID',armor in probe('minecraft:the_nether'))
@@ -343,7 +346,7 @@ def session_b(args,work,result,check,sessions):
     try:
         client=Client(session.work,args.version,False,session.server.port)
         player=client.ready['player'];session.server.cmd('op '+player);session.server.cmd('gamemode creative '+player)
-        session.server.cmd('tick freeze',r'froze');session.server.cmd(f'tp {player} 8 65 8 0 25',r'Teleported');time.sleep(3)
+        session.server.cmd('wg test fixture-stable',r'WGSTABLE');session.server.cmd(f'tp {player} 8 65 8 0 25',r'Teleported');time.sleep(3)
         rows=client_command(client,'wg init',900)
         check('true client receives nether, End and All append buttons',len(events(rows,'run_command'))==3,clicks=events(rows,'run_command'))
         client.action('chat-open');target=client.shot('init-append-buttons');result.setdefault('screenshots',[]).append(str(target.relative_to(ROOT)));client.action('close')

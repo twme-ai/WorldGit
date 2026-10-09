@@ -9,3 +9,5 @@ dependencies {
     paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
     compileOnly(project(":paper:common"))
 }
+
+sourceSets.main { java.srcDir("../nms-shared/src/main/java") }

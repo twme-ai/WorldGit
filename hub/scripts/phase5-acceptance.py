@@ -58,8 +58,8 @@ def heads(base):
     return {r['name']:r['heads'] for r in api('GET',base+'/branches')['branches']}
 
 def downgrade_to_phase4(base,pr,release):
-    # 實際 Phase 4 schema 副本；保留所有 ACL、PR、release 和固定 commits。
-    old=subprocess.check_output(['git','show','HEAD:hub/src/main/resources/schema.sql'],cwd=ROOT,text=True)
+    # 實際 Phase 4 schema（固定在 Phase 4 commit；HEAD 已含 Phase 5 schema）副本；保留所有 ACL、PR、release 和固定 commits。
+    old=subprocess.check_output(['git','show','10dd24e:hub/src/main/resources/schema.sql'],cwd=ROOT,text=True)
     source=sqlite3.connect(WORK/'hub-data/hub.db');target=sqlite3.connect(WORK/'phase4.db');target.executescript(old)
     source.execute("INSERT OR REPLACE INTO branch_rules(world_id,branch,pr_only,reviews) VALUES (?, 'main',1,1)",(source.execute("SELECT world_id FROM pull_requests WHERE id=?",(pr['id'],)).fetchone()[0],))
     for (name,) in target.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall():
