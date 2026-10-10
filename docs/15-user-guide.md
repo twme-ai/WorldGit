@@ -139,6 +139,8 @@ WorldGit 的 Fabric jar 已內嵌 core、JGit、Jackson、Adventure 等依賴，
 - `stash push` 暫存，或
 - 對 switch 使用 `--stash`（自動暫存）／`--force`（丟棄改動）。
 
+線上 switch 在預檢與鎖住 chunk 之間，受影響範圍若出現預檢時沒有的新變動（玩家剛放的方塊、生物移動等），WorldGit 不會靜默覆蓋：先自動重新預檢最多三次；仍有差異就拒絕，訊息會列出變動的 chunk 座標與種類（方塊、實體類型與數量），再照上面三個做法處理後重試。`restore`、`reset`、`switch --force`、`switch --stash` 不受此影響，活世界（生物、流水、紅石、作物持續變動）也能一次成功（決定 #163–#167）。
+
 ### 4.3 合併狀態 MERGING
 
 合併有衝突時，世界進入 **MERGING**：
@@ -533,6 +535,7 @@ remote:
 | 需要回到昨天的整個世界 | `/wg log` 找版本 → `/wg branch backup-now`（先保留現況）→ `/wg switch <commit> --force` |
 | 套用到一半當機（PARTIAL） | `/wg switch <目標> --force` 或 `/wg reset --hard` |
 | 合併中途當機 | 重啟後 MERGING 自動恢復；或 `/wg merge --abort` |
+| 線上 switch 顯示「預檢到上鎖之間…出現未提交的變動」 | 訊息列出變動的 chunk 與種類；`/wg status` 查看 → commit、`stash push`、`switch --stash` 或 `--force` 後重試 |
 | 線上拒絕（要刪 chunk／世界設定不同） | 關服 → CLI `wgit restore`／`switch`（[§9](#9-cli-使用者離線備份腳本)）→ 開服 |
 
 ---

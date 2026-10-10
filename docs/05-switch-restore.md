@@ -160,6 +160,24 @@ raid 清單與 `next_id`、龍戰、地圖、記分板、gamerule、世界邊界
 
 舊版建立的 repo 歷史若已含這些條目，不改寫 Git 歷史：diff／status／switch 規劃／merge／Hub 檢視讀 tree 時兩邊都會過濾，不會出現假刪除或 world-meta 差異；正規化 fingerprint 升版，舊索引自動重建。若仍有其他 world-meta 差異使線上操作被拒，訊息會列出解碼後的檔名，請停止伺服器後用 CLI 離線還原。
 
+### 預檢與上鎖之間的競態
+
+線上套用（Paper、Folia、Fabric 單人與 dedicated 共用同一套判定）的順序是：鎖外預檢（世界照常 tick）擷取世界並算出計畫 → 只鎖住受影響的 chunk → 套用 → 驗證。預檢到上鎖之間世界仍在變動，所以以前「上鎖後與預檢基底比較、不同就中止」會讓有生物走動、流水、作物、紅石時脈、漏斗或熔爐運作的 chunk 反覆出現「預檢期間世界已變動，尚未寫入」，重試也無效。
+
+現行規則（決策 #163–#167）：
+
+- **鎖後的擷取才是權威**：被鎖的 chunk 不再 tick。鎖後擷取受影響範圍，與計畫基底相同就直接套用；不同就以鎖後狀態重算計畫（同一目標、範圍與選項）。重算後的足跡超出已鎖範圍，或多出未追蹤的實體 UUID，就擴大鎖範圍重試（迴圈有上限）。
+- **覆蓋型操作**（restore、reset、`switch --force`、stash pop、pull）本來就會覆蓋工作區的未提交變動，重算後一次成功。
+- **switch（不加 `--force`／`--stash`）不可覆蓋未提交變動**：預檢時工作區是乾淨的，鎖後範圍卻與 HEAD 不同，就是窗口內才出現的新變動。先自動重新預檢（最多 3 次，含第一次）；重新預檢發現 dirty，或第 3 次鎖後仍不同，就拒絕，尚未寫入。訊息列出變動的 chunk 座標與種類（方塊、biome 取樣、實體類型與數量，最多 8 個 chunk，其餘只給總數），並提示 `/wg status` 查看，commit、`stash push`、`switch --stash` 或 `--force` 後再試。窗口內若變動又恢復成與 HEAD 相同，則照常套用。
+- **`switch --stash` 與 `stash push`**：自動 stash 改在鎖後的權威擷取上儲存，窗口內的變動一併進 stash；預檢乾淨且窗口內沒有新變動時不建立多餘的 stash。
+- **單 tick 原子套用**沒有鎖，owner tick 內核對失敗時（`AtomicChangedException`）尚未寫入：還原 journal 與 HEAD，禁用原子套用後走上鎖路徑重算，不標 PARTIAL。
+- **merge 類操作**（merge-start／select／abort）沒有安全的重算器，鎖後有差異就拒絕並列出變動（它們本來就要求乾淨工作區）。
+- 只看計畫足跡：足跡外的演變仍是工作區變動（沿用 `LiveApplyVerification`）。實體跨界仍由 #154／#157 的原生移動回呼保護，鎖後重算的足跡包含實體新位置。
+
+真伺服器驗證（生存範本 `entities: all`；chunk (0,0) 內有圍欄的牛、羊、村民、紅石時脈、乒乓漏斗、燃燒熔爐、成長中的作物，`switch before/main --force` 往返）：修正前 Paper 26.2 六次中四次失敗、Folia 26.2 六次中三次失敗、Paper 1.21.11 六次中四次失敗、Fabric dedicated 26.2 六次全部失敗，皆為「預檢期間世界已變動」；修正後四者連續八次全部成功，凍結 tick 後 `verify` 零差異（Folia 的 `tick freeze` 無法凍結實體，改以套用內建的鎖後驗證為準）。以 `-Dworldgit.test.preflight-delay-ms` 在窗口內由玩家放置方塊（Paper 26.2、Folia 26.2、Paper 1.21.11、Fabric dedicated 26.2）：不加旗標的 switch 被拒絕並列出 `[0,0] 方塊 1`，方塊保留；`switch --stash` 成功且窗口內的方塊進了 stash。證據在 worktree 的 `.work/preflight-lock/`（`*-result.json`、`repro.py`、`fabric_repro.py`）。
+
+驗證用測試鉤子：`-Dworldgit.test.preflight-delay-ms=N` 在預檢與上鎖之間暫停 N 毫秒（未設定時無作用），用來在真伺服器穩定製造窗口，例如窗口內由玩家放置方塊。
+
 ### stash 與 reset
 
 stash 保存全組 working tree，每維度一個以原 HEAD 為 parent 的獨立 commit，pin 在 `refs/worldgit/stash/<UUID>`，世界組 `stash.yml` 按新到舊保存 UUID、time、message、commits／bases。全組 capture／refs 成功後才發布清單；push 發布後再還原 HEAD，清除已保存的新增 chunk，寫回失敗保留 stash 與 PARTIAL。`switch --stash` 只保存工作區後直接切換，省去一次中間還原。pop 限原基底、乾淨工作區（連保留的 untracked 也要先 commit／stash push，避免覆蓋或刪掉它），全部套用／驗證成功才 drop；不做三方合併，跨分支 stash 合併留待 Phase 3。drop 移除目錄項與 pin，既有保守 GC 不立即 prune 物件。

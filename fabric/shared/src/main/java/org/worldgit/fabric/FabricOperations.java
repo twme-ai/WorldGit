@@ -45,19 +45,27 @@ final class FabricOperations implements WorldOperations.LiveAccess {
     @Override public void beforeComplete() throws IOException {
         if(runtime.cancelRequested()) throw new IOException("操作已取消");
     }
+    private Map<DimensionId,Set<ChunkPos>> guardedChunks;
+    @Override public Map<DimensionId,Set<ChunkPos>> guarded() { return guardedChunks; }
     @Override public AutoCloseable guardApply(Collection<ApplyPlan> plans) throws IOException {
+        return guardApply(plans,Map.of(),true);
+    }
+    @Override public AutoCloseable guardApply(Collection<ApplyPlan> plans,Map<DimensionId,Set<ChunkPos>> extra,boolean allowAtomic) throws IOException {
+        guardedChunks=null;
         var chunks=new TreeMap<DimensionId,Set<ChunkPos>>();
         for(var plan:plans) if(!plan.empty()) {
             var affected=new TreeSet<>(plan.chunks().keySet());var ids=new HashSet<UUID>();
             for(var op:plan.entities()) {ids.add(op.uuid());if(op.hint()!=null)affected.add(op.hint());if(op.targetChunk()!=null)affected.add(op.targetChunk());}
             if(!ids.isEmpty()) affected.addAll(entityChunks(layout.dimensions().get(plan.dimension()),ids));
+            affected.addAll(extra.getOrDefault(plan.dimension(),Set.of()));
             chunks.put(plan.dimension(),affected);
         }
-        atomicApply=plans.size()==1 && plans.stream().allMatch(p->runtime.config().atomicApply().eligible(p) && chunks.get(p.dimension()).equals(LiveApplyVerification.affected(p))
+        atomicApply=allowAtomic && plans.size()==1 && plans.stream().allMatch(p->runtime.config().atomicApply().eligible(p) && chunks.get(p.dimension()).equals(LiveApplyVerification.affected(p)) && extra.getOrDefault(p.dimension(),Set.of()).isEmpty()
             && runtime.onServer(()->{var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(p.dimension().value())));
                 return level!=null && chunks.get(p.dimension()).stream().allMatch(pos->level.getChunkSource().getChunkNow(pos.x(),pos.z())!=null && level.areEntitiesLoaded(Integer.toUnsignedLong(pos.x())|((long)pos.z()<<32)));}));
         if(atomicApply) {var plan=plans.iterator().next();atomicApply=runtime.onServer(()->new FabricApply(runtime,runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(plan.dimension().value()))),new HashMap<>()).atomicLightingSafe(plan));}
         if(atomicApply)return ()->{atomicApply=false;};
+        guardedChunks=chunks;
         return runtime.lockChunks(chunks);
     }
     @Override public void applyRegions(Collection<ApplyPlan> plans) throws IOException {

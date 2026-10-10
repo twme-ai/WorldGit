@@ -85,6 +85,26 @@ final class Messages {
   static Component warn(String text) { return prefix().append(Component.text(text, NamedTextColor.GOLD)); }
   static Component error(String text) { return line("common.error", "message", text); }
   static Component errorKey(String key, Object... args) { return line(key, args); }
+  /** 預檢與上鎖之間出現的未提交變動：列出 chunk 座標與種類（方塊、實體類型與數量），最多 LIMIT 項。 */
+  static Component worldChanged(org.worldgit.core.apply.PreflightChangedException e) {
+    var items = new ArrayList<String>();
+    for (var c : e.chunks()) {
+      var parts = new ArrayList<String>();
+      if (c.blocks() > 0) parts.add(plain(text("paper.error.world-changed-blocks", "n", c.blocks())));
+      if (c.biomes() > 0) parts.add(plain(text("paper.error.world-changed-biomes", "n", c.biomes())));
+      if (!c.entities().isEmpty()) {
+        var types = new ArrayList<String>();
+        c.entities().forEach((type, n) -> types.add(type + "×" + n));
+        parts.add(plain(text("paper.error.world-changed-entities", "types", String.join(", ", types))));
+      }
+      if (parts.isEmpty()) parts.add(plain(text("paper.error.world-changed-other")));
+      items.add(plain(text("paper.error.world-changed-chunk", "x", c.chunk().x(), "z", c.chunk().z(), "what", String.join(", ", parts))));
+    }
+    return line("paper.error.world-changed",
+        "retries", e.attempts() > 1 ? plain(text("paper.error.world-changed-retries", "n", e.attempts() - 1)) : "",
+        "total", e.total(), "list", String.join("; ", items),
+        "more", e.total() > e.chunks().size() ? plain(text("paper.error.world-changed-more", "n", e.total() - e.chunks().size())) : "");
+  }
   static Component permission(String sub) { return line("paper.error.permission", "sub", sub); }
   static Component debugPermission() { return line("paper.error.debug-permission"); }
 

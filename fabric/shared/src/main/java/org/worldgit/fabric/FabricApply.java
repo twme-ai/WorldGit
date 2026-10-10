@@ -81,7 +81,7 @@ final class FabricApply {
                 for(var entry:checks.entrySet()) {
                     var p=entry.getKey();var chunk=level.getChunkSource().getChunkNow(p.x(),p.z());if(chunk==null)throw new IOException("Chunk unloaded after preflight");
                     var raw=ChunkCapture.capture(level,chunk);var entities=new ArrayList<Nbt.Compound>();for(var e:raw.entities())entities.add(ChunkCapture.toCore(e));
-                    if(!entry.getValue().matches(new org.worldgit.core.normalize.ChunkNormalizer(rules,registry).normalize(p,ChunkCapture.toCore(raw.chunk()),entities)))throw new IOException("受影響 chunk 在預檢後已變動，尚未寫入；請重試");
+                    if(!entry.getValue().matches(new org.worldgit.core.normalize.ChunkNormalizer(rules,registry).normalize(p,ChunkCapture.toCore(raw.chunk()),entities)))throw new AtomicChangedException();
                 }
                 runtime.mutate(()->{
                     for(var op:plan.entities())entity(new ApplyPlan.EntityOp(op.uuid(),op.hint(),null),plan.ignoreRules());

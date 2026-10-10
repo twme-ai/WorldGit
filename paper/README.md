@@ -154,7 +154,7 @@ CI 對選定 adapter 與其內部類別檢查 NMS 方法／欄位描述子、存
 
 ## 線上套用、安全與復原
 
-repo executor 在目標維度編輯鎖內完成 flush、capture、預檢、journal、套用與驗證。chunk 由伺服器 async IO 載入，加 plugin ticket 後交由真正 owner 替換 section／BE／biome／scheduled ticks／structures，明確更新 POI、heightmap、光照及 unsaved。Starlight 完成回呼後重送 chunk，最後完成 terrain／entity／POI IO barrier；不直接寫使用中的 `.mca`。Folia 依當下 region ID／tick 共用預算、多 lane 並行；Paper 全維度共用同一個 tick 預算。有玩家時 4 section／5 ms／16 ticket，無玩家時 8／5 ms／24 ticket；section 不可搶占，時間是軟上限。
+repo executor 先在鎖外預檢，再鎖住受影響 chunk；鎖後 flush、capture 才是權威：與預檢基底不同時以鎖後狀態重算計畫（足跡變大就擴大鎖重試），switch 不得覆蓋預檢後才出現的未提交變動（自動重新預檢最多 3 次，仍不同就列出 chunk 座標與種類後拒絕，`switch --stash` 則把它們一併 stash），單 tick 原子套用核對失敗時退回鎖路徑（決定 #163–#167）。之後在編輯鎖內完成 journal、套用與驗證。chunk 由伺服器 async IO 載入，加 plugin ticket 後交由真正 owner 替換 section／BE／biome／scheduled ticks／structures，明確更新 POI、heightmap、光照及 unsaved。Starlight 完成回呼後重送 chunk，最後完成 terrain／entity／POI IO barrier；不直接寫使用中的 `.mca`。Folia 依當下 region ID／tick 共用預算、多 lane 並行；Paper 全維度共用同一個 tick 預算。有玩家時 4 section／5 ms／16 ticket，無玩家時 8／5 ms／24 ticket；section 不可搶占，時間是軟上限。
 
 2026-10-08 使用者決定：套用不使用全伺服器／整世界 freeze、agent 或 attach。小變動在單一 owner tick 寫入並複製驗證資料；較大變動只鎖受影響 chunk 與一圈邊界，保留 scheduled ticks 的剩餘延遲。其他世界及同世界遠處 chunk 照常模擬。預設原子門檻為 1 chunk／1 section／8 個實體操作，設定與逐平台量測、Folia 邊界見 [18](../docs/18-performance.md)。
 

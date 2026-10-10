@@ -308,7 +308,24 @@ fabric-single 原子路徑 owner 記錄共 13 筆，包含最後來源核對、�
 
 門檻仍保守維持 1 chunk／1 section／8 個實體操作，複雜 BE／實體、未載入或光照不安全的內容回退 chunk 鎖。owner 軟預算不能保證每個 chunk 的硬上限；不能把簡單 fixture 的原子耗時推廣至任意生存世界。
 
+預檢在鎖外擷取，鎖後的擷取才是權威（決定 #163–#167）：鎖住的 chunk 不再 tick，所以不凍結、不用 agent 的前提不變，而鎖後重算讓活世界的 chunk（生物、流水、紅石、漏斗、作物持續變動）不再因「預檢期間世界已變動」反覆失敗。重算只多一次受影響範圍的鎖後擷取；其他世界的 TPS 與延遲驗收見下方「預檢鎖後重算的隔離與延遲」。
+
 初次 init 與完整 verify 仍擷取全世界，耗時已列入各平台表。init 的後測最長 tick 間隔為 Paper 992.437 ms、Folia 87.647 ms、Fabric dedicated 242.592 ms、單人 114.619 ms。初次擷取與存檔仍共用 owner、GC 與 IO 資源；這批數據沒有將各原因拆分，不能宣稱已消除全部停頓。上方六筆大型切換的隔離窗口另行驗收，沒有用其 TPS 掩蓋 init 的間隔。
+
+### 預檢鎖後重算的隔離與延遲（2026-10-10，決定 #163–#167）
+
+`python3 paper/tools/benchmark.py --latency paper 26.2 --label after-preflight --require-isolation --rounds 1 --counts 1 10 100 1000`（Paper 26.2，同一 2,704 chunk fixture，每項一輪，switch 每輪往返兩次）全部通過：`success`、`isolation`、`adversary`、`full_verify` 皆為 true，千 chunk 切換期間 A 世界時間與 B 世界時間／流水／紅石持續前進，B TPS 19.977–19.978。鎖後重算沒有讓延遲明顯退步：
+
+| 操作 | 前一版最終 p50 / max（秒） | 本次（秒） |
+|---|---:|---:|
+| `switch-1` | 1.599 / 1.900 | 1.902 / 1.449 |
+| `switch-10` | 2.648 / 2.955 | 2.999 / 2.844 |
+| `switch-100` | 8.202 / 8.494 | 8.747 / 8.399 |
+| `switch-1000` | 44.524 / 45.004 | 44.941 / 44.555 |
+| `merge-100` | 10.744 / 10.802 | 11.150 |
+| `verify` | 11.545 | 11.697 |
+
+本次每項只跑一輪，數字用於確認量級與隔離，不能當作新的 p50。鎖後的權威擷取只在窗口內有變動時才多一次受影響範圍的重算；安靜世界與以往相同（只多一次鎖後比對）。隔離與 TPS 的原始 JSON：`.work/preflight-lock/` 內的 `bench-paper-26.2.log` 與 `.work/perf/after-preflight-paper-26.2/result.json`（工作目錄證據，不提交）。
 
 ### 2 秒目標的實際範圍
 

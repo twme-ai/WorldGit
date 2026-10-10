@@ -26,7 +26,12 @@ final class PaperOperations implements AutoCloseable {
   }
   public record Branch(String name, boolean current, SortedMap<DimensionId,String> commits, boolean consistent) {}
   public record Stash(String id,String time,String message,SortedMap<DimensionId,String> commits,SortedMap<DimensionId,String> bases) {}
-  private record Prepared(SortedMap<DimensionId,RefStore.Commit> commits,SortedMap<DimensionId,ApplyPlan> plans) {}
+  @FunctionalInterface private interface Replanner { ApplyPlan apply(DimensionId dimension,String locked) throws IOException; }
+  private record Prepared(SortedMap<DimensionId,RefStore.Commit> commits,SortedMap<DimensionId,ApplyPlan> plans,Replanner replanner) {
+    Prepared(SortedMap<DimensionId,RefStore.Commit> commits,SortedMap<DimensionId,ApplyPlan> plans) { this(commits,plans,null); }
+  }
+  /** 鎖後才能決定的動作：保護未提交變動（switch），或必要時自動 stash（switch --stash／stash push）。 */
+  private record Hooks(boolean protect,String stashMessage,boolean stashAlways) { static final Hooks NONE=new Hooks(false,null,false); }
   private final WorldLayout layout;
   private final WorldRepositories worlds;
   private final SortedMap<DimensionId,DimensionRepository> repos=new TreeMap<>();
@@ -111,6 +116,8 @@ final class PaperOperations implements AutoCloseable {
           if(queue.stopping || queue.cancelled.get() || Thread.currentThread().isInterrupted()) throw new IOException("操作已取消或插件關閉中");
         }
         public AutoCloseable guardApply(Collection<ApplyPlan> plans) throws IOException { return guardAffectedChunks(plans); }
+        public AutoCloseable guardApply(Collection<ApplyPlan> plans,Map<DimensionId,Set<ChunkPos>> extra,boolean allowAtomic) throws IOException { return guardAffectedChunks(plans,extra,allowAtomic); }
+        public Map<DimensionId,Set<ChunkPos>> guarded() { return atomicApply ? null : lockedChunks; }
         public void validate(ApplyPlan plan) throws IOException { beforeComplete(); validateOnline(plan); }
         public void applyAll(Collection<ApplyPlan> plans) throws IOException {
           var all=new TreeMap<DimensionId,ApplyPlan>(); plans.forEach(p->all.put(p.dimension(),p));
@@ -196,7 +203,12 @@ final class PaperOperations implements AutoCloseable {
 
       plans.put(entry.getKey(),plan); commits.put(entry.getKey(),target);
     }
-    return new Prepared(commits,plans);
+    return new Prepared(commits,plans,(dim,locked)->{
+      var repo=repos.get(dim);
+      var next=ApplyPlanner.plan(repo.objects(),dim,locked,commits.get(dim).tree(),scope,options(repo,commits.get(dim),meta,delete));
+      applier.validateMetadata(next);
+      return next;
+    });
   }
   private static SortedMap<DimensionId,ApplyPlan.Stats> stats(Prepared prepared) {
     var result=new TreeMap<DimensionId,ApplyPlan.Stats>(); prepared.plans.forEach((id,p)->result.put(id,p.stats())); return result;
@@ -221,8 +233,8 @@ final class PaperOperations implements AutoCloseable {
     if(stash && force) throw new IOException("--stash 與 --force 不可同時使用");
     if(!force) requireComplete();
     var prepared=prepare(resolve(revision),null,Scope.all(),true,delete);
-    if(dirty() && !force && !stash) throw new IOException("工作區有未提交變動；請 commit、stash push、switch --stash 或 --force。");
-    if(stash && !dryRun && dirty()) saveStash("switch 前自動 stash");
+    boolean wasDirty=dirty();
+    if(wasDirty && !force && !stash) throw new IOException("工作區有未提交變動；請 commit、stash push、switch --stash 或 --force。");
     boolean branch=repos.values().stream().allMatch(r->{try{return r.refs().branches().containsKey(revision);}catch(IOException e){return false;}});
     if(!force && !stash && repos.size()==1) {
       var repo=repos.get(repos.firstKey());var target=prepared.commits.get(repo.dimension());var prior=repo.refs().headState();
@@ -247,7 +259,8 @@ final class PaperOperations implements AutoCloseable {
         return new Result(State.COMPLETE,stats(prepared),null);
       }
     }
-    return execute("switch",prepared,branch ? revision : null,true,dryRun);
+    // 未提交變動的判定與 stash 都在上鎖後的權威擷取上做（決策 #163）。
+    return execute("switch",prepared,branch ? revision : null,true,dryRun,new Hooks(!force && !stash,stash && !dryRun ? "switch 前自動 stash" : null,wasDirty));
   }
   public Result resetHard(String revision,boolean force,boolean dryRun) throws IOException {
     requireNotMerging();
@@ -258,35 +271,100 @@ final class PaperOperations implements AutoCloseable {
   private boolean dirty() throws IOException {
     return dirty(false);
   }
+  /** 與 dirty 相同的「被追蹤內容」：switch 保留且標記的 untracked chunk 不計入。 */
+  private String trackedTree(DimensionRepository repo,String tree,boolean includeUntracked) throws IOException {
+    String head=repo.refs().head();
+    var editor=new TreeEditor(repo.objects(),tree);
+    // switch 保留且標記的 untracked chunk 不阻擋後續切換；explicit commit 會重新追蹤它們。
+    if(!includeUntracked) for(var pos:untracked(repo.directory())) if(TreeEditor.find(repo.objects(),repo.refs().readCommit(head).tree(),pos.treePath())==null) editor.remove(pos.treePath());
+    String tracked=editor.write(); repo.objects().flush(); return tracked;
+  }
   private boolean dirty(boolean includeUntracked) throws IOException {
     for(var repo:repos.values()) {
       String head=repo.refs().head();
       if(head==null) return true;
-      String tree=capture(repo);
-      var editor=new TreeEditor(repo.objects(),tree);
-      // switch 保留且標記的 untracked chunk 不阻擋後續切換；explicit commit 會重新追蹤它們。
-      if(!includeUntracked) for(var pos:untracked(repo.directory())) if(TreeEditor.find(repo.objects(),repo.refs().readCommit(head).tree(),pos.treePath())==null) editor.remove(pos.treePath());
-      String tracked=editor.write(); repo.objects().flush();
+      String tracked=trackedTree(repo,capture(repo),includeUntracked);
       if(!new DiffEngine(repo.objects()).compare(repo.dimension(),repo.refs().readCommit(head).tree(),tracked,tolerance,DiffEngine.Detail.SUMMARY).empty()) return true;
     }
     return false;
   }
 
   private Result execute(String mode,Prepared prepared,String branch,boolean moveHead,boolean dryRun) throws IOException {
+    return execute(mode,prepared,branch,moveHead,dryRun,Hooks.NONE);
+  }
+  /** 預檢到上鎖之間的最大重試次數（含第一次）。 */
+  private static final int MAX_ATTEMPTS=3;
+  private Result execute(String mode,Prepared prepared,String branch,boolean moveHead,boolean dryRun,Hooks hooks) throws IOException {
     if(dryRun) return new Result(State.DRY_RUN,stats(prepared),null);
     boolean writes=prepared.plans.values().stream().anyMatch(p->!p.empty());
-    try(var pause=writes ? guardAffectedChunks(prepared.plans.values()) : (AutoCloseable)()->{}) {
-      if(writes) {
-        captured.clear();
-        for(var entry:prepared.plans.entrySet()) {
-          var repo=repos.get(entry.getKey());
-          if(!new DiffEngine(repo.objects()).compare(entry.getKey(),entry.getValue().baseTree(),
-              capture(repo),tolerance,DiffEngine.Detail.SUMMARY,LiveApplyVerification.affected(entry.getValue())).empty())
-            throw new IOException("預檢期間世界已變動，尚未寫入；請重試操作");
-        }
-      }
+    if(!writes) {
+      if(hooks.stashMessage()!=null && hooks.stashAlways()) saveStash(hooks.stashMessage());
       return executeGuarded(mode,prepared,branch,moveHead);
-    } catch(IOException e) {throw e;} catch(Exception e) {throw new IOException("世界 tick 屏障失敗",e);}
+    }
+    try {return executeLocked(mode,prepared,branch,moveHead,hooks);}
+    catch(IOException e) {throw e;} catch(Exception e) {throw new IOException("世界 tick 屏障失敗",e);}
+  }
+  /**
+   * 決策 #163：預檢（鎖外、世界照常 tick）只用來估算計畫與鎖範圍；上鎖後的擷取才是權威。
+   * 與預檢基底不同時以鎖後狀態重算計畫（足跡超出已鎖範圍就擴大鎖重試）；switch 這類不可覆蓋未提交變動的操作，
+   * 若鎖後範圍與 HEAD 不同則自動重新預檢（最多 MAX_ATTEMPTS 次），仍有差異才列出變動並拒絕。
+   */
+  private Result executeLocked(String mode,Prepared prepared,String branch,boolean moveHead,Hooks hooks) throws Exception {
+    var plans=new TreeMap<>(prepared.plans);
+    var extra=new TreeMap<DimensionId,Set<ChunkPos>>();
+    boolean allowAtomic=true;
+    int attempt=1;
+    for(int loops=0;loops<MAX_ATTEMPTS*3;loops++) {
+      LockedRecheck.testWindow();
+      WorldDiff dirt=null; boolean again=false;
+      try(var pause=guardAffectedChunks(plans.values(),extra,allowAtomic)) {
+        if(atomicApply) {
+          // 單 tick 原子套用：owner tick 內的核對才是權威；不一致時 AtomicChangedException，改走上鎖路徑。
+          return executeGuarded(mode,new Prepared(prepared.commits,plans,prepared.replanner),branch,moveHead);
+        }
+        captured.clear();
+        var next=new TreeMap<DimensionId,ApplyPlan>(); var replanned=new ArrayList<ApplyPlan>(); boolean stashNow=false;
+        for(var entry:plans.entrySet()) {
+          var repo=repos.get(entry.getKey()); var plan=entry.getValue();
+          String locked=capture(repo);
+          var ids=new HashSet<UUID>(); for(var op:plan.entities()) ids.add(op.uuid());
+          String head=hooks.protect() || hooks.stashMessage()!=null ? repo.refs().readCommit(repo.refs().head()).tree() : null;
+          var replanner=prepared.replanner;
+          var result=LockedRecheck.check(repo.objects(),entry.getKey(),plan,locked,tolerance,
+              lockedChunks.getOrDefault(entry.getKey(),LiveApplyVerification.affected(plan)),ids,head,
+              t->{try {return trackedTree(repo,t,false);} catch(IOException e) {throw new UncheckedIOException(e);}},
+              replanner==null ? null : l->replanner.apply(entry.getKey(),l));
+          next.put(entry.getKey(),result.plan());
+          if(result.replanned() && result.stable()) replanned.add(result.plan());
+          if(!result.needLock().isEmpty() || result.entitiesGrew()) {
+            extra.computeIfAbsent(entry.getKey(),k->new TreeSet<>()).addAll(result.needLock()); again=true;
+          } else if(result.dirt()!=null) {
+            if(hooks.stashMessage()!=null && replanner!=null) stashNow=true; else dirt=result.dirt();
+          }
+        }
+        plans.clear(); plans.putAll(next);
+        if(!again && dirt==null) {
+          for(var plan:replanned) if(!plan.empty()) validateOnline(plan);
+          if(stashNow || hooks.stashMessage()!=null && hooks.stashAlways()) saveStash(hooks.stashMessage());
+          return executeGuarded(mode,new Prepared(prepared.commits,next,prepared.replanner),branch,moveHead);
+        }
+      } catch(IOException|RuntimeException ex) {
+        if(!AtomicChangedException.in(ex)) throw ex;
+        allowAtomic=false; continue;
+      }
+      if(again) continue;
+      // 鎖已釋放：鎖後範圍出現預檢時沒有的未提交變動；重新預檢，仍然不同才列出並拒絕。
+      if(prepared.replanner==null || attempt>=MAX_ATTEMPTS) throw PreflightChangedException.of(dirt,attempt);
+      attempt++; captured.clear();
+      for(var entry:new TreeMap<>(plans).entrySet()) {
+        var repo=repos.get(entry.getKey()); String fresh=capture(repo);
+        var diff=LockedRecheck.dirt(repo.objects(),entry.getKey(),repo.refs().readCommit(repo.refs().head()).tree(),trackedTree(repo,fresh,false),tolerance);
+        if(!diff.empty()) throw PreflightChangedException.of(diff,attempt);
+        var replan=prepared.replanner.apply(entry.getKey(),fresh); validateOnline(replan);
+        plans.put(entry.getKey(),replan);
+      }
+    }
+    throw new IOException("預檢與上鎖之間世界持續變動，無法穩定套用；尚未寫入，請稍後重試");
   }
 
   private Set<ChunkPos> matchingEntityChunks(DimensionId dimension,Set<UUID> ids) throws IOException {
@@ -309,8 +387,13 @@ final class PaperOperations implements AutoCloseable {
 
   private boolean atomicApply;
   private final Map<DimensionId,Map<ChunkPos,NmsBridge.RawChunk>> atomicReceipts=new TreeMap<>();
+  private Map<DimensionId,Set<ChunkPos>> lockedChunks=new TreeMap<>();
   private AutoCloseable guardAffectedChunks(Collection<ApplyPlan> plans) throws IOException {
-    atomicApply=!plugin.platform().folia() && plans.size()==1 && plans.stream().allMatch(p->plugin.settings().atomicApply().eligible(p)
+    return guardAffectedChunks(plans,Map.of(),true);
+  }
+  private AutoCloseable guardAffectedChunks(Collection<ApplyPlan> plans,Map<DimensionId,Set<ChunkPos>> extra,boolean allowAtomic) throws IOException {
+    lockedChunks=new TreeMap<>();
+    atomicApply=allowAtomic && extra.values().stream().allMatch(Set::isEmpty) && !plugin.platform().folia() && plans.size()==1 && plans.stream().allMatch(p->plugin.settings().atomicApply().eligible(p)
         && live.get(p.dimension()).entityChunks().stream().allMatch(c->p.entities().isEmpty() || LiveApplyVerification.affected(p).contains(c))
         && plugin.state(p.dimension(),mapping.worlds().get(p.dimension())).refresh(plugin.bridge(),mapping.worlds().get(p.dimension())).loaded().containsAll(LiveApplyVerification.affected(p)));
     if(atomicApply) {
@@ -326,6 +409,8 @@ final class PaperOperations implements AutoCloseable {
         var ids=new HashSet<UUID>();
         for(var entity:plan.entities()) { ids.add(entity.uuid()); if(entity.hint()!=null)chunks.add(entity.hint());if(entity.targetChunk()!=null)chunks.add(entity.targetChunk()); }
         if(!ids.isEmpty())chunks.addAll(matchingEntityChunks(plan.dimension(),ids));
+        chunks.addAll(extra.getOrDefault(plan.dimension(),Set.of()));
+        lockedChunks.put(plan.dimension(),chunks);
         locks.add(live.get(plan.dimension()).lockEdits(chunks,"WorldGit apply"));
       }
       return ()->{for(int i=locks.size()-1;i>=0;i--) locks.get(i).close();};
@@ -334,6 +419,7 @@ final class PaperOperations implements AutoCloseable {
 
   private Result executeGuarded(String mode,Prepared prepared,String branch,boolean moveHead) throws IOException {
     var old=new TreeMap<DimensionId,RefStore.Head>();
+    var priorJournal=journal();
     var journal=new LinkedHashMap<String,Object>();
     journal.put("version",1); journal.put("operation",UUID.randomUUID().toString()); journal.put("mode",mode);
     journal.put("state","APPLYING"); journal.put("time",Instant.now().toString());
@@ -403,6 +489,13 @@ final class PaperOperations implements AutoCloseable {
       }
       return new Result(State.COMPLETE,stats(prepared),null);
     } catch(Exception ex) {
+      if(AtomicChangedException.in(ex)) {
+        // 原子套用在 owner tick 核對失敗：沒有寫入任何內容。還原先前的 journal，交給呼叫端改走上鎖路徑。
+        synchronized(plugin.repo()) {
+          if(priorJournal.isEmpty()) Files.deleteIfExists(stateRoot.resolve("apply-state.yml")); else OperationState.write(stateRoot.resolve("apply-state.yml"),priorJournal);
+        }
+        throw ex instanceof IOException io ? io : new IOException(ex);
+      }
       if(queue.stopping) {
         // 停服 journal 仍由持 repo lock 的 worker 寫，owner 不做磁碟 IO。
         boolean interrupted=Thread.interrupted();
@@ -516,8 +609,7 @@ final class PaperOperations implements AutoCloseable {
     var prepared=prepare(resolve("HEAD"),null,Scope.all(),true,true);
     if(dryRun) return new Result(State.DRY_RUN,stats(prepared),null);
     if(!dirty() && prepared.plans.values().stream().allMatch(ApplyPlan::empty)) return new Result(State.COMPLETE,stats(prepared),null);
-    saveStash(message==null ? "工作區 stash" : message);
-    return execute("stash-push",prepared,null,false,false);
+    return execute("stash-push",prepared,null,false,false,new Hooks(false,message==null ? "工作區 stash" : message,true));
   }
   private Stash stashAt(int index) throws IOException { var list=stashes(); if(index<0 || index>=list.size()) throw new IOException("找不到 stash@{"+index+"}"); return list.get(index); }
   public Result stashPop(int index,boolean dryRun) throws IOException {
@@ -597,7 +689,7 @@ final class PaperOperations implements AutoCloseable {
         for(var entry:checks.entrySet()) {
           var pos=entry.getKey();var raw=plugin.bridge().copy(world,pos.x(),pos.z());
           if(raw==null || !entry.getValue().matches(new org.worldgit.core.normalize.ChunkNormalizer(rules,registry).normalize(pos,raw.terrain(),raw.entities())))
-            throw new IOException("受影響 chunk 在預檢後已變動，尚未寫入；請重試");
+            throw new AtomicChangedException();
         }
         var ids=new HashSet<UUID>();for(var op:plan.entities()) {ids.add(op.uuid());collectIds(op.target()==null ? null : op.target().data(),ids);}
         for(var pos:checks.keySet()) {var raw=plugin.bridge().copy(world,pos.x(),pos.z());if(raw!=null)for(var entity:raw.entities())rememberEntity(entity,ids);plugin.bridge().removeEntities(world,pos.x(),pos.z(),ids);}

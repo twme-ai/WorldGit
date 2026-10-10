@@ -212,6 +212,7 @@ final class Commands implements CommandTree.Actions {
     Throwable root = error instanceof java.util.concurrent.CompletionException && error.getCause() != null ? error.getCause() : error;
     if(OperationUi.current()!=null)OperationUi.current().failed(root);
     if(root instanceof UserError user) { reply(sender,plugin.operations().error(Messages.line(user.key,user.args))); return; }
+    if(root instanceof org.worldgit.core.apply.PreflightChangedException changed) { reply(sender,Messages.worldChanged(changed)); return; }
     reply(sender, Messages.error(root.getMessage() == null ? root.toString() : root.getMessage()));
     if (!(root instanceof IOException)) plugin.getLogger().log(Level.WARNING, "WorldGit 指令失敗", root);
   }

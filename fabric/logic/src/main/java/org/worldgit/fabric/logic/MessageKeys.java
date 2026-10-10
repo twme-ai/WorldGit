@@ -160,6 +160,7 @@ public final class MessageKeys {
   public static final String APPLY_FINISHED=def("fabric.apply.finished","target");
   public static final String ERROR_DIRTY=def("fabric.error.dirty");
   public static final String ERROR_PARTIAL=def("fabric.error.partial");
+  public static final String ERROR_WORLD_CHANGED=def("fabric.error.world-changed","retries","total","list","more");
   private static final Map<org.worldgit.platform.ApplyProgress.Phase,String> PHASES=new EnumMap<>(org.worldgit.platform.ApplyProgress.Phase.class);
   static { for(var phase:org.worldgit.platform.ApplyProgress.Phase.values()) PHASES.put(phase,def("fabric.apply.phase."+phase.name().toLowerCase(Locale.ROOT))); }
   public static String phase(org.worldgit.platform.ApplyProgress.Phase phase) { return PHASES.get(phase); }

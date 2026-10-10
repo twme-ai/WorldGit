@@ -366,6 +366,17 @@ public final class WgCommands {
             return Msg.of(MessageKeys.TOUCH_DUPLICATE, "uuid", d.uuid(), "dimension", d.dimension());
         }
         if (t instanceof WorldOps.NotInitializedException) return Messages.error(MessageKeys.ERROR_NOT_INITIALIZED);
+        if (t instanceof org.worldgit.core.apply.PreflightChangedException changed) {
+            var list = new StringBuilder();
+            for (var c : changed.chunks()) {
+                if (list.length() > 0) list.append("; ");
+                list.append('[').append(c.chunk().x()).append(',').append(c.chunk().z()).append("] blocks=").append(c.blocks());
+                if (c.biomes() > 0) list.append(" biomes=").append(c.biomes());
+                if (!c.entities().isEmpty()) list.append(" entities=").append(c.entities().entrySet().stream().map(e -> e.getKey() + "x" + e.getValue()).collect(java.util.stream.Collectors.joining(",")));
+            }
+            return Msg.of(MessageKeys.ERROR_WORLD_CHANGED, "retries", changed.attempts() - 1, "total", changed.total(), "list", list,
+                "more", changed.total() > changed.chunks().size() ? "; +" + (changed.total() - changed.chunks().size()) + " more" : "");
+        }
         String text = t.getMessage() == null || t.getMessage().isBlank() ? t.getClass().getSimpleName() : rt.mask(t.getMessage());
         if (text.contains("工作區有未提交")) return Msg.of(MessageKeys.ERROR_DIRTY);
         if (text.contains("世界為 PARTIAL")) return Msg.of(MessageKeys.ERROR_PARTIAL);
