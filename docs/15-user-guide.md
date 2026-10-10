@@ -425,7 +425,7 @@ commit 的 `-m` 與 stash 訊息取後面全部文字；PR 建議 `/wg pr create
 
 每次修改先以 HEAD 顯示會排除的數量和樣本，再確認。MERGING 禁止修改；檔案行號是規則 ID，註解／空行會保留。確認只寫工作區 `.wgignore`，下一 commit 記錄規則歷史。未提交世界內容不在 HEAD preview 的統計中。
 
-新 creative repo 完整追蹤方塊／BE／biome／地形，實體使用 `entities: player-touched`，只存玩家放出／更改的實體（玩家除外）：自然牛不入庫，命名後入庫；蛋、summon／data entity、放置／互動、WE／FAWE、乘客／載具、UUID 轉換與跨維度傳送保留資格。init 前觸及於本次開服期間暫存並在 init 繼承。restore 保留集合外自然實體；如果目標 UUID 已在另一維度，套用前拒絕並指出維度。新 survival repo 使用 `entities: all`，再由 `.wgignore` 排除非 persistent 生物、掉落物等；舊 repo 維持原 entities 設定。
+新 creative repo 完整追蹤方塊／BE／biome／地形，實體使用 `entities: player-touched`，只存玩家放出／更改的實體（玩家除外）：自然牛不入庫，命名後入庫；蛋、summon／data entity、放置／互動、WE／FAWE、乘客／載具、UUID 轉換與跨維度傳送保留資格。init 前觸及於本次開服期間暫存並在 init 繼承。restore 保留集合外自然實體；如果目標 UUID 已在另一維度，套用前拒絕並指出維度。creative 範本的 `.wgignore` 也預設啟用排除規則：非 persistent 生物、掉落物、經驗球、箭即使被玩家觸及也不入庫（命名等使生物變為 persistent 後仍會入庫）。新 survival repo 使用 `entities: all`，再由 `.wgignore` 排除非 persistent 生物、掉落物等；舊 repo 維持原 entities 設定。
 
 每個正式動作都有 SUCCESS／NO_OP／PARTIAL／FAILED／CANCELLED 終態與摘要、目標及耗時；耗時操作以 BossBar 顯示階段／比例／ETA，console 節流文字。執行者與有 `worldgit.notify` 的觀察者可見，成功綠／失敗紅終態預設三秒後移除。錯誤後的獨立 `[複製]` 可複製已遮罩的版本／UTC／維度／operation id 報告，hover 來自語言檔。
 

@@ -70,11 +70,13 @@ class ConfigTest {
     var creative = IgnoreRules.parse(IgnoreTemplates.load("creative"));
     var survival = IgnoreRules.parse(IgnoreTemplates.load("survival"));
     var e = TestWorlds.entity(UUID.randomUUID(), 0, false);
-    assertFalse(creative.ignoredEntity(e, EntitySemantics.OFFLINE));
+    assertTrue(creative.ignoredEntity(e, EntitySemantics.OFFLINE));
     assertTrue(survival.ignoredEntity(e, EntitySemantics.OFFLINE));
     e.put("CustomName", "display");
+    assertFalse(creative.ignoredEntity(e, EntitySemantics.OFFLINE));
     assertFalse(survival.ignoredEntity(e, EntitySemantics.OFFLINE));
     e.put("id", "minecraft:item");
+    assertTrue(creative.ignoredEntity(e, EntitySemantics.OFFLINE));
     assertTrue(survival.ignoredEntity(e, EntitySemantics.OFFLINE));
   }
 }
