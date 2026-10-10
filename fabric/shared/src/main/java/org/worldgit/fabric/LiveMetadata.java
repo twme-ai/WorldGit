@@ -11,7 +11,7 @@ final class LiveMetadata {
     static void validate(ServerRuntime runtime, ApplyPlan plan) throws IOException {
         for(var entry:plan.worldMeta().entrySet()) {
             if(!entry.getKey().equals("level.nbt") || entry.getValue()==null)
-                throw new IOException("此世界設定需離線 restore："+entry.getKey());
+                throw new IOException("此世界設定需離線 restore："+org.worldgit.core.anvil.SavedData.displayName(entry.getKey()));
             var target=Nbt.read(entry.getValue());
             var current=org.worldgit.core.anvil.WorldLayout.readGzip(runtime.worldRoot().resolve("level.dat")).compound("Data");
             for(String field:OfflineApplier.LEVEL_FIELDS)

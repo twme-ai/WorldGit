@@ -17,7 +17,7 @@ public final class MergeEngine {
 
   private final ObjectStore store;
   private final DimensionId dimension;
-  private final String base, ours, theirs;
+  private String base, ours, theirs;
   private final List<String> oursAuthors, theirsAuthors;
   private final List<Atom> conflicts = new ArrayList<>();
   private final Set<String> changedSections = new TreeSet<>();
@@ -56,6 +56,9 @@ public final class MergeEngine {
 
   public Result merge(int distance) throws IOException {
     if (distance < 0 || distance > 16) throw new IllegalArgumentException("分群距離 k 必須為 0..16");
+    base = TreeFilter.runtime(store, base);
+    ours = TreeFilter.runtime(store, ours);
+    theirs = TreeFilter.runtime(store, theirs);
     org.worldgit.core.operation.OperationProgress.report(dimension, "merge-compute", 0, null, org.worldgit.core.operation.OperationProgress.Unit.SECTION);
     String tree = mergeNode("", base, ours, theirs, ObjectStore.Kind.TREE);
     if (tree == null) tree = store.writeTree(List.of());

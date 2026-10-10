@@ -4,6 +4,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.worldgit.core.anvil.Nbt;
+import org.worldgit.core.anvil.SavedData;
 import org.worldgit.core.config.*;
 import org.worldgit.core.model.*;
 import org.worldgit.core.normalize.*;
@@ -13,6 +14,28 @@ import org.worldgit.core.store.*;
 public final class TreeFilter {
   private TreeFilter() {}
 
+  /** 只讀取 metadata 子樹；即使 ignore 相同，也必須正規化舊歷史的 runtime。 */
+  public static String runtime(ObjectStore store, String tree) throws IOException {
+    if (tree == null) return null;
+    var editor = new TreeEditor(store, tree);
+    boolean changed = false;
+    for (String name : List.of("world-meta", "dimension-meta")) {
+      var metadata = store.readTree(tree).get(name);
+      if (metadata == null || metadata.kind() != ObjectStore.Kind.TREE) continue;
+      for (var entry : store.readTree(metadata.id()).values()) {
+        if (entry.kind() != ObjectStore.Kind.BLOB || SavedData.relativePath(entry.name()) == null) continue;
+        String path = name + "/" + entry.name();
+        if (SavedData.transientEntry(entry.name())) { editor.remove(path); changed = true; continue; }
+        byte[] raw = store.readBlob(entry.id()), normalized = SavedData.normalize(entry.name(), raw);
+        if (!Arrays.equals(raw, normalized)) {
+          if (normalized == null) editor.remove(path); else editor.putBlob(path, normalized);
+          changed = true;
+        }
+      }
+    }
+    return changed ? editor.write() : tree;
+  }
+
   public static String rules(ObjectStore store, String tree) throws IOException {
     var e = TreeEditor.find(store, tree, ".wgignore");
     return e == null ? "" : new String(store.readBlob(e.id()), StandardCharsets.UTF_8);
@@ -21,6 +44,7 @@ public final class TreeFilter {
   public static String filter(
       ObjectStore store, String tree, String ruleText, EntitySemantics semantics)
       throws IOException {
+    tree = runtime(store, tree);
     if (rules(store, tree).equals(ruleText)) return tree;
     var rules = IgnoreRules.parse(ruleText);
     var editor = new TreeEditor(store, tree);

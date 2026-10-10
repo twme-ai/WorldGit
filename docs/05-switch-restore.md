@@ -145,6 +145,21 @@ chunk 半徑為正方形且含端點；block box 與 BE 逐格裁切。biome 是
 | 玩家資料／背包／進度、Time／DayTime、天氣、未追蹤 level.dat 欄位 | 保留 | 保留 |
 | repo 的 track 設定 | 移動 HEAD 的 switch／有 revision 的 reset 同步 sidecar；其他 restore 保留 sidecar | 保留 |
 
+### 暫態 saved-data
+
+26.x 把原本放在 `level.dat` 的執行期狀態拆成獨立檔案；這些狀態與 1.21.11 的 `level.dat` 白名單同語意，**不版本化、不還原**（決定 #159–#161）：
+
+| 檔案／欄位 | 處理 | 理由 |
+|---|---|---|
+| `data/minecraft/world_clocks.dat`、`weather.dat`、`wandering_trader.dat` | 整檔不追蹤 | 只含遊戲時間、天氣與生成倒數，每 tick 或每次天氣變化都會變 |
+| `random_sequences.dat` 的 `sequences` | 欄位不追蹤；`salt`、`include_*` 追蹤，預設值視為不存在 | RNG 游標隨戰利品／隨機使用變動；`/random reset` 設定屬於使用者意圖 |
+| `stopwatches.dat` 的時間戳 | 歸零比較，只追蹤碼表名稱 | 時間戳隨遊戲時間變動 |
+| `raids.dat` 的 `tick`、Paper `level_override(s).dat` 的 `game_time` | 欄位不追蹤 | 遊戲時鐘（沿用既有規則） |
+
+raid 清單與 `next_id`、龍戰、地圖、記分板、gamerule、世界邊界等仍照常追蹤。套用（switch／restore／reset／stash）保留目標世界目前的暫態值，不回寫舊時鐘或天氣；新組裝的世界由遊戲自行建立預設值。
+
+舊版建立的 repo 歷史若已含這些條目，不改寫 Git 歷史：diff／status／switch 規劃／merge／Hub 檢視讀 tree 時兩邊都會過濾，不會出現假刪除或 world-meta 差異；正規化 fingerprint 升版，舊索引自動重建。若仍有其他 world-meta 差異使線上操作被拒，訊息會列出解碼後的檔名，請停止伺服器後用 CLI 離線還原。
+
 ### stash 與 reset
 
 stash 保存全組 working tree，每維度一個以原 HEAD 為 parent 的獨立 commit，pin 在 `refs/worldgit/stash/<UUID>`，世界組 `stash.yml` 按新到舊保存 UUID、time、message、commits／bases。全組 capture／refs 成功後才發布清單；push 發布後再還原 HEAD，清除已保存的新增 chunk，寫回失敗保留 stash 與 PARTIAL。`switch --stash` 只保存工作區後直接切換，省去一次中間還原。pop 限原基底、乾淨工作區（連保留的 untracked 也要先 commit／stash push，避免覆蓋或刪掉它），全部套用／驗證成功才 drop；不做三方合併，跨分支 stash 合併留待 Phase 3。drop 移除目錄項與 pin，既有保守 GC 不立即 prune 物件。

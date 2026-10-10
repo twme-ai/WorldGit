@@ -51,7 +51,7 @@ public class MergePreviewService {
   private synchronized Cached compute(WorldRow w,String oursSpec,String theirsSpec,DimensionId selected) throws IOException {
     var ours=compare.resolve(w,oursSpec,selected);var theirs=compare.resolve(w,theirsSpec,selected);
     org.worldgit.core.operation.OperationProgress.report(selected,"merge-preview",0L,null,org.worldgit.core.operation.OperationProgress.Unit.SECTION);
-    StringBuilder signature = new StringBuilder(w.id());
+    StringBuilder signature = new StringBuilder(org.worldgit.core.anvil.SavedData.NORMALIZATION).append('|').append(w.id());
     for (var side : List.of(ours, theirs)) {
       signature.append('|'); side.commits().forEach((d,c) -> signature.append(d).append('=').append(c.id()).append(';'));
     }

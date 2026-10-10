@@ -3,6 +3,7 @@ package org.worldgit.core.normalize;
 import java.io.IOException;
 import java.util.*;
 import org.worldgit.core.anvil.Nbt;
+import org.worldgit.core.anvil.SavedData;
 import org.worldgit.core.config.IgnoreRules;
 
 /** world-meta 的 field selector；設定檔由 service 加入，不受 NBT 欄位規則影響。 */
@@ -13,12 +14,14 @@ public final class MetadataNormalizer {
       throws IOException {
     var result = new TreeMap<String, byte[]>();
     for (var entry : metadata.entrySet()) {
+      byte[] bytes = SavedData.normalize(entry.getKey(), entry.getValue());
+      if (bytes == null) continue;
       String type = type(entry.getKey());
       if (type == null) {
-        result.put(entry.getKey(), entry.getValue().clone());
+        result.put(entry.getKey(), bytes.clone());
         continue;
       }
-      var data = Nbt.read(entry.getValue());
+      var data = Nbt.read(bytes);
       if (chunkTickets(entry.getKey())) stableChunkTickets(data);
       if (entry.getKey().equals("level.nbt") && data.containsKey("DataPacks"))
         data.put("DataPacks", portablePacks(data.compound("DataPacks")));

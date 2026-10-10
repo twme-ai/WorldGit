@@ -11,6 +11,7 @@ common:
 
 paper:
   phase5:
+    online-meta-unsupported: "Online restore of world-meta is not supported: <files>. Restore these settings offline (stop the server, then run wgit switch/restore with the CLI)."
     terminal: "<operation> finished: <status> · <dimension> (<millis> ms)"
     recovery: "<yellow>Check /wg status and the dimension journal; recover with switch --force or reset --hard before committing.</yellow>"
     target-exclusive: "<red>Choose --dimension or --all.</red>"

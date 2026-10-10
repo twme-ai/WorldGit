@@ -292,6 +292,8 @@ public final class DimensionRepository implements AutoCloseable {
                     + "\0"
                     + tolerance
                     + "\0"
+                    + SavedData.NORMALIZATION
+                    + "\0"
                     + source.normalizationFingerprint())
                 .concat("\0" + modifiedPolicy + "\0" + (playerTouched ? touched.toString() : "all"))
                 .getBytes(StandardCharsets.UTF_8));

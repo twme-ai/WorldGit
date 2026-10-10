@@ -2,6 +2,7 @@ package org.worldgit.core.diff;
 
 import java.io.*;
 import java.util.*;
+import org.worldgit.core.anvil.SavedData;
 import org.worldgit.core.diff.WorldDiff.*;
 import org.worldgit.core.model.*;
 import org.worldgit.core.normalize.*;
@@ -55,6 +56,13 @@ public final class DiffEngine {
       org.worldgit.core.operation.OperationProgress.report(dimension, "diff", completedLeaves++, (long)leaves.size(), org.worldgit.core.operation.OperationProgress.Unit.OBJECT);
       String[] path = leaf.path.split("/");
       String name = path[path.length - 1];
+      if (path.length == 2 && Set.of("world-meta", "dimension-meta").contains(path[0])
+          && SavedData.relativePath(name) != null) {
+        if (SavedData.transientEntry(name)) continue;
+        byte[] a = leaf.before == null ? null : SavedData.normalize(name, store.readBlob(leaf.before)),
+            b = leaf.after == null ? null : SavedData.normalize(name, store.readBlob(leaf.after));
+        if (Arrays.equals(a, b)) continue;
+      }
       ChunkPos chunk =
           path.length == 3 && path[0].startsWith("r.") && path[1].startsWith("c.")
               ? chunk(path[1])

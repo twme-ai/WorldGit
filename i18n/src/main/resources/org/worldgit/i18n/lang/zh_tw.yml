@@ -10,6 +10,7 @@ common:
 
 paper:
   phase5:
+    online-meta-unsupported: "線上 world-meta 還原尚不支援：<files>。請停止伺服器後，用 CLI 離線 switch／restore 還原這些設定。"
     terminal: "<operation> 完成：<status> · <dimension>（<millis> ms）"
     recovery: "<yellow>請查 /wg status 與該維度 journal；以 switch --force 或 reset --hard 恢復後再 commit。</yellow>"
     target-exclusive: "<red>--dimension 與 --all 請擇一使用。</red>"

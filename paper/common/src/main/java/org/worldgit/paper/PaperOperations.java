@@ -574,7 +574,7 @@ final class PaperOperations implements AutoCloseable {
       }
     }
     for(var op:plan.chunks().values()) if(op.delete()) throw new IOException("線上不刪除 chunk；stash 請先 commit 新增地形，或離線清理");
-    if(!plan.worldMeta().isEmpty()) throw new IOException("線上 world-meta 還原尚不支援："+plan.worldMeta().keySet()+"；請離線還原設定");
+    if(!plan.worldMeta().isEmpty()) throw new IOException(Messages.plain(Messages.text("paper.phase5.online-meta-unsupported","files",plan.worldMeta().keySet().stream().map(org.worldgit.core.anvil.SavedData::displayName).toList())));
   }
   private void applyAtomic(ApplyPlan plan) throws IOException {
     var world=mapping.worlds().get(plan.dimension());var path=worlds.tracked().get(plan.dimension());

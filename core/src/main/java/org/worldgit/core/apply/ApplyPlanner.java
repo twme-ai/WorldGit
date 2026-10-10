@@ -3,6 +3,7 @@ package org.worldgit.core.apply;
 import java.io.IOException;
 import java.util.*;
 import org.worldgit.core.anvil.Nbt;
+import org.worldgit.core.anvil.SavedData;
 import org.worldgit.core.config.*;
 import org.worldgit.core.model.*;
 import org.worldgit.core.normalize.*;
@@ -204,7 +205,11 @@ public final class ApplyPlanner {
           if (e.kind() != ObjectStore.Kind.BLOB || e.name().equals("worldgit.yml")) continue;
           if (!ownsMetadata(dimension, e.name())) continue;
           var old = wf.get(e.name());
-          if (old == null || !old.id().equals(e.id())) meta.put(e.name(), store.readBlob(e.id()));
+          if (old == null || !old.id().equals(e.id())) {
+            byte[] targetBytes = SavedData.normalize(e.name(), store.readBlob(e.id()));
+            byte[] workingBytes = old == null ? null : SavedData.normalize(e.name(), store.readBlob(old.id()));
+            if (!Arrays.equals(workingBytes, targetBytes)) meta.put(e.name(), targetBytes);
+          }
         }
         for (var e : wf.values())
           if (!tf.containsKey(e.name()) && !e.name().equals("worldgit.yml")
@@ -221,6 +226,7 @@ public final class ApplyPlanner {
 
   /** 舊主世界 tree 可能帶有其他維度的 saved-data；讀舊歷史時仍遵守新的所有權。 */
   public static boolean ownsMetadata(DimensionId dimension, String name) {
+    if (SavedData.transientEntry(name)) return false;
     if (!dimension.equals(DimensionId.OVERWORLD)) return name.startsWith(dimension.directoryName() + ".");
     if (name.startsWith("saved.")) return true;
     return !name.matches("[^.]+\\.[^.]+\\.(?:game_rules|world_border|world_gen_settings)\\.dat\\.nbt")

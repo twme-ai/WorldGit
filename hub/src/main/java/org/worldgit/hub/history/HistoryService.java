@@ -254,10 +254,10 @@ public class HistoryService {
 
   public CommitDetail detail(WorldRow w, DimensionId dim, String rev, String mcVersion) throws IOException {
     CommitInfo c = find(w, dim, rev).orElseThrow(() -> new NoSuchElementException("找不到 commit " + rev));
-    String key = w.id() + "/" + dim + "/" + c.id();
+    String key = org.worldgit.core.anvil.SavedData.NORMALIZATION + "/" + w.id() + "/" + dim + "/" + c.id();
     CommitDetail cached = detailCache.get(key);
     if (cached != null) return cached;
-    Path disk = storage.cacheDir().resolve("stats").resolve(w.id()).resolve(dim.directoryName() + "-" + c.id() + ".json");
+    Path disk = storage.cacheDir().resolve("stats").resolve(org.worldgit.core.anvil.SavedData.NORMALIZATION).resolve(w.id()).resolve(dim.directoryName() + "-" + c.id() + ".json");
     if (Files.isRegularFile(disk)) {
       try {
         CommitDetail d = json.readValue(disk.toFile(), CommitDetail.class);

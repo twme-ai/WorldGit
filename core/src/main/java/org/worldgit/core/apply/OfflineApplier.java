@@ -240,6 +240,7 @@ public final class OfflineApplier {
   }
 
   private void applyMeta(String name, byte[] bytes, IgnoreRules rules) throws IOException {
+    if (SavedData.transientEntry(name)) return;
     Path path = metadataPath(name);
     if (name.startsWith("asset.")) {
       if (bytes == null) Files.deleteIfExists(path);
