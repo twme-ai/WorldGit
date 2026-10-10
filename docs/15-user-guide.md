@@ -159,6 +159,8 @@ WorldGit 的 Fabric jar 已內嵌 core、JGit、Jackson、Adventure 等依賴，
 
 - 一般切換／還原中斷：`switch <目標> --force` 或 `reset --hard` 重新完整套用。
 - 合併切換中斷：`merge --abort`。
+- 套用後驗證失敗也會停在 PARTIAL：訊息會列出殘留差異的 chunk 座標與種類（方塊 section、biome、結構參照等，最多 8 個 chunk，其餘以「另 N 個 chunk 未列出」帶過），並提示用 `/wg switch <目標> --force` 重新套用，或 `/wg reset --hard` 回到原狀（決定 #171）。
+- 排程 tick（`block_ticks`／`fluid_ticks`）隨方塊追蹤與還原，不會單獨造成「有未提交變動」或驗證失敗：新生成世界的洞穴流體、葉子等 worldgen 排程，其剩餘延遲會隨遊戲時間變動（決定 #169–#170）。
 
 ### 4.5 線上與離線的分工
 

@@ -233,6 +233,7 @@ final class FabricApply {
         }
         if(op.setTicks()) {
             var box=new BoundingBox(op.pos().x()*16,level.getMinY(),op.pos().z()*16,op.pos().x()*16+15,level.getMaxY(),op.pos().z()*16+15);
+            chunk.unpackTicks(level.getGameTime()); // pending 排程不在容器佇列內，clearArea 看不到（決策 #170）
             level.getBlockTicks().clearArea(box); level.getFluidTicks().clearArea(box);
             var ticks=op.ticks()==null ? new Nbt.Compound() : Nbt.read(op.ticks());
             for(Object value:ticks.list("block_ticks").values()) {

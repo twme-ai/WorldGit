@@ -157,6 +157,7 @@ public final class Bridge_1_21_11 implements NmsBridge {
       var n = op.ticks()==null ? new Nbt.Compound() : Nbt.read(op.ticks());
       var blocks = (net.minecraft.world.ticks.LevelChunkTicks<net.minecraft.world.level.block.Block>)chunk.getBlockTicks();
       var fluids = (net.minecraft.world.ticks.LevelChunkTicks<net.minecraft.world.level.material.Fluid>)chunk.getFluidTicks();
+      org.worldgit.paper.nms.ChunkTickGuard.unpackPending(level,op.pos().x(),op.pos().z());
       blocks.removeIf(t->true); fluids.removeIf(t->true);
       long sequence=0;
       for(Object v:n.list("block_ticks").values()) {

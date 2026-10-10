@@ -140,8 +140,12 @@ public final class ChunkNormalizer {
         var list = new ArrayList<Nbt.Compound>();
         for (Object t : chunk.list(key).values()) {
           var c = (Nbt.Compound) t;
-          if (!rules.ignoredBlock(c.integer("x", 0), c.integer("y", 0), c.integer("z", 0)))
-            list.add(Nbt.copy(c));
+          if (!rules.ignoredBlock(c.integer("x", 0), c.integer("y", 0), c.integer("z", 0))) {
+            var copy = Nbt.copy(c);
+            // 決策 #169：負的剩餘延遲（已到期）一律視為 0，內容不再隨遊戲時間變動。
+            if (copy.integer("t", 0) < 0) copy.put("t", 0);
+            list.add(copy);
+          }
         }
         list.sort(order);
         if (!list.isEmpty()) ticks.put(key, new Nbt.ListTag(10, new ArrayList<>(list)));

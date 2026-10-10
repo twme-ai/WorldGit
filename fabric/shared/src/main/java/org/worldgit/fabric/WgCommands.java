@@ -377,6 +377,27 @@ public final class WgCommands {
             return Msg.of(MessageKeys.ERROR_WORLD_CHANGED, "retries", changed.attempts() - 1, "total", changed.total(), "list", list,
                 "more", changed.total() > changed.chunks().size() ? "; +" + (changed.total() - changed.chunks().size()) + " more" : "");
         }
+        if (t instanceof org.worldgit.core.apply.ApplyVerificationException failed) {
+            var list = new StringBuilder();
+            for (var c : failed.chunks()) {
+                if (list.length() > 0) list.append("; ");
+                list.append('[').append(c.chunk().x()).append(',').append(c.chunk().z()).append("] ");
+                var parts = new java.util.ArrayList<String>();
+                if (c.delete()) parts.add("delete");
+                if (c.sections() > 0) parts.add("sections=" + c.sections());
+                if (c.biomes() > 0) parts.add("biomes=" + c.biomes());
+                if (c.blockTicks() > 0) parts.add("block-ticks=" + c.blockTicks());
+                if (c.fluidTicks() > 0) parts.add("fluid-ticks=" + c.fluidTicks());
+                if (c.structures()) parts.add("structures");
+                if (parts.isEmpty()) parts.add("other");
+                list.append(String.join(", ", parts));
+            }
+            var more = new StringBuilder();
+            if (failed.total() > failed.chunks().size()) more.append("; +").append(failed.total() - failed.chunks().size()).append(" more");
+            if (failed.entityPuts() + failed.entityRemoves() > 0) more.append("; entities +").append(failed.entityPuts()).append(" -").append(failed.entityRemoves());
+            if (failed.metaFiles() > 0) more.append("; metadata files=").append(failed.metaFiles());
+            return Msg.of(MessageKeys.ERROR_VERIFY_FAILED, "dimension", failed.dimension(), "total", failed.total(), "list", list, "more", more);
+        }
         String text = t.getMessage() == null || t.getMessage().isBlank() ? t.getClass().getSimpleName() : rt.mask(t.getMessage());
         if (text.contains("工作區有未提交")) return Msg.of(MessageKeys.ERROR_DIRTY);
         if (text.contains("世界為 PARTIAL")) return Msg.of(MessageKeys.ERROR_PARTIAL);

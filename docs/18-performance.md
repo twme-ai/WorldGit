@@ -61,7 +61,7 @@ CLI 隱藏的全域 `--full` 可用於 `status`、`commit`、`switch` 等完整 
 
 Fabric 在 chunk／entity／BE 的 vanilla tick 入口按座標略過，只對受鎖範圍的 LevelTicks 條件加上遮罩。方塊寫入、活塞整段作用範圍、爆炸可能影響的範圍、作物、玩家互動、實體移動及傳送另有位置屏障。底層 `Entity.setPosRaw` 也檢查已登記實體的來源／目的 chunk，涵蓋箭矢等繞過 `Entity.move` 的原生路徑；未登記實體的建構／載入定位與 WorldGit owner 內部寫入保留。對抗驗收同時檢查直接 `setPos`／`setPosRaw` 被拒，以及外部箭矢繼續 tick 但不能進入邊界。世界時間及其他 chunk 照常前進。
 
-暫緩的 scheduled ticks 留在原容器，不消耗、不丟失 priority／subTickOrder。capture 使用受鎖 chunk 的模擬時間基準；若計畫替換 ticks，基準改為替換當下。受鎖 chunk 存檔前也會重設排程時間基準，避免序列化負的剩餘延遲。解除時延後 triggerTick，保留剩餘延遲，重新綁定容器排程。替換 ticks 會先清除原排程，以目標 ticks 為準；舊 piston event 只在目標仍有同一 block type 時恢復。邊界緩衝的原排程保留。Paper 的事件屏障取消流體／鄰居更新時記錄座標，解除後在相應 owner 重新排入更新，避免邊界更新永久遺失。
+暫緩的 scheduled ticks 留在原容器，不消耗、不丟失 priority／subTickOrder。capture 使用受鎖 chunk 的模擬時間基準；若計畫替換 ticks，基準改為替換當下。受鎖 chunk 存檔前也會重設排程時間基準，避免序列化負的剩餘延遲。載入後尚未進入 ticking 的 chunk，排程還留在 `LevelChunkTicks.pendingTicks`（`getAll`／`removeIf`／時間基準平移都看不到），鎖住 chunk 與替換排程前先 `unpackTicks`，讓所有排程都在容器佇列內（決策 #170）；擷取時剩餘延遲夾為非負，排程不單獨構成差異（決策 #169）。解除時延後 triggerTick，保留剩餘延遲，重新綁定容器排程。替換 ticks 會先清除原排程，以目標 ticks 為準；舊 piston event 只在目標仍有同一 block type 時恢復。邊界緩衝的原排程保留。Paper 的事件屏障取消流體／鄰居更新時記錄座標，解除後在相應 owner 重新排入更新，避免邊界更新永久遺失。
 
 capture 與計畫在鎖外；chunk 鎖取得後重新比對受影響部分，原子路徑更在實際寫入的同一 owner tick 以內容比對最後核對。dirty generation 與 unsaved 候選保留；外部變動回報重試，不能只憑清除 dirty 旗標推定安全。大變動保留鎖直到光照、IO 與驗證完成。自然模擬可能使未受影響的 chunk 產生新的 working changes，因此線上驗證以受影響 chunk 的零差異及 writer 有界範圍為準，遠處變動留為 dirty；離線仍比較整棵樹，原有「writer 偷改範圍外」回歸保持。明確 `verify HEAD` 仍是完整擷取，正常模擬後可呈現新的世界變動。
 

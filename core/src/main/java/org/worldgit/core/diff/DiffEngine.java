@@ -69,6 +69,8 @@ public final class DiffEngine {
               : null;
       if (scope != null && chunk != null && !scope.contains(chunk) && !name.equals("entities.bin"))
         continue;
+      // 決策 #169：排程 tick 隨方塊追蹤，不單獨構成差異（剩餘延遲隨遊戲時間漂移，流體排程是暫態）。
+      if (chunk != null && name.equals("ticks.bin")) continue;
       if (chunk != null && name.matches("s\\.-?\\d+\\.bin")) {
         int y = Integer.parseInt(name.split("\\.")[1]);
         Section

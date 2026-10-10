@@ -713,12 +713,12 @@ public final class WorldOperations implements AutoCloseable {
       try (var timing = OperationTimings.stage("verify")) {
         if(live==null) {
           var checked=prepare(prepared.commits,null,prepared.plans.get(prepared.plans.firstKey()).scope(),prepared.plans.values().stream().anyMatch(p->!p.worldMeta().isEmpty()),false);
-          for(var entry:checked.plans.entrySet()) if(!entry.getValue().empty()) throw new IOException("套用驗證失敗："+entry.getKey()+" "+entry.getValue().stats());
+          for(var entry:checked.plans.entrySet()) if(!entry.getValue().empty()) throw ApplyVerificationException.of(repos.get(entry.getKey()).objects(),entry.getKey().value(),entry.getValue());
         } else for(var entry:prepared.plans.entrySet()) {
           var repo=repos.get(entry.getKey());var plan=entry.getValue();
           var observed=LiveApplyVerification.observedFootprint(repo.objects(),plan,capture(repo));
           var checked=ApplyPlanner.plan(repo.objects(),entry.getKey(),observed,plan.targetTree(),plan.scope(),options(repo,prepared.commits.get(entry.getKey()),!plan.worldMeta().isEmpty(),false));
-          if(!checked.empty()) throw new IOException("受影響 chunk 套用驗證失敗："+entry.getKey()+" "+checked.stats());
+          if(!checked.empty()) throw ApplyVerificationException.of(repo.objects(),entry.getKey().value(),checked);
         }
       }
       if (live != null) live.beforeComplete();

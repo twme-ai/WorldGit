@@ -166,7 +166,7 @@ repo executor 先在鎖外預檢，再鎖住受影響 chunk；鎖後 flush、cap
 
 玩家不被傳送；FALL／SUFFOCATION／DROWNING 保護涵蓋整個操作與結束後 10 秒，也涵蓋中途進入範圍的玩家。bossbar／通知排到各玩家 EntityScheduler。只有該維度驗證成功才廣播「已切換到 X @ abc1234」並更新 HEAD。
 
-取消／插件關閉留下 PARTIAL，崩潰留下的 APPLYING 下次啟動轉成 PARTIAL 並提示；commit 被阻擋，使用 `/wg switch <target> --force` 或 `/wg reset --hard` 全範圍恢復。關閉時先停 bossbar 更新；玩家通知若與停用競爭，走退休清理，不再註冊新排程。沒有自動續傳或反向回滾。切換時目標沒有的 chunk 保留並標 untracked，包含 ticket 載入期間新生成的周邊 chunk；explicit commit 才重新追蹤。
+取消／插件關閉留下 PARTIAL，崩潰留下的 APPLYING 下次啟動轉成 PARTIAL 並提示；commit 被阻擋，使用 `/wg switch <target> --force` 或 `/wg reset --hard` 全範圍恢復。套用後驗證失敗（`ApplyVerificationException`）同樣留下 PARTIAL，訊息以 `paper.error.verify-*` 列出殘留差異的 chunk 座標與種類（最多 8 個）並附同一個恢復提示（決策 #171）；排程 tick 隨方塊還原、不單獨構成差異，載入後尚未進入 ticking 的 pending 排程在鎖 chunk 與替換排程前先展開（決策 #169–#170）。關閉時先停 bossbar 更新；玩家通知若與停用競爭，走退休清理，不再註冊新排程。沒有自動續傳或反向回滾。切換時目標沒有的 chunk 保留並標 untracked，包含 ticket 載入期間新生成的周邊 chunk；explicit commit 才重新追蹤。
 
 目前線上預檢拒絕 chunk 刪除與有差異的 world-meta（地圖／記分板／世界設定等）；使用 CLI 離線還原。新增地形使 stash push／pop 必須刪 chunk 時也會先拒絕，保存 stash 前不改世界。跨 DataVersion、不同 .wgignore／DataPacks 沿用 core 的明確拒絕。合併流程見上方 Phase 3 章節。
 

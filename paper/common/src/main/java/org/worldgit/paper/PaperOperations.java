@@ -20,8 +20,9 @@ import org.worldgit.core.store.*;
 /** 一組維度的線上復原入口。全組 repo 鎖、預檢、journal、owner 套用、驗證、HEAD barrier。 */
 final class PaperOperations implements AutoCloseable {
   public enum State { COMPLETE, DRY_RUN, PARTIAL }
-  public record Result(State state, SortedMap<DimensionId,ApplyPlan.Stats> dimensions, String error) {
+  public record Result(State state, SortedMap<DimensionId,ApplyPlan.Stats> dimensions, String error, org.worldgit.core.apply.ApplyVerificationException verification) {
     public Result { dimensions=Collections.unmodifiableSortedMap(new TreeMap<>(dimensions)); }
+    public Result(State state, SortedMap<DimensionId,ApplyPlan.Stats> dimensions, String error) { this(state,dimensions,error,null); }
     public boolean success() { return state != State.PARTIAL; }
   }
   public record Branch(String name, boolean current, SortedMap<DimensionId,String> commits, boolean consistent) {}
@@ -463,7 +464,7 @@ final class PaperOperations implements AutoCloseable {
         var repo=repos.get(entry.getKey());var plan=entry.getValue();
         var observed=LiveApplyVerification.observedFootprint(repo.objects(),plan,capture(repo));
         var check=ApplyPlanner.plan(repo.objects(),entry.getKey(),observed,plan.targetTree(),plan.scope(),options(repo,prepared.commits.get(entry.getKey()),!plan.worldMeta().isEmpty(),false));
-        if(!check.empty()) throw new IOException("受影響 chunk 套用驗證失敗："+entry.getKey()+" "+check.stats());
+        if(!check.empty()) throw org.worldgit.core.apply.ApplyVerificationException.of(repo.objects(),entry.getKey().value(),check);
         checkedPlans.put(entry.getKey(),check);
       }
       var checked=new Prepared(prepared.commits,checkedPlans);
@@ -511,10 +512,14 @@ final class PaperOperations implements AutoCloseable {
         if(!refs.headState().equals(prior)) refs.checkout(refs.headState(),prior);
       } catch(Exception rollback) { errors.add("HEAD 回復失敗："+entry.getKey()+" "+message(rollback)); }
       journal.put("state","PARTIAL"); journal.put("error",String.join("；",errors)); writeJournal(journal);
-      return new Result(State.PARTIAL,stats(prepared),String.join("；",errors));
+      return new Result(State.PARTIAL,stats(prepared),String.join("；",errors),verification(ex));
     } finally {
       if(!queue.stopping) for(var entry:protectedChunks.entrySet()) await(live.get(entry.getKey()).protectPlayers(PlayerProtection.operation(entry.getValue(),operation,false)));
     }
+  }
+  private static org.worldgit.core.apply.ApplyVerificationException verification(Throwable error) {
+    for(Throwable t=error;t!=null;t=t.getCause()) if(t instanceof org.worldgit.core.apply.ApplyVerificationException v) return v;
+    return null;
   }
   private DimensionId nullForSelection(Prepared prepared) { return prepared.plans.size()==repos.size() ? null : prepared.plans.firstKey(); }
   private void restoreConfig(DimensionRepository repo,RefStore.Commit target) throws IOException {

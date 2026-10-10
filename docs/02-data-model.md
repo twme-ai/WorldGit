@@ -61,7 +61,7 @@ commit                               # 屬於某一個維度的 repo（§2.1）
 | 光照（BlockLight/SkyLight）、Heightmaps、`isLightOn` | **丟棄**，寫回時讓伺服器重算（Phase 0 已驗證：寫回時移除光照、`starlight.*`、Heightmaps，Paper 兩版載入後重算的光照與原本逐 nibble 相同） |
 | `LastUpdate`、`InhabitedTime`、`Status`、`PostProcessing`、`xPos/yPos/zPos` | 丟棄（寫回時固定為 full / 保留目標世界原值）；`DataVersion` 記在 world-meta |
 | structures 的 `References` | chunk 座標集合的 long[] 依數值排序；MC 的 LongSet 重寫可能重排，同一集合不得造成假 diff（Phase 1 真正 Paper 地獄維度發現） |
-| 排程 tick（`block_ticks`/`fluid_ticks`） | 依 (y,z,x,id,p,t) 排序；`t` 易變，待定是否量化 |
+| 排程 tick（`block_ticks`/`fluid_ticks`） | 依 (y,z,x,id,p,t) 排序；剩餘延遲 `t` 夾為 `max(t,0)`（已到期＝0，不隨遊戲時間變負）；排程隨方塊追蹤，不單獨構成差異（決策 #169） |
 | POI（村民工作站） | **不存**；寫回時**必須刪除**範圍內 chunk 的 POI，伺服器載入時會由方塊重建（Phase 0 已驗證兩版；保留舊 POI 會留下過期紀錄、新工作站不會被登記） |
 | block entity 內的暫態欄位（熔爐燃燒時間、生怪磚倒數…） | 依方塊類型設定「忽略欄位」表；預設保留容器內容（箱子裡的東西是建築的一部分） |
 | 實體的暫態欄位（`Motion`、`FallDistance`、`Fire`、`Air`、年齡…） | 同上，以類型白名單/黑名單處理；位置用「黏性容許距離」（§8）。Phase 0 的完整忽略清單見 `experiments/02-core-proto/REPORT.md` §1.4 |

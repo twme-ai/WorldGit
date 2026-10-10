@@ -32,7 +32,7 @@ public interface SnapshotSource extends AutoCloseable {
 
   /** 正規化版本、tag registry 等政策；改變時重建快照，不能沿用舊 index。 */
   default String normalizationFingerprint() throws IOException {
-    return "normalize-v1:" + dataVersion();
+    return "normalize-v2:" + dataVersion();
   }
 
   default List<String> warnings() throws IOException {

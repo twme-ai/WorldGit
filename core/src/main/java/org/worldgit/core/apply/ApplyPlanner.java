@@ -160,9 +160,12 @@ public final class ApplyPlanner {
       if (covers) {
         var wt = w.get("ticks.bin");
         var tt = t.get("ticks.bin");
-        if (!Objects.equals(wt == null ? null : wt.id(), tt == null ? null : tt.id())) {
+        // 決策 #169：排程 tick 隨方塊／biome 還原；同一 chunk 沒有方塊或 biome 改寫時不單獨替換
+        // （排程只是暫態，剩餘延遲隨遊戲時間漂移，單獨比較會讓驗證與 dirty 判定永遠對不上）。
+        if ((!sections.isEmpty() || !biomes.isEmpty())
+            && !Objects.equals(wt == null ? null : wt.id(), tt == null ? null : tt.id())) {
           setTicks = true;
-          ticks = tt == null ? null : SnapshotCodec.nbt(4, store.readBlob(tt.id()), true);
+          ticks = tt == null ? null : TickSemantics.clamp(SnapshotCodec.nbt(4, store.readBlob(tt.id()), true));
         }
         var ws = w.get("structures.bin");
         var ts = t.get("structures.bin");

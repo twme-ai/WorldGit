@@ -152,10 +152,10 @@ public final class MergeEngine {
       Object merged = mergeNbt(path, List.of(), nbt(b), nbt(o), nbt(t));
       return merged == null ? null : store.writeBlob(Nbt.write((Nbt.Compound) merged));
     }
-    Kind k =
-        path.endsWith("/ticks.bin")
-            ? Kind.TICKS
-            : path.endsWith("/structures.bin") ? Kind.STRUCTURES : Kind.FILE;
+    // 決策 #169：排程 tick 是暫態，剩餘延遲隨遊戲時間漂移，兩邊各自擷取幾乎必然不同；不產生衝突，
+    // 採用 ours（theirs 的方塊在同一 chunk 合併後，排程由世界在載入後自行重新產生）。
+    if (path.endsWith("/ticks.bin")) return o;
+    Kind k = path.endsWith("/structures.bin") ? Kind.STRUCTURES : Kind.FILE;
     conflicts.add(atom(k, path.startsWith("r.") ? position(path, 0) : null, path));
     return o;
   }

@@ -324,7 +324,11 @@ class MergeEngineTest {
           b = tree(Map.of(p, SnapshotCodec.nbt(kind, Nbt.write(new Nbt.Compound().with("a", 1))))),
           o = tree(Map.of(p, SnapshotCodec.nbt(kind, Nbt.write(new Nbt.Compound().with("a", 2))))),
           t = tree(Map.of(p, SnapshotCodec.nbt(kind, Nbt.write(new Nbt.Compound().with("b", 2)))));
-      assertEquals(1, merge(b, o, t, 1).report().regions().size());
+      var merged = merge(b, o, t, 1);
+      // 決策 #169：structures 仍是原子 conflict；排程 tick 是暫態，不產生 conflict、保留 ours。
+      assertEquals(name.equals("ticks") ? 0 : 1, merged.report().regions().size(), name);
+      if (name.equals("ticks"))
+        assertEquals(o, merged.tree(), "ticks 兩邊都改時保留 ours");
     }
     assertEquals(
         "entity minecraft:item\n", IgnoreRuleMerge.merge("", "entity minecraft:item\n", ""));

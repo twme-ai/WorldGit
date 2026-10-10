@@ -105,6 +105,26 @@ final class Messages {
         "total", e.total(), "list", String.join("; ", items),
         "more", e.total() > e.chunks().size() ? plain(text("paper.error.world-changed-more", "n", e.total() - e.chunks().size())) : "");
   }
+  /** 套用後驗證失敗：列出 chunk 座標與殘留差異的種類（最多 LIMIT 個 chunk），並提示 PARTIAL 的恢復方式。 */
+  static Component verifyFailed(org.worldgit.core.apply.ApplyVerificationException e) {
+    var items = new ArrayList<String>();
+    for (var c : e.chunks()) {
+      var parts = new ArrayList<String>();
+      if (c.delete()) parts.add(plain(text("paper.error.verify-delete")));
+      if (c.sections() > 0) parts.add(plain(text("paper.error.verify-sections", "n", c.sections())));
+      if (c.biomes() > 0) parts.add(plain(text("paper.error.verify-biomes", "n", c.biomes())));
+      if (c.blockTicks() > 0) parts.add(plain(text("paper.error.verify-block-ticks", "n", c.blockTicks())));
+      if (c.fluidTicks() > 0) parts.add(plain(text("paper.error.verify-fluid-ticks", "n", c.fluidTicks())));
+      if (c.structures()) parts.add(plain(text("paper.error.verify-structures")));
+      if (parts.isEmpty()) parts.add(plain(text("paper.error.verify-other")));
+      items.add(plain(text("paper.error.verify-chunk", "x", c.chunk().x(), "z", c.chunk().z(), "what", String.join(", ", parts))));
+    }
+    var extra = new StringBuilder();
+    if (e.entityPuts() + e.entityRemoves() > 0) extra.append(plain(text("paper.error.verify-entities", "puts", e.entityPuts(), "removes", e.entityRemoves())));
+    if (e.metaFiles() > 0) extra.append(plain(text("paper.error.verify-meta", "n", e.metaFiles())));
+    return line("paper.error.verify-failed", "dimension", e.dimension(), "total", e.total(), "list", String.join("; ", items),
+        "more", e.total() > e.chunks().size() ? plain(text("paper.error.verify-more", "n", e.total() - e.chunks().size())) : "", "extra", extra.toString());
+  }
   static Component permission(String sub) { return line("paper.error.permission", "sub", sub); }
   static Component debugPermission() { return line("paper.error.debug-permission"); }
 

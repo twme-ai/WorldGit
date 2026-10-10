@@ -133,6 +133,10 @@ public final class ChunkTickGuard {
     var hold=HOLDS.get(new Key(level,key(x,z))); if(hold!=null) hold.suspend();
   }
   public static void beforeSave(ServerLevel level,int x,int z) {var hold=HOLDS.get(new Key(level,key(x,z)));if(hold!=null)hold.rebase();}
+  /** 替換排程前先展開 pending 排程，removeIf 才會清乾淨。 */
+  public static void unpackPending(ServerLevel level,int x,int z) {
+    var chunk=level.getChunkSource().getChunkNow(x,z); if(chunk!=null) chunk.unpackTicks(clock(level));
+  }
   public static void replacedTicks(ServerLevel level,int x,int z) {
     var hold=HOLDS.get(new Key(level,key(x,z))); if(hold!=null) hold.since=clock(level);
   }
@@ -160,6 +164,9 @@ public final class ChunkTickGuard {
     long since;
     Hold(ServerLevel level,LevelChunk chunk) {this.level=level;this.chunk=chunk;since=clock(level);}
     void suspend() {
+      // 尚未展開（載入後還沒進入 ticking）的排程留在 LevelChunkTicks.pendingTicks，getAll/removeIf/shift 都看不到，
+      // 且 pack() 不會隨遊戲時間調整；鎖住時先展開，之後的時間基準與擷取校正才一致（決策 #170）。
+      chunk.unpackTicks(clock(level));
       if(!pinned) {level.getChunkSource().addTicketAtLevel(PIN,chunk.getPos(),33);pinned=true;}
       // Detached containers also stay detached when Folia splits or merges regions.
       level.getBlockTicks().removeContainer(chunk.getPos());level.getFluidTicks().removeContainer(chunk.getPos());

@@ -51,7 +51,7 @@ public final class OfflineSnapshotSource implements SnapshotSource {
 
   @Override
   public String normalizationFingerprint() throws IOException {
-    return "normalize-v1-structures-set:" + dataVersion() + ":" + registry().fingerprint();
+    return "normalize-v2-ticks-clamp:" + dataVersion() + ":" + registry().fingerprint();
   }
 
   @Override

@@ -178,6 +178,27 @@ raid 清單與 `next_id`、龍戰、地圖、記分板、gamerule、世界邊界
 
 驗證用測試鉤子：`-Dworldgit.test.preflight-delay-ms=N` 在預檢與上鎖之間暫停 N 毫秒（未設定時無作用），用來在真伺服器穩定製造窗口，例如窗口內由玩家放置方塊。
 
+### 排程 tick 與套用後驗證
+
+使用者在新生成的世界做 `init`、`branch`、`//set`、`commit`、`switch test1` 時，套用 189 個 section 後驗證失敗：`受影響 chunk 套用驗證失敗：… Stats[chunks=27, sections=0, …]`，世界留在 PARTIAL。`sections=0` 表示殘留的差異只在 chunk 的排程 tick（`ticks.bin`）。根因與修正見決策 #169–#171：
+
+- **剩餘延遲會漂移**：`ticks.bin` 保存 `t = triggerTick - gameTime`。不在 tick 範圍內的已載入 chunk 不處理排程，遊戲時間卻前進，`t` 變成越來越負（實測 `flowing_lava t=-772`）；恢復 tick 後排程立刻執行、消失或產生新排程。新生成世界有大量洞穴流體與葉子／洞穴空氣的 worldgen 排程，所以特別容易遇到。原本 `ticks.bin` 是 chunk 級必須完全相等的差異：init、commit、status、驗證四次擷取的內容幾乎不可能一致，剛 commit 的世界也會立刻變成「有未提交變動」，merge 還會在 `ticks.bin` 上假衝突。
+- **pending 排程被漏掉**（#170）：載入後還沒進入 ticking 的 chunk，排程留在 `LevelChunkTicks.pendingTicks`，鎖的擷取校正對它多加一次經過的 tick、替換排程又清不掉，驗證在被鎖的 chunk 上也對不上。
+
+現行語意（#169）：
+
+| 項目 | 規則 |
+|---|---|
+| 擷取 | 剩餘延遲夾為 `max(t, 0)`；0 代表已到期，chunk 恢復 tick 後立刻執行 |
+| diff／status／commit／dirty／鎖後核對／驗證 | 只有 `ticks.bin` 不同的 chunk 不是變動；方塊、BE、biome、實體、結構照舊零差異 |
+| 套用（switch／restore／reset／stash／pull／merge 結果） | 同一 chunk 有方塊或 biome 改寫時，才用目標的排程取代該 chunk 的排程（延遲夾為非負）；沒有改寫的 chunk 保留世界自己的排程 |
+| merge | `ticks.bin` 不產生 conflict；兩邊都改時保留 ours |
+| 舊歷史 | 含負延遲或流體排程的 commit 不改寫；因為兩邊都不比較 `ticks.bin`，status／diff／switch／merge／Hub 都沒有假差異，套用時讀到的負值先夾為 0 |
+
+對遊戲的影響：紅石中繼器時脈、觀察者、水／熔岩流動隨「被改寫的方塊」一起還原——該 chunk 的排程以目標為準，未到期的保留相對延遲；沒被改寫的 chunk 不會被舊快照的排程覆蓋。純排程差異（例如目標比現在多一個尚未流出的水）不再算變動，也不會單獨寫回；需要時它的方塊差異會帶出整個 chunk 的排程。
+
+驗證失敗時（#171）訊息列出有殘留差異的 chunk 與種類，例如 `[-16,-13] 方塊 section 2，排程 tick（流體 1 筆）`（最多 8 個 chunk，其餘以「另 N 個 chunk 未列出」帶過），並提示 PARTIAL 的恢復方式：`/wg switch <目標> --force` 重新套用，或 `/wg reset --hard` 回到原狀。
+
 ### stash 與 reset
 
 stash 保存全組 working tree，每維度一個以原 HEAD 為 parent 的獨立 commit，pin 在 `refs/worldgit/stash/<UUID>`，世界組 `stash.yml` 按新到舊保存 UUID、time、message、commits／bases。全組 capture／refs 成功後才發布清單；push 發布後再還原 HEAD，清除已保存的新增 chunk，寫回失敗保留 stash 與 PARTIAL。`switch --stash` 只保存工作區後直接切換，省去一次中間還原。pop 限原基底、乾淨工作區（連保留的 untracked 也要先 commit／stash push，避免覆蓋或刪掉它），全部套用／驗證成功才 drop；不做三方合併，跨分支 stash 合併留待 Phase 3。drop 移除目錄項與 pin，既有保守 GC 不立即 prune 物件。
