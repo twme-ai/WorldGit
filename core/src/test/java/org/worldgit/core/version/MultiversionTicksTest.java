@@ -143,6 +143,40 @@ class MultiversionTicksTest {
   }
 
   @Test
+  void conversionCacheSeparatesServerMetadataProjectionAndReusesMatchingBackend() throws Exception {
+    String previous = System.getProperty("worldgit.versions");
+    System.setProperty("worldgit.versions", temp.resolve("versions").toString());
+    try (var store = new JGitStore(temp.resolve("repo"), true)) {
+      var editor = new TreeEditor(store, null);
+      editor.replaceTree("dimension-meta", Map.of("custom.nbt", Nbt.write(new Nbt.Compound().with("DataVersion", 3465))));
+      String source = editor.write();
+      var calls = new java.util.concurrent.atomic.AtomicInteger();
+      class Projection implements NbtUpgrader {
+        private final String name;
+        Projection(String name) { this.name = name; }
+        public Nbt.Compound upgrade(String type, Nbt.Compound raw, int from, int to) { return Nbt.copy(raw); }
+        public String projectionFingerprint() { return name; }
+        public SortedMap<String, byte[]> projectMetadata(SortedMap<String, byte[]> input, int from, int to) throws java.io.IOException {
+          calls.incrementAndGet();
+          var output = new TreeMap<>(input);
+          output.put("custom.nbt", Nbt.write(Nbt.read(input.get("custom.nbt")).with("backend", name)));
+          return output;
+        }
+      }
+      var first = VersionConversions.convert(store, source, NETHER, 3465, 3700, null, false, new Projection("paper-a"));
+      var second = VersionConversions.convert(store, source, NETHER, 3465, 3700, null, false, new Projection("paper-b"));
+      var cached = VersionConversions.convert(store, source, NETHER, 3465, 3700, null, false, new Projection("paper-a"));
+      assertNotEquals(first.tree(), second.tree());
+      assertEquals(first.tree(), cached.tree());
+      assertEquals(2, calls.get());
+      assertEquals("paper-b", Nbt.read(store.readBlob(TreeEditor.find(store, second.tree(), "dimension-meta/custom.nbt").id())).string("backend"));
+    } finally {
+      if (previous == null) System.clearProperty("worldgit.versions");
+      else System.setProperty("worldgit.versions", previous);
+    }
+  }
+
+  @Test
   void captureFingerprintsIncludeTickAndMultiversionNormalization() throws Exception {
     var live = new SnapshotSource() {
       public DimensionId dimension() { return DimensionId.OVERWORLD; }

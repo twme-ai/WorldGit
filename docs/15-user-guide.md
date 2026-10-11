@@ -6,7 +6,7 @@
 
 ## 跨版本世界（任務 1）
 
-CLI／Hub 版本資料與設計見 [19 — 多版本](19-multiversion.md)。正式目標是 1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11、26.1.2、26.2、26.3；Paper／Folia、Fabric 的新增平台尚待任務 2／3，不因 CLI 已能讀取就代表可安裝插件。
+CLI／Hub 版本資料與設計見 [19 — 多版本](19-multiversion.md)。正式目標是 1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11、26.1.2、26.2、26.3；Paper／Folia 已新增 1.20.1／1.20.4；其他新增平台與 Fabric 仍待任務 2／3 後續子任務，不因 CLI 已能讀取就代表可安裝插件。
 
 停止世界並 commit 現況，確認所有既有維度已 init，再執行 `wgit -w world upgrade --to 26.3`。升級使用原版 DFU，產生新的版本 commit，舊歷史仍可查。CLI 需 Java 21；26.x 轉換 worker 另需 Java 25。遷移中斷時停服執行 `wgit migrate --recover-version`；一般跨版本套用的損失可用 `wgit show --operation <UUID>` 查詢。
 
@@ -75,7 +75,7 @@ WorldGit 把 Minecraft 世界當成 git 的工作區（working tree）：
 
 同一個世界可以在 Paper 上 commit、關服後用 CLI 檢查、push 到 Hub、別人 clone 下來用 Fabric 單人開啟，歷史完全相同。
 
-支援的 Minecraft 版本：**1.21.11（Java 21）與 26.2（Java 25）**。
+Paper／Folia 插件支援 **1.20.1、1.20.4、1.21.11（Java 21）及 26.2（Java 25）**；Fabric 目前仍為 1.21.11／26.2。
 
 ---
 
@@ -95,7 +95,7 @@ WorldGit 把 Minecraft 世界當成 git 的工作區（working tree）：
 
 ## 3. 安裝與取得
 
-目前沒有發行版下載，請從原始碼建置。需要 JDK 21（建置與 1.21.11）與 JDK 25（26.2 與 Hub），Hub 前端另需 Node 22+。
+目前沒有發行版下載，請從原始碼建置。需要 JDK 21（1.20.1／1.20.4／1.21.11）與 JDK 25（建置、26.2 與 Hub），Hub 前端另需 Node 22+。
 
 ```sh
 git clone https://github.com/twme-ai/WorldGit.git
@@ -108,7 +108,7 @@ export GRADLE_USER_HOME="$PWD/.work/gradle-home"
 | 產物 | 路徑 | 放到哪裡 |
 |---|---|---|
 | CLI | `cli/build/libs/wgit.jar`（或 repo 根目錄的 `./wgit` 啟動腳本） | 任意位置，`java -jar wgit.jar …` |
-| Paper／Folia 插件（兩版共用一個 jar） | `paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar` | 伺服器 `plugins/` |
+| Paper／Folia 插件（四版共用一個 jar） | `paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar` | 伺服器 `plugins/` |
 | Fabric 1.21.11 | `fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar` | 客戶端或伺服器 `mods/` |
 | Fabric 26.2 | `fabric/mc26_2/build/libs/worldgit-fabric-26.2-0.1.0-SNAPSHOT.jar` | 客戶端或伺服器 `mods/` |
 | Hub | `hub/build/libs/worldgit-hub.jar`，或 `hub/Containerfile` 建容器 | 見 [§11](#11-hub-架站者) |
@@ -132,9 +132,9 @@ WorldGit 的 Fabric jar 已內嵌 core、JGit、Jackson、Adventure 等依賴，
 
 | 版面 | repo 位置 |
 |---|---|
-| 主世界（兩版） | `<world>/.worldgit/`；26.2 地形在 dimensions 底下仍如此 |
-| 1.21.11 原版／單人 | `<world>/DIM-1/.worldgit/`、`<world>/DIM1/.worldgit/` |
-| 1.21.11 Paper | `<world>_nether/DIM-1/.worldgit/`、`<world>_the_end/DIM1/.worldgit/` |
+| 主世界 | `<world>/.worldgit/`；26.2 地形在 dimensions 底下仍如此 |
+| 1.20.1／1.20.4／1.21.11 原版／單人 | `<world>/DIM-1/.worldgit/`、`<world>/DIM1/.worldgit/` |
+| 1.20.1／1.20.4／1.21.11 Paper／Folia | `<world>_nether/DIM-1/.worldgit/`、`<world>_the_end/DIM1/.worldgit/` |
 | 26.2／自訂維度 | 該維度 `dimensions/<ns>/<path>/.worldgit/` |
 
 壓縮該世界／維度資料夾就會帶 repo；release ZIP／export 是發布副本，仍不帶歷史。舊外置 `<server>/.worldgit/<world>/<dim>` 與舊單人 `<world>/.worldgit/<dim>` 可讀，世界停止後用 `wgit migrate` 搬移。
@@ -332,9 +332,13 @@ clone 出來的資料夾就是完整的單人世界（光照與 POI 由遊戲重
 
 ## 6. 伺服器管理員：Paper／Folia
 
+跨版本 switch／merge／reset 以目前伺服器版本為目標，較舊 commit 自動升級。有損降級先列損失清單，檢查後點聊天確認或執行 `/wg confirm <token>`；原執行者五分鐘內可使用一次。世界、HEAD 或轉換規則改變後舊代碼失效，需重新預覽。`--force` 不略過這項確認。若世界設定或資料包不同，保持既有線上限制，停服後使用 CLI 還原。
+
+Paper 1.20.x 可使用官方相容 FAWE；**官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收**，不建議以第三方 fork 代替已驗收組合。驗收範圍見 [19 §8](19-multiversion.md#8-驗收與限制)。
+
 ### 6.1 安裝
 
-1. 把 `worldgit-paper-0.1.0-SNAPSHOT.jar` 放進 `plugins/`（1.21.11 與 26.2、Paper 與 Folia 共用同一個 jar；版本不符會明確停用插件）。
+1. 把 `worldgit-paper-0.1.0-SNAPSHOT.jar` 放進 `plugins/`（1.20.1、1.20.4、1.21.11 與 26.2，Paper 與 Folia 共用同一個 jar；版本不符會明確停用插件）。
 2. 啟動伺服器，玩家在目前維度執行 `/wg init`（生存服用 `/wg init --template survival`）；主控臺必須用 `/wg init --world world --dimension minecraft:overworld`，或以 `--all` 明確初始化世界群。
 3. 依需要調整 `plugins/WorldGit/config.yml`。
 
@@ -409,7 +413,7 @@ extent:
 
 commit 的 `-m` 與 stash 訊息取後面全部文字；PR 建議 `/wg pr create --source topic --target main 標題`，原本標題後放旗標也可用。若標題／留言本身含 `--source`、`--target` 或 `--here`，以雙引號括住文字，避免當成選項。PR／衝突編號建議用純數字（如 `/wg resolve 1 ours`）；`#1` 仍相容，但原生整數提示會標紅。
 
-`/wg reload` 只重載語言覆寫。指令透過 Paper Lifecycle 註冊，在伺服器需要重建指令時會重新註冊；更新插件 jar 或伺服器設定請重新啟動。第三方熱重載未驗收。
+`/wg reload` 只重載語言覆寫。1.20.1／1.20.4 透過 Bukkit registry 註冊，較新版本透過 Paper Lifecycle 註冊，在伺服器需要重建指令時會重新註冊；更新插件 jar 或伺服器設定請重新啟動。第三方熱重載未驗收。
 
 沒裝 Fabric 模組的玩家看 `--show` 時，會用只有自己看得到的發光 BlockDisplay 描邊代替鬼影，`show.display-seconds`（預設 60 秒）後自動消失。
 
@@ -975,7 +979,7 @@ wgit push origin main --tags
 ## 14. 已知限制
 
 - **Phase 5 Fabric**：玩家維度 init／追加按鈕、別名、圖／ignore 畫面、BossBar／HUD、完成摘要、錯誤複製與 touched 事件已接線；驗收與各項限制見 [16](16-phase5-design.md)。分支圖畫面顯示至多 200 提交，更早歷史用聊天分頁；別名及伺服器設定改動需重啟。
-- **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理；新增線上跨版本 DFU／損失確認需完成多版本任務 2／3，CLI 可依版本章節處理。
+- **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理。Paper／Folia 已支援上述四版的伺服器 DFU 與有損確認；其他 Paper／Folia 版本與 Fabric 線上跨版本操作仍待後續子任務，CLI 可依版本章節處理。
 - **作者歸屬**是 chunk 粒度，沒有逐格 blame；玩家登出提交的是整個世界，沒有 per-player staging。
 - **`modified-only`** 目前只記錄設定，平臺尚未自動蒐集玩家編輯集合，實際仍追蹤全部 chunk。
 - **遠端**：沒有 SSH；沒有 fork PR、squash／rebase；遊戲內不能合併或核准 PR；真實 GitHub／Gitea 未實測（URL 樣板以 JGit 與 git http-backend 驗證）。

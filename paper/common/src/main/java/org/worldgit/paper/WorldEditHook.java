@@ -35,7 +35,7 @@ final class WorldEditHook {
       var region=session.getSelection(session.getSelectionWorld());
       if(!(region instanceof com.sk89q.worldedit.regions.CuboidRegion)) throw new IllegalArgumentException("restore --selection 目前只接受 cuboid 選取");
       var a=region.getMinimumPoint(); var b=region.getMaximumPoint();
-      return org.worldgit.core.apply.Scope.box(a.x(),a.y(),a.z(),b.x(),b.y(),b.z());
+      return org.worldgit.core.apply.Scope.box(a.getBlockX(),a.getBlockY(),a.getBlockZ(),b.getBlockX(),b.getBlockY(),b.getBlockZ());
     } catch(com.sk89q.worldedit.IncompleteRegionException ex) { throw new IllegalArgumentException("WorldEdit 選取尚未完成",ex); }
       catch(NoClassDefFoundError ex) { throw new IllegalArgumentException("restore --selection 需要 WorldEdit／FAWE",ex); }
   }
@@ -88,9 +88,9 @@ final class WorldEditHook {
 
     void region(Region region) {
       BlockVector3 a = region.getMinimumPoint(), b = region.getMaximumPoint();
-      long chunks = (long) ((b.x() >> 4) - (a.x() >> 4) + 1) * ((b.z() >> 4) - (a.z() >> 4) + 1);
+      long chunks = (long) ((b.getBlockX() >> 4) - (a.getBlockX() >> 4) + 1) * ((b.getBlockZ() >> 4) - (a.getBlockZ() >> 4) + 1);
       if (chunks > 1_000_000) return; // 異常大的範圍交給旗標普查，避免在編輯執行緒上迴圈
-      for (int cx = a.x() >> 4; cx <= b.x() >> 4; cx++) for (int cz = a.z() >> 4; cz <= b.z() >> 4; cz++) blockChunk(cx, cz);
+      for (int cx = a.getBlockX() >> 4; cx <= b.getBlockX() >> 4; cx++) for (int cz = a.getBlockZ() >> 4; cz <= b.getBlockZ() >> 4; cz++) blockChunk(cx, cz);
     }
   }
 
@@ -141,7 +141,7 @@ final class WorldEditHook {
 
     @Override
     public <T extends BlockStateHolder<T>> boolean setBlock(BlockVector3 position, T block) throws WorldEditException {
-      sess.block(position.x(), position.z());
+      sess.block(position.getBlockX(), position.getBlockZ());
       return super.setBlock(position, block);
     }
 
@@ -165,7 +165,7 @@ final class WorldEditHook {
 
     @Override
     public int setBlocks(Set<BlockVector3> vectors, Pattern pattern) {
-      for (BlockVector3 v : vectors) sess.block(v.x(), v.z());
+      for (BlockVector3 v : vectors) sess.block(v.getBlockX(), v.getBlockZ());
       return super.setBlocks(vectors, pattern);
     }
 

@@ -3,7 +3,7 @@ package org.worldgit.paper;
 import static org.junit.jupiter.api.Assertions.*;
 import com.mojang.brigadier.CommandDispatcher;
 import io.papermc.paper.command.brigadier.MessageComponentSerializer;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.worldgit.paper.CommandSource;
 import java.nio.file.*;
 import java.time.*;
 import java.util.*;
@@ -96,8 +96,8 @@ class CommandSuggestionsTest {
     var forbidden = dispatcher.getCompletionSuggestions(dispatcher.parse("wg pr view ", CommandTreeTest.source(true, Set.of()))).get(2, TimeUnit.SECONDS);
     assertTrue(forbidden.isEmpty());
   }
-  static CommandDispatcher<CommandSourceStack> dispatcher(CommandSuggestions suggestions) {
-    var dispatcher = new CommandDispatcher<CommandSourceStack>();
+  static CommandDispatcher<CommandSource> dispatcher(CommandSuggestions suggestions) {
+    var dispatcher = new CommandDispatcher<CommandSource>();
     dispatcher.register(new CommandTree((source, request) -> {}, suggestions, CommandTreeTest.NativeArgument::new).build()); return dispatcher;
   }
   @Test void conflictSuggestionsOnlyExistDuringMergingAndUpdateImmediately() throws Exception {

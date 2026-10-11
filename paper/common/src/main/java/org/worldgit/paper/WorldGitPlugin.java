@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -30,6 +30,8 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
   private PluginSettings settings;
   private Platform platform;
   private NmsBridge bridge;
+  private VersionConfirmations versionConfirmations;
+  VersionConfirmations versionConfirmations(){return versionConfirmations;}
   private RepoService repo;
   private EditGuard edits;
   private FabricLink fabric;
@@ -75,6 +77,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
       getServer().getPluginManager().disablePlugin(this);
       return;
     }
+    versionConfirmations=new VersionConfirmations(this);
     edits = new EditGuard(this);
     getServer().getPluginManager().registerEvents(edits,this);
     operations = new OperationUi(this);
@@ -94,19 +97,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     touched = new TouchedEntities(this);
     suggestions = CommandSuggestions.forPlugin(this);
     var commands = new Commands(this);
-    getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
-      var registrar = event.registrar();
-      registrar.register(new CommandTree(commands, suggestions).build().build(), "WorldGit", List.of("worldgit"));
-      registrar.register(new CommandTree(commands, suggestions).build("worldgit:git").build(), "WorldGit", List.of());
-      if (getConfig().getBoolean("aliases.wgit", true)) registrar.register(new CommandTree(commands, suggestions).build("wgit").build(), "WorldGit", List.of());
-      if (getConfig().getBoolean("aliases.git", true)) {
-        if (registrar.getDispatcher().getRoot().getChild("git") == null) {
-          registrar.register(new CommandTree(commands, suggestions).build("git").build(), "WorldGit", List.of());
-          gitRegistered=true;
-        }
-        else if (!gitConflictLogged) { gitConflictLogged = true; getLogger().info("/git 已由其他插件註冊；請用 /wg 或 /worldgit:git"); }
-      }
-    });
+    CommandRegistration.register(this, commands, suggestions);
     hookWorldEdit();
     hookAxiom();
     repo.submit(() -> {
@@ -144,6 +135,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
 
   @Override
   public void onDisable() {
+    if(versionConfirmations!=null)versionConfirmations.clear();
     if (!enabledOk) return;
     enabledOk = false;
     if(operations!=null) operations.close();

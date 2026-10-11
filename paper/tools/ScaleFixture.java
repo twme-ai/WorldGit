@@ -19,6 +19,11 @@ class ScaleFixture {
         else Files.copy(from, to);
       }
     }
+    // Vanilla fixtures may have saved data but no generated Nether/End chunks.
+    // Make their empty storage visible before the server's first save.
+    if (!version.startsWith("26.")) for (String dimension : List.of("DIM-1", "DIM1"))
+      if (Files.isDirectory(target.resolve("world/" + dimension)))
+        Files.createDirectories(target.resolve("world/" + dimension + "/region"));
     var layout = WorldLayout.discover(target.resolve("world"));
     var overworld = layout.dimensions().get(org.worldgit.core.model.DimensionId.OVERWORLD);
     for (String directory : List.of("region", "entities", "poi")) {
@@ -31,9 +36,14 @@ class ScaleFixture {
     Path levelPath = target.resolve("world/level.dat");
     var level = WorldLayout.readGzip(levelPath);
     var data = level.compound("Data");
-    data.put("spawn", new Nbt.Compound().with("pos", new int[] {8, 64, 8}).with("dimension", "minecraft:overworld").with("yaw", 0f).with("pitch", 0f));
+    if (layout.dataVersion() >= 4671) data.put("spawn", new Nbt.Compound().with("pos", new int[] {8, 64, 8}).with("dimension", "minecraft:overworld").with("yaw", 0f).with("pitch", 0f));
     if (data.containsKey("SpawnX")) { data.put("SpawnX", 8); data.put("SpawnY", 64); data.put("SpawnZ", 8); }
     if (data.containsKey("game_rules")) quiet(data.compound("game_rules"));
+    if (data.containsKey("GameRules")) {
+      var rules = data.compound("GameRules");
+      rules.put("randomTickSpeed", "0");
+      for (String name : List.of("doMobSpawning", "doWeatherCycle", "doDaylightCycle")) rules.put(name, "false");
+    }
     gzip(levelPath, level);
     if (version.equals("26.2")) {
       for (var dimension : layout.dimensions().values()) {

@@ -1,0 +1,149 @@
+name: WorldGit
+version: ${version}
+main: org.worldgit.paper.WorldGitPlugin
+api-version: "1.20"
+folia-supported: true
+description: Minecraft 世界的 git 式版本控制（commit、status、diff、自動存檔點、作者歸屬）
+website: https://github.com/twme-ai/WorldGit
+dependencies:
+  server:
+    AxiomPaper:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    FastAsyncWorldEdit:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    WorldEdit:
+      load: BEFORE
+      required: false
+      join-classpath: true
+permissions:
+  worldgit.admin:
+    description: 所有 WorldGit 指令與通知
+    default: op
+    children:
+      worldgit.command.ignore: true
+      worldgit.command.tag: true
+      worldgit.command.verify: true
+      worldgit.command.init: true
+      worldgit.command.status: true
+      worldgit.command.commit: true
+      worldgit.command.log: true
+      worldgit.command.diff: true
+      worldgit.command.clear: true
+      worldgit.command.reload: true
+      worldgit.command.restore: true
+      worldgit.command.switch: true
+      worldgit.command.branch: true
+      worldgit.command.stash: true
+      worldgit.command.reset: true
+      worldgit.command.cancel: true
+      worldgit.command.merge: true
+      worldgit.command.resolve: true
+      worldgit.command.conflicts: true
+      worldgit.command.conflict-preview: true
+      worldgit.command.tool: true
+      worldgit.command.revert: true
+      worldgit.command.cherry-pick: true
+      worldgit.command.remote: true
+      worldgit.command.fetch: true
+      worldgit.command.push: true
+      worldgit.command.pull: true
+      worldgit.command.pr: true
+      worldgit.command.comment: true
+      worldgit.notify: true
+  worldgit.command.init:
+    description: /wg init（建立 repo，對大型世界很耗時）
+    default: op
+  worldgit.command.status:
+    description: /wg status
+    default: op
+  worldgit.command.commit:
+    description: /wg commit
+    default: op
+  worldgit.command.log:
+    description: /wg log
+    default: true
+  worldgit.command.diff:
+    description: /wg diff
+    default: op
+  worldgit.command.clear:
+    description: /wg clear（清除自己客戶端的預覽）
+    default: true
+  worldgit.command.reload:
+    description: /wg reload（重新載入語言覆寫檔）
+    default: op
+  worldgit.notify:
+    description: 收到自動 commit 的通知
+    default: op
+  worldgit.debug:
+    description: 開發／驗收工具（/wg debug …）；預設只有主控台
+    default: false
+  worldgit.command.restore:
+    description: /wg restore
+    default: op
+  worldgit.command.switch:
+    description: /wg switch
+    default: op
+  worldgit.command.branch:
+    description: /wg branch
+    default: op
+  worldgit.command.stash:
+    description: /wg stash
+    default: op
+  worldgit.command.reset:
+    description: /wg reset
+    default: op
+  worldgit.command.cancel:
+    description: /wg cancel
+    default: op
+  worldgit.command.merge:
+    description: /wg merge
+    default: op
+  worldgit.command.resolve:
+    description: /wg resolve、/wg conflict-select（切換但不標 resolved）
+    default: op
+  worldgit.command.conflicts:
+    description: /wg conflicts
+    default: op
+  worldgit.command.conflict-preview:
+    description: /wg conflict-preview
+    default: op
+  worldgit.command.tool:
+    description: /wg tool
+    default: op
+  worldgit.command.revert:
+    description: /wg revert
+    default: op
+  worldgit.command.cherry-pick:
+    description: /wg cherry-pick
+    default: op
+  worldgit.command.remote:
+    description: /wg remote（遠端協作）
+    default: op
+  worldgit.command.fetch:
+    description: /wg fetch（遠端協作）
+    default: op
+  worldgit.command.push:
+    description: /wg push（遠端協作）
+    default: op
+  worldgit.command.pull:
+    description: /wg pull（遠端協作）
+    default: op
+  worldgit.command.pr:
+    description: /wg pr（遠端協作）
+    default: op
+  worldgit.command.comment:
+    description: /wg comment（遠端協作）
+    default: op
+  worldgit.command.ignore:
+    description: /wg ignore（預覽與確認規則修改）
+    default: op
+  worldgit.command.tag:
+    description: /wg tag
+    default: op
+  worldgit.command.verify:
+    description: /wg verify
+    default: op

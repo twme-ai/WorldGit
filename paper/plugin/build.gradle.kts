@@ -3,7 +3,8 @@ import java.util.zip.ZipFile
 // 發佈用的單一插件 jar：版本無關本體（paper:common）＋ core/platform-api/protocol ＋ 每個 Minecraft 版本一個 NMS 轉接層。
 // 執行時依 Bukkit.getMinecraftVersion() 只載入符合的轉接層（見 NmsBridges）。
 val adapters = listOf(":paper:v1_21_11", ":paper:v26_2")
-adapters.forEach { evaluationDependsOn(it) }
+val legacyAdapters = listOf(":paper:v1_20_1", ":paper:v1_20_4")
+(adapters + legacyAdapters).forEach { evaluationDependsOn(it) }
 
 dependencies {
     implementation(project(":paper:common"))
@@ -24,6 +25,11 @@ tasks.jar {
         val compile = project(path).tasks.named<JavaCompile>("compileJava")
         dependsOn(compile)
         from(compile.map { it.destinationDirectory })
+    }
+    legacyAdapters.forEach { path ->
+        val reobf = project(path).tasks.named("reobfJar")
+        dependsOn(reobf)
+        from(reobf.map { task -> task.outputs.files.files.map { zipTree(it) } })
     }
     // 伺服器已提供 slf4j／snakeyaml 相容版本（plugin classloader 以伺服器優先），不重複打包 slf4j。
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "module-info.class", "META-INF/versions/**/module-info.class", "org/slf4j/**")

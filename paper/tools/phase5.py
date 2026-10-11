@@ -8,17 +8,20 @@ ROOT=Path(harness.ROOT)
 def terminate(signum,frame):raise KeyboardInterrupt('Phase5 runner terminated')
 signal.signal(signal.SIGTERM,terminate)
 
-def fixture(destination,conflict=False):
-    api=next((ROOT/'.work/gradle-home/caches/modules-2/files-2.1/io.papermc.paper/paper-api/1.21.11-R0.1-SNAPSHOT').rglob('*.jar'))
+def fixture(destination,conflict=False,version='1.21.11'):
+    api=next((ROOT/('.work/gradle-home/caches/modules-2/files-2.1/io.papermc.paper/paper-api/'+(version if version in ('1.20.1','1.20.4') else '1.21.11')+'-R0.1-SNAPSHOT')).rglob('*.jar'))
     jars=[api]
     for group in ['com.mojang/brigadier','net.kyori/adventure-api','net.kyori/adventure-key','org.jetbrains/annotations','net.md-5/bungeecord-chat','net.kyori/examination-api','net.kyori/examination-string']:
         jars+=list((ROOT/'.work/gradle-home/caches/modules-2/files-2.1'/group).rglob('*.jar'))
     classes=destination/'fixture-classes';classes.mkdir()
-    subprocess.run(['/usr/lib/jvm/java-21-openjdk-amd64/bin/javac','-cp',os.pathsep.join(map(str,jars)),'-d',str(classes),str(ROOT/'paper/tools/phase5-fixture/Phase5Fixture.java')],check=True)
+    subprocess.run(['/usr/lib/jvm/java-21-openjdk-amd64/bin/javac','--release','17','-cp',os.pathsep.join(map(str,jars)),'-d',str(classes),str(ROOT/'paper/tools/phase5-fixture/Phase5Fixture.java')],check=True)
     with zipfile.ZipFile(destination/'plugins/phase5-fixture.jar','w') as jar:
         for path in classes.rglob('*.class'):jar.write(path,str(path.relative_to(classes)))
-        jar.writestr('plugin.yml','name: Phase5Fixture\nversion: 1\nmain: org.worldgit.fixture.Phase5Fixture\napi-version: "1.21"\nfolia-supported: true\nloadbefore: [WorldGit]\ncommands:\n  wgfixture:\n    description: Phase 5 test fixture\n')
+        jar.writestr('plugin.yml','name: Phase5Fixture\nversion: 1\nmain: org.worldgit.fixture.Phase5Fixture\napi-version: "1.20"\nfolia-supported: true\nloadbefore: [WorldGit]\ncommands:\n  wgfixture:\n    description: Phase 5 test fixture\n')
         jar.writestr('config.yml','git: '+str(conflict).lower()+'\n')
+    # 舊 Bukkit 的顯式 getBoolean 預設值不採用 jar 內的 defaults；測試設定須實際寫入 YAML。
+    data=destination/'plugins/Phase5Fixture';data.mkdir(parents=True,exist_ok=True)
+    (data/'config.yml').write_text('git: '+str(conflict).lower()+'\n')
     shutil.rmtree(classes)
 
 def run(platform,version,conflict=False,disabled=False):
@@ -36,15 +39,19 @@ def run(platform,version,conflict=False,disabled=False):
           server=harness.Server(platform,version,baseline=str(ROOT/'.work/paper-delivery/fixtures'/('acceptance-flat-'+version)),run_label=out.name,view=2,xmx='1500M',all_entities=False,
               config={'language':'en_us','aliases':{'git':not disabled,'wgit':not disabled},'auto-commit':{'enabled':False,'on-shutdown':False},'commit':{'chunks-per-tick':1}})
           result['plugin_sha256']=hashlib.sha256((Path(server.dir)/'plugins/worldgit-paper.jar').read_bytes()).hexdigest()
-          fixture(Path(server.dir),conflict)
+          fixture(Path(server.dir),conflict,version)
           credentials=Path(server.dir)/'plugins/WorldGit/credentials.yml';credentials.write_text('credentials:\n  https://fixture.invalid:\n    mode: bearer\n    token: yaml-arbitrary-secret\n');credentials.chmod(0o600)
           server.start();bot=server.bot('WgBot');time.sleep(3)
+          if conflict:
+            check('conflict fixture registers existing git before WorldGit',any('GIT_FIXTURE stage=enable configured=true' in line and 'fixture:git=org.worldgit.fixture.Phase5Fixture$1(git)' in line for line in server.lines_since(0)))
           def chats(mark):
             with bot.lock:return [event for event in bot.lines[mark:] if event.get('ev')=='chat']
           def command(text,timeout=180):
             mark=len(bot.lines);bot.ask('chat /'+text,'chat_sent');deadline=time.monotonic()+timeout
             while time.monotonic()<deadline:
               rows=chats(mark)
+              if any('Unknown or incomplete command' in row['t'] for row in rows):
+                raise AssertionError('Native command rejected: '+text+' '+str(rows)[-1500:])
               if any('finished:' in row['t'] and ('--all' not in text.split() or ' all ' in row['t']) for row in rows):
                 if any('CLI' in row['t'] or 'UUID 集合' in row['t'] for row in rows):raise AssertionError('遊戲內不應顯示離線 CLI 實體提示：'+str(rows))
                 return rows
@@ -68,6 +75,10 @@ def run(platform,version,conflict=False,disabled=False):
             if disabled and alias in ['wgit','git']:
               mark=len(bot.lines);bot.ask('chat /'+alias+' help','chat_sent');time.sleep(1);check(alias+' disabled',not any('WorldGit -' in r['t'] for r in chats(mark)));continue
             rows=command(alias+' help');check(alias+' alias',any('WorldGit -' in row['t'] for row in rows))
+          check('help includes localized confirm syntax',any('/wg confirm <token>' in row['t'] and 'confirm a loss preview' in row['t'] for row in rows))
+          if version in ('1.21.11','26.2'):
+            rows=command('execute as @s run worldgit:git help')
+            check('execute redirect preserves namespaced alias',any('WorldGit -' in row['t'] for row in rows) and any('finished: SUCCESS' in row['t'] for row in rows),chat=rows)
           if not (conflict or disabled):
             server.cmd('wg debug comment-teleport WgBot minecraft:the_nether','WGCOMMENTTP success=true');time.sleep(3)
             rows=command('wg init');check('nether init only',initialized('minecraft:the_nether') and not initialized('minecraft:overworld') and not initialized('minecraft:the_end'),chat=rows)
@@ -98,6 +109,11 @@ def run(platform,version,conflict=False,disabled=False):
           rows=command(append.removeprefix('/'));check('append button initializes selected dimension',initialized('minecraft:the_end'),chat=rows)
           # 已有地獄 repo；移除空白 fixture repo 後另次 server run 驗地獄追加按鈕。
           check('creative player-touched default','player-touched' in (repository(server.world)/'worldgit-repo.yml').read_text())
+          if version in ('1.21.11','26.2'):
+            for prefix in ['worldgit:git','execute as @s run worldgit:git']:
+              text='/'+prefix+' switch ma'
+              packet=bot.ask('suggest '+text,'suggestions')['packet']
+              check('native completion range '+prefix,packet['start']==len(text)-2 and packet['length']==2 and any(match['match']=='main' for match in packet['matches']),request=text,packet=packet)
           rows=command('wg log --graph');check('graph has lanes hover suggest','suggest_command' in serialized(rows) and '* ' in serialized(rows),chat=rows)
           overworld_head=git('minecraft:overworld','rev-parse','HEAD')
           rows=command('wg branch dimension-only --dimension minecraft:the_nether')
@@ -160,10 +176,13 @@ def run(platform,version,conflict=False,disabled=False):
     (out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(out/'results.json',flush=True)
     return result['success']
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('platform',nargs='?',choices=['paper','folia']);parser.add_argument('version',nargs='?',choices=['1.21.11','26.2']);parser.add_argument('--matrix',action='store_true');parser.add_argument('--conflict',action='store_true');parser.add_argument('--disabled',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('platform',nargs='?',choices=['paper','folia']);parser.add_argument('version',nargs='?',choices=['1.20.1','1.20.4','1.21.11','26.2']);parser.add_argument('--matrix',action='store_true');parser.add_argument('--conflict',action='store_true');parser.add_argument('--disabled',action='store_true');args=parser.parse_args()
     if args.matrix:
       ok=True
-      for platform,version,conflict,disabled in [('paper','1.21.11',False,False),('paper','26.2',False,False),('folia','1.21.11',False,False),('folia','26.2',False,False),('paper','1.21.11',True,False),('folia','26.2',False,True)]:
+      for platform,version,conflict,disabled in [(platform,version,False,False)
+          for version in ('1.20.1','1.20.4','1.21.11','26.2') for platform in ('paper','folia')]+[
+          ('paper','1.20.1',True,False),('folia','1.20.4',False,True),
+          ('paper','1.21.11',True,False),('folia','26.2',False,True)]:
         if not run(platform,version,conflict,disabled):ok=False;break
       raise SystemExit(0 if ok else 1)
     if not args.platform or not args.version:parser.error('platform/version required unless --matrix')

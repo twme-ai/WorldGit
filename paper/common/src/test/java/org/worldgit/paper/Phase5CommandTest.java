@@ -13,7 +13,7 @@ import net.kyori.adventure.text.event.ClickEvent;
 class Phase5CommandTest {
   @Test void targetFlagsSurroundTypedArgumentsAndLeaveGreedyTextIntact() throws Exception {
     var requests=new ArrayList<CommandRequest>();
-    var dispatcher=new CommandDispatcher<io.papermc.paper.command.brigadier.CommandSourceStack>();
+    var dispatcher=new CommandDispatcher<org.worldgit.paper.CommandSource>();
     var suggestions=new CommandSuggestions(k->CompletableFuture.completedFuture(List.of()),()->null);
     dispatcher.register(new CommandTree((source,request)->requests.add(request),suggestions,CommandTreeTest.NativeArgument::new).build());
     var source=CommandTreeTest.source(true,Set.of("worldgit.admin"));

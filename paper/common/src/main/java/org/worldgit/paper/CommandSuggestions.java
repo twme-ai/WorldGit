@@ -2,8 +2,8 @@ package org.worldgit.paper;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.suggestion.*;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
-import io.papermc.paper.command.brigadier.MessageComponentSerializer;
+import org.worldgit.paper.CommandSource;
+
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -89,8 +89,8 @@ final class CommandSuggestions implements AutoCloseable {
     if (box == null) return "—"; // metadata／檔案衝突沒有空間座標。
     return "(" + box.minX() + "," + box.minY() + "," + box.minZ() + ")–(" + box.maxX() + "," + box.maxY() + "," + box.maxZ() + ")";
   }
-  SuggestionProvider<CommandSourceStack> provider(Kind kind) { return provider(kind, false); }
-  private SuggestionProvider<CommandSourceStack> provider(Kind kind, boolean prefixed) {
+  SuggestionProvider<CommandSource> provider(Kind kind) { return provider(kind, false); }
+  private SuggestionProvider<CommandSource> provider(Kind kind, boolean prefixed) {
     return (context, builder) -> {
       if (!authorized(context)) return builder.buildFuture();
       String locale = Messages.language(context.getSource().getSender());
@@ -98,13 +98,13 @@ final class CommandSuggestions implements AutoCloseable {
       return scopedEntries(context,kind).thenApply(rows -> render(rows, builder, locale, prefixed, kind == Kind.BRANCHES || kind == Kind.REVISIONS));
     };
   }
-  SuggestionProvider<CommandSourceStack> worlds() {
+  SuggestionProvider<CommandSource> worlds() {
     return (context,builder)->{
       for(var world:org.bukkit.Bukkit.getWorlds())if(world.getName().toLowerCase(Locale.ROOT).startsWith(builder.getRemainingLowerCase()))builder.suggest(CommandArguments.quote(world.getName()));
       return builder.buildFuture();
     };
   }
-  SuggestionProvider<CommandSourceStack> ignoreLines() {
+  SuggestionProvider<CommandSource> ignoreLines() {
     return (context,builder)->{
       if(plugin==null || !authorized(context))return builder.buildFuture();
       var sender=context.getSource().getSender();
@@ -122,7 +122,7 @@ final class CommandSuggestions implements AutoCloseable {
       }).completeOnTimeout(builder.build(),750,TimeUnit.MILLISECONDS);
     };
   }
-  SuggestionProvider<CommandSourceStack> ignoreRules() {
+  SuggestionProvider<CommandSource> ignoreRules() {
     return (context,builder)->{
       for(String value:List.of("entity ","field ","area ","biome "))if(value.startsWith(builder.getRemainingLowerCase()))builder.suggest(value);
       if(builder.getRemaining().startsWith("entity ")) {
@@ -133,7 +133,7 @@ final class CommandSuggestions implements AutoCloseable {
       return builder.buildFuture();
     };
   }
-  private CompletableFuture<List<Entry>> scopedEntries(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context,Kind kind) {
+  private CompletableFuture<List<Entry>> scopedEntries(com.mojang.brigadier.context.CommandContext<CommandSource> context,Kind kind) {
     if(plugin==null)return entries(kind);
     var sender=context.getSource().getSender();
     var world=sender instanceof org.bukkit.entity.Player player?player.getWorld():plugin.getServer().getWorlds().getFirst();
@@ -160,13 +160,13 @@ final class CommandSuggestions implements AutoCloseable {
     for (var row : rows) {
       String value = prefixed ? "#" + row.value() : quoted ? CommandArguments.quote(row.value()) : row.value();
       String match = remaining.startsWith("\"") ? value : (prefixed ? "#" : "") + row.value();
-      if (match.toLowerCase(Locale.ROOT).startsWith(remaining)) builder.suggest(value, MessageComponentSerializer.message().serialize(row.tooltip(locale)));
+      if (match.toLowerCase(Locale.ROOT).startsWith(remaining)) builder.suggest(value, CommandMessages.serialize(row.tooltip(locale)));
     }
     return builder.build();
   }
 
   /** greedy 相容尾端的 flags／branch 補全，offset 精確對準最後一個 token。 */
-  SuggestionProvider<CommandSourceStack> textProvider(boolean pr) {
+  SuggestionProvider<CommandSource> textProvider(boolean pr) {
     return (context, builder) -> {
       if (!authorized(context)) return builder.buildFuture();
       String locale = Messages.language(context.getSource().getSender());
@@ -188,12 +188,12 @@ final class CommandSuggestions implements AutoCloseable {
         return scopedEntries(context,Kind.BRANCHES).thenApply(rows -> render(rows, offset, locale, false, true));
       for (String flag : pr ? List.of("--source", "--target") : List.of("--here")) {
         if (!seen.contains(flag) && flag.startsWith(offset.getRemaining()) && (pr || context.getSource().getSender() instanceof org.bukkit.entity.Player))
-          offset.suggest(flag, MessageComponentSerializer.message().serialize(Messages.inLocale(locale, () -> Messages.text("paper.command.tip." + flag.substring(2)))));
+          offset.suggest(flag, CommandMessages.serialize(Messages.inLocale(locale, () -> Messages.text("paper.command.tip." + flag.substring(2)))));
       }
       return offset.buildFuture();
     };
   }
-  private static boolean authorized(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
+  private static boolean authorized(com.mojang.brigadier.context.CommandContext<CommandSource> context) {
     if (context.getNodes().size() < 2) return false;
     return CommandTree.allowed(context.getSource(), context.getNodes().get(1).getNode().getName());
   }

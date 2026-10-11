@@ -27,14 +27,14 @@ final class Debug {
     this.plugin = plugin;
   }
 
-  void run(io.papermc.paper.command.brigadier.CommandSourceStack source, CommandRequest request)
+  void run(org.worldgit.paper.CommandSource source, CommandRequest request)
       throws com.mojang.brigadier.exceptions.CommandSyntaxException {
     var sender = source.getSender();
     org.bukkit.entity.Player player = null;
-    if (request.values().containsKey("player")) player = request.value("player", io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver.class).resolve(source).getFirst();
-    io.papermc.paper.math.BlockPosition position = null;
+    if (request.values().containsKey("player")) player = source.player(request.values().get("player"));
+    CommandSource.Position position = null;
     if (request.values().containsKey("position")) {
-      var pos = request.value("position", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class).resolve(source);
+      var pos = source.position(request.values().get("position"));
       position = pos;
     }
     try {
@@ -90,7 +90,7 @@ final class Debug {
   }
 
   /** Folia 的 vanilla /data、全域 /kill 不可用；驗收 fixture 走真正 owner。 */
-  private void fixtureContainer(CommandSender sender, io.papermc.paper.math.BlockPosition position, String block) {
+  private void fixtureContainer(CommandSender sender, CommandSource.Position position, String block) {
     int x = position.blockX(), y = position.blockY(), z = position.blockZ();
     var material = Objects.requireNonNull(Material.matchMaterial(block));
     var world=Bukkit.getWorlds().getFirst();
@@ -128,9 +128,7 @@ final class Debug {
   }
   private void mergeGui(CommandSender sender, org.bukkit.entity.Player p, int slot) {
     plugin.platform().entity(p,()->{
-      var view=p.getOpenInventory();
-      if(slot<0 || slot>=view.getTopInventory().getSize()) throw new IllegalArgumentException("slot 超出 GUI");
-      Bukkit.getPluginManager().callEvent(new org.bukkit.event.inventory.InventoryClickEvent(view,org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER,slot,org.bukkit.event.inventory.ClickType.LEFT,org.bukkit.event.inventory.InventoryAction.PICKUP_ALL));
+      plugin.bridge().clickOpenMenu(p,slot);
       sender.sendMessage(Component.text("WGMERGEGUI event delivered"));
     },()->{});
   }
@@ -189,15 +187,11 @@ final class Debug {
 
   private void protection(CommandSender sender, org.bukkit.entity.Player player) {
     plugin.platform().entity(player,()->{
-      // 用 DamageSource 版建構子（三參數版已標記 removal）；DamageType 對應各 DamageCause
-      var cases=new java.util.LinkedHashMap<org.bukkit.event.entity.EntityDamageEvent.DamageCause,org.bukkit.damage.DamageType>();
-      cases.put(org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL,org.bukkit.damage.DamageType.FALL);
-      cases.put(org.bukkit.event.entity.EntityDamageEvent.DamageCause.SUFFOCATION,org.bukkit.damage.DamageType.IN_WALL);
-      cases.put(org.bukkit.event.entity.EntityDamageEvent.DamageCause.DROWNING,org.bukkit.damage.DamageType.DROWN);
-      cases.put(org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_ATTACK,org.bukkit.damage.DamageType.GENERIC);
-      for(var entry:cases.entrySet()) {
-        var cause=entry.getKey();
-        var event=new org.bukkit.event.entity.EntityDamageEvent(player,cause,org.bukkit.damage.DamageSource.builder(entry.getValue()).build(),4);
+      for(var cause:java.util.List.of(org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL,
+          org.bukkit.event.entity.EntityDamageEvent.DamageCause.SUFFOCATION,
+          org.bukkit.event.entity.EntityDamageEvent.DamageCause.DROWNING,
+          org.bukkit.event.entity.EntityDamageEvent.DamageCause.ENTITY_ATTACK)) {
+        var event=new org.bukkit.event.entity.EntityDamageEvent(player,cause,4);
         Bukkit.getPluginManager().callEvent(event);
         sender.sendMessage(Component.text("WGPROTECT cause="+cause+" cancelled="+event.isCancelled()));
       }

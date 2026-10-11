@@ -57,6 +57,11 @@ public final class WorldOperations implements AutoCloseable {
     SnapshotSource source(WorldLayout.Dimension dimension) throws IOException;
     /** 由目標伺服器提供既有 DFU；Task 2／3 接上，null 使用隔離原版程序。 */
     default org.worldgit.core.version.NbtUpgrader dataFixer(){return null;}
+    default int dataVersion(WorldLayout layout) throws IOException { return layout.dataVersion(); }
+    default void confirmConversions(Map<String,org.worldgit.core.version.ConversionReport> reports) throws IOException {
+      for (var report : reports.values()) report.requireAccepted(false);
+    }
+    default void previewConversions(Map<String,org.worldgit.core.version.ConversionReport> reports) {}
 
     /** 局部來源：必須以 owner 活資料或完成 IO 的磁碟快照讀取指定 chunks；不需 scan。 */
     default SnapshotSource source(WorldLayout.Dimension dimension, Set<ChunkPos> chunks)
@@ -163,21 +168,32 @@ public final class WorldOperations implements AutoCloseable {
   private final EntityTagRegistry.PackResolver packResolver;
   private final double tolerance;
   private boolean acceptLoss;
+  private int targetDataVersion() throws IOException {
+    return live==null ? layout.dataVersion() : live.dataVersion(layout);
+  }
   private final SortedMap<DimensionId,org.worldgit.core.version.ConversionReport> conversions = new TreeMap<>();
   private final SortedMap<String,org.worldgit.core.version.ConversionReport> conversionAudits = new TreeMap<>();
   public WorldOperations acceptLoss(boolean value) { acceptLoss=value;return this; }
   public Map<DimensionId,org.worldgit.core.version.ConversionReport> conversionReports(){return Collections.unmodifiableMap(conversions);}
   public Map<String,org.worldgit.core.version.ConversionReport> conversionAudits(){return Collections.unmodifiableMap(conversionAudits);}
+  public SortedMap<DimensionId,String> conversionState() throws IOException {
+    var state=new TreeMap<DimensionId,String>();
+    for(var entry:repos.entrySet()) {
+      var repo=entry.getValue();
+      state.put(entry.getKey(),repo.directory().toAbsolutePath()+"\0"+repo.refs().headState()+"\0"+capture(repo));
+    }
+    return state;
+  }
   private String converted(DimensionRepository repo, RefStore.Commit commit) throws IOException {
     if(commit==null)return null;
-    var result=org.worldgit.core.version.VersionConversions.convert(repo.objects(),commit.tree(),repo.dimension(),commit.metadata().mcDataVersion(),layout.dataVersion(),repo.directory().resolve("worldgit.yml"),acceptLoss,live==null?null:live.dataFixer());
-    if(commit.metadata().mcDataVersion()!=layout.dataVersion()){conversions.put(repo.dimension(),result.report());conversionAudits.put(repo.dimension().value()+"/"+commit.id(),result.report());}
+    var result=org.worldgit.core.version.VersionConversions.convert(repo.objects(),commit.tree(),repo.dimension(),commit.metadata().mcDataVersion(),targetDataVersion(),repo.directory().resolve("worldgit.yml"),live!=null || acceptLoss,live==null?null:live.dataFixer());
+    if(commit.metadata().mcDataVersion()!=targetDataVersion()){conversions.put(repo.dimension(),result.report());conversionAudits.put(repo.dimension().value()+"/"+commit.id(),result.report());}
     return result.tree();
   }
 
   private String comparableHead(DimensionRepository repo, RefStore.Commit commit) throws IOException {
     return org.worldgit.core.version.VersionConversions.convert(repo.objects(), commit.tree(),
-        repo.dimension(), commit.metadata().mcDataVersion(), layout.dataVersion(),
+        repo.dimension(), commit.metadata().mcDataVersion(), targetDataVersion(),
         repo.directory().resolve("worldgit.yml"), true, live == null ? null : live.dataFixer()).tree();
   }
 
@@ -292,11 +308,11 @@ public final class WorldOperations implements AutoCloseable {
         rules,
         rules,
         EntityTagRegistry.load(
-            layout.world(), layout.dataVersion(), packResolver),
+            layout.world(), targetDataVersion(), packResolver),
         tolerance,
         delete,
         meta,
-        layout.dataVersion());
+        targetDataVersion());
   }
 
   private String capture(DimensionRepository repo) throws IOException {
@@ -421,7 +437,8 @@ public final class WorldOperations implements AutoCloseable {
       var prior = repo.refs().headState();
       if (prior.commit() != null && target.tree().equals(repo.refs().readCommit(prior.commit()).tree())
           && target.tree().equals(prepared.plans.get(repo.dimension()).baseTree())) {
-        if (dryRun) return new Result(State.DRY_RUN, stats(prepared), null);
+        if(dryRun) {if(live!=null)live.previewConversions(conversionAudits);return new Result(State.DRY_RUN,stats(prepared),null);}
+        if (live != null) live.confirmConversions(conversionAudits);
         if (live != null) live.beforeComplete();
         String operation = org.worldgit.core.operation.OperationProgress.operationId().toString();
         var row = new LinkedHashMap<String,Object>();
@@ -535,7 +552,11 @@ public final class WorldOperations implements AutoCloseable {
       PersistCompletion persistence,
       Hooks hooks)
       throws IOException {
-    if (dryRun) return new Result(State.DRY_RUN, stats(prepared), null);
+    if (dryRun) {
+      if (live != null) live.previewConversions(conversionAudits);
+      return new Result(State.DRY_RUN, stats(prepared), null);
+    }
+    if (live != null) live.confirmConversions(conversionAudits);
     boolean writes = prepared.plans.values().stream().anyMatch(p -> !p.empty());
     if (live == null || !writes) {
       if (live != null && hooks.stashMessage() != null && hooks.stashAlways())
@@ -643,7 +664,11 @@ public final class WorldOperations implements AutoCloseable {
   private Result executeGuarded(String mode, Prepared prepared, String branch, boolean moveHead,
       boolean dryRun, PersistCompletion persistence) throws IOException {
     org.worldgit.core.operation.OperationProgress.report(repos.firstKey(), "preflight", 0, null, org.worldgit.core.operation.OperationProgress.Unit.SECTION);
-    if (dryRun) return new Result(State.DRY_RUN, stats(prepared), null);
+    if (dryRun) {
+      if (live != null) live.previewConversions(conversionAudits);
+      return new Result(State.DRY_RUN, stats(prepared), null);
+    }
+    if (live != null) live.confirmConversions(conversionAudits);
     var old = new TreeMap<DimensionId, RefStore.Head>();
     var priorJournal = OperationState.read(stateRoot.resolve("apply-state.yml"));
     var journal = new LinkedHashMap<String, Object>();
@@ -830,7 +855,7 @@ public final class WorldOperations implements AutoCloseable {
   }
 
   /** 每筆集合獨立，避免 YAML writer 對共用的空 List 或損失樣本產生 alias。 */
-  static Map<String, Object> conversionJournal(
+  public static Map<String, Object> conversionJournal(
       Map<String, org.worldgit.core.version.ConversionReport> reports) {
     var rows = new TreeMap<String, Object>();
     for (var entry : reports.entrySet()) {
@@ -999,7 +1024,7 @@ public final class WorldOperations implements AutoCloseable {
               author,
               message,
               now,
-              layout.dataVersion(),
+              targetDataVersion(),
               entry.getKey(),
               CommitMetadata.Source.CLI,
               false,
@@ -1237,6 +1262,17 @@ public final class WorldOperations implements AutoCloseable {
     requireComplete();
     if (dirty(true)) throw new IOException("合併要求乾淨工作區（含 untracked）；請先 commit 或 stash push。");
     var targets = mergeOverride == null ? resolveForMerge(revision) : mergeOverride;
+    if(live!=null) {
+      for(var entry:repos.entrySet()) {
+        var repo=entry.getValue();var ours=repo.refs().readCommit(repo.refs().head());var target=targets.get(entry.getKey());
+        converted(repo,ours);converted(repo,target);
+        if(target!=null) {
+          String base=mode.equals("merge")?MergeBases.unique(repo.refs(),ours.id(),target.id()):target.parents().isEmpty()?null:target.parents().getFirst();
+          if(base!=null)converted(repo,repo.refs().readCommit(base));
+        }
+      }
+      if(opts.dryRun())live.previewConversions(conversionAudits);else live.confirmConversions(conversionAudits);
+    }
     var operation = org.worldgit.core.operation.OperationProgress.operationId();
     var dimensions = new TreeMap<DimensionId, MergeState.Dimension>();
     var plans = new TreeMap<DimensionId, ApplyPlan>();
@@ -1244,7 +1280,7 @@ public final class WorldOperations implements AutoCloseable {
     int nextId = 1;
     var semantics =
         EntityTagRegistry.load(
-            layout.world(), layout.dataVersion(), packResolver);
+            layout.world(), targetDataVersion(), packResolver);
     for (var entry : repos.entrySet()) {
       var id = entry.getKey();
       var repo = entry.getValue();
@@ -1346,7 +1382,7 @@ public final class WorldOperations implements AutoCloseable {
               opts.author(),
               mode + " " + revision,
               Instant.now(),
-              layout.dataVersion(),
+              targetDataVersion(),
               id,
               opts.source(),
               false,
@@ -1491,11 +1527,11 @@ public final class WorldOperations implements AutoCloseable {
             parsed,
             parsed,
             EntityTagRegistry.load(
-                layout.world(), layout.dataVersion(), packResolver),
+                layout.world(), targetDataVersion(), packResolver),
             tolerance,
             !parsed.hasAreas(),
             true,
-            layout.dataVersion());
+            targetDataVersion());
     var plan =
         ApplyPlanner.plan(repo.objects(), repo.dimension(), current, target, Scope.all(), opts);
     applier.validateMetadata(plan);
@@ -1714,11 +1750,11 @@ public final class WorldOperations implements AutoCloseable {
             rules,
             rules,
             EntityTagRegistry.load(
-                layout.world(), layout.dataVersion(), packResolver),
+                layout.world(), targetDataVersion(), packResolver),
             0,
             false,
             false,
-            layout.dataVersion());
+            targetDataVersion());
     return ApplyPlanner.plan(
         repo.objects(), repo.dimension(), current, target, Scope.chunkSet(chunks), options);
   }
@@ -2125,7 +2161,7 @@ public final class WorldOperations implements AutoCloseable {
               author,
               message == null ? state.message() : message,
               now,
-              layout.dataVersion(),
+              targetDataVersion(),
               e.getKey(),
               source,
               false,
@@ -2211,11 +2247,11 @@ public final class WorldOperations implements AutoCloseable {
                 IgnoreRules.none(),
                 IgnoreRules.none(),
                 EntityTagRegistry.load(
-                    layout.world(), layout.dataVersion(), packResolver),
+                    layout.world(), targetDataVersion(), packResolver),
                 tolerance,
                 true,
                 repo.dimension().equals(DimensionId.OVERWORLD),
-                layout.dataVersion());
+                targetDataVersion());
         var plan =
             ApplyPlanner.plan(
                 repo.objects(),

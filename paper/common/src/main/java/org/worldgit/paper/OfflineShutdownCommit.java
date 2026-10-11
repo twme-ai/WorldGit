@@ -21,7 +21,7 @@ import org.worldgit.core.service.WorldRepositories;
  * 改走離線路徑：在 JVM 關閉鉤子裡等伺服器把世界存檔完成，再用 core 的離線掃描（與 CLI 同一條路徑）commit。
  *
  * <p>流程：onEnable 註冊鉤子執行緒；onDisable 擷取版面、設定與作者歸屬並預載插件 jar 的所有類別（PluginClassLoader 隨後會被關閉，
- * 之後才第一次用到的類別會 NoClassDefFoundError）；鉤子等到 log4j appender 看到伺服器的「All RegionFile I/O tasks to complete」（＝所有世界已存完、I/O 已 flush；
+ * 之後才第一次用到的類別會 NoClassDefFoundError）；鉤子等到 log4j appender 看到 adapter 已核對的世界存檔／I/O 完成訊號（舊兩版為 RegionFileIOThread.close(true) 返回後的「Closing Thread Pool」；
  * Folia 的 session.lock 要到 JVM 結束才釋放，不能當訊號）才掃描與寫 commit，逾時就放棄並寫明原因（不動世界）。結果寫到 plugins/WorldGit/shutdown-commit.log，因為此時 log4j 可能已關閉。
  */
 final class OfflineShutdownCommit {
@@ -48,26 +48,25 @@ final class OfflineShutdownCommit {
     this.logFile = plugin.getDataFolder().toPath().resolve("shutdown-commit.log");
   }
 
-  /** Paper／Folia 的 MinecraftServer 在所有世界存檔後印出這行（Paper 補丁，兩個平台兩個版本都有）。 */
-  static final String IO_DONE_MESSAGE = "All RegionFile I/O tasks to complete";
-
   private static final class Watch extends org.apache.logging.log4j.core.appender.AbstractAppender {
     private final java.util.concurrent.atomic.AtomicBoolean flag;
+    private final NmsBridge bridge;
 
-    Watch(java.util.concurrent.atomic.AtomicBoolean flag) {
+    Watch(java.util.concurrent.atomic.AtomicBoolean flag, NmsBridge bridge) {
       super("WorldGitShutdownWatch", null, null, true, org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY);
       this.flag = flag;
+      this.bridge = bridge;
     }
 
     @Override
     public void append(org.apache.logging.log4j.core.LogEvent event) {
-      if (event.getMessage() != null && event.getMessage().getFormattedMessage().contains(IO_DONE_MESSAGE)) flag.set(true);
+      if (event.getMessage() != null && bridge.shutdownIoComplete(event.getLoggerName(), event.getMessage().getFormattedMessage())) flag.set(true);
     }
   }
 
   void register() {
     try {
-      var watch = new Watch(ioDone);
+      var watch = new Watch(ioDone, plugin.bridge());
       watch.start();
       ((org.apache.logging.log4j.core.Logger) org.apache.logging.log4j.LogManager.getRootLogger()).addAppender(watch);
     } catch (Throwable t) {

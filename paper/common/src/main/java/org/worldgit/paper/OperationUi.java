@@ -24,6 +24,8 @@ final class OperationUi implements AutoCloseable {
     try { return task.get(); } finally { if (previous == null) CURRENT.remove(); else CURRENT.set(previous); }
   }
   final class Action {
+    volatile VersionConfirmations.Approval conversionApproval;
+    volatile java.util.function.Consumer<VersionConfirmations.Approval> retry;
     final UUID id = UUID.randomUUID();
     final String operation;
     final CommandSender sender;

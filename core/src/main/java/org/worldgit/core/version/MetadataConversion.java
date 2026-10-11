@@ -165,6 +165,12 @@ final class MetadataConversion {
         level.put("GameRules", old);
         level.remove("game_rules");
       }
+      if (to <= 4440 && level.containsKey("GameRules")) {
+        var gameRules=level.compound("GameRules");
+        for(String name:new ArrayList<>(gameRules.keySet())) if(!reverse.known("gamerules",name)) {
+          loss.add("gamerule",name,"skip","metadata/GameRules");gameRules.remove(name);
+        }
+      }
       if (to <= 4440 && level.containsKey("spawn")) {
         var s = level.compound("spawn");
         if (s.get("pos") instanceof int[] p && p.length == 3) {
@@ -358,6 +364,7 @@ final class MetadataConversion {
   }
 
   private static String legacy(String path) {
+    if (path.matches("data/[^/]+\\.dat")) return path;
     if (path.matches("data/minecraft/maps/\\d+\\.dat"))
       return "data/map_" + path.substring("data/minecraft/maps/".length());
     if (path.equals("data/minecraft/maps/last_id.dat")) return "data/idcounts.dat";
@@ -387,7 +394,7 @@ final class MetadataConversion {
     return null;
   }
 
-  private static String savedType(String path) {
+  static String savedType(String path) {
     if (!path.startsWith("data/minecraft/") && !path.matches("data/[^/]+\\.dat")
         && !path.matches("data/[^/]+/command_storage\\.dat")) return null;
     String file = path.substring(path.lastIndexOf('/') + 1);

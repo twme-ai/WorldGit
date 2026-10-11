@@ -71,10 +71,10 @@ public final class SnapshotConverter implements AutoCloseable {
     if (entry != null) {
       var files = new TreeMap<String, byte[]>();
       for (var e : store.readTree(entry.id()).values()) files.put(e.name(), store.readBlob(e.id()));
-      editor.replaceTree(
-          name,
-          MetadataConversion.convert(
-              files, dimension, from, to, from < to ? dfu() : null, reverse, losses, runtime));
+      var metadata=MetadataConversion.convert(
+          files, dimension, from, to, from < to ? dfu() : null, reverse, losses, runtime);
+      if (!ownsDfu) metadata=dfu.projectMetadata(metadata,from,to);
+      editor.replaceTree(name,metadata);
     }
     String result = editor.write();
     store.flush();

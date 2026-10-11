@@ -9,7 +9,31 @@ import org.worldgit.core.store.*;
 /** 一致入口；同版本不下載／啟動 DFU。快取鍵包含輸入 tree、版本、規則與設定。 */
 public final class VersionConversions {
   private VersionConversions() {}
-  public static final String NORMALIZATION = "multiversion-canonical-v12-ticks-clamp";
+  public static final String NORMALIZATION = "multiversion-canonical-v13-legacy-metadata";
+
+  /** Saved data may retain its older file version until it becomes dirty after a server upgrade. */
+  public static Map<String, byte[]> capturedSavedData(Map<String, byte[]> input, int target,
+      NbtUpgrader upgrader) throws IOException {
+    var output = new TreeMap<>(input);
+    for (var entry : input.entrySet()) {
+      String path = org.worldgit.core.anvil.SavedData.relativePath(entry.getKey());
+      String type = path == null
+          ? entry.getKey().matches("map_\\d+\\.dat\\.nbt") ? "SAVED_DATA_MAP_DATA"
+              : entry.getKey().equals("scoreboard.dat.nbt") ? "SAVED_DATA_SCOREBOARD" : null
+          : MetadataConversion.savedType(path);
+      if (type == null) continue;
+      var raw = org.worldgit.core.anvil.Nbt.read(entry.getValue());
+      int from = raw.integer("DataVersion", target);
+      if (from > target) throw new IOException("Saved-data DataVersion=" + from + " exceeds target=" + target);
+      if (from == target) continue;
+      var fixed = upgrader.upgrade(type, raw, from, target);
+      fixed.put("DataVersion", target);
+      byte[] value = org.worldgit.core.anvil.SavedData.normalize(entry.getKey(),
+          org.worldgit.core.anvil.Nbt.write(fixed));
+      if (value == null) output.remove(entry.getKey()); else output.put(entry.getKey(), value);
+    }
+    return output;
+  }
 
   public static SnapshotConverter.Result convert(
       ObjectStore store,
@@ -40,7 +64,8 @@ public final class VersionConversions {
     String key =
         MojangRuntime.sha1(
             (tree + "\0" + dimension + "\0" + from + "\0" + to + "\0" + rules.fingerprint
-                + "\0" + org.worldgit.core.anvil.SavedData.NORMALIZATION + "\0" + NORMALIZATION)
+                + "\0" + org.worldgit.core.anvil.SavedData.NORMALIZATION + "\0" + NORMALIZATION
+                + "\0" + (upgrader==null ? "vanilla" : upgrader.projectionFingerprint()))
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8));
     Path cache = MojangRuntime.cache().resolve("conversions").resolve(key + ".nbt");
     if (Files.isRegularFile(cache))

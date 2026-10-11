@@ -10,6 +10,16 @@ common:
   error: "<red>Error: <message></red>"
 
 paper:
+  version:
+    confirm-required: "Review the conversion loss list and confirm before retrying."
+    mismatch: "Adapter DataVersion mismatch for <version>: expected <expected>, actual <actual>."
+    load-failed: "Cannot load the <version> adapter (<adapter>): <error>."
+    unsupported: "WorldGit does not support Minecraft <version>. Available adapters: <supported>."
+    preview: "<yellow>Conversion <operation> will lose content. No world changes have been written.</yellow>"
+    source: "<gray><snapshot>: <from> → <to></gray>"
+    loss: "<yellow><kind> <source> → <replacement> × <count>; locations: <locations></yellow>"
+    confirm: "<gold>[Confirm conversion: /wg confirm <token>]</gold>"
+    invalid-token: "<red>Confirmation token is invalid, expired, or belongs to another player.</red>"
   phase5:
     online-meta-unsupported: "Online restore of world-meta is not supported: <files>. Restore these settings offline (stop the server, then run wgit switch/restore with the CLI)."
     terminal: "<operation> finished: <status> · <dimension> (<millis> ms)"
@@ -172,6 +182,7 @@ paper:
       ignore: "/wg ignore list|add|remove|move|enable|disable|test|check|preview|confirm"
       tag: "/wg tag [-d] [name]"
       verify: "/wg verify [revision]"
+      confirm: '<gray>  /wg confirm \<token> (confirm a loss preview)</gray>'
       init: <gray>  /wg init [--template creative|survival]</gray>
       status: <gray>  /wg status [--full] [--show]</gray>
       commit: <gray>  /wg commit -m <message></gray>

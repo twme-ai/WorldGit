@@ -1,6 +1,6 @@
 # 19 — 多版本世界與跨版本歷史
 
-研究日期：2026-10-09；實作與驗收持續至 2026-10-11。本文件涵蓋任務 1（core／CLI／Hub／platform-api），以及任務 2（Paper／Folia）、任務 3（Fabric）的交接。平台能下載不等於 WorldGit 已驗收；目前線上轉接層仍只有 1.21.11／26.2。
+研究日期：2026-10-09；實作與驗收持續至 2026-10-11。本文件涵蓋任務 1（core／CLI／Hub／platform-api），以及任務 2（Paper／Folia）、任務 3（Fabric）的交接。平台能下載不等於 WorldGit 已驗收；本次任務 2 子任務①新增 1.20.1／1.20.4 線上轉接層，與既有 1.21.11／26.2 共用發行 jar；其餘平台仍待後續子任務。
 
 ## 1. 來源與目標版本
 
@@ -25,7 +25,7 @@ Paper／Folia 可用性查 [官方下載 API](https://fill.papermc.io/v3/project
 
 同日重新查 [Mojang manifest](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)，最新正式版仍為 26.3；26.4-snapshot-3 不納入正式支援。26.3 的 metadata SHA-1 與研究時的快取一致，回應證據在 `.work/mv1-finish/mojang-current-check.json`。
 
-[26.1 官方說明](https://feedback.minecraft.net/hc/en-us/articles/44551668333837-Minecraft-Java-Edition-26-1)明定 Java 25；[Paper Java 建議](https://docs.papermc.io/paper/getting-started/)亦以 26.1 為界。1.20.1／1.20.4 的原版 fixture 已用 Java 21 啟動；Paper build 196／499 亦已在 Java 21 成功載入 Java 21 bytecode 的測試插件。Java 21 CLI 呼叫 Java 25 DFU 並完成兩版升降級也通過，證據見 `.work/mv1-recovery/multiversion/platform-java21.json`。共用 core 維持 Java 21 bytecode，26.x adapter 編 Java 25，舊版 WorldGit 伺服器也要求 Java 21；任務 2 仍須完成 WorldGit adapter 與 Folia 載入驗收。沒有把「原版可用 Java 17」誤寫成「WorldGit 可用 Java 17」。
+[26.1 官方說明](https://feedback.minecraft.net/hc/en-us/articles/44551668333837-Minecraft-Java-Edition-26-1)明定 Java 25；[Paper Java 建議](https://docs.papermc.io/paper/getting-started/)亦以 26.1 為界。1.20.1／1.20.4 的原版 fixture 已用 Java 21 啟動；Paper build 196／499 亦已在 Java 21 成功載入 Java 21 bytecode 的測試插件。Java 21 CLI 呼叫 Java 25 DFU 並完成兩版升降級也通過，證據見 `.work/mv1-recovery/multiversion/platform-java21.json`。共用 core 維持 Java 21 bytecode，26.x adapter 編 Java 25，舊版 WorldGit 伺服器也要求 Java 21；任務 2 子任務①已完成 WorldGit 1.20.1／1.20.4 adapter 與 Paper／Folia 真服驗收，結果見 §8。沒有把「原版可用 Java 17」誤寫成「WorldGit 可用 Java 17」。
 
 保留使用者十版清單；不改選 1.21.10。1.20.2／1.20.3／1.20.5／1.21.2／1.21.5／1.21.9 等是**格式邊界**，需要轉換規則，但不是額外正式驗收平台。不在 catalog 的 DataVersion 不以鄰近值猜測。後續同 adapter 啟動成功的版本只能標「相容、未正式驗收」。
 
@@ -129,7 +129,7 @@ Hub Dto 提供 mcVersion/versionChange，詳細頁可查看損失清單；跨版
 
 沿用每版薄 adapter、共用 common／NmsBridge、shared source 的 Gradle 多模組結構。先新增 `paper/v1_20_1`、`v1_20_4`、`v1_20_6`、`v1_21_1`、`v1_21_4`、`v1_21_8`、`v26_1_2`、`v26_3`；每個目標各用精確 dev bundle 編譯。**不因 package 同名就共用一個 binary adapter**。1.20.5 前 Paper 執行名稱仍涉及 reobf，舊 adapter 用相應 paperweight production reobf；1.20.6 起 Mojang production。選擇 adapter 需用 version catalog，不用 startsWith 猜整個系列。
 
-可先共用三個 source 家族：legacy-items（1.20.1/4）、components（1.20.6–1.21.4）、modern（1.21.8–26.3）；這是待 compile／真服驗證的**候選分組**。shared 僅保留確認一致的原始碼，其餘以 bridge 隔離。Paper common 編譯 API 應降到最老支援 API，把較新呼叫放 capability／bridge；現在 common 直接引用新 API，不能只增加 NMS adapter 就宣稱支援完成。
+可先共用三個 source 家族：legacy-items（1.20.1/4）、components（1.20.6–1.21.4）、modern（1.21.8–26.3）；這是待 compile／真服驗證的**候選分組**。shared 僅保留確認一致的原始碼，其餘以 bridge 隔離。子任務①已將 Paper common 降到最老支援 API，把較新呼叫與後續移除的 descriptor 放 capability／bridge；後續版本仍須逐版編譯與真服驗收。
 
 | 差異點 | 後續要求 |
 |---|---|
@@ -145,6 +145,18 @@ Hub Dto 提供 mcVersion/versionChange，詳細頁可查看損失清單；跨版
 
 建議任務 2 拆五次：① selector／DFU contract、1.20.1/4 reobf 與 Java21；② 1.20.6/1.21.1 components；③ 1.21.4/8 callback／設備／ticket；④ 26.1.2/26.3 saved-data／新 state codec／Java25；⑤ 全矩陣 Paper/Folia 線上 apply、owner 對抗、GUI loss token、效能。估計 12–20 工程日，依八種可下載 Folia 版本執行。
 
+子任務①實作（2026-10-11，#196–#207）：common 使用 Paper API 1.20.1；`CommandSource`／`WireArgument` 是共用中性指令介面，1.20.1／1.20.4 使用 Bukkit registry，現代 Lifecycle 註冊放入 `paper/commands-modern`，由較新 adapter 編譯。selector 只接受 catalog 精確 ID 並核對 DV；版本相似但不在支援表內仍拒絕。舊 dev bundle 分別固定為 `1.20.1-R0.1-20230921.165944-178`、`1.20.4-R0.1-20241030.192207-176`，各自使用 paperweight reobf。正式插件 Java 21，26.2 adapter Java 25；`paper-plugin.yml` 走官方 Paper plugin loader，舊 Folia 不再經不支援 Java 21 bytecode 的 Bukkit ASM 轉換器。
+
+現代 Lifecycle 註冊把原生命令樹映射到中性 dispatcher；Paper 命名空間別名及 execute 轉向按已解析根節點的範圍正規化輸入，再把補全範圍與錯誤游標投影回原字串，維持原 source／executor／location（#206）。
+
+最老 API 編譯仍須處理後續移除的 descriptor（#205）：1.20.1 的 `RegionAccessor.spawn` callback 是 Bukkit Consumer，1.20.4 起為 Java Consumer。common 只傳中性 Java callback，由各版 `spawnConfigured` bridge 使用該版 API；BlockDisplay 與 TextDisplay 都在發布前設定不可見、不持久化及預覽標籤，保留玩家可見性與 owner 排程。common 的位元組碼檢查拒絕舊 Consumer；舊兩版 fixture 各用對應 API、Java 17 bytecode。
+
+InventoryView 在舊版為 class、較新版為 interface（#207）；GUI 與編輯守衛用穩定的 InventoryEvent.getInventory 取得頂層 inventory，開選單與驗收點擊經版本 bridge。common 位元組碼禁止 InventoryView 引用；API 成員與 class／interface 的靜態核對另解析 JDK、官方 server libraries 清單所列 Adventure 版本及 SHA-256，避免把外部繼承方法誤判為移除。
+
+bridge 提供目標伺服器 `DataFixers`／`NbtOps` 和實際 DV，擷取與寫入投影均使用同一份來源；尚未重存的 level.dat 不改變目標版。局部 tick guard 對舊兩版各自處理混淆欄位及 Folia owner，1.20.1／1.20.4 的 region chunk 集合分別使用 `getChunks`／`getTickingChunks`。server entity lookup 普查與跨維度磁碟 UUID 檢查保留；新增實體與乘客補原版預設，同 UUID 的 Health 仍取目前 owner 複本。
+
+線上 switch／merge／reset 投影到伺服器 DV；升級自動使用 DFU。有損降級在任何世界寫入前顯示完整聚合清單，各來源、替代值、數量與座標樣本分別列出；玩家或 console 執行 `/wg confirm <token>` 才重試。五分鐘、單次 token 綁定執行者、原操作、來源 commit、target DV、規則／完整報告與世界／HEAD 狀態；確認重試及鎖後套用重新核對，權限撤回或內容改變即拒絕舊授權。唯讀 verify 與 dry-run 不授權寫入。線上 world-meta 還原的既有限制保持，設定／資料包不同仍須離線處理。
+
 ### Fabric
 
 沿用 `mc<version>` + shared source + logic 模組，新增八個目標模組；保留單人／dedicated 同一正確邏輯。1.20.1/4 的 Loom remap／Java21，1.20.6–1.21.11 Mojang mappings／remap，26.x unobfuscated Loom 路徑與 Java25 分開。暫不導入 Stonecutter，以免平台移植與 build system 大改同時發生；來源家族透過共享目錄或少量 adapter 提供。每一版的 mixin target／descriptor 要用 jar 驗證，require=1 保留 fail-fast，不能用 require=0 掩蓋注入失敗。
@@ -156,6 +168,52 @@ Hub Dto 提供 mcVersion/versionChange，詳細頁可查看損失清單；跨版
 建議任務 3 拆五次：① legacy payload 1.20.1/4；② components 1.20.6/1.21.1；③ 1.21.4/8 mixin/callback；④ 26.1.2/26.3 ValueIO／state／DFU；⑤ 十版 dedicated + 單人、HUD／鬼影／loss confirmation、對抗與效能。估計 14–24 工程日，客戶端與 dedicated 一起移植，每次交付同時保留既有兩版回歸。
 
 ## 8. 驗收與限制
+
+線上舊兩版 metadata 投影（#202）保留舊 layout 的 chunks／raids 等 saved-data；舊名 GameRules 也按目標 registry 列出不可表示的規則損失。伺服器 upgrader 在 DFU／反向 codec 後補目標原版缺省值，純原版 Disabled 實驗包名單依目標可用包重建，Enabled 完整保留。只有 `datapacks/bukkit` 沒有其他資產且 pack.mcmeta 恰為原版 Bukkit 自產 marker schema 時，才投影 pack_format；自訂 Disabled／marker／任何其他 Bukkit 包內容保持原值，差異仍由既有線上 metadata 預檢拒絕。這不授權在線重載資料包或改寫世界設定。
+
+升版後未 dirty 的 saved-data 可繼續留著來源 DV（真服 chunks.dat 已確認）；擷取按檔案自身 DV 升級到目標，再套相同正規化，不改寫磁碟、不強制所有設定 dirty，也不略過強制載入清單。線上用目標伺服器 DFU、CLI 用目標 worker；已知 saved-data 比目標新時拒絕擷取（#203）。
+
+快取加入 `NbtUpgrader.projectionFingerprint`，正規化更新為 `multiversion-canonical-v13-legacy-metadata`，避免離線原版 DFU 與平台載入預設互相沿用投影。唯讀投影與有損確認使用同一份 backend；同版仍直接回傳原 tree，不進入 DFU 或 metadata 投影。舊版同步 metadata 保存是 bridge capability；既有 1.21.11 不排程空保存，26.2 保留原 IO future。
+
+Folia 關閉鉤子以 adapter 的 I/O 完成訊號為準（#204）。1.20.1／1.20.4 的 `stopPart2` 先完成全部維度存檔，再呼叫 `RegionFileIOThread.close(true)` 等待 flush，返回後才由 MinecraftServer logger 輸出 `Closing Thread Pool`；舊 adapter 僅匹配這個 logger 與精確訊息，不能把 `Flushing Chunk IO` 或 `Halted chunk systems` 當成完成。1.21.11／26.2 保留原訊號；session.lock 不是關閉完成依據。逐 jar bytecode 核對放 `.work/mv2-1/folia-minecraftserver-*.javap`／`folia-regionio-*.javap`，不進 repo；關閉 commit 與停服後 CLI 零差異仍由真服驗收。
+
+任務 2 子任務①：舊兩版 Paper／Folia 的正式驗收與回歸證據集中於 `.work/mv2-1/`。Folia 1.20.x 的 WorldGit 原生場景全部要求通過；**官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收**。保留 worldedit 測試並在結果的 skipped 欄明記原因，不使用第三方 fork，也不放寬 Paper 或較新 Folia 的斷言（#200）。Paper 1.20.x 使用官方 FAWE 2.8.4 release jar；該官方 jar 的 plugin.yml 自報 2.8.5-SNAPSHOT，驗收紀錄保留兩者。來源為 [FAWE 官方 release](https://github.com/IntellectualSites/FastAsyncWorldEdit/releases/tag/2.8.4) 與 [WorldEdit 官方版本紀錄](https://modrinth.com/plugin/worldedit/versions)；WorldEdit 7.4.1 才加入實驗 Folia 支援，其目標範圍不包含 1.20.x。
+
+舊版 metadata 使用該版同步 saved-data saver，保存維度設定而不觸發完整 chunk 存檔，並取 live gamerules／DV／GameType／difficulty／DataPacks；26.2 保持原背景 IO future。不得省略 random_sequences 或 gamerule 以通過停服比對。合成平坦 fixture 按 DV 使用正確 spawn 格式並明確停用自然演化，正式插件仍追蹤真實內容變動；自動 commit 測試等所有維度的操作終態後才停服（#201）。首次 FAWE 新座標 API 與停服 metadata 的失敗證據保留於 `.work/mv2-1/failures/`，修正後重新驗收。
+
+### 任務 2 子任務①完成驗收（2026-10-11）
+
+基底 `ddf7731`，變更未提交；以下均以本次最終插件重跑。完整命令、exit code、耗時與產物 SHA-256 見 `.work/mv2-1/report.md`、`summary.json`、`validation.json`、`final-validation.json`。
+
+| 命令／平台 | 結果 | 證據 |
+|---|---|---|
+| 完整 Gradle `build`（GRADLE_USER_HOME=.work/gradle-home、no-daemon、configure-on-demand、max-workers=1，外包 flock） | 454 JUnit，0 failure／error／skipped；`git diff --check` 通過 | `.work/mv2-1/build-final.log`、`unit-results.json` |
+| `python3 paper/tools/acceptance.py paper 1.20.1`、`phase5.py paper 1.20.1` | 33／33、51／51 | `.work/mv2-1/acceptance-paper-1.20.1-results.json`、`.work/paper-phase5/paper-1.20.1-1791724276/results.json` |
+| `python3 paper/tools/acceptance.py folia 1.20.1`、`phase5.py folia 1.20.1` | 30／30、52／52；WorldEdit 依 #200 明記未驗收 | `.work/mv2-1/acceptance-folia-1.20.1-results.json`、`.work/paper-phase5/folia-1.20.1-1791724854/results.json` |
+| `python3 paper/tools/acceptance.py paper 1.20.4`、`phase5.py paper 1.20.4` | 33／33、51／51 | `.work/mv2-1/acceptance-paper-1.20.4-results.json`、`.work/paper-phase5/paper-1.20.4-1791725456/results.json` |
+| `python3 paper/tools/acceptance.py folia 1.20.4`、`phase5.py folia 1.20.4` | 30／30、52／52；WorldEdit 依 #200 明記未驗收 | `.work/mv2-1/acceptance-folia-1.20.4-results.json`、`.work/paper-phase5/folia-1.20.4-1791726036/results.json` |
+| `acceptance.py paper 26.2`、`phase5.py paper 26.2` | 33／33、54／54 | `.work/mv2-1/acceptance-paper-26.2-results.json`、`.work/paper-phase5/paper-26.2-1791723686/results.json` |
+| `acceptance.py paper 1.21.11`、`phase5.py paper 1.21.11` | 33／33、54／54 | `.work/mv2-1/acceptance-paper-1.21.11-results.json`、`.work/paper-phase5/paper-1.21.11-1791723522/results.json` |
+| common API 相容性靜態核對（1.20.4／1.21.11／26.2，官方 Adventure SHA-256） | 各 694 處 API 引用，0 缺漏／class-interface 問題；現代 Paper Phase5 另驗 execute／命名空間補全封包與 GUI | `.work/mv2-1/api-compatibility.json` |
+| `phase5.py paper 1.20.1 --conflict`、`phase5.py folia 1.20.4 --disabled` | 別名衝突／停用兩組通過 | `.work/mv2-1/validation.json` |
+| `python3 paper/tools/multiversion.py` | 35／35；自動升級、有損拒絕／確認、中文預覽、跨玩家拒絕／世界變更後 --force 操作的舊 token 失效並重列預覽、單次使用；switch／reset／merge verify 零差異 | `.work/mv2-1/online/results.json` |
+| `phase4_regressions.py --case paper-1.21.11-phase2 --case folia-1.21.11-phase2` | 兩組通過 | `.work/mv2-1/phase2-regressions.log` |
+| `acceptance.py folia 1.20.1 sigterm`、`folia 1.20.4 sigterm` | 兩組 JVM 自行結束、shutdown SUCCESS、commit +1／auto 標記、離線三維度全欄位零差異 | `.work/mv2-1/sigterm-validation.json`、`sigterm-folia-*-results.json` |
+
+同機 Paper 26.2／Java 25、同 fixture、無玩家、三輪，status 及 switch 端到端 p50 秒數；基準為任務 1 保存的 `ddf7731` 插件，兩次 runner 分別持 bench.lock。原始樣本與完整 probe 保留於 `.work/perf/mv2-before-paper-26.2/`、`mv2-after-paper-26.2/`。
+
+| 操作 | ddf7731 | 本次 | 變化 |
+|---|---:|---:|---:|
+| `status-noop` | 0.254 | 0.261 | +2.8% |
+| `switch-noop` | 0.725 | 0.697 | -3.9% |
+| `switch-1` | 1.456 | 1.480 | +1.7% |
+| `switch-100` | 8.447 | 8.477 | +0.3% |
+
+四項比值幾何平均 1.002；此三輪合成場景抽樣不代表大型實體／BE 世界的效能。
+
+最終插件 SHA-256：`84762ef8782ee1e3e72be7bfc67182a23abfc61b9e8874aea464f6a568eb59fd`。中文終態、舊 Folia 關閉訊號與 spawn descriptor 的首跑失敗均保留於 `.work/mv2-1/failures/`，修正後完整重跑；不刪除測試、不放寬斷言。
+
+子任務②從 `paper/v1_20_6`／`v1_21_1` 精確 bundle、Mojang production 名稱及 item components 邊界開始；command、entity callback／UUID、ticket／IO 逐版編譯與真服驗收後再抽共用來源。保留本次舊四版回歸，Folia 依官方可取得 build 明列驗收範圍。
 
 轉換後的歷史 chunk 再按同一份 `.wgignore` 正規化；空 tick 清單省略，ID 改名後重新排序。舊版實體載入所需的 `Health` 等預設值只在物理實體化時補入，不進歷史雜湊。離線套用同 UUID、同類型的實體時保留目前生命值；新實體依 max_health 與原版預設值補足，並遞迴處理乘客。轉換與 Hub 統計快取的正規化版本同步更新（#179）。
 

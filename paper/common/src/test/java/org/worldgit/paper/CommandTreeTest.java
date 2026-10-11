@@ -5,8 +5,8 @@ import com.mojang.brigadier.*;
 import com.mojang.brigadier.arguments.*;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.*;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
-import io.papermc.paper.command.brigadier.argument.CustomArgumentType;
+import org.worldgit.paper.CommandSource;
+import org.worldgit.paper.WireArgument;
 import java.lang.reflect.Proxy;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -17,7 +17,7 @@ import org.junit.jupiter.api.*;
 import org.worldgit.i18n.MessageCatalog;
 
 class CommandTreeTest {
-  static CommandSourceStack source(boolean player, Set<String> permissions) {
+  static CommandSource source(boolean player, Set<String> permissions) {
     var sender = (CommandSender) Proxy.newProxyInstance(CommandSender.class.getClassLoader(),
         new Class<?>[]{player ? Player.class : ConsoleCommandSender.class}, (proxy, method, args) -> switch (method.getName()) {
           case "hasPermission" -> permissions.contains(args[0]);
@@ -28,12 +28,12 @@ class CommandTreeTest {
           case "toString" -> "TestSender";
           default -> method.getReturnType().isPrimitive() ? method.getReturnType() == boolean.class ? false : 0 : null;
         });
-    return new CommandSourceStack() {
+    return new CommandSource() {
       public CommandSender getSender() { return sender; }
       public Entity getExecutor() { return player ? (Player) sender : null; }
       public Location getLocation() { return new Location(null, 10, 64, -5); }
-      public CommandSourceStack withLocation(Location location) { throw new UnsupportedOperationException(); }
-      public CommandSourceStack withExecutor(Entity entity) { throw new UnsupportedOperationException(); }
+      public CommandSource withLocation(Location location) { throw new UnsupportedOperationException(); }
+      public CommandSource withExecutor(Entity entity) { throw new UnsupportedOperationException(); }
     };
   }
   /** 測試 public API 的 injection 邊界；實際 native parser／wire type 另由真伺服器及客戶端 fixture 驗證。 */
@@ -47,17 +47,17 @@ class CommandTreeTest {
       return new NativeValue(kind, words);
     }
   }
-  CommandDispatcher<CommandSourceStack> dispatcher;
+  CommandDispatcher<CommandSource> dispatcher;
   List<CommandRequest> requests;
-  CommandSourceStack admin = source(true, Set.of("worldgit.admin", "worldgit.debug"));
+  CommandSource admin = source(true, Set.of("worldgit.admin", "worldgit.debug"));
   @BeforeEach void setup() {
     Messages.configure(MessageCatalog.bundled(), "en_us"); requests = new ArrayList<>(); dispatcher = new CommandDispatcher<>();
     var suggestions = new CommandSuggestions(k -> CompletableFuture.completedFuture(List.of()), () -> null);
     dispatcher.register(new CommandTree((source, request) -> requests.add(request), suggestions, NativeArgument::new).build());
   }
   CommandRequest run(String command) throws Exception { dispatcher.execute("wg " + command, admin); return requests.getLast(); }
-  CommandNode<CommandSourceStack> path(String... names) {
-    CommandNode<CommandSourceStack> node = dispatcher.getRoot();
+  CommandNode<CommandSource> path(String... names) {
+    CommandNode<CommandSource> node = dispatcher.getRoot();
     for (String name : names) { node = node.getChild(name); assertNotNull(node, name); }
     return node;
   }
@@ -144,7 +144,7 @@ class CommandTreeTest {
     assertTrue(path("wg", "conflict-select").canUse(source(true, Set.of("worldgit.command.resolve"))));
     assertTrue(path("wg", "comments").canUse(source(true, Set.of("worldgit.command.comment"))));
   }
-  static void visit(CommandNode<CommandSourceStack> node, java.util.function.Consumer<CommandNode<CommandSourceStack>> action) {
+  static void visit(CommandNode<CommandSource> node, java.util.function.Consumer<CommandNode<CommandSource>> action) {
     action.accept(node); node.getChildren().forEach(child -> visit(child, action));
   }
   @Test void nativeAndCustomErrorsHaveCursorAndLocaleWithoutLeaks() throws Exception {
@@ -158,6 +158,9 @@ class CommandTreeTest {
     assertFalse(error.getRawMessage().getString().contains("PAT_SECRET"));
     assertTrue(error.getRawMessage().getString().contains("credentials"));
     assertEquals("HEAD~3", run("switch HEAD~3").text("revision"));
+    assertEquals("HEAD~3",run("reset --hard HEAD~3 --force --dry-run").text("revision"));
+    assertEquals(Set.of("--hard","--force","--dry-run"),run("reset --hard HEAD~3 --force --dry-run").flags());
+    assertEquals("token",run("confirm token").text("token"));
     assertEquals("topic/nested", run("switch \"topic/nested\"").text("revision"));
   }
 }

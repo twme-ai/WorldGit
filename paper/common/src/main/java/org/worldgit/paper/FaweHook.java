@@ -40,17 +40,28 @@ final class FaweHook {
     }
     @Override public java.util.concurrent.Future<?> postProcessSet(IChunk chunk,IChunkGet get,IChunkSet set) {
       var ids=new java.util.HashSet<java.util.UUID>();
-      // IBlocks#getEntities 已標記移除；改用 entities()（FaweCompoundTag）。linbus 型別不在編譯期 classpath，
-      // 以 WorldEdit 的 jnbt CompoundTag 包裝後讀取 UUID。
-      for(var entity:set.entities()) {var id=uuid(entity);if(id!=null)ids.add(id);}
+      // 官方 2.8.x 使用 jnbt getEntities；新版本改為 linbus entities。只解析目前版本存在的型別。
+      for (Object entity : entities(set)) {var id=uuid(entity);if(id!=null)ids.add(id);}
       sess.entityIds(ids,chunk.getX(),chunk.getZ());return java.util.concurrent.CompletableFuture.completedFuture(null);
     }
 
-    private static java.util.UUID uuid(com.fastasyncworldedit.core.nbt.FaweCompoundTag entity) {
+    private static Iterable<?> entities(IChunkSet set) {
       try {
-        Object lin=com.fastasyncworldedit.core.nbt.FaweCompoundTag.class.getMethod("linTag").invoke(entity);
+        java.lang.reflect.Method accessor;
+        try { accessor=com.fastasyncworldedit.core.queue.IBlocks.class.getMethod("entities"); }
+        catch(NoSuchMethodException legacy) { accessor=com.fastasyncworldedit.core.queue.IBlocks.class.getMethod("getEntities"); }
+        return (Iterable<?>)accessor.invoke(set);
+      } catch(ReflectiveOperationException error) {throw new IllegalStateException("無法讀取 FAWE entities",error);}
+    }
+
+    private static java.util.UUID uuid(Object entity) {
+      try {
         var compound=Class.forName("com.sk89q.jnbt.CompoundTag");
-        Object tag=compound.getConstructor(Class.forName("org.enginehub.linbus.tree.LinCompoundTag")).newInstance(lin);
+        Object tag=entity;
+        if (!compound.isInstance(entity)) {
+          Object lin=entity.getClass().getMethod("linTag").invoke(entity);
+          tag=compound.getConstructor(Class.forName("org.enginehub.linbus.tree.LinCompoundTag")).newInstance(lin);
+        }
         return (java.util.UUID)compound.getMethod("getUUID").invoke(tag);
       } catch(ReflectiveOperationException error) {throw new IllegalStateException("無法讀取 FAWE entity UUID",error);}
     }

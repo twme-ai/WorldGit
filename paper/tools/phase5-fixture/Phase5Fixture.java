@@ -3,14 +3,16 @@ import org.bukkit.*;
 import org.bukkit.entity.*;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+
 
 /** 驗收專用，不進正式 jar：自然出生原因與第三方 /git 衝突。 */
 public final class Phase5Fixture extends JavaPlugin implements org.bukkit.event.Listener {
   public void onEnable() {
     getServer().getPluginManager().registerEvents(this,this);
-    if(getConfig().getBoolean("git",false))getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS,event->event.registrar().register(
-        io.papermc.paper.command.brigadier.Commands.literal("git").executes(ctx->{ctx.getSource().getSender().sendMessage("OTHER_GIT");return 1;}).build(),"Other git",java.util.List.of()));
+    if(getConfig().getBoolean("git",false))getServer().getCommandMap().register("fixture",new org.bukkit.command.Command("git") {
+      public boolean execute(org.bukkit.command.CommandSender sender,String label,String[] args){sender.sendMessage("OTHER_GIT");return true;}
+    });
+    logGitFixture("enable");
     getCommand("wgfixture").setExecutor((sender,command,label,args)->{
       var p=Bukkit.getPlayerExact(args[0]);if(p==null)return false;
       p.getScheduler().run(this,task->{
@@ -49,6 +51,16 @@ public final class Phase5Fixture extends JavaPlugin implements org.bukkit.event.
         sender.sendMessage("NATURAL_UUID="+cow.getUniqueId());
       },null);return true;
     });
+  }
+
+  @org.bukkit.event.EventHandler public void serverLoaded(org.bukkit.event.server.ServerLoadEvent event) {
+    logGitFixture("server-load");
+  }
+  private void logGitFixture(String stage) {
+    var map=getServer().getCommandMap();
+    getLogger().info("GIT_FIXTURE stage="+stage+" configured="+getConfig().getBoolean("git",false)
+        +" git="+map.getCommand("git")+" fixture:git="+map.getCommand("fixture:git")
+        +" worldgit:git="+map.getCommand("worldgit:git"));
   }
   @org.bukkit.event.EventHandler(priority=org.bukkit.event.EventPriority.MONITOR)
   public void interact(org.bukkit.event.player.PlayerInteractEntityEvent event) {

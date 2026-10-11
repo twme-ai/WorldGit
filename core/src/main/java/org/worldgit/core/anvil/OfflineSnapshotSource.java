@@ -19,6 +19,8 @@ public final class OfflineSnapshotSource implements SnapshotSource {
   private final Map<ChunkPos, Path> terrainPaths = new HashMap<>(), entityPaths = new HashMap<>();
   private int reads;
   private org.worldgit.core.version.NbtUpgrader dfu;
+  private org.worldgit.core.version.NbtUpgrader serverDfu;
+  private java.util.function.IntSupplier serverDataVersion;
   private Integer conversionDataVersion;
   private Nbt.Compound upgraded(String type,Nbt.Compound raw) throws IOException {
     // scan／close 會失效；同一次擷取不為每個 terrain／entity chunk 重讀 level.dat。
@@ -26,7 +28,7 @@ public final class OfflineSnapshotSource implements SnapshotSource {
     int to=conversionDataVersion,from=raw.integer("DataVersion",to);
     if(from==to)return raw;
     if(from>to)throw new IOException("磁碟 chunk DataVersion="+from+" 比 level.dat 新；請先以完整世界降級流程處理");
-    if(dfu==null)dfu=new org.worldgit.core.version.DfuProcess(org.worldgit.core.version.MinecraftVersion.byDataVersion(to));
+    if(dfu==null)dfu=serverDfu!=null?serverDfu:new org.worldgit.core.version.DfuProcess(org.worldgit.core.version.MinecraftVersion.byDataVersion(to));
     var result=dfu.upgrade(type,raw,from,to);result.put("DataVersion",to);return result;
   }
   private EntityTagRegistry registry;
@@ -45,6 +47,11 @@ public final class OfflineSnapshotSource implements SnapshotSource {
     this.packResolver = packResolver;
   }
 
+  /** Online disk snapshots share the running server DFU; no worker downloads. */
+  public OfflineSnapshotSource serverDataFixer(org.worldgit.core.version.NbtUpgrader upgrader,java.util.function.IntSupplier version) {
+    this.serverDfu=Objects.requireNonNull(upgrader);this.serverDataVersion=Objects.requireNonNull(version);return this;
+  }
+  @Override public org.worldgit.core.version.NbtUpgrader dataFixer(){return serverDfu;}
   @Override
   public DimensionId dimension() {
     return dimension.id();
@@ -52,7 +59,7 @@ public final class OfflineSnapshotSource implements SnapshotSource {
 
   @Override
   public int dataVersion() throws IOException {
-    return layout.dataVersion();
+    return serverDataVersion==null?layout.dataVersion():serverDataVersion.getAsInt();
   }
 
   private EntityTagRegistry registry() throws IOException {
@@ -73,7 +80,13 @@ public final class OfflineSnapshotSource implements SnapshotSource {
 
   @Override
   public Map<String, byte[]> worldMetadata() throws IOException {
-    return dimension().equals(DimensionId.OVERWORLD) ? layout.worldMetadata() : layout.dimensionMetadata(dimension());
+    var metadata = dimension().equals(DimensionId.OVERWORLD) ? layout.worldMetadata() : layout.dimensionMetadata(dimension());
+    return org.worldgit.core.version.VersionConversions.capturedSavedData(metadata, dataVersion(),
+        (type, raw, from, to) -> {
+          if (dfu == null) dfu = serverDfu != null ? serverDfu
+              : new org.worldgit.core.version.DfuProcess(org.worldgit.core.version.MinecraftVersion.byDataVersion(to));
+          return dfu.upgrade(type, raw, from, to);
+        });
   }
 
   private RegionFile region(Path path) throws IOException {

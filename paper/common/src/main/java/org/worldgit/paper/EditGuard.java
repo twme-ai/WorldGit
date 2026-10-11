@@ -144,8 +144,8 @@ final class EditGuard implements Listener {
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void breed(EntityBreedEvent e) { if(blocked(e.getEntity().getLocation())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void bucketFill(PlayerBucketFillEvent e) { if(blocked(e.getBlock()) || blocked(e.getBlockClicked())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void bucketEmpty(PlayerBucketEmptyEvent e) { if(blocked(e.getBlock()) || blocked(e.getBlockClicked().getRelative(e.getBlockFace()))) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void click(InventoryClickEvent e) { if(blocked(e.getWhoClicked().getLocation()) || blocked(e.getView().getTopInventory())) e.setCancelled(true); }
-  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void drag(InventoryDragEvent e) { if(blocked(e.getWhoClicked().getLocation()) || blocked(e.getView().getTopInventory())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void click(InventoryClickEvent e) { if(blocked(e.getWhoClicked().getLocation()) || blocked(e.getInventory())) e.setCancelled(true); }
+  @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void drag(InventoryDragEvent e) { if(blocked(e.getWhoClicked().getLocation()) || blocked(e.getInventory())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void dispense(BlockDispenseEvent e) { if(blocked(e.getBlock())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void open(InventoryOpenEvent e) { if(blocked(e.getPlayer().getLocation()) || blocked(e.getInventory())) e.setCancelled(true); }
   @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true) public void transfer(InventoryMoveItemEvent e) { if(blocked(e.getSource()) || blocked(e.getDestination())) e.setCancelled(true); }

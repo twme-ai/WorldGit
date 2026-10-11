@@ -38,7 +38,7 @@ final class CommentDisplays implements Listener {
       plugin.platform().region(world,pin.x()>>4,pin.z()>>4,()->{
         if(stopped || sessions.get(p.getUniqueId())!=s || !world.isChunkLoaded(pin.x()>>4,pin.z()>>4))return;
         // 不為不可信遠端座標載入/生成 chunk；每次 show 只顯示已載入視窗。
-        var display=world.spawn(new Location(world,pin.x()+.5,pin.y()+1.5,pin.z()+.5),TextDisplay.class,e->{
+        var display=plugin.bridge().spawnConfigured(new Location(world,pin.x()+.5,pin.y()+1.5,pin.z()+.5),TextDisplay.class,e->{
           e.setVisibleByDefault(false);e.setPersistent(false);e.addScoreboardTag(TAG);
           e.text(Component.text(CommentText.display(c)));e.setBillboard(Display.Billboard.CENTER);
           e.setLineWidth(180);e.setViewRange(.5f);e.setBrightness(new Display.Brightness(15,15));
@@ -67,7 +67,7 @@ final class CommentDisplays implements Listener {
         xyz[axis]=low[axis]+(high[axis]-low[axis])*i/8;
         if(budget==0)return;
         if(loc.distanceSquared(new Location(p.getWorld(),xyz[0],xyz[1],xyz[2]))>4096)continue;
-        p.spawnParticle(Particle.DUST,xyz[0],xyz[1],xyz[2],1,0,0,0,0,new Particle.DustOptions(Color.AQUA,1));budget--;
+        p.spawnParticle(Particle.valueOf(plugin.bridge().dataVersion()<3955?"REDSTONE":"DUST"),xyz[0],xyz[1],xyz[2],1,0,0,0,0,new Particle.DustOptions(Color.AQUA,1));budget--;
       }
     }
   }

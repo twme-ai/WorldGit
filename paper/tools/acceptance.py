@@ -1,10 +1,11 @@
-"""Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.21.11|26.2> [scenarios...]
+"""Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.20.1|1.20.4|1.21.11|26.2> [scenarios...]
 
 scenarios：basic（commit 兩次無變動、bot 放一格、status 恰好 1 個 section、CLI 看到同樣歷史）、attribution（兩個 bot 各改一處）、
            mod（握手與 status/diff 傳送）、display（沒裝模組：BlockDisplay fallback，只對請求者可見、/wg clear、逾時、登出、不進實體快照）、worldedit（//set 大範圍）、auto（自動 commit：定時、登出）、shutdown（關閉前 commit 與離線 CLI 一致）
 結果寫入 .work/paper-delivery/results/<平台>-<版本>.json；每一步 pass/fail 與原始證據都留下，失敗照實記錄，不中斷後續場景。
 """
-import json, os, re, subprocess, sys, time, traceback
+import hashlib, json, os, re, subprocess, sys, time, traceback
+from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 from harness import *
 
@@ -16,6 +17,9 @@ os.makedirs(RESULTS, exist_ok=True)
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 results = {'server': NAME, 'steps': [], 'started': time.strftime('%F %T')}
 results['scenarios'] = wanted
+legacy_folia = platform == 'folia' and version in ('1.20.1', '1.20.4')
+results['skipped'] = ([{'scenario': 'worldedit', 'reason': '官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收'}]
+                      if legacy_folia and 'worldedit' in wanted else [])
 # 每次執行保留原始證據，局部重跑不會抹掉已驗證場景。
 previous_path = os.path.join(RESULTS, NAME + '.json')
 previous = json.load(open(previous_path)) if os.path.isfile(previous_path) else None
@@ -79,7 +83,7 @@ def shadow_world(s):
     shutil.copy(lvl, os.path.join(sh, 'world', 'level.dat'))
     for d in ('region',):
         os.makedirs(os.path.join(sh, 'world', d))
-    if version == '1.21.11':
+    if not version.startswith('26.'):
         for extra in ('world_nether/DIM-1/region', 'world_the_end/DIM1/region'):
             os.makedirs(os.path.join(sh, extra))
     else:
@@ -111,7 +115,7 @@ def scenario_basic(s):
     # 並讓 bot 先進場、把周圍 chunk 載入，之後才 init。活世界仍會有真實底噪，不能把「沒有玩家編輯」等同「沒有世界變動」。
     bot = s.bot('WgBot')
     # 1.21.11 起 gamerule 改名為 snake_case（舊名稱會被拒絕）；實際回應記進結果以便確認有生效
-    rules = [s.cmd('gamerule ' + g, r'(?i)game ?rule|incorrect|unknown', 20) for g in ('random_tick_speed 0', 'spawn_mobs false', 'advance_weather false')]
+    rules = [s.cmd('gamerule ' + g, r'(?i)game ?rule|incorrect|unknown', 20) for g in (('random_tick_speed 0', 'spawn_mobs false', 'advance_weather false') if version in ('1.21.11','26.2') else ('randomTickSpeed 0','doMobSpawning false','doWeatherCycle false'))]
     results['fixture_gamerules'] = [strip(r)[-160:] for r in rules]
     s.cmd('gamemode creative WgBot')
     # baseline 含燃燒中的熔爐及排程流體 tick；先等它們穩定，再建立受測基準。
@@ -323,12 +327,16 @@ def scenario_auto(platform, version, baseline):
         s.cmd('gamemode creative WgBot')
         n1 = len(commits(s))
         place_block(bot, -1, 'dirt')
+        quit_mark = s.mark()
         bot.stop()
         deadline = time.time() + 40
         while time.time() < deadline and len(commits(s)) == n1:
             time.sleep(2)
         head = git(s, 'minecraft.overworld', 'log', '-1', '--format=%s|%B')
         step('玩家登出觸發自動 commit', len(commits(s)) > n1 and '登出' in head, head=head[:400])
+        # HEAD 先於跨維度 operation 完成發布；等背景工作完成，才可關閉 owner scheduler。
+        terminal = s.wait(r'logout\.commit (?:完成：|finished:)', 120, quit_mark)
+        step('登出自動 commit 完整操作成功結束', bool(re.search(r'logout\.commit (?:完成：|finished:)\s*(?:SUCCESS|NO_OP)', terminal)), terminal=strip(terminal))
     finally:
         s.stop()
 
@@ -338,6 +346,8 @@ def scenario_sigterm(platform, version, baseline):
     s = Server(platform, version, baseline=baseline, run_label=f'sigterm-{platform}-{version}', config={'auto-commit': {'enabled': False, 'on-shutdown': True}})
     try:
         s.start()
+        results['sigterm_plugin_sha256'] = hashlib.sha256(Path(s.dir, 'plugins/worldgit-paper.jar').read_bytes()).hexdigest()
+        results['sigterm_console_log'] = os.path.relpath(s.evidence_log, ROOT)
         s.cmd('wg init --world world --all', r'init 完成|失敗', 900)
         bot = s.bot('WgBot')
         time.sleep(6)
@@ -357,9 +367,10 @@ def scenario_sigterm(platform, version, baseline):
     hook_log = open(logf).read() if os.path.isfile(logf) else ''
     head = git(s, 'minecraft.overworld', 'log', '-1', '--format=%s')
     out = wgit(['--world', s.world, 'status'], check=False)
-    summaries = re.findall(r'(\d+) chunks，(\d+) sections，\+(\d+) -(\d+) ~(\d+) !(\d+)', strip(out))
-    step('SIGTERM 關閉：JVM 自行結束、關閉前 commit 建立、離線 CLI status 沒有變動', exited and len(commits(s)) == n + 1 and '關閉前' in head and all(all(int(x) == 0 for x in row) for row in summaries),
-         exited=exited, before=n, after=len(commits(s)), head=head, block=block, hook_log=hook_log[-500:], status=strip(out)[:300])
+    summaries = re.findall(r'(\d+) chunks，(\d+) sections，\+(\d+) -(\d+) ~(\d+) !(\d+)；實體 (\d+)，biome (\d+)，metadata (\d+)', strip(out))
+    hook_ok = platform != 'folia' or bool(re.search(r'shutdown\.commit (?:完成：|finished:)\s*SUCCESS', hook_log))
+    step('SIGTERM 關閉：JVM 自行結束、關閉前 commit 建立、離線 CLI status 沒有變動', exited and len(commits(s)) == n + 1 and '關閉前' in head and 'WorldGit-Auto: true' in git(s, 'minecraft.overworld', 'log', '-1', '--format=%B') and hook_ok and len(summaries) == 3 and all(all(int(x) == 0 for x in row) for row in summaries),
+         exited=exited, before=n, after=len(commits(s)), head=head, block=block, hook_log=hook_log[-1000:], status=strip(out))
 
 
 def main():
@@ -385,10 +396,13 @@ def main():
                 os.path.join(ROOT, 'paper/tools/ScaleFixture.java'), version,
                 os.path.join(WORK, 'worlds', version, 'baseline'), baseline, '16'], check=True, timeout=180)
         results['fixture_kind'] = 'synthetic-flat'
-        s = Server(platform, version, baseline=baseline, plugins=[f'fawe-{version}'] if platform == 'paper' else ([f'we-{"7.4.2" if version == "1.21.11" else "7.4.5"}']), config={'auto-commit': {'enabled': False, 'on-shutdown': True}, 'show': {'display-max-entities': 20, 'display-seconds': 10}})
+        plugins = ([f'fawe-{version}'] if platform == 'paper' else [] if legacy_folia
+                   else [f'we-{"7.4.2" if version == "1.21.11" else "7.4.5"}'])
+        s = Server(platform, version, baseline=baseline, plugins=plugins, config={'auto-commit': {'enabled': False, 'on-shutdown': True}, 'show': {'display-max-entities': 20, 'display-seconds': 10}})
         try:
             s.start()
             results['console_log'] = os.path.relpath(s.evidence_log, ROOT)
+            results['plugin_sha256'] = hashlib.sha256(Path(s.dir, 'plugins/worldgit-paper.jar').read_bytes()).hexdigest()
             results['plugin_enable_log'] = [strip(l) for l in s.lines_since(0) if 'WorldGit' in l][:8]
             bot = bot2 = None
             try:
@@ -403,7 +417,7 @@ def main():
                     scenario_mod(s, platform)
                 if 'display' in wanted:
                     bot = scenario_display(s, bot)
-                if 'worldedit' in wanted:
+                if 'worldedit' in wanted and not legacy_folia:
                     scenario_worldedit(s, bot, platform == 'paper')
             except Exception:
                 step('場景例外', False, trace=traceback.format_exc())
@@ -426,7 +440,7 @@ def main():
             out = wgit(['--world', s.world, 'status'], check=False)
             summaries = re.findall(r'(\d+) chunks，(\d+) sections，\+(\d+) -(\d+) ~(\d+) !(\d+)；實體 (\d+)，biome (\d+)，metadata (\d+)', strip(out))
             if platform == 'folia':
-                # Folia：onDisable 沒有單一擁有執行緒，改由 JVM 關閉鉤子在世界存檔完成（session.lock 釋放）後以離線路徑提交。
+                # Folia：onDisable 沒有單一擁有執行緒，改由 JVM 關閉鉤子在 adapter 確認 I/O 完成後離線提交。
                 logf = os.path.join(s.dir, 'plugins', 'WorldGit', 'shutdown-commit.log')
                 hook_log = open(logf).read() if os.path.isfile(logf) else ''
                 results['folia_shutdown_log'] = hook_log[-1500:]
@@ -446,7 +460,7 @@ def main():
     save()
     failed = [x['step'] for x in results['steps'] if not x['ok']]
     print('FAILED:', failed if failed else 'none')
-    if os.environ.get('WG_COMPACT_EVIDENCE') == '1':
+    if os.environ.get('WG_COMPACT_EVIDENCE') == '1' and not failed:
         shutil.rmtree(s.dir, ignore_errors=True)
     return bool(failed)
 

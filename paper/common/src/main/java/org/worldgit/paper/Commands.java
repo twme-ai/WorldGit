@@ -24,6 +24,7 @@ import org.worldgit.protocol.Protocol;
  * 結果以聊天訊息送回（Player 走自己的 entity scheduler，Folia 安全）。權限節點見 plugin.yml。
  */
 final class Commands implements CommandTree.Actions {
+  private final ThreadLocal<VersionConfirmations.Approval> approval=new ThreadLocal<>();
   private final WorldGitPlugin plugin;
   private final Debug debug;
 
@@ -51,18 +52,19 @@ final class Commands implements CommandTree.Actions {
   }
 
   @Override
-  public void run(io.papermc.paper.command.brigadier.CommandSourceStack source, CommandRequest request)
+  public void run(org.worldgit.paper.CommandSource source, CommandRequest request)
       throws com.mojang.brigadier.exceptions.CommandSyntaxException {
     execute(source,request);
   }
-  private OperationUi.Action execute(io.papermc.paper.command.brigadier.CommandSourceStack source, CommandRequest request)
+  private OperationUi.Action execute(org.worldgit.paper.CommandSource source, CommandRequest request)
       throws com.mojang.brigadier.exceptions.CommandSyntaxException {
     CommandSender sender = source.getSender();
+    if(request.command().equals("confirm")){plugin.versionConfirmations().confirm(source,request.text("token"));return null;}
     // 原生 resolver 的型別錯誤交回 Brigadier；業務錯誤仍使用既有 i18n。
     Scope scope = Scope.all();
-    if (request.value("from", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class) != null) {
-      var from = request.value("from", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class).resolve(source);
-      var to = request.value("to", io.papermc.paper.command.brigadier.argument.resolvers.BlockPositionResolver.class).resolve(source);
+    if (request.values().containsKey("from")) {
+      var from = source.position(request.values().get("from"));
+      var to = source.position(request.values().get("to"));
       scope = Scope.box(from.blockX(), from.blockY(), from.blockZ(), to.blockX(), to.blockY(), to.blockZ());
     }
     if (request.command().startsWith("debug.")) { debug.run(source, request); return null; }
@@ -96,6 +98,12 @@ final class Commands implements CommandTree.Actions {
     var key=request.value("dimension",net.kyori.adventure.key.Key.class);
     DimensionId target=key==null ? plugin.dimensionOf(anchor).orElse(DimensionId.OVERWORLD) : new DimensionId(key.asString());
     var action=plugin.operations().begin(sender,request.command(),mapping,target);
+    action.conversionApproval=approval.get();
+    action.retry=approved->{
+      approval.set(approved);
+      try {execute(source,request);}catch(com.mojang.brigadier.exceptions.CommandSyntaxException error){sender.sendMessage(Messages.error(error.getMessage()));}
+      finally {approval.remove();}
+    };
     Scope selected = scope;
     OperationUi.within(action, () -> { Messages.inLocale(sender, () -> {
       String command = request.command();
@@ -133,7 +141,7 @@ final class Commands implements CommandTree.Actions {
     }); action.release();return null; });
     return action;
   }
-  private void nextDimension(io.papermc.paper.command.brigadier.CommandSourceStack source,CommandRequest request,World world,
+  private void nextDimension(org.worldgit.paper.CommandSource source,CommandRequest request,World world,
       List<DimensionId> ids,int index,OperationUi.Action batch) {
     if(index==ids.size()) {
       if(ids.isEmpty())batch.status=org.worldgit.core.operation.OperationResult.Status.NO_OP;
@@ -183,7 +191,7 @@ final class Commands implements CommandTree.Actions {
     }).whenComplete((value,error)->{if(error!=null)fail(sender,error);else reply(sender,Messages.info(String.valueOf(value)));});
   }
 
-  private void help(io.papermc.paper.command.brigadier.CommandSourceStack source, String topic) {
+  private void help(org.worldgit.paper.CommandSource source, String topic) {
     var lines = new ArrayList<Component>();
     lines.add(Messages.line("paper.help.title"));
     for (String sub : CommandTree.SUBS) if ((topic == null || topic.equals(sub)) && CommandTree.allowed(source, sub)) {
@@ -495,7 +503,7 @@ final class Commands implements CommandTree.Actions {
       var result=switch(sub) {
         case "restore"->ops.restore(rev,dim,selected,d,false);
         case "switch"->ops.switchTo(rev,st,f,d,false);
-        case "reset"->ops.resetHard(null,false,false);
+        case "reset"->ops.resetHard(rev,f,d);
         case "stash" -> command.equals("stash.push") ? ops.stashPush(request.text("text"), false) : ops.stashPop(request.number("index", 0), false);
         default->throw new IOException("unknown operation");
       };

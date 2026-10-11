@@ -14,8 +14,12 @@ RUN = os.path.join(WORK, 'paper-delivery', 'run')
 JARS = os.path.join(WORK, 'jars')
 PLUGIN_JAR_GLOB = os.path.join(ROOT, 'paper/plugin/build/libs')
 PORTS = {'paper-1.21.11': 25671, 'paper-26.2': 25672, 'folia-1.21.11': 25673, 'folia-26.2': 25674}
-JAVA = {'1.21.11': '/usr/lib/jvm/java-21-openjdk-amd64/bin/java', '26.2': '/usr/lib/jvm/java-25-openjdk-amd64/bin/java'}
+PORTS.update({f'{platform}-{version}':25675+i*2+j for i,version in enumerate(['1.20.1','1.20.4']) for j,platform in enumerate(['paper','folia'])})
+JAVA = {'1.20.1':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.20.4':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.21.11': '/usr/lib/jvm/java-21-openjdk-amd64/bin/java', '26.2': '/usr/lib/jvm/java-25-openjdk-amd64/bin/java'}
 EXTRA = {
+    'fawe-1.20.1':'FastAsyncWorldEdit-Bukkit-2.8.4.jar',
+    'fawe-1.20.4':'FastAsyncWorldEdit-Bukkit-2.8.4.jar',
+    'we-7.2.18':'worldedit-bukkit-7.2.18.jar',
     'fawe-1.21.11': 'FAWE-1.21.11-2.15.0.jar',
     'fawe-26.2': 'FAWE-26.2-2.15.4.jar',
     'we-7.4.5': 'worldedit-bukkit-7.4.5.jar',

@@ -8,6 +8,8 @@ import org.worldgit.core.model.*;
 
 /** core 不依賴 platform-api。線上 LiveWorld 透過此來源送 dirty chunk，快照在來源擁有的執行緒複製。 */
 public interface SnapshotSource extends AutoCloseable {
+  default org.worldgit.core.version.NbtUpgrader dataFixer() { return null; }
+
   record Scan(
       Set<ChunkPos> present,
       Set<ChunkPos> candidates,

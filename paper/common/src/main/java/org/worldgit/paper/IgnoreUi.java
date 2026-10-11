@@ -117,7 +117,7 @@ final class IgnoreUi implements Listener {
       var item=new ItemStack(line.rule()?line.enabled()?Material.PAPER:Material.GRAY_DYE:Material.MAP);
       var meta=item.getItemMeta();meta.displayName(Component.text(line.number()+" "+line.text()));meta.lore(List.of(Messages.text("paper.phase5.ignore-controls")));item.setItemMeta(meta);menu.inventory.setItem((line.number()-1)%45,item);
     }
-    button(menu,45,Material.ARROW,"paper.merge.previous");button(menu,49,Material.WRITABLE_BOOK,"paper.phase5.ignore-add");button(menu,53,Material.ARROW,"paper.merge.next");p.openInventory(menu.inventory);
+    button(menu,45,Material.ARROW,"paper.merge.previous");button(menu,49,Material.WRITABLE_BOOK,"paper.phase5.ignore-add");button(menu,53,Material.ARROW,"paper.merge.next");plugin.bridge().openMenu(p,menu.inventory);
   }
   private static void button(Menu menu,int slot,Material material,String key) {var item=new ItemStack(material);var meta=item.getItemMeta();meta.displayName(Messages.text(key));item.setItemMeta(meta);menu.inventory.setItem(slot,item);}
   private void edit(Player p,Menu menu,CommandRequest request) {
@@ -126,7 +126,7 @@ final class IgnoreUi implements Listener {
     OperationUi.within(action,()->{try {run(p,new CommandRequest(request.command(),values,request.flags()));}catch(RuntimeException error){action.failed(error);plugin.operations().send(p,()->Messages.error(error.getMessage()));}finally{action.release();}return null;});
   }
   @EventHandler public void click(InventoryClickEvent event) {
-    if(!(event.getView().getTopInventory().getHolder() instanceof Menu menu))return;
+    if(!(event.getInventory().getHolder() instanceof Menu menu))return;
     event.setCancelled(true);if(!(event.getWhoClicked() instanceof Player p))return;
     int slot=event.getRawSlot();
     if(slot==45 || slot==53) {local(p,menu,"ignore.gui.page",()->open(p,menu.mapping,menu.dimension,menu.document,menu.page+(slot==45?-1:1)));return;}
@@ -142,7 +142,7 @@ final class IgnoreUi implements Listener {
     var action=plugin.operations().begin(p,operation,menu.mapping,menu.dimension);
     OperationUi.within(action,()->{try {if(!allowed(p))p.sendMessage(Messages.permission("ignore"));else work.run();}catch(RuntimeException error) {action.failed(error);plugin.operations().send(p,()->Messages.error(error.getMessage()));}finally{action.release();}return null;});
   }
-  @EventHandler public void drag(InventoryDragEvent e) {if(e.getView().getTopInventory().getHolder() instanceof Menu)e.setCancelled(true);}
+  @EventHandler public void drag(InventoryDragEvent e) {if(e.getInventory().getHolder() instanceof Menu)e.setCancelled(true);}
   @EventHandler public void input(io.papermc.paper.event.player.AsyncChatEvent event) {
     var menu=chat.remove(event.getPlayer().getUniqueId());if(menu==null)return;event.setCancelled(true);
     String text=net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(event.message());

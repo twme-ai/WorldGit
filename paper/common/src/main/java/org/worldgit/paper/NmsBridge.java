@@ -13,6 +13,30 @@ import org.worldgit.core.anvil.Nbt;
 public interface NmsBridge {
   /** 轉接層對應的 Minecraft 版本，例如 1.21.11。 */
   String minecraftVersion();
+  int dataVersion();
+  org.worldgit.core.version.NbtUpgrader dataFixer();
+  /** Player owner 操作；InventoryView 的 class／interface 邊界留在該版 API。 */
+  default void openMenu(org.bukkit.entity.Player player,org.bukkit.inventory.Inventory inventory) {
+    throw new UnsupportedOperationException("Inventory menus unavailable");
+  }
+  /** 驗收在 player owner 注入 GUI 點擊；不讓 common 引用 InventoryView。 */
+  default void clickOpenMenu(org.bukkit.entity.Player player,int slot) {
+    throw new UnsupportedOperationException("Inventory clicks unavailable");
+  }
+  /** 生成前配置；各版 API 的 Consumer descriptor 不同，common 使用中性 Java Consumer。 */
+  default <T extends org.bukkit.entity.Entity> T spawnConfigured(org.bukkit.Location location,
+      Class<T> type, java.util.function.Consumer<T> configure) {
+    throw new UnsupportedOperationException("Configured entity spawn unavailable");
+  }
+  /** 各版已核對的世界存檔／RegionFile IO 完成訊號；只讀取 log，不碰活世界。 */
+  default boolean shutdownIoComplete(String loggerName, String message) {
+    return message.contains("All RegionFile I/O tasks to complete");
+  }
+  /** Server entity manager census, including known but unloaded UUIDs. */
+  java.util.Set<java.util.UUID> knownEntityIds(World world);
+  default java.util.function.Function<String,com.mojang.brigadier.arguments.ArgumentType<?>> commandTypes(){return CommandSource.LEGACY_TYPES::type;}
+  default CommandSource commandSource(org.bukkit.command.CommandSender sender){throw new UnsupportedOperationException("Legacy commands unavailable");}
+
 
   /** 普查結果的接收端；任何執行緒呼叫。 */
   interface CensusSink {
@@ -31,6 +55,11 @@ public interface NmsBridge {
 
   /** 世界級 gamerule 的獨立 NBT 複本（全域排程器；不讀取實體或 chunk）。 */
   Nbt.Compound copyGameRules(World world) throws java.io.IOException;
+
+  /** 活世界的 level 設定（全域 scheduler）；只有 adapter 已確認的受追蹤欄位。 */
+  default Nbt.Compound copyLevelMetadata(World world) throws java.io.IOException { return new Nbt.Compound(); }
+
+  default boolean savesMetadata() { return false; }
 
   /** 全域 scheduler 複製維度 saved-data 並排入背景 IO；呼叫端在 repo 執行緒等待完成。 */
   default java.util.concurrent.CompletionStage<Void> saveMetadata(World world) {

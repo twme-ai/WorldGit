@@ -9,6 +9,16 @@ common:
   error: "<red>錯誤：<message></red>"
 
 paper:
+  version:
+    confirm-required: "請檢查轉換損失清單，確認後再重試。"
+    mismatch: "<version> 轉接層的 DataVersion 不符：預期 <expected>，實際 <actual>。"
+    load-failed: "無法載入 <version> 的轉接層（<adapter>）：<error>。"
+    unsupported: "WorldGit 尚未支援 Minecraft <version>；可用轉接層：<supported>。"
+    preview: "<yellow>轉換 <operation> 將損失以下內容，尚未寫入世界。</yellow>"
+    source: "<gray><snapshot>：<from> → <to></gray>"
+    loss: "<yellow><kind> <source> → <replacement> × <count>；位置：<locations></yellow>"
+    confirm: "<gold>[確認轉換：/wg confirm <token>]</gold>"
+    invalid-token: "<red>確認 token 無效、已過期或屬於其他玩家。</red>"
   phase5:
     online-meta-unsupported: "線上 world-meta 還原尚不支援：<files>。請停止伺服器後，用 CLI 離線 switch／restore 還原這些設定。"
     terminal: "<operation> 完成：<status> · <dimension>（<millis> ms）"
@@ -171,6 +181,7 @@ paper:
       ignore: "/wg ignore list|add|remove|move|enable|disable|test|check|preview|confirm"
       tag: "/wg tag [-d] [name]"
       verify: "/wg verify [revision]"
+      confirm: '<gray>  /wg confirm \<token>（確認有損轉換預覽）</gray>'
       init: <gray>  /wg init [--template creative|survival]</gray>
       status: <gray>  /wg status [--full] [--show]</gray>
       commit: <gray>  /wg commit -m <message></gray>

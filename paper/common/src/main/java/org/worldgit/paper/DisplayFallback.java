@@ -185,7 +185,7 @@ final class DisplayFallback {
 
   private void spawnScaled(Player player, Session session, Location at, BlockData data, Color glow, Vector3f translation, Vector3f scale) {
     var display =
-        at.getWorld().spawn(at, BlockDisplay.class, e -> {
+        plugin.bridge().spawnConfigured(at, BlockDisplay.class, e -> {
           e.setVisibleByDefault(false);
           e.setPersistent(false);
           e.addScoreboardTag(TAG);

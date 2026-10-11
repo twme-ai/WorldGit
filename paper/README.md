@@ -1,6 +1,6 @@
 # WorldGit Paper / Folia 插件（Phase 5：維度與操作體驗）
 
-同一個發佈 jar 支援 Paper / Folia 的 Minecraft **1.21.11 與 26.2**。1.21.11 使用 Java 21，26.2 使用 Java 25。`common` 只引用公開 Paper API；`v1_21_11`、`v26_2` 以 paperweight-userdev 2.0.0-beta.21 各自編譯薄 NMS 轉接層，啟動時只載入符合版本的類別。
+同一個發佈 jar 支援 Paper / Folia 的 Minecraft **1.20.1、1.20.4、1.21.11 與 26.2**。前三版使用 Java 21，26.2 使用 Java 25。`common` 只引用公開 Paper API；`v1_20_1`、`v1_20_4`、`v1_21_11`、`v26_2` 以 paperweight-userdev 2.0.0-beta.21 各自編譯薄 NMS 轉接層，啟動時只載入符合版本的類別。
 
 Phase 5 任務 3：所有 repo 指令預設使用玩家所在世界群的目前維度；console 的其他 repo 指令預設伺服器第一個世界的主世界，init 必須明確指定 `--world <世界名>` 與 `--dimension <id>` 或 `--all`。主世界 init 的聊天按鈕可追加既存地獄／終界，沒有自動建立其他 repo。`--dimension` 覆寫目標，`--all` 逐維度完成、各自回報；其中一維度失敗不回滾其他成功。
 
@@ -11,6 +11,14 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 ```
 
 將 `paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar` 放到伺服器的 `plugins/`，啟動後執行 `/wg init`。未知 MC 版本會明確停用插件。26.2 adapter 是 Java 25 bytecode，其餘本體與共用模組是 Java 21。
+
+## 跨版本線上操作
+
+較舊 commit 的 switch／merge／reset 使用目前伺服器的原版 DFU 自動升級。有損降級先在聊天或 console 顯示完整損失，包含替代值、數量與座標樣本；檢查後點確認或執行 `/wg confirm <token>`。代碼五分鐘內有效、限原執行者且單次使用。世界、HEAD、規則或損失改變時需重新預覽／確認；`--force` 不略過損失確認。verify 為唯讀，dry-run 不改世界。資料包與世界 metadata 不同的線上還原仍要求離線 CLI。
+
+common 編譯 Paper API 1.20.1；舊兩版使用 Bukkit 指令 registry，較新版本使用 Lifecycle。舊 adapter 各自 reobf，正式 jar 透過 paper-plugin.yml 載入 Java 21 bytecode。未知／尚未實作的 catalog 版本明確停用，不能將 1.20.2 等相似版本視為已支援。
+
+Paper 1.20.x 的整合使用官方 FAWE 2.8.4 release（官方 jar 自報 2.8.5-SNAPSHOT）。**官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收**；舊 Folia 保留整合測試並明記略過，原生場景照常驗收。詳細矩陣、決策 #196 起及限制見 [多版本 §7／§8](../docs/19-multiversion.md)。
 
 ## Axiom
 
@@ -38,6 +46,7 @@ WorldGit 套用期間拒絕該鎖定世界的 Axiom 編輯（局部套用也保�
 | `/wg switch <branch\|rev> [--stash\|--force]` | 所選維度原地切換；驗證成功後才移動該維度 HEAD | `worldgit.command.switch`（op） |
 | `/wg branch [-d] [name]` | 所選維度的分支清單、建立、刪除 | `worldgit.command.branch`（op） |
 | `/wg stash push [message]\|pop [index]\|list\|drop [index]` | 保存／套回未提交內容；pop 要求原基底與乾淨工作區 | `worldgit.command.stash`（op） |
+| `/wg confirm <token>` | 確認目前跨版本操作的損失；重新核對原操作權限 | 原操作權限 |
 | `/wg reset --hard` | 全範圍還原 HEAD，保留 HEAD 指標 | `worldgit.command.reset`（op） |
 | `/wg cancel` | 停止派發，等待在途清理，留下 PARTIAL 供完整重套 | `worldgit.command.cancel`（op） |
 | `/wg merge <branch\|rev>` / `--continue` / `--abort` | 線上三方合併（noCommit）：無衝突直接寫入並提交；有衝突進入 MERGING（預設 ours）。`--abort` 逐格還原合併前世界 | `worldgit.command.merge`（op） |
@@ -52,7 +61,7 @@ WorldGit 套用期間拒絕該鎖定世界的 Axiom 編輯（局部套用也保�
 
 `worldgit.admin` 包含上述指令與 `worldgit.notify` 通知。開發量測入口 `/wg debug` 只開放主控台，其他 sender 必須有 `worldgit.debug`（預設 false）。
 
-`/wg`、`/wgit`、`/git` 與 `/worldgit` 使用 **Paper Brigadier Command API**。`onEnable` 透過 `LifecycleEvents.COMMANDS` 註冊完整指令樹，`plugin.yml` 只保留權限，沒有 Bukkit `commands:`／字串解析器。每個節點的 `requires` 同時檢查權限與 sender：tool、diff、clear、conflict-preview 限玩家；status 的 --show、restore 的 --selection、comments 的 show／hide／--here 也限玩家。預設非 op 玩家只收到 log、clear、help；help 的主題同樣過濾。直接輸入無權限入口仍回覆既有多語言權限訊息。
+`/wg`、`/wgit`、`/git` 與 `/worldgit` 共用 Brigadier 指令樹。1.21.11／26.2 透過 `LifecycleEvents.COMMANDS` 註冊；1.20.1／1.20.4 以 Bukkit command registry 接入同一棵樹，由各版 bridge 提供座標與玩家參數。`plugin.yml` 只保留權限。每個節點的 `requires` 同時檢查權限與 sender：tool、diff、clear、conflict-preview 限玩家；status 的 --show、restore 的 --selection、comments 的 show／hide／--here 也限玩家。預設非 op 玩家只收到 log、clear、help；help 的主題同樣過濾。直接輸入無權限入口仍回覆既有多語言權限訊息。
 
 聊天列會逐參數提示與上色；log 數量 1–100、diff 半徑 1–32 chunk、restore 的 --chunks 0–256、stash index ≥0、PR／衝突編號／頁碼 ≥1。`--box` 是兩個 `ArgumentTypes.blockPosition()`，除了原本六個整數，也接受相對於指令來源的 `~` 與區域座標 `^`；留言維度使用 namespaced key，debug 的玩家使用 player resolver。型別／範圍錯誤交由 Brigadier 標示位置，repo／Hub 業務錯誤仍使用原有 i18n 訊息。
 
@@ -98,7 +107,7 @@ GRADLE_USER_HOME=.work/gradle-home flock .work/bench.lock ./gradlew --no-daemon 
 
 事件與 WorldEdit 以**世界群／維度／玩家／chunk／原因**記錄作者；commit 帶 primary author、多位 `Contribution` 與 `Co-authored-by` trailers。目前是 chunk 級歸屬，沒有逐格 blame 或 per-player staging。失敗或未達自動門檻時，作者資料保留到下一次；新事件不會被較舊的 dirty generation 清掉；單維度 commit 保留其他維度的作者資料。
 
-定時自動 commit 預設每 15 分鐘，小變动最晚合併到 30 分鐘；`min-changed-sections` 可調高以降低生存世界底噪。只有實體變動預設不觸發定時 commit。登出觸發提交當前世界的全部變動；**並非只提交該玩家的變動**。Paper 在關閉流程內聯 commit。Folia 的 disable 階段沒有可用的 region 排程，改走**離線路徑**：onDisable 預載插件類別與離線來源，JVM 關閉鉤子等伺服器印出「All RegionFile I/O tasks to complete」（所有世界已存完）後，用 core 的離線掃描 commit（與 CLI 同一條路徑，標記為自動存檔點；作者歸屬沿用）。結果寫在 `plugins/WorldGit/shutdown-commit.log`（此時 log4j 已不可靠）。等不到訊號（180 秒）就放棄、不動世界。`/stop` 與 SIGTERM 兩種關閉方式都驗證過；kill -9／崩潰當然不會有關閉前 commit。
+定時自動 commit 預設每 15 分鐘，小變動最晚合併到 30 分鐘；`min-changed-sections` 可調高以降低生存世界底噪。只有實體變動預設不觸發定時 commit。登出觸發提交當前世界的全部變動；**並非只提交該玩家的變動**。Paper 在關閉流程內聯 commit。Folia 的 disable 階段沒有可用的 region 排程，改走**離線路徑**：onDisable 預載插件類別與離線來源，JVM 關閉鉤子等 adapter 已核對的世界存檔／I/O 完成訊號後（舊兩版為 flush 完成後的「Closing Thread Pool」，較新兩版保留原訊號），用 core 的離線掃描 commit（與 CLI 同一條路徑，標記為自動存檔點；作者歸屬沿用）。結果寫在 `plugins/WorldGit/shutdown-commit.log`（此時 log4j 已不可靠）。等不到訊號（180 秒）就放棄、不動世界。`/stop` 與 SIGTERM 兩種關閉方式都驗證過；kill -9／崩潰當然不會有關閉前 commit。
 
 ## WorldEdit 與客戶端模組
 
@@ -276,4 +285,4 @@ feedback:
 
 所有設定需重啟；`/wg reload` 只重載語言。線上 clone／export／migrate 沒有入口，沿用 CLI 的停止世界要求。第三方直接寫 NMS 或未經 WE／FAWE hook 的 UUID 改寫不屬於可攔截事件；無法把任意第三方寫入推測成玩家觸及。
 
-驗收腳本自持 bench.lock：`python3 paper/tools/phase5.py --matrix` 跑 Paper／Folia 兩版及別名衝突／停用；`python3 paper/tools/phase5_screenshots.py paper 1.21.11`（亦可指定其他組合）用真客戶端拍攝八種畫面。證據與限制見 [Phase 5 設計紀錄](../docs/16-phase5-design.md)，截圖在 [phase5](docs/screenshots/phase5/)。
+驗收腳本自持 bench.lock：`python3 paper/tools/phase5.py --matrix` 跑 Paper／Folia 四版及別名衝突／停用；`python3 paper/tools/phase5_screenshots.py paper 1.21.11`（亦可指定其他組合）用真客戶端拍攝八種畫面。證據與限制見 [Phase 5 設計紀錄](../docs/16-phase5-design.md)，截圖在 [phase5](docs/screenshots/phase5/)。

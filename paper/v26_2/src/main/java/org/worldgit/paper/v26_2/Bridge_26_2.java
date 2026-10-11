@@ -42,6 +42,45 @@ public final class Bridge_26_2 implements NmsBridge {
     return "26.2";
   }
 
+  @Override public void openMenu(org.bukkit.entity.Player player,org.bukkit.inventory.Inventory inventory) {
+    player.openInventory(inventory);
+  }
+  @Override public void clickOpenMenu(org.bukkit.entity.Player player,int slot) {
+    var view=player.getOpenInventory();
+    if(slot<0 || slot>=view.getTopInventory().getSize())throw new IllegalArgumentException("slot 超出 GUI");
+    org.bukkit.Bukkit.getPluginManager().callEvent(new org.bukkit.event.inventory.InventoryClickEvent(view,
+        org.bukkit.event.inventory.InventoryType.SlotType.CONTAINER,slot,org.bukkit.event.inventory.ClickType.LEFT,
+        org.bukkit.event.inventory.InventoryAction.PICKUP_ALL));
+  }
+  @Override public <T extends org.bukkit.entity.Entity> T spawnConfigured(org.bukkit.Location location,
+      Class<T> type, java.util.function.Consumer<T> configure) {
+    return location.getWorld().spawn(location,type,configure::accept);
+  }
+  @Override public int dataVersion() { return net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version(); }
+  @Override public org.worldgit.core.version.NbtUpgrader dataFixer() {
+    return (type,input,from,to)->{
+      if(to!=dataVersion() || from>to)throw new IOException("DFU target does not match server DataVersion");
+      com.mojang.datafixers.DSL.TypeReference reference=switch(type) {
+        case "CHUNK"->net.minecraft.util.datafix.fixes.References.CHUNK;
+        case "ENTITY_CHUNK"->net.minecraft.util.datafix.fixes.References.ENTITY_CHUNK;
+        case "LEVEL"->net.minecraft.util.datafix.fixes.References.LEVEL;
+        case "SAVED_DATA_MAP_DATA"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_MAP_DATA;
+        case "SAVED_DATA_SCOREBOARD"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_SCOREBOARD;
+        case "SAVED_DATA_COMMAND_STORAGE"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_COMMAND_STORAGE;
+        case "SAVED_DATA_MAP_INDEX"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_MAP_INDEX;
+        case "SAVED_DATA_TICKETS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_TICKETS;
+        case "SAVED_DATA_RAIDS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_RAIDS;
+        case "SAVED_DATA_RANDOM_SEQUENCES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_RANDOM_SEQUENCES;
+        default->throw new IOException("Unsupported server DFU type: "+type);
+      };
+      var fixed=net.minecraft.util.datafix.DataFixers.getDataFixer().update(reference,new com.mojang.serialization.Dynamic<>(net.minecraft.nbt.NbtOps.INSTANCE,toTag(input)),from,to);
+      return Raw.convert((CompoundTag)fixed.getValue());
+    };
+  }
+  @Override public java.util.Set<java.util.UUID> knownEntityIds(World world) {
+    return java.util.Arrays.stream(level(world).moonrise$getEntityLookup().getAllCopy()).map(net.minecraft.world.entity.Entity::getUUID).collect(java.util.stream.Collectors.toUnmodifiableSet());
+  }
+
   @Override
   public Nbt.Compound copyGameRules(World world) throws IOException {
     ServerLevel level = ((CraftWorld) world).getHandle();
@@ -49,6 +88,8 @@ public final class Bridge_26_2 implements NmsBridge {
         .encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, level.getGameRules()).getOrThrow();
     return Raw.convert((CompoundTag) tag);
   }
+
+  @Override public boolean savesMetadata() { return true; }
 
   @Override
   public java.util.concurrent.CompletionStage<Void> saveMetadata(World world) {

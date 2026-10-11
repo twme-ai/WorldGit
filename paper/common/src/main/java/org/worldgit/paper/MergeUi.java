@@ -156,10 +156,10 @@ final class MergeUi implements Listener {
       item.setItemMeta(meta); menu.inventory.setItem(slot,item);
     }
     for(int slot:new int[]{45,53}) { var item=new ItemStack(Material.ARROW); var meta=item.getItemMeta(); meta.displayName(Messages.line(slot==45 ? "paper.merge.previous" : "paper.merge.next")); item.setItemMeta(meta); menu.inventory.setItem(slot,item); }
-    p.openInventory(menu.inventory);
+    plugin.bridge().openMenu(p,menu.inventory);
   }
   @EventHandler public void click(InventoryClickEvent e) {
-    if(!(e.getView().getTopInventory().getHolder() instanceof Menu menu)) return;
+    if(!(e.getInventory().getHolder() instanceof Menu menu)) return;
     e.setCancelled(true);if(!(e.getWhoClicked() instanceof Player p))return;
     int slot=e.getRawSlot(),index=menu.page*45+slot;
     boolean page=slot==45 || slot==53;
@@ -184,7 +184,7 @@ final class MergeUi implements Listener {
       }catch(RuntimeException failure) {action.failed(failure);action.release();}
     }finally {action.release();}return null;});
   }
-  @EventHandler public void drag(InventoryDragEvent e) { if(e.getView().getTopInventory().getHolder() instanceof Menu) e.setCancelled(true); }
+  @EventHandler public void drag(InventoryDragEvent e) { if(e.getInventory().getHolder() instanceof Menu) e.setCancelled(true); }
   @EventHandler public void quit(PlayerQuitEvent e) { outlines.clear(e.getPlayer()); shown.remove(e.getPlayer().getUniqueId()); bars.remove(e.getPlayer().getUniqueId()); clicks.remove(e.getPlayer().getUniqueId()); }
   void shutdown() { stopped=true; outlines.clearAll(); bars.clear(); shown.clear(); }
 }

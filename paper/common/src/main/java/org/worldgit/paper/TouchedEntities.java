@@ -24,6 +24,7 @@ final class TouchedEntities implements Listener {
   }
   TouchedEntities(WorldGitPlugin plugin) {
     this.plugin=plugin;plugin.getServer().getPluginManager().registerEvents(this,plugin);
+    registerMountEvent();
     plugin.repo().submit(()->{
       for(var mapping:plugin.mappings()) {
         refresh(mapping);
@@ -81,7 +82,22 @@ final class TouchedEntities implements Listener {
   @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void tame(EntityTameEvent e) {touch(e.getEntity());}
   @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void dye(SheepDyeWoolEvent e) {touch(e.getEntity());}
   @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void breed(EntityBreedEvent e) {if(e.getBreeder()!=null) {touch(e.getEntity());touch(e.getMother());touch(e.getFather());}}
-  @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void mount(org.bukkit.event.entity.EntityMountEvent e) {if(e.getEntity() instanceof Player || known.contains(e.getEntity().getUniqueId()) || known.contains(e.getMount().getUniqueId())) {touch(e.getMount());if(!(e.getEntity() instanceof Player))touch(e.getEntity());}}
+  private void mount(Entity passenger,Entity vehicle) {
+    if(passenger instanceof Player || known.contains(passenger.getUniqueId()) || known.contains(vehicle.getUniqueId())) {
+      touch(vehicle);if(!(passenger instanceof Player))touch(passenger);
+    }
+  }
+  @SuppressWarnings("unchecked") private void registerMountEvent() {
+    try {
+      String name=plugin.bridge().dataVersion()<=3700?"org.spigotmc.event.entity.EntityMountEvent":"org.bukkit.event.entity.EntityMountEvent";
+      var type=(Class<? extends Event>)Class.forName(name);
+      var passenger=type.getMethod("getEntity");var vehicle=type.getMethod("getMount");
+      plugin.getServer().getPluginManager().registerEvent(type,this,EventPriority.MONITOR,(listener,event)->{
+        try {mount((Entity)passenger.invoke(event),(Entity)vehicle.invoke(event));}
+        catch(ReflectiveOperationException error){throw new org.bukkit.event.EventException(error);}
+      },plugin,true);
+    }catch(ReflectiveOperationException error){throw new IllegalStateException("Mount event capability unavailable",error);}
+  }
   @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void transform(EntityTransformEvent e) {if(known.contains(e.getEntity().getUniqueId()))e.getTransformedEntities().forEach(this::touch);}
   @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void portal(EntityPortalEvent e) {if(known.contains(e.getEntity().getUniqueId()))plugin.platform().entityDelayed(e.getEntity(),1,()->touch(e.getEntity()),()->{});}
   @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true) public void teleport(EntityTeleportEvent e) {if(known.contains(e.getEntity().getUniqueId()))plugin.platform().entityDelayed(e.getEntity(),1,()->touch(e.getEntity()),()->{});}

@@ -14,3 +14,5 @@ dependencies {
 }
 
 sourceSets.main { java.srcDir("../nms-shared/src/main/java") }
+
+sourceSets.main { java.srcDir("../commands-modern/src/main/java") }

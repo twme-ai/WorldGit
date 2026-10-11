@@ -14,6 +14,9 @@ class DimensionStateTest {
     var state = new DimensionState(DimensionId.OVERWORLD, "world");
     var entities = new HashSet<>(Set.of(new ChunkPos(0, 0)));
     var bridge = new NmsBridge() {
+      public int dataVersion(){return 4671;}
+      public org.worldgit.core.version.NbtUpgrader dataFixer(){throw new UnsupportedOperationException("Same-version test must not call DFU");}
+      public java.util.Set<java.util.UUID> knownEntityIds(org.bukkit.World world){return java.util.Set.of();}
       public void applyChunk(World w,org.worldgit.core.apply.ApplyPlan.ChunkOp op,org.worldgit.core.config.IgnoreRules r) { throw new UnsupportedOperationException(); }
       public void removeEntities(World w,int x,int z,java.util.Set<java.util.UUID> ids) { throw new UnsupportedOperationException(); }
       public void spawnEntity(World w,org.worldgit.core.model.EntitySnapshot e) { throw new UnsupportedOperationException(); }

@@ -271,7 +271,7 @@ public final class DimensionRepository implements AutoCloseable {
     org.worldgit.core.version.ConversionReport versionProjection = null;
     if (base != null && previousVersion != source.dataVersion()) {
       var projected = org.worldgit.core.version.VersionConversions.convert(store, base, dimension,
-          previousVersion, source.dataVersion(), directory.resolve("worldgit.yml"), true);
+          previousVersion, source.dataVersion(), directory.resolve("worldgit.yml"), true, source.dataFixer());
       base = projected.tree();
       versionProjection = projected.report();
     }

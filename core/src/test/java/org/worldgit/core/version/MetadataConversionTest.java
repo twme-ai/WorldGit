@@ -24,6 +24,37 @@ class MetadataConversionTest {
   }
 
   @Test
+  void oldToOldConversionPreservesSavedDataAndReportsNewGamerules() throws Exception {
+    String raids=saved("data/raids.dat"), chunks=saved("data/chunks.dat");
+    var input=Map.of("level.nbt",Nbt.write(new Nbt.Compound().with("DataVersion",3700)
+        .with("GameRules",new Nbt.Compound().with("doMobSpawning","false")
+            .with("maxCommandForkCount","123"))),
+        raids,Nbt.write(new Nbt.Compound().with("DataVersion",3700)
+            .with("data",new Nbt.Compound().with("NextAvailableID",8).with("Raids",new Nbt.ListTag(10,List.of())))),
+        chunks,Nbt.write(new Nbt.Compound().with("data",new Nbt.Compound().with("Forced",new long[]{42L}))));
+    var losses=new ConversionReport.Collector();
+    var reverse=new ReverseNbt(new ReverseRules(3700,3465,null),losses,3700,3465);
+    var output=MetadataConversion.convert(input,DimensionId.OVERWORLD,3700,3465,null,reverse,losses);
+    assertEquals(input.keySet(),output.keySet());
+    assertArrayEquals(input.get(chunks),output.get(chunks));
+    assertEquals(8,Nbt.read(output.get(raids)).compound("data").integer("NextAvailableID",-1));
+    assertEquals(3465,Nbt.read(output.get(raids)).integer("DataVersion",-1));
+    var gameRules=Nbt.read(output.get("level.nbt")).compound("GameRules");
+    assertEquals("false",gameRules.string("doMobSpawning"));
+    assertFalse(gameRules.containsKey("maxCommandForkCount"));
+    var report=losses.report(3700,3465,"test");
+    assertTrue(report.lossy());
+    assertTrue(report.losses().stream().anyMatch(loss->loss.kind().equals("gamerule") && loss.source().equals("maxCommandForkCount")));
+    assertFalse(report.losses().stream().anyMatch(loss->loss.kind().equals("saved-data")));
+    var upLoss=new ConversionReport.Collector();
+    var upgraded=MetadataConversion.convert(output,DimensionId.OVERWORLD,3465,3700,
+        (type,raw,from,to)->raw,new ReverseNbt(new ReverseRules(3465,3700,null),upLoss,3465,3700),upLoss);
+    assertEquals(input.keySet(),upgraded.keySet());
+    assertEquals(3700,Nbt.read(upgraded.get(raids)).integer("DataVersion",-1));
+    assertFalse(upLoss.report(3465,3700,"test").lossy());
+  }
+
+  @Test
   void legacyDimensionDataMovesToItsModernOwnerAndKeepsPhysicalRaidTick() throws Exception {
     String old = saved("data/raids.dat"), modern =
         DimensionId.OVERWORLD.directoryName() + "." + saved("data/minecraft/raids.dat");

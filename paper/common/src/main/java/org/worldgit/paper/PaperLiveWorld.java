@@ -56,7 +56,7 @@ final class PaperLiveWorld implements LiveWorld {
     this.world = world;
     this.layout = layout;
     this.inline = inline;
-    this.offline = new OfflineSnapshotSource(layout, layout.dimensions().get(state.id()));
+    this.offline = new OfflineSnapshotSource(layout, layout.dimensions().get(state.id())).serverDataFixer(plugin.bridge().dataFixer(),plugin.bridge()::dataVersion);
   }
 
   LiveCopier.Stats stats() {
@@ -68,6 +68,7 @@ final class PaperLiveWorld implements LiveWorld {
     return liveSet.size();
   }
 
+  @Override public org.worldgit.core.version.NbtUpgrader dataFixer() { return plugin.bridge().dataFixer(); }
   @Override
   public DimensionId dimension() {
     return state.id();
@@ -76,7 +77,7 @@ final class PaperLiveWorld implements LiveWorld {
   @Override
   public int dataVersion() {
     // 線上以伺服器實際版本為準；level.dat 在第一次存檔前可能還是舊值。
-    return Bukkit.getUnsafe().getDataVersion();
+    return plugin.bridge().dataVersion();
   }
 
   @Override
@@ -92,20 +93,23 @@ final class PaperLiveWorld implements LiveWorld {
 
   @Override
   public Map<String, byte[]> worldMetadata() throws IOException {
-    if (dataVersion() >= 4903) saveMetadata();
+    if (plugin.bridge().savesMetadata()) saveMetadata();
     var metadata = new TreeMap<>(offline.worldMetadata());
+    if (!dimension().equals(DimensionId.OVERWORLD) && dataVersion()<4903) return metadata;
+    var active = liveLevelMetadata(world);
     if (!dimension().equals(DimensionId.OVERWORLD)) {
-      if (dataVersion() >= 4903) metadata.put(dimension().directoryName()+".game_rules.dat.nbt",Nbt.write(new Nbt.Compound().with("DataVersion",dataVersion()).with("data",liveGameRules(world))));
+      if (dataVersion() >= 4903) metadata.put(dimension().directoryName()+".game_rules.dat.nbt",Nbt.write(new Nbt.Compound().with("DataVersion",dataVersion()).with("data",active.compound(dataVersion()<4671?"GameRules":"game_rules"))));
       return metadata;
     }
     // gamerule 是受追蹤的設定，不能以「底噪」排除。level.dat / saved data 可能要到 shutdown 才寫回，
     // 因此在全域排程器取一份活資料，避免線上 commit 偷偷保存舊 gamerule。
-    if (plugin.bridge().minecraftVersion().equals("1.21.11")) {
+    if (dataVersion() < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) {
       var level = Nbt.read(metadata.get("level.nbt"));
-      level.put("game_rules", liveGameRules(world));
+      level.put("DataVersion", dataVersion());
+      level.putAll(active);
       metadata.put("level.nbt", Nbt.write(level));
     } else {
-      var data = new Nbt.Compound().with("DataVersion", dataVersion()).with("data", liveGameRules(world));
+      var data = new Nbt.Compound().with("DataVersion", dataVersion()).with("data", active.compound(dataVersion()<4671?"GameRules":"game_rules"));
       byte[] encoded = Nbt.write(data);
       metadata.put(DimensionId.OVERWORLD.directoryName()+".game_rules.dat.nbt",encoded);
       metadata.put("game_rules.dat.nbt",encoded);
@@ -130,10 +134,14 @@ final class PaperLiveWorld implements LiveWorld {
     catch (ExecutionException | TimeoutException e) { throw new IOException("saved-data 保存失敗", e); }
   }
 
-  private Nbt.Compound liveGameRules(World target) throws IOException {
+  private Nbt.Compound liveLevelMetadata(World target) throws IOException {
     var result = new CompletableFuture<Nbt.Compound>();
     Runnable copy = () -> {
-      try { result.complete(plugin.bridge().copyGameRules(target)); }
+      try {
+        var metadata=plugin.bridge().copyLevelMetadata(target);
+        metadata.put(dataVersion()<4671?"GameRules":"game_rules",plugin.bridge().copyGameRules(target));
+        result.complete(metadata);
+      }
       catch (Throwable t) { result.completeExceptionally(t); }
     };
     if (inline) copy.run();
@@ -144,7 +152,7 @@ final class PaperLiveWorld implements LiveWorld {
   }
 
   EntityTagRegistry registry() throws IOException {
-    if (registry == null) registry = EntityTagRegistry.load(layout.world(), layout.dataVersion());
+    if (registry == null) registry = EntityTagRegistry.load(layout.world(), dataVersion());
     return registry;
   }
 

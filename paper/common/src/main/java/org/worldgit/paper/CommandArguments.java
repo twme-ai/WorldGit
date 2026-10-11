@@ -3,9 +3,9 @@ package org.worldgit.paper;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.*;
 import com.mojang.brigadier.exceptions.*;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
-import io.papermc.paper.command.brigadier.MessageComponentSerializer;
-import io.papermc.paper.command.brigadier.argument.CustomArgumentType;
+import org.worldgit.paper.CommandSource;
+
+
 import java.util.*;
 import org.worldgit.core.remote.RemoteSpec;
 
@@ -14,12 +14,12 @@ final class CommandArguments {
   enum TokenKind { REVISION, BRANCH, REMOTE, URL }
 
   static CommandSyntaxException error(StringReader reader, Object source, String key, Object... args) {
-    var message = source instanceof CommandSourceStack stack
+    var message = source instanceof CommandSource stack
         ? Messages.inLocale(stack.getSender(), () -> Messages.text(key, args)) : Messages.text(key, args);
-    return new SimpleCommandExceptionType(MessageComponentSerializer.message().serialize(message)).createWithContext(reader);
+    return new SimpleCommandExceptionType(CommandMessages.serialize(message)).createWithContext(reader);
   }
 
-  static final class Token implements CustomArgumentType<String, String> {
+  static final class Token implements WireArgument<String, String> {
     final TokenKind kind;
     Token(TokenKind kind) { this.kind = kind; }
     public ArgumentType<String> getNativeType() { return kind == TokenKind.URL ? StringArgumentType.greedyString() : StringArgumentType.string(); }
@@ -47,7 +47,7 @@ final class CommandArguments {
   }
 
   /** 舊 #12 保留伺服器解析；兩個分支都傳送 integer(1)，讓主要數字寫法有原生型別提示。 */
-  static final class PrefixedId implements CustomArgumentType<Integer, Integer> {
+  static final class PrefixedId implements WireArgument<Integer, Integer> {
     public ArgumentType<Integer> getNativeType() { return IntegerArgumentType.integer(1); }
     public Integer parse(StringReader reader) throws CommandSyntaxException { return parse(reader, null); }
     public <S> Integer parse(StringReader reader, S source) throws CommandSyntaxException {
@@ -62,7 +62,7 @@ final class CommandArguments {
   record TextOptions(String text, Map<String, String> options) { }
 
   /** PR／留言的相容尾端。旗標使用同一 Token 型別；引號內的 --xxx 永遠是文字。 */
-  static final class TextTail implements CustomArgumentType<TextOptions, String> {
+  static final class TextTail implements WireArgument<TextOptions, String> {
     final boolean pr;
     final Set<String> used;
     TextTail(boolean pr, Set<String> used) { this.pr = pr; this.used = Set.copyOf(used); }

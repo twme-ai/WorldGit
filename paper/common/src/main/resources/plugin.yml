@@ -1,7 +1,7 @@
 name: WorldGit
 version: ${version}
 main: org.worldgit.paper.WorldGitPlugin
-api-version: "1.21"
+api-version: "1.20"
 folia-supported: true
 description: Minecraft 世界的 git 式版本控制（commit、status、diff、自動存檔點、作者歸屬）
 website: https://github.com/twme-ai/WorldGit

@@ -1,7 +1,7 @@
 package org.worldgit.paper;
 
-import static io.papermc.paper.command.brigadier.Commands.argument;
-import static io.papermc.paper.command.brigadier.Commands.literal;
+import static com.mojang.brigadier.builder.RequiredArgumentBuilder.argument;
+import static com.mojang.brigadier.builder.LiteralArgumentBuilder.literal;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
 import static org.worldgit.paper.CommandArguments.TokenKind.*;
@@ -11,25 +11,20 @@ import com.mojang.brigadier.builder.*;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
-import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
+import org.worldgit.paper.CommandSource;
+
 import java.util.*;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 /** 唯一的 Paper 語法定義。所有旗標以 literal 分支展開，有限排列不建立 redirect 循環。 */
 final class CommandTree {
-  interface Actions { void run(CommandSourceStack source, CommandRequest request) throws CommandSyntaxException; }
+  interface Actions { void run(CommandSource source, CommandRequest request) throws CommandSyntaxException; }
   interface NativeTypes { ArgumentType<?> type(String name); }
-  static final NativeTypes PAPER_TYPES = name -> switch (name) {
-    case "position" -> ArgumentTypes.blockPosition();
-    case "dimension" -> ArgumentTypes.key();
-    case "player" -> ArgumentTypes.player();
-    default -> throw new IllegalArgumentException(name);
-  };
+  static final NativeTypes PAPER_TYPES = CommandSource.LEGACY_TYPES;
   static final List<String> SUBS = List.of("init", "status", "commit", "log", "diff", "clear", "reload", "restore",
       "switch", "branch", "stash", "reset", "cancel", "merge", "resolve", "conflict-select", "conflicts",
-      "conflict-preview", "tool", "revert", "cherry-pick", "remote", "fetch", "push", "pull", "pr", "comments", "comment", "ignore", "tag", "verify", "help", "debug");
+      "conflict-preview", "tool", "revert", "cherry-pick", "remote", "fetch", "push", "pull", "pr", "comments", "comment", "ignore", "tag", "verify", "confirm", "help", "debug");
 
   private final Actions actions;
   private final CommandSuggestions suggestions;
@@ -44,33 +39,34 @@ final class CommandTree {
   static String permission(String sub) {
     return sub.equals("conflict-select") ? "resolve" : sub.equals("comments") ? "comment" : sub;
   }
-  static boolean allowed(CommandSourceStack source, String sub) {
+  static boolean allowed(CommandSource source, String sub) {
     var sender = source.getSender();
     if (sub.equals("help")) return true;
+    if(sub.equals("confirm"))return sender.hasPermission("worldgit.admin") || java.util.List.of("switch","restore","reset","merge","revert","cherry-pick","pull").stream().anyMatch(op->sender.hasPermission("worldgit.command."+op));
     if (sub.equals("debug")) return sender instanceof ConsoleCommandSender || sender.hasPermission("worldgit.debug");
     boolean permission = sender.hasPermission("worldgit.command." + permission(sub)) || sender.hasPermission("worldgit.admin");
     return permission && (!Set.of("tool", "diff", "clear", "conflict-preview").contains(sub) || sender instanceof Player);
   }
-  private static boolean player(CommandSourceStack source) { return source.getSender() instanceof Player; }
-  private <B extends ArgumentBuilder<CommandSourceStack, B>> B restricted(B node) {
+  private static boolean player(CommandSource source) { return source.getSender() instanceof Player; }
+  private <B extends ArgumentBuilder<CommandSource, B>> B restricted(B node) {
     String sub = building;
     return node.requires(s -> allowed(s, sub));
   }
-  private LiteralArgumentBuilder<CommandSourceStack> lit(String name) { return restricted(literal(name)); }
-  private <T> RequiredArgumentBuilder<CommandSourceStack, T> arg(String name, ArgumentType<T> type) { return restricted(argument(name, type)); }
-  private RequiredArgumentBuilder<CommandSourceStack, String> token(String name, CommandArguments.TokenKind kind, CommandSuggestions.Kind completion) {
+  private LiteralArgumentBuilder<CommandSource> lit(String name) { return restricted(LiteralArgumentBuilder.<CommandSource>literal(name)); }
+  private <T> RequiredArgumentBuilder<CommandSource, T> arg(String name, ArgumentType<T> type) { return restricted(RequiredArgumentBuilder.<CommandSource,T>argument(name, type)); }
+  private RequiredArgumentBuilder<CommandSource, String> token(String name, CommandArguments.TokenKind kind, CommandSuggestions.Kind completion) {
     var node = arg(name, new CommandArguments.Token(kind));
     if (completion != null) node.suggests(suggestions.provider(completion));
     return node;
   }
-  private RequiredArgumentBuilder<CommandSourceStack, ?> nativeArg(String name, String kind) { return arg(name, types.type(kind)); }
-  private <B extends ArgumentBuilder<CommandSourceStack, B>> B players(B node) { return node.requires(node.getRequirement().and(CommandTree::player)); }
-  private <B extends ArgumentBuilder<CommandSourceStack, ?>> B exec(B node, String command) {
+  private RequiredArgumentBuilder<CommandSource, ?> nativeArg(String name, String kind) { return arg(name, types.type(kind)); }
+  private <B extends ArgumentBuilder<CommandSource, B>> B players(B node) { return node.requires(node.getRequirement().and(CommandTree::player)); }
+  private <B extends ArgumentBuilder<CommandSource, ?>> B exec(B node, String command) {
     node.executes(ctx -> { actions.run(ctx.getSource(), request(ctx, command)); return 1; });
     return node;
   }
 
-  static CommandRequest request(CommandContext<CommandSourceStack> context, String command) {
+  static CommandRequest request(CommandContext<CommandSource> context, String command) {
     var values = new LinkedHashMap<String, Object>();
     var flags = new HashSet<String>();
     for (var parsed : context.getNodes()) {
@@ -87,8 +83,8 @@ final class CommandTree {
     return new CommandRequest(command, values, flags);
   }
 
-  LiteralArgumentBuilder<CommandSourceStack> build() { return build("wg"); }
-  LiteralArgumentBuilder<CommandSourceStack> build(String label) {
+  LiteralArgumentBuilder<CommandSource> build() { return build("wg"); }
+  LiteralArgumentBuilder<CommandSource> build(String label) {
     building = "help";
     var root = exec(lit(label), "help");
     for (String sub : SUBS) {
@@ -157,7 +153,11 @@ final class CommandTree {
             node.then(entry);
           }
         }
-        case "reset" -> node.then(exec(lit("--hard"), sub));
+        case "reset" -> {
+          var hard=lit("--hard");flags(hard,sub,List.of("--force","--dry-run"),Set.of());
+          var revision=token("revision",REVISION,CommandSuggestions.Kind.REVISIONS);
+          flags(revision,sub,List.of("--force","--dry-run"),Set.of());hard.then(revision);node.then(hard);
+        }
         case "merge", "revert", "cherry-pick" -> {
           node.then(exec(token("revision", REVISION, CommandSuggestions.Kind.REVISIONS), sub));
           if (sub.equals("merge")) for (String mode : List.of("--continue", "--abort")) node.then(exec(lit(mode), "merge." + mode.substring(2)));
@@ -203,16 +203,17 @@ final class CommandTree {
           ids(hide, CommandSuggestions.Kind.PRS, id -> exec(id, "comments.hide"));
           var pr = lit("pr"); ids(pr, CommandSuggestions.Kind.PRS, id -> exec(id, "comments.hide")); hide.then(pr); node.then(hide);
         }
+        case "confirm" -> node.then(exec(arg("token",com.mojang.brigadier.arguments.StringArgumentType.word()),"confirm"));
         case "help" -> {
           exec(node, "help");
-          for (String topic : SUBS) node.then(literal(topic).requires(s -> allowed(s, topic)).executes(ctx -> {
+          for (String topic : SUBS) node.then(LiteralArgumentBuilder.<CommandSource>literal(topic).requires(s -> allowed(s, topic)).executes(ctx -> {
             actions.run(ctx.getSource(), new CommandRequest("help", Map.of("topic", topic), Set.of())); return 1;
           }));
         }
         case "debug" -> debug(node);
         default -> throw new IllegalStateException(sub);
       }
-      if (!Set.of("help", "debug", "clear", "reload", "cancel").contains(sub)) node=targets(node);
+      if (!Set.of("help", "debug", "clear", "reload", "cancel", "confirm").contains(sub)) node=targets(node);
       root.then(node);
     }
     return root;
@@ -220,12 +221,12 @@ final class CommandTree {
 
 
   /** 目標旗標可放參數前或非 greedy 參數後；文字尾端保持原有純文字語意。 */
-  private LiteralArgumentBuilder<CommandSourceStack> targets(LiteralArgumentBuilder<CommandSourceStack> builder) {
+  private LiteralArgumentBuilder<CommandSource> targets(LiteralArgumentBuilder<CommandSource> builder) {
     var pure=builder.build();
-    return (LiteralArgumentBuilder<CommandSourceStack>) decorateTargets(pure);
+    return (LiteralArgumentBuilder<CommandSource>) decorateTargets(pure);
   }
 
-  private ArgumentBuilder<CommandSourceStack,?> decorateTargets(com.mojang.brigadier.tree.CommandNode<CommandSourceStack> pure) {
+  private ArgumentBuilder<CommandSource,?> decorateTargets(com.mojang.brigadier.tree.CommandNode<CommandSource> pure) {
     var builder=pure.createBuilder();
     for(var child:pure.getChildren()) {
       boolean greedy=child instanceof com.mojang.brigadier.tree.ArgumentCommandNode<?,?> argument &&
@@ -249,7 +250,7 @@ final class CommandTree {
     return builder;
   }
 
-  private void flags(ArgumentBuilder<CommandSourceStack, ?> node, String command, List<String> available, Set<String> used) {
+  private void flags(ArgumentBuilder<CommandSource, ?> node, String command, List<String> available, Set<String> used) {
     exec(node, command);
     boolean range = used.stream().anyMatch(Set.of("--selection", "--chunks", "--box")::contains);
     for (String flag : available) {
@@ -271,7 +272,7 @@ final class CommandTree {
       node.then(option);
     }
   }
-  private void push(ArgumentBuilder<CommandSourceStack, ?> node, int position, boolean tags) {
+  private void push(ArgumentBuilder<CommandSource, ?> node, int position, boolean tags) {
     exec(node, "push");
     if (!tags) { var option = lit("--tags"); push(option, position, true); node.then(option); }
     if (position < 2) {
@@ -280,7 +281,7 @@ final class CommandTree {
       push(value, position + 1, tags); node.then(value);
     }
   }
-  private void textFlags(ArgumentBuilder<CommandSourceStack, ?> node, boolean pr, Set<String> used) {
+  private void textFlags(ArgumentBuilder<CommandSource, ?> node, boolean pr, Set<String> used) {
     var tail = arg("tail", new CommandArguments.TextTail(pr, used)).suggests(suggestions.textProvider(pr));
     exec(tail, pr ? "pr.create" : "comment"); node.then(tail);
     for (String flag : pr ? List.of("--source", "--target") : List.of("--here")) {
@@ -293,7 +294,7 @@ final class CommandTree {
       node.then(option);
     }
   }
-  private void commentFilters(ArgumentBuilder<CommandSourceStack, ?> node, String command, Set<String> used) {
+  private void commentFilters(ArgumentBuilder<CommandSource, ?> node, String command, Set<String> used) {
     exec(node, command);
     if (!used.contains("id")) {
       var next = new HashSet<>(used); next.add("id");
@@ -307,21 +308,21 @@ final class CommandTree {
       commentFilters(dimension, command, next); node.then(lit("--dimension").then(dimension));
     }
   }
-  private void regionIds(ArgumentBuilder<CommandSourceStack, ?> node, java.util.function.Consumer<ArgumentBuilder<CommandSourceStack, ?>> end) {
+  private void regionIds(ArgumentBuilder<CommandSource, ?> node, java.util.function.Consumer<ArgumentBuilder<CommandSource, ?>> end) {
     ids(node, CommandSuggestions.Kind.REGIONS, end);
   }
-  private void ids(ArgumentBuilder<CommandSourceStack, ?> node, CommandSuggestions.Kind kind, java.util.function.Consumer<ArgumentBuilder<CommandSourceStack, ?>> end) {
+  private void ids(ArgumentBuilder<CommandSource, ?> node, CommandSuggestions.Kind kind, java.util.function.Consumer<ArgumentBuilder<CommandSource, ?>> end) {
     var numeric = arg("id", integer(1)).suggests(suggestions.provider(kind)); end.accept(numeric); node.then(numeric);
     // Native client 同時遇到兩個 ask_server 會取消前一個 future，使整組補全永不完成。
     // #id 僅保留伺服器解析相容性；原生數字分支是唯一的動態補全提供者。
     var legacy = arg("legacy_id", new CommandArguments.PrefixedId()); end.accept(legacy); node.then(legacy);
   }
-  private void choices(ArgumentBuilder<CommandSourceStack, ?> id, String command, boolean manual, ArgumentBuilder<CommandSourceStack, ?> parent) {
+  private void choices(ArgumentBuilder<CommandSource, ?> id, String command, boolean manual, ArgumentBuilder<CommandSource, ?> parent) {
     for (String choice : manual ? List.of("ours", "theirs", "base", "manual") : List.of("ours", "theirs", "base")) id.then(exec(lit(choice), command + "." + choice));
     if (parent != null) parent.then(id);
   }
 
-  private void debug(LiteralArgumentBuilder<CommandSourceStack> node) {
+  private void debug(LiteralArgumentBuilder<CommandSource> node) {
     for (String mode : List.of("apply", "release", "measurements", "fixture-clean-items")) node.then(exec(lit(mode), "debug." + mode));
     for (String mode : List.of("probe", "guard")) {
       var option = lit(mode);
