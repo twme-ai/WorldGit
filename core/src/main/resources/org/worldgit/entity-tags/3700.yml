@@ -1,0 +1,116 @@
+minecraft:arrows:
+- minecraft:arrow
+- minecraft:spectral_arrow
+minecraft:axolotl_always_hostiles:
+- minecraft:drowned
+- minecraft:guardian
+- minecraft:elder_guardian
+minecraft:axolotl_hunt_targets:
+- minecraft:tropical_fish
+- minecraft:pufferfish
+- minecraft:salmon
+- minecraft:cod
+- minecraft:squid
+- minecraft:glow_squid
+- minecraft:tadpole
+minecraft:beehive_inhabitors:
+- minecraft:bee
+minecraft:can_breathe_under_water:
+- '#minecraft:undead'
+- minecraft:axolotl
+- minecraft:frog
+- minecraft:guardian
+- minecraft:elder_guardian
+- minecraft:turtle
+- minecraft:glow_squid
+- minecraft:cod
+- minecraft:pufferfish
+- minecraft:salmon
+- minecraft:squid
+- minecraft:tropical_fish
+- minecraft:tadpole
+- minecraft:armor_stand
+minecraft:dismounts_underwater:
+- minecraft:camel
+- minecraft:chicken
+- minecraft:donkey
+- minecraft:horse
+- minecraft:llama
+- minecraft:mule
+- minecraft:pig
+- minecraft:ravager
+- minecraft:spider
+- minecraft:strider
+- minecraft:trader_llama
+- minecraft:zombie_horse
+minecraft:fall_damage_immune:
+- minecraft:iron_golem
+- minecraft:snow_golem
+- minecraft:shulker
+- minecraft:allay
+- minecraft:bat
+- minecraft:bee
+- minecraft:blaze
+- minecraft:cat
+- minecraft:chicken
+- minecraft:ghast
+- minecraft:phantom
+- minecraft:magma_cube
+- minecraft:ocelot
+- minecraft:parrot
+- minecraft:wither
+minecraft:freeze_hurts_extra_types:
+- minecraft:strider
+- minecraft:blaze
+- minecraft:magma_cube
+minecraft:freeze_immune_entity_types:
+- minecraft:stray
+- minecraft:polar_bear
+- minecraft:snow_golem
+- minecraft:wither
+minecraft:frog_food:
+- minecraft:slime
+- minecraft:magma_cube
+minecraft:impact_projectiles:
+- '#minecraft:arrows'
+- minecraft:firework_rocket
+- minecraft:snowball
+- minecraft:fireball
+- minecraft:small_fireball
+- minecraft:egg
+- minecraft:trident
+- minecraft:dragon_fireball
+- minecraft:wither_skull
+minecraft:non_controlling_rider:
+- minecraft:slime
+- minecraft:magma_cube
+minecraft:powder_snow_walkable_mobs:
+- minecraft:rabbit
+- minecraft:endermite
+- minecraft:silverfish
+- minecraft:fox
+minecraft:raiders:
+- minecraft:evoker
+- minecraft:pillager
+- minecraft:ravager
+- minecraft:vindicator
+- minecraft:illusioner
+- minecraft:witch
+minecraft:skeletons:
+- minecraft:skeleton
+- minecraft:stray
+- minecraft:wither_skeleton
+- minecraft:skeleton_horse
+minecraft:undead:
+- '#minecraft:skeletons'
+- '#minecraft:zombies'
+- minecraft:wither
+- minecraft:phantom
+minecraft:zombies:
+- minecraft:zombie_horse
+- minecraft:zombie
+- minecraft:zombie_villager
+- minecraft:zombified_piglin
+- minecraft:zoglin
+- minecraft:drowned
+- minecraft:husk

@@ -178,7 +178,7 @@ public final class WorldLayout {
       Path file = dimension.directory().resolve("data/minecraft/" + name);
       if (Files.isRegularFile(file)) result.put(id.directoryName() + "." + name + ".nbt", Nbt.write(readGzip(file)));
     }
-    if (dataVersion() >= 4903) result.putAll(SavedData.capture(dimension.directory(), id.directoryName() + "."));
+    result.putAll(SavedData.capture(dimension.directory(), id.directoryName() + "."));
     return result;
   }
 
@@ -194,6 +194,7 @@ public final class WorldLayout {
             "WorldGenSettings",
             "DragonFight",
             "CustomBossEvents",
+            "ScheduledEvents",
             "GameType",
             "allowCommands",
             "SpawnX",
@@ -216,7 +217,7 @@ public final class WorldLayout {
             "BorderDamagePerBlock",
             "LevelName")) if (data.containsKey(k)) tracked.put(k, Nbt.copy(data.get(k)));
     var end = dimensions.get(new DimensionId("minecraft:the_end"));
-    if (dataVersion() < 4903
+    if (dataVersion() < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE
         && end != null
         && end.directory().getFileName().toString().equals("DIM1")
         && Files.isRegularFile(end.directory().getParent().resolve("level.dat"))) {
@@ -226,7 +227,7 @@ public final class WorldLayout {
     }
     // 未進入過終界的存檔會省略 Gateways；遊戲第一次開啟會依種子填入相同的預設順序。
     // 將缺省值具體化，避免 clone 首次開服產生假的差異；已消耗的 gateway 清單完整保留。
-    if (dataVersion() < 4903 && tracked.containsKey("DragonFight")
+    if (dataVersion() < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE && tracked.containsKey("DragonFight")
         && !tracked.compound("DragonFight").containsKey("Gateways")
         && tracked.compound("WorldGenSettings").get("seed") instanceof Number seed) {
       var gateways = new ArrayList<Object>(); for (int i=0; i<20; i++) gateways.add(i);
@@ -277,7 +278,7 @@ public final class WorldLayout {
         if (Files.isRegularFile(file))
           result.put(dimension.id().directoryName() + "." + n + ".nbt", Nbt.write(readGzip(file)));
       }
-    if (dataVersion() >= 4903)
+    if (dataVersion() >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE)
       for (String name : List.of("game_rules.dat", "world_border.dat", "world_gen_settings.dat")) {
         String dimensionKey = DimensionId.OVERWORLD.directoryName() + "." + name + ".nbt";
         if (result.containsKey(dimensionKey)
@@ -297,10 +298,20 @@ public final class WorldLayout {
                 .filter(p -> p.getFileName().toString().matches("map_\\d+\\.dat"))
                 .toList()) result.put(f.getFileName() + ".nbt", Nbt.write(readGzip(f)));
       }
-    if (dataVersion() >= 4903) {
-      result.putAll(SavedData.capture(world, ""));
+    result.putAll(SavedData.capture(world, ""));
+    if (dataVersion() >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) {
       var main = dimensions.get(DimensionId.OVERWORLD);
       if (!main.directory().equals(world)) result.putAll(SavedData.capture(main.directory(), DimensionId.OVERWORLD.directoryName() + "."));
+      // Legacy DragonFight belongs to world history even before the End has terrain/a repo.
+      Path endDirectory = end == null ? world.resolve("dimensions/minecraft/the_end") : end.directory();
+      for (Path parent = endDirectory; parent != null && parent.startsWith(world); parent = parent.getParent())
+        if (Files.isSymbolicLink(parent)) throw new IOException("saved-data 路徑包含符號連結");
+      String relative = "data/minecraft/ender_dragon_fight.dat";
+      String encoded = Base64.getUrlEncoder().withoutPadding()
+          .encodeToString(relative.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      Path dragon = SavedData.path(endDirectory, encoded);
+      if (Files.isRegularFile(dragon))
+        result.put("minecraft.the_end.saved." + encoded + ".nbt", Nbt.write(readGzip(dragon)));
     }
     return result;
   }

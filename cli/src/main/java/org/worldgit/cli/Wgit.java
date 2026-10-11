@@ -53,9 +53,11 @@ import picocli.CommandLine.Model.CommandSpec;
       Wgit.Tag.class,
       Wgit.Export.class,
       Wgit.Ignore.class,
-      Wgit.Migrate.class
+      Wgit.Migrate.class,
+      Wgit.Upgrade.class, Wgit.Downgrade.class, Wgit.Show.class
     })
 public final class Wgit implements Runnable {
+  @Option(names="--accept-loss",scope=ScopeType.INHERIT,description="確認套用已預覽的降級損失；有損跨版本寫入需確認") boolean acceptLoss;
   enum Color {
     auto,
     always,
@@ -143,6 +145,7 @@ public final class Wgit implements Runnable {
     });
     cmd.setExecutionExceptionHandler((ex, line, result) -> {
       root.outcome = ex instanceof InterruptedIOException || OperationProgress.cancelled() ? OperationResult.Status.CANCELLED : OperationResult.Status.FAILED;
+      if(ex instanceof org.worldgit.core.version.ConversionReport.LossRequired loss) { root.jsonData=Map.of("conversion",loss.report());if(root.format!=Format.json) for(var item:loss.report().losses())out.println(item); }
       root.failure = OperationResult.ErrorReport.create("WG_OPERATION_FAILED", root.progress.id(),
           root.progressOperation, root.activeDimension, "0.1.0-SNAPSHOT", root.minecraftVersion(), "CLI Java " + Runtime.version(), error(ex), knownSecrets());
       if (root.format != Format.json) err.println(root.failure.text());
@@ -161,7 +164,7 @@ public final class Wgit implements Runnable {
         var dimensions = new LinkedHashMap<String, Object>();
         try {
         root.validateSelection();
-        boolean multi = root.all && !Set.of("init", "commit", "status", "log", "diff", "clone", "export", "migrate").contains(operation);
+        boolean multi = root.all && !Set.of("init", "commit", "status", "log", "diff", "clone", "export", "migrate", "upgrade", "downgrade").contains(operation);
         boolean readMany = !root.all && root.dimension == null && Set.of("branch", "stash", "tag", "remote", "conflicts").contains(operation)
             && (operation.equals("branch") && ((Branch)leaf.commandSpec().userObject()).name == null
                 || operation.equals("tag") && ((Tag)leaf.commandSpec().userObject()).name == null
@@ -224,6 +227,7 @@ public final class Wgit implements Runnable {
   }
   private int recordFailure(Exception exception) {
     Throwable cause = exception instanceof CommandLine.ExecutionException && exception.getCause() != null ? exception.getCause() : exception;
+    if(cause instanceof org.worldgit.core.version.ConversionReport.LossRequired loss) {jsonData=Map.of("conversion",loss.report());if(format!=Format.json)for(var l:loss.report().losses())spec.commandLine().getOut().println("  "+l);}
     outcome = cause instanceof InterruptedIOException || OperationProgress.cancelled() ? OperationResult.Status.CANCELLED : OperationResult.Status.FAILED;
     DimensionId id = null; try { id = selected(); if (id == null) id = layout().currentDimension(); } catch (Exception ignored) {}
     failure = OperationResult.ErrorReport.create("WG_OPERATION_FAILED", progress.id(), progressOperation,
@@ -234,7 +238,7 @@ public final class Wgit implements Runnable {
 
   private DimensionId resultDimension(String operation) {
     if (activeDimension != null) return activeDimension;
-    if (all || Set.of("commit", "init", "status", "log", "diff", "clone", "export", "migrate").contains(operation) && dimension == null) return null;
+    if (all || Set.of("commit", "init", "status", "log", "diff", "clone", "export", "migrate", "upgrade", "downgrade").contains(operation) && dimension == null) return null;
     try { return selected() == null ? layout().currentDimension() : selected(); } catch (Exception ignored) { return null; }
   }
   private String progressOperation;
@@ -274,8 +278,30 @@ public final class Wgit implements Runnable {
     }).collect(java.util.stream.Collectors.joining(", ")) + ")";
   }
 
+  private WorldOperations activeOperations;
+
+  private boolean previewRequested() {
+    var parsed = spec.commandLine().getParseResult();
+    while (parsed.subcommand() != null) parsed = parsed.subcommand();
+    return Boolean.TRUE.equals(parsed.matchedOptionValue("--dry-run", false));
+  }
+
   private WorldOperations operations() throws IOException {
-    var layout = layout(); return WorldOperations.inDimension(layout, selected() == null ? layout.currentDimension() : selected(), packs());
+    var layout = layout();
+    activeOperations = WorldOperations.inDimension(layout,
+        selected() == null ? layout.currentDimension() : selected(), packs())
+        .acceptLoss(acceptLoss || previewRequested());
+    return activeOperations;
+  }
+
+  private void conversionSummary() {
+    if (activeOperations == null || activeOperations.conversionAudits().isEmpty()) return;
+    var reports = activeOperations.conversionAudits();
+    summary.put("versionConversions", reports);
+    if (format != Format.json) for (var report : reports.values())
+      for (var loss : report.losses()) spec.commandLine().getOut().println("  "
+          + CliMessages.version("loss", "kind", loss.kind(), "source", loss.source(),
+              "replacement", loss.replacement(), "count", loss.count()));
   }
   private WorldRemotes remoteOperations(boolean every) throws IOException {
     var layout = layout(); var paths = new WorldRepositories(layout).tracked();
@@ -296,7 +322,9 @@ public final class Wgit implements Runnable {
   }
 
   private WorldLayout layout() throws IOException {
-    return WorldLayout.discover(world);
+    var layout=WorldLayout.discover(world);
+    if("PREPARED".equals(OperationState.read(layout.repositoryRoot().resolve("version-state.yml")).get("state")))throw new IOException("版本遷移未完成；先 wgit migrate --recover-version");
+    return layout;
   }
 
   private WorldRepositories repositories(WorldLayout layout) throws IOException {
@@ -669,7 +697,7 @@ public final class Wgit implements Runnable {
           for (var node : history.nodes()) {
             StringBuilder lanes = new StringBuilder();
             if (graph) lanes.append(org.worldgit.core.graph.GraphText.node(node));
-            root.spec.commandLine().getOut().println(lanes + node.id().substring(0, 8) + " " + root.decorate(node.labels()) + " " + node.message().lines().findFirst().orElse(""));
+            root.spec.commandLine().getOut().println(lanes + node.id().substring(0, 8) + " ["+repo.refs().readCommit(node.id()).metadata().mcVersion()+"] "+(repo.refs().readCommit(node.id()).metadata().versionChange()==null?"":repo.refs().readCommit(node.id()).metadata().versionChange().label()+" ")+ " " + root.decorate(node.labels()) + " " + node.message().lines().findFirst().orElse(""));
             if (graph) org.worldgit.core.graph.GraphText.transition(node).ifPresent(root.spec.commandLine().getOut()::println);
           }
           if (history.truncated()) root.spec.commandLine().getOut().println("…歷史已截斷");
@@ -719,7 +747,10 @@ public final class Wgit implements Runnable {
                     revisions.isEmpty()
                         ? repo.refs().head()
                         : repo.refs().resolve(revisions.getFirst());
-                String beforeTree = before == null ? null : repo.refs().readCommit(before).tree();
+                var beforeCommit = before == null ? null : repo.refs().readCommit(before);
+                int comparisonVersion=Math.max(layout.dataVersion(),beforeCommit==null?0:beforeCommit.metadata().mcDataVersion());
+                String beforeTree=org.worldgit.core.version.VersionConversions.comparisonTree(repo.objects(),beforeCommit,comparisonVersion);
+                tree=org.worldgit.core.version.VersionConversions.convert(repo.objects(),tree,e.getKey(),layout.dataVersion(),comparisonVersion,e.getValue().resolve("worldgit.yml"),false).tree();
                 diff =
                     new DiffEngine(repo.objects())
                         .compare(
@@ -756,6 +787,7 @@ public final class Wgit implements Runnable {
   }
 
   private int printApply(WorldOperations.Result result) throws IOException {
+    conversionSummary();
     summary.put("state", result.state()); summary.put("dimensions", result.dimensions());
     if (result.state() == WorldOperations.State.COMPLETE) {
       var heads = new TreeMap<String,String>();var paths=new WorldRepositories(layout()).tracked();
@@ -1027,6 +1059,7 @@ public final class Wgit implements Runnable {
   }
 
   private int printMerge(WorldOperations.MergeResult result) throws IOException {
+    conversionSummary();
     recordMergeStatus(result);
     if (format == Format.json) {
       json(mergeData(result));
@@ -1541,6 +1574,7 @@ public final class Wgit implements Runnable {
   static final class Export extends Subcommand {
     @Parameters(arity = "1..2") List<String> positional;
     @Option(names = "--rev", description = "可重複 dimension=revision；其他維度用 HEAD") List<String> revisions = new ArrayList<>();
+    @Option(names="--to",description="匯出為目標 Minecraft 版本；降級損失須 --accept-loss") String to;
 
     @Option(names = "--max-bytes", defaultValue = "2147483648")
     long maxBytes;
@@ -1564,6 +1598,11 @@ public final class Wgit implements Runnable {
           var refs = entry.getValue().refs(); commits.put(entry.getKey(), refs.readCommit(refs.resolve(selected.getOrDefault(entry.getKey(), revision))));
         }
         if (!commits.keySet().containsAll(selected.keySet())) throw new IOException("--rev 指定未 init 維度");
+        if(to!=null)commits=new TreeMap<>(WorldAssembler.convertCommits(group,commits,org.worldgit.core.version.MinecraftVersion.byId(to).dataVersion(),root.acceptLoss || dryRun));
+        if (to != null) root.summary.put("versionConversions", commits.entrySet().stream()
+            .filter(e -> e.getValue().metadata().versionChange() != null)
+            .collect(java.util.stream.Collectors.toMap(e -> e.getKey().value(),
+                e -> e.getValue().metadata().versionChange())));
         if (Files.exists(output)) throw new IOException("export 目的地已存在");
         if (dryRun) {
           group.validate(commits);
@@ -1596,6 +1635,41 @@ public final class Wgit implements Runnable {
         }
       }
       return 0;
+    }
+  }
+  abstract static class VersionCommand extends Subcommand {
+    @Option(names="--to",required=true,description="目標 Minecraft 版本（每個系列的正式驗收版）") String to;
+    @Option(names="--dry-run",description="只轉換及列出損失；不改世界與 HEAD") boolean dryRun;
+    abstract boolean upgrade();
+    @Override public Integer call() throws Exception {
+      if(root.dimension!=null)throw new IOException("upgrade／downgrade 涉及整個世界，請省略 --dimension");
+      var layout=root.layout();var target=org.worldgit.core.version.MinecraftVersion.byId(to);
+      if(upgrade()&&target.dataVersion()<layout.dataVersion()||!upgrade()&&target.dataVersion()>layout.dataVersion())throw new IOException("指令方向與目標版本不符");
+      try {
+        var result=org.worldgit.core.version.WorldVersionMigration.run(layout,target,root.identity(),root.acceptLoss,dryRun);
+        if(root.format==Format.json)root.json(result);
+        else {for(var e:result.reports().entrySet()){root.spec.commandLine().getOut().println(e.getKey()+" "+CliMessages.version(upgrade()?"upgrade":"downgrade","version",to));for(var loss:e.getValue().losses())root.spec.commandLine().getOut().println("  "+CliMessages.version("loss","kind",loss.kind(),"source",loss.source(),"replacement",loss.replacement(),"count",loss.count()));}for(var e:result.commits().entrySet())root.spec.commandLine().getOut().println(e.getKey()+" "+e.getValue());}
+        if(result.commits().isEmpty()&&!dryRun)root.outcome=OperationResult.Status.NO_OP;
+        return 0;
+      }catch(org.worldgit.core.version.ConversionReport.LossRequired loss){root.jsonData=Map.of("conversion",loss.report());if(root.format!=Format.json)for(var l:loss.report().losses())root.spec.commandLine().getOut().println("  "+l);throw loss;}
+    }
+  }
+  @Command(name="upgrade",mixinStandardHelpOptions=true,description="用目標原版 DFU 升級世界，建立版本 commit；需停止伺服器與乾淨世界")
+  static final class Upgrade extends VersionCommand {boolean upgrade(){return true;}}
+  @Command(name="downgrade",mixinStandardHelpOptions=true,description="盡力降級世界並建立損失紀錄；先 --dry-run，再 --accept-loss")
+  static final class Downgrade extends VersionCommand {boolean upgrade(){return false;}}
+  @Command(name="show",mixinStandardHelpOptions=true,description="顯示 commit 的版本與完整轉換損失紀錄")
+  static final class Show extends Subcommand {
+    @Parameters(arity="0..1",defaultValue="HEAD")String revision;
+    @Option(names="--operation",description="讀取跨版本套用的永久 audit UUID")String operation;
+    @Override public Integer call()throws Exception {
+      var repos=root.repositories(root.layout());var output=new TreeMap<String,Object>();
+      if(operation!=null&&!operation.matches("[0-9a-f-]{36}"))throw new IOException("operation 必須為 UUID");
+      for(var e:root.selectedRepos(repos).entrySet())try(var repo=new DimensionRepository(e.getValue(),e.getKey(),false)) {
+        if(operation!=null){var audit=OperationState.read(e.getValue().resolve("version-audit").resolve(operation+".yml"));if(!audit.isEmpty()){output.put(e.getKey().value(),audit);if(root.format!=Format.json)root.spec.commandLine().getOut().println(audit);}continue;}
+        var c=repo.refs().readCommit(repo.refs().resolve(revision));var m=c.metadata();var details=new LinkedHashMap<String,Object>();details.put("id",c.id());details.put("tree",c.tree());details.put("parents",c.parents());details.put("time",m.time().toString());details.put("message",m.message());details.put("minecraft",m.mcVersion());details.put("dataVersion",m.mcDataVersion());details.put("versionChange",m.versionChange());output.put(e.getKey().value(),details);if(root.format!=Format.json){root.spec.commandLine().getOut().println(c.id()+" ["+m.mcVersion()+"] "+m.message());if(m.versionChange()!=null)for(var loss:m.versionChange().losses())root.spec.commandLine().getOut().println("  "+loss);}
+      }
+      if(operation!=null&&output.isEmpty())throw new IOException("找不到跨版本操作紀錄："+operation);if(root.format==Format.json)root.json(output);return 0;
     }
   }
   @Command(name = "ignore", mixinStandardHelpOptions = true, description = "結構化編輯 .wgignore；編號為檔案行號")
@@ -1647,7 +1721,9 @@ public final class Wgit implements Runnable {
   @Command(name = "migrate", mixinStandardHelpOptions = true, description = "世界停止後安全搬移舊 repo")
   static final class Migrate extends Subcommand {
     @Option(names = "--dry-run") boolean dryRun;
+    @Option(names = "--recover-version", description = "復原中斷的升級／降級（世界必須停止）") boolean recoverVersion;
     @Override public Integer call() throws Exception {
+      if(recoverVersion) {if(dryRun)throw new IOException("--recover-version 不能搭配 --dry-run");boolean changed=org.worldgit.core.version.WorldVersionMigration.recover(root.world);if(!changed)root.outcome=OperationResult.Status.NO_OP;if(root.format==Format.json)root.json(Map.of("recovered",changed));else root.spec.commandLine().getOut().println(changed?"版本遷移已復原":"沒有待復原的版本遷移");return 0;}
       var result = RepositoryMigration.migrate(root.layout(), root.selected(), dryRun);
       if(result.stream().allMatch(move -> move.state().equals("NO_OP"))) root.outcome = OperationResult.Status.NO_OP;
       root.summary.put("dimensions",result.size());

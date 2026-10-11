@@ -6,6 +6,8 @@ Minecraft 世界的 git 式版本控制。世界是 working tree，每個維度�
 
 Phase 5 四個任務已完成並通過驗收（2026-10-07）：core／CLI 的維度獨立、世界內 repo、安全遷移；Hub 的每維度 PR／分支圖／操作結果；Paper／Folia 與 Fabric 的玩家維度 init／追加按鈕、別名、進度、ignore 編輯、人類可讀完成摘要與錯誤複製。Fabric 另有單人／dedicated 的原生圖畫面、ignore 畫面與 HUD。介面、決定與實測矩陣見 [Phase 5 設計與驗收](docs/16-phase5-design.md)。新 creative repo 四端使用 `entities: player-touched`，遊戲內由玩家事件追蹤；CLI 沿用 sidecar，離線 init 的初始集合為空。survival 與舊 repo 的實體設定保持既有語意。
 
+CLI／core／Hub 的多版本內容、DFU 升級、損失確認降級與平台後續方案見 [多版本設計](docs/19-multiversion.md)。目標涵蓋 1.20.1 至 26.3 的十個指定正式版；新增 Paper／Folia、Fabric adapter 屬任務 2／3。
+
 **使用方式請看 [使用手冊](docs/15-user-guide.md)**：依單人玩家、伺服器管理員、建築者、CLI、Hub 使用者與架站者分章說明。
 
 常用操作的端到端效能、可重現 benchmark、增量快取正確性及多世界 tick 隔離見 [效能紀錄](docs/18-performance.md)。小變動在單一 tick 內寫入並擷取驗證資料，較大變動只鎖受影響 chunk 與必要邊界；其他 chunk 及世界持續模擬。實測結果與限制以該文件為準。

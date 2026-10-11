@@ -21,12 +21,12 @@ public final class ChunkNbt {
     }
     var bes = new ArrayList<Object>(out.list("block_entities").values());
     for (var patch : op.sections().values()) {
-      var raw = sections.computeIfAbsent(patch.y(), y -> emptySection(y));
-      Section currentSection = blocks(raw);
+      var raw = sections.computeIfAbsent(patch.y(), y -> emptySection(y,version));
+      Section currentSection = blocks(raw,version);
       Section target = patch.section();
       var blocks = new ArrayList<>(currentSection.blocks());
       for (int i = 0; i < 4096; i++) if (patch.covers(i)) blocks.set(i, target.block(i));
-      raw.put("block_states", blockStates(new Section(blocks, Map.of())));
+      raw.put("block_states", blockStates(new Section(blocks, Map.of()),version));
       var oldBes = new HashMap<Integer, Nbt.Compound>();
       bes.removeIf(value -> {
         var be = (Nbt.Compound)value;
@@ -51,7 +51,7 @@ public final class ChunkNbt {
       }
     }
     for (var patch : op.biomes().values()) {
-      var raw = sections.computeIfAbsent(patch.y(), y -> emptySection(y));
+      var raw = sections.computeIfAbsent(patch.y(), y -> emptySection(y,version));
       var samples = biomeSamples(raw);
       for (int i=0;i<64;i++) if (!patch.samples().get(i).isEmpty()) samples.set(i, patch.samples().get(i));
       raw.put("biomes", biomes(samples));
@@ -78,19 +78,17 @@ public final class ChunkNbt {
     return out;
   }
 
-  private static Nbt.Compound emptySection(int y) {
-    return new Nbt.Compound().with("Y",(byte)y).with("block_states",blockStates(Section.air()))
+  private static Nbt.Compound emptySection(int y,int version) {
+    return new Nbt.Compound().with("Y",(byte)y).with("block_states",blockStates(Section.air(),version))
         .with("biomes",biomes(Collections.nCopies(64,"minecraft:plains")));
   }
 
-  public static Section blocks(Nbt.Compound raw) {
+  public static Section blocks(Nbt.Compound raw) throws IOException {return blocks(raw,0);}
+  public static Section blocks(Nbt.Compound raw,int version) throws IOException {
     var bs=raw.compound("block_states");
     var palette = new ArrayList<BlockState>();
     for (Object value : bs.list("palette").values()) {
-      var p=(Nbt.Compound)value;
-      var properties=new TreeMap<String,String>();
-      p.compound("Properties").forEach((k,v)->properties.put(k,(String)v));
-      palette.add(new BlockState(p.string("Name"),properties));
+      palette.add(org.worldgit.core.version.BlockStateNbt.read(value,version));
     }
     if (palette.isEmpty()) return Section.air();
     int[] indices=ChunkNormalizer.unpack(bs,palette.size(),4,4096);
@@ -99,15 +97,14 @@ public final class ChunkNbt {
     return new Section(blocks,Map.of());
   }
 
-  public static Nbt.Compound blockStates(Section section) {
+  public static Nbt.Compound blockStates(Section section) {return blockStates(section,0);}
+  public static Nbt.Compound blockStates(Section section,int version) {
     var palette=new LinkedHashMap<BlockState,Integer>();
     int[] indices=new int[4096];
     for(int i=0;i<4096;i++) indices[i]=palette.computeIfAbsent(section.block(i),k->palette.size());
     var entries=new ArrayList<Object>();
     for(var state:palette.keySet()) {
-      var p=new Nbt.Compound().with("Name",state.name());
-      if(!state.properties().isEmpty()) { var props=new Nbt.Compound(); state.properties().forEach(props::put); p.put("Properties",props); }
-      entries.add(p);
+      entries.add(org.worldgit.core.version.BlockStateNbt.write(state,version));
     }
     var bs=new Nbt.Compound().with("palette",new Nbt.ListTag(10,entries));
     if(palette.size()>1) bs.put("data",ChunkNormalizer.pack(indices,Math.max(4,ChunkNormalizer.ceilLog2(palette.size()))));

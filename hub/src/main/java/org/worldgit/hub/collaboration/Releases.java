@@ -76,6 +76,7 @@ public class Releases {
     var parsing=budget.limits();
     try(var scope=new org.worldgit.core.normalize.DecodeBudget(parsing.decodedBytes(),parsing.readBytes(),parsing.nodes(),parsing.objects(),parsing.work()).open();var group=new RepositoryGroup(groups.root(w),groups.paths(w))){
       var commits=new TreeMap<DimensionId,RefStore.Commit>();for(var e:release.commits().entrySet()){var d=new DimensionId(e.getKey());if(!group.repos().containsKey(d))throw new IOException("release 維度已不存在");commits.put(d,group.repos().get(d).refs().readCommit(e.getValue()));}
+      response.setHeader("X-WorldGit-Minecraft-Versions",commits.values().stream().map(c->c.metadata().mcVersion()).distinct().sorted().collect(java.util.stream.Collectors.joining(",")));
       response.setContentType("application/zip");response.setHeader("Content-Disposition","attachment; filename=world-"+release.id()+".zip");response.setHeader("Cache-Control","private, no-store");
       new WorldAssembler(new WorldAssembler.Budget(budget.maxBytes(),Duration.ofSeconds(budget.maxSeconds()))).zip(group,commits,response.getOutputStream(),temp);
     }catch(IOException ex){if(!response.isCommitted()){response.resetBuffer();response.setContentType("application/json");response.setHeader("Content-Disposition",null);if(ex instanceof org.worldgit.core.normalize.DecodeBudget.Exceeded)throw ex;if(ex.getMessage()!=null && ex.getMessage().contains("預算"))throw new org.worldgit.core.normalize.DecodeBudget.Exceeded("下載超過大小或時間預算");}throw ex;}finally{lock.unlock();permits.release();}

@@ -197,6 +197,11 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
             new CommitMetadata.Identity(b.getName(), b.getEmailAddress()),
             b.getWhenAsInstant(),
             c.getFullMessage());
+    if(m.mcDataVersion()==0) {
+      var level=TreeEditor.find(this,c.getTree().name(),"world-meta/level.nbt");
+      int inferred=level==null?0:org.worldgit.core.anvil.Nbt.read(readBlob(level.id())).integer("DataVersion",0);
+      m=new CommitMetadata(m.author(),m.committer(),m.message(),m.time(),inferred,m.dimension(),m.source(),m.auto(),m.snapshot(),m.contributions(),org.worldgit.core.version.MinecraftVersion.name(inferred),m.versionChange());
+    }
     return new Commit(
         c.name(),
         c.getTree().name(),
@@ -259,6 +264,7 @@ public final class JGitStore implements ObjectStore, RefStore, AutoCloseable {
       message.append(trailer.getKey()).append(": ").append(trailer.getValue()).append('\n');
     }
     builder.setMessage(message.toString());
+    if(builder.build().length>1_048_576)throw new IOException("commit 含 trailers 超過 1 MiB；請縮小轉換損失種類或操作範圍");
     String id = inserter.insert(builder).name();
     flush();
     // 讓 detached commit 與不變維度也可由 snapshot 找回；不依賴 reflog 到期。

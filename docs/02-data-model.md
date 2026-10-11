@@ -201,7 +201,7 @@ entity minecraft:tnt                 # 點燃的 TNT
 - `field` 支援 `*` wildcard 與 `!field` 加回普通內建忽略欄位；id/UUID/Pos 是中性實體模型必要欄位，不能移除。玩家永遠不追蹤。
 - `EntitySemantics` 讓版本 adapter 提供 tag 與 persistence；離線 `EntityTagRegistry` 帶兩版 vanilla tag 資料，依 level.dat 的 `DataPacks.Enabled` 順序載入資料夾/ZIP 的 entity_type tags，支援 replace、tag 參照與 optional entries。參照在覆寫完後才展開，停用的 pack 不載入；缺少 pack 會提示，未知 tag、必要參照遺失、循環、schema/大小錯誤會明確報錯。模組注入的未知內建 pack 仍需線上 adapter。persistence 的明確旗標與常見不會消失的實體類型是保守近似，不能精確替代伺服器的 despawn 判斷。
 - world-meta 的 field selector 使用 `worldgit:level`、`worldgit:map`、`worldgit:scoreboard`、`worldgit:boss_events`、`worldgit:gamerules`、`worldgit:border`、`worldgit:worldgen`；比對 canonical NBT 根 compound 欄位。`field worldgit:map *` 排除所有地圖，`!field` 同樣後面優先。空 compound 不存，活世界資料不刪除；repo 設定不受這些規則影響。
-- 世界 metadata 擷取 1.21.11 的 `game_rules`、spawn、worldgen、邊界，以及 26.2 各維度 `data/minecraft/{game_rules,world_border,world_gen_settings}.dat`，地圖/記分板另存 canonical NBT。完整跨版本 world-meta 的還原/DataFixer 流程仍是 Phase 2。
+- 世界 metadata 擷取 1.21.11 的 `game_rules`、spawn、worldgen、邊界，以及 26.2 各維度 `data/minecraft/{game_rules,world_border,world_gen_settings}.dat`，地圖/記分板另存 canonical NBT。跨版本 world-meta／DataFixer 的新版流程與 commit 版本 trailer 見 [19](19-multiversion.md)，依 #172–#178。
 
 ## Phase 2 歷史與操作資料（2026-10-01）
 

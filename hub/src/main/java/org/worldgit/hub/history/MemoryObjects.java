@@ -7,7 +7,7 @@ import org.worldgit.core.normalize.DecodeBudget;
 import org.worldgit.core.store.ObjectStore;
 
 /** 只讀 repo 上的候選物件層；Git hash 用 formatter 計算，從不取得 inserter。 */
-final class MemoryObjects implements ObjectStore {
+public final class MemoryObjects implements ObjectStore {
   static final long MAX_BYTES = 8L << 20;
   record Saved(Map<String, byte[]> blobs, Map<String, SortedMap<String, Entry>> trees, long bytes) {}
   private final ObjectStore source;
@@ -15,7 +15,7 @@ final class MemoryObjects implements ObjectStore {
   private final Map<String, SortedMap<String, Entry>> trees;
   private long bytes;
 
-  MemoryObjects(ObjectStore source) { this(source, new Saved(Map.of(), Map.of(), 0)); }
+  public MemoryObjects(ObjectStore source) { this(source, new Saved(Map.of(), Map.of(), 0)); }
   MemoryObjects(ObjectStore source, Saved saved) {
     this.source = source;
     blobs = new HashMap<>(saved.blobs()); trees = new HashMap<>(saved.trees()); bytes = saved.bytes();

@@ -14,7 +14,19 @@ public record CommitMetadata(
     Source source,
     boolean auto,
     UUID snapshot,
-    List<Contribution> contributions) {
+    List<Contribution> contributions,
+    String mcVersion,
+    org.worldgit.core.version.ConversionReport versionChange) {
+  /** 相容既有呼叫端與舊 repo；版本名稱由已知 DataVersion 推斷。 */
+  public CommitMetadata(Identity author, Identity committer, String message, Instant time,
+      int mcDataVersion, DimensionId dimension, Source source, boolean auto, UUID snapshot,
+      List<Contribution> contributions) {
+    this(author, committer, message, time, mcDataVersion, dimension, source, auto, snapshot, contributions,
+        org.worldgit.core.version.MinecraftVersion.name(mcDataVersion), null);
+  }
+  public CommitMetadata withVersionChange(org.worldgit.core.version.ConversionReport report) {
+    return new CommitMetadata(author,committer,message,time,mcDataVersion,dimension,source,auto,snapshot,contributions,mcVersion,report);
+  }
   public enum Source {
     CLI,
     PLUGIN,
@@ -55,7 +67,10 @@ public record CommitMetadata(
     Objects.requireNonNull(source);
     Objects.requireNonNull(snapshot);
     contributions = List.copyOf(contributions);
+    if(mcVersion == null || mcVersion.isBlank()) mcVersion = org.worldgit.core.version.MinecraftVersion.name(mcDataVersion);
+    if(mcVersion.matches("(?s).*[\\r\\n].*")) throw new IllegalArgumentException("Minecraft version 無效");
     if (message == null || message.isBlank()) throw new IllegalArgumentException("commit 訊息不可空白");
     if (mcDataVersion < 0) throw new IllegalArgumentException("DataVersion");
+    if(versionChange!=null&&versionChange.to()!=mcDataVersion)throw new IllegalArgumentException("版本報告目標與 commit DataVersion 不符");
   }
 }

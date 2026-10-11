@@ -51,7 +51,7 @@ public class MergePreviewService {
   private synchronized Cached compute(WorldRow w,String oursSpec,String theirsSpec,DimensionId selected) throws IOException {
     var ours=compare.resolve(w,oursSpec,selected);var theirs=compare.resolve(w,theirsSpec,selected);
     org.worldgit.core.operation.OperationProgress.report(selected,"merge-preview",0L,null,org.worldgit.core.operation.OperationProgress.Unit.SECTION);
-    StringBuilder signature = new StringBuilder(org.worldgit.core.anvil.SavedData.NORMALIZATION).append('|').append(w.id());
+    StringBuilder signature = new StringBuilder((org.worldgit.core.anvil.SavedData.NORMALIZATION + "-" + org.worldgit.core.version.VersionConversions.NORMALIZATION)).append('|').append(w.id());
     for (var side : List.of(ours, theirs)) {
       signature.append('|'); side.commits().forEach((d,c) -> signature.append(d).append('=').append(c.id()).append(';'));
     }
@@ -75,14 +75,18 @@ public class MergePreviewService {
         catch (DecodeBudget.Exceeded e) { throw e; }
         catch (IOException e) { problems.add(new Problem(dim.value(), "merge-base", e.getMessage())); continue; }
         var bc = baseId == null ? null : h.store().readCommit(baseId);
-        if ((tc != null && oc.dataVersion() != tc.dataVersion()) || (bc != null && bc.metadata().mcDataVersion() != oc.dataVersion())) {
-          problems.add(new Problem(dim.value(), "data-version", "DataVersion 不同（base=" + (bc == null ? "空" : bc.metadata().mcDataVersion()) + ", ours=" + oc.dataVersion() + ", theirs=" + (tc == null ? "缺少" : tc.dataVersion()) + "）；請先在世界複本升級並重新提交")); continue;
-        }
-        String rawBase = bc == null ? empty : bc.tree(), rawTheirs = tc == null ? oc.tree() : tc.tree();
-        if (!Objects.equals(packs(store, oc.tree()), packs(store, rawTheirs)) || (bc != null && !Objects.equals(packs(store, oc.tree()), packs(store, rawBase)))) {
+        int commonVersion=Math.max(oc.dataVersion(),Math.max(tc==null?0:tc.dataVersion(),bc==null?0:bc.metadata().mcDataVersion()));
+        String rawOurs,rawBase,rawTheirs;
+        try {
+          rawOurs=org.worldgit.core.version.VersionConversions.comparisonTree(store,h.store().readCommit(oc.id()),commonVersion);
+          rawBase=bc==null?empty:org.worldgit.core.version.VersionConversions.comparisonTree(store,bc,commonVersion);
+          rawTheirs=tc==null?rawOurs:org.worldgit.core.version.VersionConversions.comparisonTree(store,h.store().readCommit(tc.id()),commonVersion);
+          if(commonVersion!=oc.dataVersion()||tc!=null&&tc.dataVersion()!=commonVersion)warnings.add("跨版本預覽統一到 "+org.worldgit.core.version.MinecraftVersion.name(commonVersion)+"；套用到較舊伺服器仍需降級損失確認。");
+        }catch(DecodeBudget.Exceeded e){throw e;}catch(IOException e){problems.add(new Problem(dim.value(),"data-version","原版版本轉換無法完成："+e.getMessage()));continue;}
+        if (!Objects.equals(packs(store, rawOurs), packs(store, rawTheirs)) || (bc != null && !Objects.equals(packs(store, rawOurs), packs(store, rawBase)))) {
           problems.add(new Problem(dim.value(), "data-packs", "DataPacks 清單不同，需先整合資料包後重試")); continue;
         }
-        String br = TreeFilter.rules(store, rawBase), or = TreeFilter.rules(store, oc.tree()), tr = TreeFilter.rules(store, rawTheirs), rules;
+        String br = TreeFilter.rules(store, rawBase), or = TreeFilter.rules(store, rawOurs), tr = TreeFilter.rules(store, rawTheirs), rules;
         try { rules = IgnoreRuleMerge.merge(br, or, tr); }
         catch (IOException e) {
           differences.add(new RuleDifference(dim, br, or, tr, null));
@@ -90,7 +94,7 @@ public class MergePreviewService {
         }
         if (!or.equals(tr) || !br.equals(or)) differences.add(new RuleDifference(dim, br, or, tr, rules));
         String bt = TreeFilter.filter(store, rawBase, rules, EntitySemantics.OFFLINE),
-            ot = TreeFilter.filter(store, oc.tree(), rules, EntitySemantics.OFFLINE),
+            ot = TreeFilter.filter(store, rawOurs, rules, EntitySemantics.OFFLINE),
             tt = TreeFilter.filter(store, rawTheirs, rules, EntitySemantics.OFFLINE);
         var merged = new MergeEngine(store, dim, bt, ot, tt, authors(h.store().readCommit(oc.id())), tc == null ? List.of() : authors(h.store().readCommit(tc.id()))).merge(1);
         var numbered = new ArrayList<Region>();
@@ -106,7 +110,7 @@ public class MergePreviewService {
         var bounds = bounds(store, merged.tree());
         automatic += report.automaticallyMergedSections();
         dims.add(new DimensionInfo(dim.value(), dim.directoryName(), oc.id(), tc == null ? null : tc.id(), baseId,
-            tc == null ? "keep-ours" : baseId == null ? "empty-base" : "merged", assets.versionFor(oc.dataVersion()).id(), report.automaticallyMergedSections(), report.updateShapes().size(), bounds));
+            tc == null ? "keep-ours" : baseId == null ? "empty-base" : "merged", assets.versionFor(commonVersion).id(), report.automaticallyMergedSections(), report.updateShapes().size(), bounds));
         // core 的舊 warning 文字仍提 updateShape；Hub 僅呈現 #46 的提示語意。
         if (!report.updateShapes().isEmpty()) warnings.add("交界提示僅供檢查，維持快照 state，不自動更新鄰居形狀。");
         if (report.warnings().stream().anyMatch(s -> s.contains("紅石"))) warnings.add("含紅石元件，建議在遊戲內測試。");

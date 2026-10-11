@@ -18,6 +18,17 @@ public final class OfflineSnapshotSource implements SnapshotSource {
   private final Map<Path, RegionFile> opened = new HashMap<>();
   private final Map<ChunkPos, Path> terrainPaths = new HashMap<>(), entityPaths = new HashMap<>();
   private int reads;
+  private org.worldgit.core.version.NbtUpgrader dfu;
+  private Integer conversionDataVersion;
+  private Nbt.Compound upgraded(String type,Nbt.Compound raw) throws IOException {
+    // scan／close 會失效；同一次擷取不為每個 terrain／entity chunk 重讀 level.dat。
+    if(conversionDataVersion==null)conversionDataVersion=dataVersion();
+    int to=conversionDataVersion,from=raw.integer("DataVersion",to);
+    if(from==to)return raw;
+    if(from>to)throw new IOException("磁碟 chunk DataVersion="+from+" 比 level.dat 新；請先以完整世界降級流程處理");
+    if(dfu==null)dfu=new org.worldgit.core.version.DfuProcess(org.worldgit.core.version.MinecraftVersion.byDataVersion(to));
+    var result=dfu.upgrade(type,raw,from,to);result.put("DataVersion",to);return result;
+  }
   private EntityTagRegistry registry;
 
   private final EntityTagRegistry.PackResolver packResolver;
@@ -51,7 +62,8 @@ public final class OfflineSnapshotSource implements SnapshotSource {
 
   @Override
   public String normalizationFingerprint() throws IOException {
-    return "normalize-v2-ticks-clamp:" + dataVersion() + ":" + registry().fingerprint();
+    return "normalize-v2-ticks-clamp:" + dataVersion() + ":" + registry().fingerprint()
+        + ":" + org.worldgit.core.version.VersionConversions.NORMALIZATION;
   }
 
   @Override
@@ -188,13 +200,13 @@ public final class OfflineSnapshotSource implements SnapshotSource {
       if (path == null) path = dimension.region().resolve(pos.regionName() + ".mca");
       if (!Files.isRegularFile(path) || !region(path).has(pos.regionIndex()))
         return CompletableFuture.completedFuture(Optional.empty());
-      Nbt.Compound raw = region(path).read(pos.regionIndex());
+      Nbt.Compound raw = upgraded("CHUNK",region(path).read(pos.regionIndex()));
       if (!ChunkNormalizer.full(raw)) return CompletableFuture.completedFuture(Optional.empty());
       var entities = new ArrayList<Nbt.Compound>();
       Path ep = entityPaths.get(pos);
       if (ep == null) ep = dimension.entities().resolve(pos.regionName() + ".mca");
       if (Files.isRegularFile(ep) && region(ep).has(pos.regionIndex()))
-        for (Object e : region(ep).read(pos.regionIndex()).list("Entities").values())
+        for (Object e : upgraded("ENTITY_CHUNK",region(ep).read(pos.regionIndex())).list("Entities").values())
           entities.add((Nbt.Compound) e);
       return CompletableFuture.completedFuture(
           Optional.of(new ChunkNormalizer(rules, registry()).normalize(pos, raw, entities)));
@@ -223,6 +235,8 @@ public final class OfflineSnapshotSource implements SnapshotSource {
         failure = e;
       }
     opened.clear();
+    conversionDataVersion=null;
+    if(dfu!=null) {try{dfu.close();}catch(IOException e){failure=e;}finally{dfu=null;}}
     if (failure != null) throw failure;
   }
 }

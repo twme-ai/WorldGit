@@ -22,7 +22,9 @@ public final class Dto {
       int dataVersion,
       String dimension,
       String snapshot,
-      List<String> coAuthors) {}
+      List<String> coAuthors, String mcVersion, org.worldgit.core.version.ConversionReport versionChange) {
+    public CommitInfo(String id,List<String> parents,String tree,long time,Person author,Person committer,String message,boolean auto,String source,int dataVersion,String dimension,String snapshot,List<String> coAuthors) {this(id,parents,tree,time,author,committer,message,auto,source,dataVersion,dimension,snapshot,coAuthors,org.worldgit.core.version.MinecraftVersion.name(dataVersion),null);}
+  }
 
   public record DimensionState(String id, String repo, String head, Long headTime, int commits) {}
 

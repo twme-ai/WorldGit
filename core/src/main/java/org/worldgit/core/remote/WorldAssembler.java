@@ -45,7 +45,7 @@ public final class WorldAssembler {
   }
 
   public static Path dimensionPath(Path world, DimensionId id, int version) {
-    if (version >= 4903)
+    if (version >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE)
       return world.resolve("dimensions").resolve(id.namespace()).resolve(id.path());
     if (id.equals(DimensionId.OVERWORLD)) return world;
     if (id.value().equals("minecraft:the_nether")) return world.resolve("DIM-1");
@@ -60,6 +60,8 @@ public final class WorldAssembler {
       Set<DimensionId> selected)
       throws IOException {
     group.validate(commits);
+    int common=commits.values().stream().mapToInt(c->c.metadata().mcDataVersion()).max().orElseThrow();
+    commits=convertCommits(group,commits,common,false);
     var main = commits.get(DimensionId.OVERWORLD);
     if (main == null) throw new IOException("clone/export 需要主世界 metadata repo");
     int version = main.metadata().mcDataVersion();
@@ -71,7 +73,7 @@ public final class WorldAssembler {
       data.put(
           "DataPacks",
           org.worldgit.core.normalize.MetadataNormalizer.portablePacks(data.compound("DataPacks")));
-    if (version < 4903 && !data.containsKey("DragonFight"))
+    if (version < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE && !data.containsKey("DragonFight"))
       data.put(
           "DragonFight",
           new Nbt.Compound()
@@ -84,14 +86,14 @@ public final class WorldAssembler {
         "Version",
         new Nbt.Compound()
             .with("Id", version)
-            .with("Name", version >= 4903 ? "26.2" : "1.21.11")
+            .with("Name", org.worldgit.core.version.MinecraftVersion.name(version))
             .with("Series", "main")
             .with("Snapshot", (byte) 0));
     if (data.integer("DataVersion", 0) != version)
       throw new IOException("level.dat DataVersion 與 commit 不符");
-    if (version < 4903 && !data.containsKey("WorldGenSettings"))
+    if (version < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE && !data.containsKey("WorldGenSettings"))
       throw new IOException("快照未保存 WorldGenSettings，無法保證種子還原");
-    if (version >= 4903
+    if (version >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE
         && TreeEditor.find(
                 objects,
                 main.tree(),
@@ -103,11 +105,14 @@ public final class WorldAssembler {
     gzip(world.resolve("level.dat"), new Nbt.Compound().with("Data", data));
     // Paper 1.21.11 只有看見原版 DIM 目錄才搬移主世界 level.dat 的生成／DragonFight 設定。
     // 未選取的維度留空目錄，避免首次開服重新隨機生成設定；不建立地形或 repo。
-    if (version < 4903) {
+    if (version < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) {
       Files.createDirectories(world.resolve("DIM-1"));
       Files.createDirectories(world.resolve("DIM1"));
     }
     var metadataIds = new TreeSet<>(commits.keySet());
+    // DFU can emit dragon-fight saved-data before the End has any generated chunks/repo.
+    metadataIds.add(new DimensionId("minecraft:the_end"));
+    metadataIds.add(new DimensionId("minecraft:the_nether"));
     var manifest = TreeEditor.find(objects, main.tree(), "dimensions");
     if (manifest != null) {
       var m =
@@ -160,8 +165,8 @@ public final class WorldAssembler {
       if (target == null && name.matches("map_\\d+\\.dat\\.nbt"))
         target =
             world
-                .resolve(version >= 4903 ? "data/minecraft/maps" : "data")
-                .resolve(name.substring(0, name.length() - 4));
+                .resolve(version >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE ? "data/minecraft/maps" : "data")
+                .resolve(name.substring(version >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE ? 4 : 0, name.length() - 4));
       if (target == null
           && Set.of(
                   "scoreboard.dat.nbt",
@@ -172,11 +177,11 @@ public final class WorldAssembler {
               .contains(name))
         target =
             world
-                .resolve(version >= 4903 ? "data/minecraft" : "data")
+                .resolve(version >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE ? "data/minecraft" : "data")
                 .resolve(name.substring(0, name.length() - 4));
       if (target == null) throw new IOException("不支援的世界 metadata：" + name);
       gzip(target, SavedData.materialize(target, Nbt.read(raw), new Nbt.Compound()));
-      if (version >= 4903 && name.startsWith(DimensionId.OVERWORLD.directoryName() + ".")) {
+      if (version >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE && name.startsWith(DimensionId.OVERWORLD.directoryName() + ".")) {
         String suffix = name.substring(DimensionId.OVERWORLD.directoryName().length() + 1);
         if (Set.of("game_rules.dat.nbt", "world_border.dat.nbt", "world_gen_settings.dat.nbt")
                 .contains(suffix)
@@ -250,6 +255,18 @@ public final class WorldAssembler {
     return new Result(bytes, regions, (System.nanoTime() - start) / 1_000_000);
   }
 
+  public static SortedMap<DimensionId,RefStore.Commit> convertCommits(RepositoryGroup group,Map<DimensionId,RefStore.Commit> commits,int target,boolean accepted) throws IOException {
+    var result=new TreeMap<DimensionId,RefStore.Commit>();
+    for(var e:commits.entrySet()) {
+      var c=e.getValue();
+      if(c.metadata().mcDataVersion()==target){result.put(e.getKey(),c);continue;}
+      var conversion=org.worldgit.core.version.VersionConversions.convert(group.repos().get(e.getKey()).objects(),c.tree(),e.getKey(),c.metadata().mcDataVersion(),target,group.repos().get(e.getKey()).directory().resolve("worldgit.yml"),accepted);
+      var m=c.metadata();var converted=new CommitMetadata(m.author(),m.committer(),m.message(),m.time(),target,m.dimension(),m.source(),m.auto(),m.snapshot(),m.contributions(),org.worldgit.core.version.MinecraftVersion.name(target),conversion.report());
+      result.put(e.getKey(),new RefStore.Commit(c.id(),conversion.tree(),c.parents(),converted));
+    }
+    return result;
+  }
+
   private void gzip(Path target, Nbt.Compound data) throws IOException {
     var out = new ByteArrayOutputStream();
     try (var gzip = new GZIPOutputStream(out)) {
@@ -276,6 +293,14 @@ public final class WorldAssembler {
     Path temp = Files.createTempDirectory(tempRoot, "release-");
     try {
       var result = assemble(group, commits, temp, null);
+      var versions=new TreeMap<String,Object>();
+      for(var e:commits.entrySet()) {
+        var metadata=e.getValue().metadata();var row=new LinkedHashMap<String,Object>();row.put("commit",e.getValue().id());row.put("minecraft",metadata.mcVersion());row.put("data-version",metadata.mcDataVersion());
+        if(metadata.versionChange()!=null){var report=metadata.versionChange();row.put("conversion",Map.of("from",report.from(),"to",report.to(),"rules",report.rules(),"losses",report.losses().stream().map(l->Map.of("kind",l.kind(),"source",l.source(),"replacement",l.replacement(),"count",l.count(),"locations",l.locations())).toList()));}
+        versions.put(e.getKey().value(),row);
+      }
+      var manifest=new LinkedHashMap<String,Object>();manifest.put("minecraft",org.worldgit.core.version.MinecraftVersion.name(commits.values().stream().mapToInt(c->c.metadata().mcDataVersion()).max().orElseThrow()));manifest.put("source-commits",versions);
+      Files.writeString(temp.resolve("worldgit-version.yml"),new org.yaml.snakeyaml.Yaml().dump(manifest));
       var zip =
           new ZipOutputStream(
               new FilterOutputStream(output) {

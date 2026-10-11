@@ -13,14 +13,45 @@ import org.worldgit.core.normalize.*;
 public final class OfflineApplier {
   private final WorldLayout layout;
   private final EntityTagRegistry.PackResolver packs;
+  private final org.worldgit.core.version.NbtUpgrader suppliedDfu;
 
   public OfflineApplier(WorldLayout layout) {
     this(layout, null);
   }
 
   public OfflineApplier(WorldLayout layout, EntityTagRegistry.PackResolver packs) {
+    this(layout, packs, null);
+  }
+
+  OfflineApplier(WorldLayout layout, EntityTagRegistry.PackResolver packs,
+      org.worldgit.core.version.NbtUpgrader suppliedDfu) {
     this.layout = layout;
     this.packs = packs;
+    this.suppliedDfu = suppliedDfu;
+  }
+
+  /** 原版只在載入 chunk 時升級；patch 前也必須升級尚未載入的整筆資料。 */
+  private final class DiskUpgrade implements AutoCloseable {
+    private org.worldgit.core.version.NbtUpgrader dfu = suppliedDfu;
+    private final int target;
+
+    DiskUpgrade(int target) { this.target = target; }
+
+    Nbt.Compound upgrade(String type, Nbt.Compound raw) throws IOException {
+      if (raw == null) return null;
+      int from = raw.integer("DataVersion", target);
+      if (from == target) return raw;
+      if (from > target) throw new IOException("磁碟 DataVersion 比目標世界新；請先完整降級世界");
+      if (dfu == null) dfu = new org.worldgit.core.version.DfuProcess(
+          org.worldgit.core.version.MinecraftVersion.byDataVersion(target));
+      var upgraded = dfu.upgrade(type, raw, from, target);
+      upgraded.put("DataVersion", target);
+      return upgraded;
+    }
+
+    @Override public void close() throws IOException {
+      if (dfu != null && dfu != suppliedDfu) dfu.close();
+    }
   }
 
   public void apply(ApplyPlan plan) throws IOException {
@@ -37,11 +68,20 @@ public final class OfflineApplier {
   public void applyAll(Collection<ApplyPlan> plans, WorldSessionLock lock) throws IOException {
     lock.requireActive(layout);
     var targetIds = new HashSet<UUID>();
+    var dragonTargets = new HashMap<Path, byte[]>();
     for (var plan : plans) {
       DataVersions.requireSame(plan.dataVersion(), layout.dataVersion());
       if (!layout.dimensions().containsKey(plan.dimension()))
         throw new IOException("找不到套用維度：" + plan.dimension());
       validateMetadata(plan);
+      for (var entry : plan.worldMeta().entrySet())
+        if ("data/minecraft/ender_dragon_fight.dat".equals(SavedData.relativePath(entry.getKey()))) {
+          Path path = metadataPath(entry.getKey());
+          if (dragonTargets.containsKey(path)
+              && !Arrays.equals(dragonTargets.get(path), entry.getValue()))
+            throw new IOException("主世界與終界的 DragonFight 目標不一致；請先合併世界設定");
+          dragonTargets.put(path, entry.getValue());
+        }
       for (var op : plan.entities())
         if (op.target() != null) collectUniqueIds(op.target().data(), targetIds);
     }
@@ -51,8 +91,10 @@ public final class OfflineApplier {
             ? EntityTagRegistry.load(layout.world(), layout.dataVersion(), packs)
             : EntitySemantics.OFFLINE;
     int timestamp = (int) (System.currentTimeMillis() / 1000);
-    for (var plan : plans) applyTerrain(plan, timestamp);
-    applyEntities(plans, timestamp, semantics);
+    try (var upgrade = new DiskUpgrade(layout.dataVersion())) {
+      for (var plan : plans) applyTerrain(plan, timestamp, upgrade);
+      applyEntities(plans, timestamp, semantics, upgrade);
+    }
     for (var plan : plans) {
       var rules = IgnoreRules.parse(plan.ignoreRules());
       for (var entry : plan.worldMeta().entrySet())
@@ -60,7 +102,7 @@ public final class OfflineApplier {
     }
   }
 
-  private void applyTerrain(ApplyPlan plan, int timestamp) throws IOException {
+  private void applyTerrain(ApplyPlan plan, int timestamp, DiskUpgrade upgrade) throws IOException {
     var dim = layout.dimensions().get(plan.dimension());
     var rules = IgnoreRules.parse(plan.ignoreRules());
     var byRegion = new TreeMap<String, List<ApplyPlan.ChunkOp>>();
@@ -77,7 +119,8 @@ public final class OfflineApplier {
           else
             writer.write(
                 op.pos().regionIndex(),
-                ChunkNbt.apply(writer.read(op.pos().regionIndex()), op, plan.dataVersion(), rules),
+                ChunkNbt.apply(upgrade.upgrade("CHUNK", writer.read(op.pos().regionIndex())),
+                    op, plan.dataVersion(), rules),
                 timestamp);
           // POI 只刪除變更 chunk；空的不存在檔案不會被建立。
           poi.delete(op.pos().regionIndex());
@@ -86,7 +129,8 @@ public final class OfflineApplier {
     }
   }
 
-  private void applyEntities(Collection<ApplyPlan> plans, int timestamp, EntitySemantics semantics)
+  private void applyEntities(Collection<ApplyPlan> plans, int timestamp, EntitySemantics semantics,
+      DiskUpgrade upgrade)
       throws IOException {
     var ids = new HashSet<UUID>();
     var deleted = new HashMap<DimensionId, Set<ChunkPos>>();
@@ -116,7 +160,7 @@ public final class OfflineApplier {
           for (int i = 0; i < 1024; i++)
             if (writer.has(i)) {
               org.worldgit.core.operation.OperationProgress.check();
-              var root = writer.read(i);
+              var root = upgrade.upgrade("ENTITY_CHUNK", writer.read(i));
               var before = root.list("Entities");
               var after = new ArrayList<Object>();
               boolean changed = false;
@@ -136,10 +180,19 @@ public final class OfflineApplier {
             }
         }
     }
-    for (var plan : plans) putEntities(plan, old, timestamp);
+    if (plans.stream().anyMatch(plan -> plan.dataVersion() <= 4189))
+      for (var previous : List.copyOf(old.values())) indexPreviousEntities(previous, old);
+    for (var plan : plans) putEntities(plan, old, timestamp, upgrade);
   }
 
-  private void putEntities(ApplyPlan plan, Map<UUID, Nbt.Compound> old, int timestamp)
+  private static void indexPreviousEntities(Nbt.Compound entity, Map<UUID, Nbt.Compound> old) {
+    old.putIfAbsent(EntityNormalizer.uuid(entity), entity);
+    for (Object passenger : entity.list("Passengers").values())
+      indexPreviousEntities((Nbt.Compound) passenger, old);
+  }
+
+  private void putEntities(ApplyPlan plan, Map<UUID, Nbt.Compound> old, int timestamp,
+      DiskUpgrade upgrade)
       throws IOException {
     var dim = layout.dimensions().get(plan.dimension());
     var rules = IgnoreRules.parse(plan.ignoreRules());
@@ -153,6 +206,7 @@ public final class OfflineApplier {
               (k, v) -> {
                 if (rules.ignoredField(entity.string("id"), k, false)) entity.put(k, Nbt.copy(v));
               });
+        org.worldgit.core.version.VanillaEntityDefaults.materialize(entity, plan.dataVersion(), old);
         // passenger 的位置在正規化時略去，實際生成時補母實體位置。
         passengerPositions(entity, entity.list("Pos"));
         puts.computeIfAbsent(op.targetChunk(), k -> new ArrayList<>()).add(entity);
@@ -163,7 +217,7 @@ public final class OfflineApplier {
     for (var entry : regions.entrySet())
       try (var writer = new RegionWriter(dim.entities().resolve(entry.getKey() + ".mca"))) {
         for (var pos : entry.getValue()) {
-          var root = writer.read(pos.regionIndex());
+          var root = upgrade.upgrade("ENTITY_CHUNK", writer.read(pos.regionIndex()));
           if (root == null)
             root =
                 new Nbt.Compound()
@@ -260,7 +314,7 @@ public final class OfflineApplier {
         }
       writeGzip(path, root);
       var end = layout.dimensions().get(new DimensionId("minecraft:the_end"));
-      if (layout.dataVersion() < 4903
+      if (layout.dataVersion() < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE
           && target.containsKey("DragonFight")
           && end != null
           && end.directory().getFileName().toString().equals("DIM1")) {
@@ -295,6 +349,7 @@ public final class OfflineApplier {
           "WorldGenSettings",
           "DragonFight",
           "CustomBossEvents",
+          "ScheduledEvents",
           "GameType",
           "allowCommands",
           "SpawnX",
@@ -324,6 +379,16 @@ public final class OfflineApplier {
         String prefix = dim.id().directoryName() + ".saved.";
         if (name.startsWith(prefix)) return SavedData.path(dim.directory(), name.substring(prefix.length(), name.length() - 4));
       }
+      String endPrefix = "minecraft.the_end.saved.";
+      if (layout.dataVersion() >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE
+          && name.startsWith(endPrefix)
+          && "data/minecraft/ender_dragon_fight.dat".equals(SavedData.relativePath(name))) {
+        Path directory = layout.world().resolve("dimensions/minecraft/the_end");
+        for (Path parent = directory; parent != null && parent.startsWith(layout.world()); parent = parent.getParent())
+          if (Files.isSymbolicLink(parent)) throw new IOException("saved-data 路徑包含符號連結");
+        return SavedData.path(directory,
+            name.substring(endPrefix.length(), name.length() - 4));
+      }
     }
     if (name.equals("level.nbt")) return layout.world().resolve("level.dat");
     if (name.startsWith("asset.")) {
@@ -349,6 +414,7 @@ public final class OfflineApplier {
       return target;
     }
     if (name.matches("map_\\d+\\.dat\\.nbt")) {
+      if(layout.dataVersion()>=org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE)return layout.world().resolve("data/minecraft/maps/"+name.substring(4,name.length()-4));
       Path data = layout.world().resolve("data");
       if (Files.isDirectory(data))
         try (var files = Files.walk(data)) {
@@ -361,7 +427,7 @@ public final class OfflineApplier {
         }
       return layout
           .world()
-          .resolve(layout.dataVersion() >= 4903 ? "data/minecraft/maps/" : "data/")
+          .resolve(layout.dataVersion() >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE ? "data/minecraft/maps/" : "data/")
           .resolve(name.substring(0, name.length() - 4));
     }
     for (var dim : layout.dimensions().values()) {
@@ -373,7 +439,7 @@ public final class OfflineApplier {
     if (META_DAT.contains(name))
       return layout
           .world()
-          .resolve(layout.dataVersion() >= 4903 ? "data/minecraft/" : "data/")
+          .resolve(layout.dataVersion() >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE ? "data/minecraft/" : "data/")
           .resolve(name.substring(0, name.length() - 4));
     throw new IOException("不支援的 world-meta 檔案：" + name);
   }

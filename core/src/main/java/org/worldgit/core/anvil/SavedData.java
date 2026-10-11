@@ -9,7 +9,7 @@ import java.util.*;
 public final class SavedData {
   private SavedData() {}
   /** 暫態規則也用於歷史 tree；不可只在磁碟 capture 排除。 */
-  public static final String NORMALIZATION = "runtime-saved-data-v2";
+  public static final String NORMALIZATION = "runtime-saved-data-v4";
   private static final Set<String> RUNTIME_FILES = Set.of(
       "data/minecraft/world_clocks.dat", "data/minecraft/weather.dat",
       "data/minecraft/wandering_trader.dat");
@@ -47,8 +47,11 @@ public final class SavedData {
     if (field == null && !path.equals("data/minecraft/stopwatches.dat")) return bytes;
     var root = Nbt.read(bytes);
     var data = root.compound("data");
-    if (field != null) data.remove(field);
-    if (path.equals("data/minecraft/random_sequences.dat")) {
+    if (field != null) {
+      data.remove(field);
+      if (field.equals("tick")) data.remove("Tick");
+    }
+    if (path.equals("data/minecraft/random_sequences.dat") || path.equals("data/random_sequences.dat")) {
       // RNG 游標不追蹤；/random reset 的設定仍保留，預設檔的首次建立沒有差異。
       if (data.integer("salt", 0) == 0) data.remove("salt");
       for (String key : List.of("include_world_seed", "include_sequence_id"))
@@ -64,6 +67,15 @@ public final class SavedData {
     return Nbt.write(root);
   }
   public static Map<String, byte[]> capture(Path directory, String prefix) throws IOException {
+    return capture(directory, prefix, false);
+  }
+
+  /** 整世界遷移用的磁碟資料，不可作為歷史快照或一般還原的來源。 */
+  public static Map<String, byte[]> captureForMigration(Path directory, String prefix) throws IOException {
+    return capture(directory, prefix, true);
+  }
+
+  private static Map<String, byte[]> capture(Path directory, String prefix, boolean runtime) throws IOException {
     var result = new TreeMap<String, byte[]>(); Path data = directory.resolve("data");
     if (!Files.isDirectory(data)) return result;
     long bytes = 0;
@@ -71,13 +83,16 @@ public final class SavedData {
       String relative = directory.relativize(file).toString().replace(java.io.File.separatorChar, '/');
       String name = file.getFileName().toString();
       if (!name.endsWith(".dat")
-          || RUNTIME_FILES.contains(relative)
+          || !runtime && RUNTIME_FILES.contains(relative)
           || Set.of("game_rules.dat", "world_border.dat", "world_gen_settings.dat").contains(name)
           || prefix.isEmpty() && (name.matches("map_\\d+\\.dat")
               || Set.of("scoreboard.dat", "custom_boss_events.dat").contains(name))) continue;
       if (Files.isSymbolicLink(file)) throw new IOException("saved-data 不接受符號連結");
       String key = prefix + "saved." + Base64.getUrlEncoder().withoutPadding().encodeToString(relative.getBytes(StandardCharsets.UTF_8)) + ".nbt";
-      byte[] value = normalize(key, Nbt.write(WorldLayout.readGzip(file)));
+      var nbt = WorldLayout.readGzip(file);
+      if (nbt.integer("DataVersion", Integer.MAX_VALUE) < 4790
+          && (name.matches("map_\\d+\\.dat") || name.equals("scoreboard.dat"))) continue;
+      byte[] value = runtime ? Nbt.write(nbt) : normalize(key, Nbt.write(nbt));
       if (value == null) continue;
       bytes += value.length;
       if (result.size() >= 4096 || bytes > 128L * 1024 * 1024) throw new IOException("saved-data 超過 4096 檔／128 MiB");
@@ -87,8 +102,9 @@ public final class SavedData {
   }
   /** 只排除遊戲時鐘；襲擊清單、next_id、出生點與難度等內容仍完整追蹤。 */
   private static String runtimeField(String path) {
-    if (path.equals("data/minecraft/raids.dat")) return "tick";
-    if (path.equals("data/minecraft/random_sequences.dat")) return "sequences";
+    if (Set.of("data/minecraft/raids.dat", "data/raids.dat",
+        "data/raids_nether.dat", "data/raids_end.dat").contains(path)) return "tick";
+    if (path.equals("data/minecraft/random_sequences.dat") || path.equals("data/random_sequences.dat")) return "sequences";
     if (path.equals("data/paper/level_override.dat") || path.equals("data/paper/level_overrides.dat")) return "game_time";
     return null;
   }
@@ -99,6 +115,8 @@ public final class SavedData {
     if (start >= 0) path = path.substring(start + 1);
     if (RUNTIME_FILES.contains(path)) return Nbt.copy(current);
     String field = runtimeField(path);
+    if ("tick".equals(field) && target.integer("DataVersion", Integer.MAX_VALUE) <= 4189)
+      field = "Tick";
     if (field != null) {
       var data = target.compound("data");
       Object fallback = field.equals("sequences") ? new Nbt.Compound() : field.equals("game_time") ? (Object) 0L : 0;

@@ -584,3 +584,11 @@ fabric.ignore.no-screen: '<gray>The ignore screen needs the WorldGit Fabric clie
 paper.phase5.summary.region: 'region <n>'
 fabric.tag.created: 'Created'
 fabric.tag.deleted: 'Deleted'
+
+multiversion.version: 'Minecraft <version> (DataVersion <data_version>)'
+multiversion.external-upgrade: '<yellow>The world was upgraded from <from> to <to>. Commit the version change.</yellow>'
+multiversion.upgrade: '<green>Upgraded to <version>.</green>'
+multiversion.downgrade: '<yellow>Downgraded to <version>.</yellow>'
+multiversion.loss: '<yellow><kind>: <source> → <replacement> × <count></yellow>'
+multiversion.confirm: '<yellow>Review the loss list, then repeat with --accept-loss.</yellow>'
+multiversion.online-confirm: '<yellow>Downgrade loses <count> kinds of content. Click to confirm.</yellow>'

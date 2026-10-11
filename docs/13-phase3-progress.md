@@ -1,5 +1,8 @@
 # Phase 3 任務 1：core 三方合併與離線 CLI
 
+> 2026-10-10 版本更新：本文跨 DataVersion 拒絕的記述是當時限制；core／CLI／Hub 現行政策已由 #172–#180 取代。平台 DFU／損失確認接線仍屬任務 2／3，見 [19](19-multiversion.md)。
+
+
 日期：2026-10-02。本節記錄最初的 core／protocol／CLI 基礎；後續 Paper、Fabric、Hub 的 Phase 3 實作、區域切換修正與真客戶端對接分別記錄在下方。決定見 [09 #43–#49](09-roadmap-open-questions.md)。
 
 ## 完成項目

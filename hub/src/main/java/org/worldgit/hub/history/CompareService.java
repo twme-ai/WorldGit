@@ -94,7 +94,7 @@ public class CompareService {
       CommitInfo ca = a.commits().get(d), cb = b.commits().get(d);
       CompareDimension row;
       if (ca == null || cb == null) row = empty(d, ca == null ? "only-b" : "only-a", ca, cb);
-      else if (ca.tree().equals(cb.tree())) row = empty(d, "same", ca, cb);
+      else if (ca.tree().equals(cb.tree()) && ca.dataVersion() == cb.dataVersion()) row = empty(d, "same", ca, cb);
       else row = diff(w, d, ca, cb, chunkSlots, sectionSlots);
       chunkSlots -= row.changedChunks().size();
       sectionSlots -= row.changedSections().size();
@@ -115,7 +115,10 @@ public class CompareService {
 
   private CompareDimension diff(WorldRow w, DimensionId d, CommitInfo a, CommitInfo b, int chunkSlots, int sectionSlots) throws IOException {
     try (var h = repos.open(w.ownerSlug(), w.slug(), d)) {
-      var diff = new DiffEngine(h.store()).compare(d, a.tree(), b.tree(), HistoryService.TOLERANCE, DiffEngine.Detail.SUMMARY);
+      var store=new MemoryObjects(h.store());
+      int target=Math.max(a.dataVersion(),b.dataVersion());
+      String at=org.worldgit.core.version.VersionConversions.comparisonTree(store,h.store().readCommit(a.id()),target),bt=org.worldgit.core.version.VersionConversions.comparisonTree(store,h.store().readCommit(b.id()),target);
+      var diff = new DiffEngine(store).compare(d, at, bt, HistoryService.TOLERANCE, DiffEngine.Detail.SUMMARY);
       var perChunk = new TreeMap<ChunkPos, int[]>();
       var sections = new ArrayList<int[]>();
       for (var s : diff.sections()) {

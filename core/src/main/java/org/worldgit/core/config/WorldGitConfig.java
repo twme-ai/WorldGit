@@ -61,7 +61,7 @@ public final class WorldGitConfig {
   }
 
   public static Local readLocal(String text, String source) throws IOException {
-    var m = load(text, source, Set.of("palette", "entity-tolerance"));
+    var m = load(text, source, Set.of("palette", "entity-tolerance", "conversion"));
     String p = string(m, "palette", "default", source);
     Object v = m.getOrDefault("entity-tolerance", 2);
     if (!(v instanceof Number n)) throw error(source, "entity-tolerance 必須是數字");

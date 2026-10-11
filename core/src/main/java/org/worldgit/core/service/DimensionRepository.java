@@ -70,6 +70,8 @@ public final class DimensionRepository implements AutoCloseable {
   }
   /** 舊位置仍可讀；未完成的全組操作不能被新單維度寫入繞過。 */
   public void requireLegacyComplete() throws IOException {
+    for(Path p=directory;p!=null;p=p.getParent())
+      if("PREPARED".equals(OperationState.read(p.resolve("version-state.yml")).get("state"))||"PREPARED".equals(OperationState.read(p.resolve(".worldgit/version-state.yml")).get("state")))throw new IOException("版本遷移未完成；先 wgit migrate --recover-version");
     if (directory.getFileName().toString().equals(dimension.directoryName())) {
       Path parent=directory.getParent();
       if(OperationState.partial(parent) || Files.exists(parent.resolve("merge-state.bin")))
@@ -176,7 +178,9 @@ public final class DimensionRepository implements AutoCloseable {
       store.flush();
     }
     String id = null;
-    if (c.head == null || (!status.diff.empty() && gate.test(status)))
+    boolean versionChanged = c.head != null && store.readCommit(c.head).metadata().mcDataVersion() != source.dataVersion();
+    if(versionChanged && metadata.versionChange()==null) metadata=metadata.withVersionChange(new org.worldgit.core.version.ConversionReport(store.readCommit(c.head).metadata().mcDataVersion(),source.dataVersion(),"external-minecraft",List.of()));
+    if (c.head == null || versionChanged || (!status.diff.empty() && gate.test(status)))
       id = store.commit(commitTree, c.head, metadata);
     if (id != null) PlayerTouchedEntities.restore(store, commitTree, directory);
     if (id != null && !metadata.auto()) Files.deleteIfExists(directory.resolve("untracked.yml"));
@@ -263,6 +267,14 @@ public final class DimensionRepository implements AutoCloseable {
       throws IOException {
     if (!dimension.equals(source.dimension())) throw new IOException("快照來源維度不符");
     String head = store.head(), base = head == null ? null : store.readCommit(head).tree();
+    int previousVersion = head == null ? source.dataVersion() : store.readCommit(head).metadata().mcDataVersion();
+    org.worldgit.core.version.ConversionReport versionProjection = null;
+    if (base != null && previousVersion != source.dataVersion()) {
+      var projected = org.worldgit.core.version.VersionConversions.convert(store, base, dimension,
+          previousVersion, source.dataVersion(), directory.resolve("worldgit.yml"), true);
+      base = projected.tree();
+      versionProjection = projected.report();
+    }
     String ignore = ignoreOverride != null ? ignoreOverride : Files.exists(ignorePath()) ? Files.readString(ignorePath()) : "";
     IgnoreRules rules = IgnoreRules.parse(ignore);
     WorldGitConfig.Repo config = WorldGitConfig.readRepo(configPath());
@@ -299,6 +311,9 @@ public final class DimensionRepository implements AutoCloseable {
                 .getBytes(StandardCharsets.UTF_8));
     var warnings = new ArrayList<String>();
     warnings.addAll(source.warnings());
+    if(previousVersion != source.dataVersion()) warnings.add("世界已由 "+org.worldgit.core.version.MinecraftVersion.name(previousVersion)+(previousVersion < source.dataVersion()?" 升級到 ":" 降級到 ")+org.worldgit.core.version.MinecraftVersion.name(source.dataVersion())+"；版本差異先轉換再比較，請建立版本變更 commit。");
+    if (versionProjection != null && versionProjection.lossy())
+      warnings.add("HEAD 投影到目前世界版本的降級損失：" + versionProjection.losses());
     ScanIndex old;
     try {
       old = ScanIndex.read(directory.resolve("worldgit.index"));
@@ -450,8 +465,10 @@ public final class DimensionRepository implements AutoCloseable {
 
   public WorldDiff diff(String a, String b, double tolerance, DiffEngine.Detail detail)
       throws IOException {
-    String before = a == null ? null : store.readCommit(store.resolve(a)).tree(),
-        after = b == null ? null : store.readCommit(store.resolve(b)).tree();
+    var ca = a == null ? null : store.readCommit(store.resolve(a));
+    var cb = b == null ? null : store.readCommit(store.resolve(b));
+    int target=Math.max(ca==null?0:ca.metadata().mcDataVersion(),cb==null?0:cb.metadata().mcDataVersion());
+    String before=org.worldgit.core.version.VersionConversions.comparisonTree(store,ca,target), after=org.worldgit.core.version.VersionConversions.comparisonTree(store,cb,target);
     return new DiffEngine(store).compare(dimension, before, after, tolerance, detail);
   }
 

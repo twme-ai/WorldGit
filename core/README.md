@@ -80,7 +80,7 @@ working capture 共用 status 索引；apply 後強制重擷取寫入 chunk，�
 
 `WorldOperations` 只持單維度 repo 鎖與離線 session 鎖。restore 保持 HEAD；switch 分支／detached、reset、stash、merge／revert／cherry-pick、verify 共用預檢→journal→apply→verify→HEAD。失敗留下 PARTIAL，refs 保留原狀，世界內容以 force switch／reset 全範圍恢復。stash pop 要求原基底且乾淨，成功才 drop。
 
-線上用 `WorldOperations.live(layout,access,id)`：呼叫端管理 lockEdits、flush、owner apply、IO／光照屏障；close 不釋放遊戲的 session.lock。UUID 移除與生成只限選定維度，不刪除其他維度中的實體。兩版原生 region 支援 gzip／zlib／raw／LZ4、外部 mcc，就地更新只動變更 sector。跨 DataVersion 與不一致 DataPacks 拒絕；switch／restore 的 .wgignore 不一致仍預檢拒絕。
+線上用 `WorldOperations.live(layout,access,id)`：呼叫端管理 lockEdits、flush、owner apply、IO／光照屏障；close 不釋放遊戲的 session.lock。UUID 移除與生成只限選定維度，不刪除其他維度中的實體。兩版原生 region 支援 gzip／zlib／raw／LZ4、外部 mcc，就地更新只動變更 sector。CLI 跨 DataVersion 先以 DFU／反向 codec 轉到世界版本，有損套用需確認並保存 audit；不一致 DataPacks 拒絕；switch／restore 的 .wgignore 不一致仍預檢拒絕。
 
 ## merge、graph 與操作結果
 
@@ -112,3 +112,5 @@ python3 cli/tools/phase5_acceptance.py  # 自持鎖；真 Hub、SQLite、兩版 
 ```
 
 既有 fixture 測試需要舊實體政策時，明確 initAll(...,Entities.ALL)，保留原本內容與隔離斷言。完整 build／平臺回歸與整合結果見 [驗收紀錄](../docs/16-phase5-design.md#本次實作與後續缺口)。
+
+多版本模型、版本 commit、遷移復原與平台 DFU 契約見 [19](../docs/19-multiversion.md)。線上 adapter 的新增 DFU 接線由任務 2／3 完成。

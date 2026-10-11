@@ -57,9 +57,13 @@ public record CommitGraph(List<Node> nodes, boolean truncated, int lanes) {
       var edges = new ArrayList<Edge>();
       for (String parent : commit.parents()) edges.add(new Edge(parent, lane, active.indexOf(parent)));
       var metadata = commit.metadata();
+      var versionLabels=new ArrayList<>(labels.getOrDefault(commit.id(),List.of()));
+      versionLabels.add(new Label("version",metadata.mcVersion()));
+      if(metadata.versionChange()!=null)versionLabels.add(new Label("version-change",metadata.versionChange().label()));
+      else if(!commit.parents().isEmpty()&&commits.containsKey(commit.parents().getFirst())) {int v=commits.get(commit.parents().getFirst()).metadata().mcDataVersion();if(v!=metadata.mcDataVersion())versionLabels.add(new Label("version-change",(v<metadata.mcDataVersion()?"升級到 ":"降級到 ")+metadata.mcVersion()));}
       rows.add(new Node(commit.id(), commit.parents(), metadata.snapshot().toString(),
           metadata.time().toString(), metadata.message(), metadata.author().git(), lane, before,
-          List.copyOf(active), List.copyOf(edges), List.copyOf(labels.getOrDefault(commit.id(), List.of()))));
+          List.copyOf(active), List.copyOf(edges), List.copyOf(versionLabels)));
       max = Math.max(max, Math.max(before.size(), active.size()));
     }
     return new CommitGraph(rows, cut || rows.size() < commits.size(), max);

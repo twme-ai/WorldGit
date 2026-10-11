@@ -77,7 +77,7 @@ public class HistoryService {
         new Person(m.author().name(), m.author().email()),
         new Person(m.committer().name(), m.committer().email()),
         m.message(), m.auto(), m.source().name().toLowerCase(Locale.ROOT), m.mcDataVersion(),
-        m.dimension().value(), m.snapshot().toString(), co);
+        m.dimension().value(), m.snapshot().toString(), co, m.mcVersion(), m.versionChange());
   }
 
   /** 該維度完整歷史（新到舊）；以 head id 快取。 */
@@ -103,7 +103,7 @@ public class HistoryService {
       String key = w.id() + "/" + dim + "/" + branch + "/" + tip.name();
       List<CommitInfo> cached = logCache.get(key);
       if (cached != null) return cached;
-      var list = Refs.log(h.repository(), tip, MAX_HISTORY).stream().map(HistoryService::info).toList();
+      var list = Refs.log(h.repository(), tip, MAX_HISTORY, h.store()).stream().map(HistoryService::info).toList();
       logCache.put(key, list);
       return list;
     }
@@ -121,7 +121,7 @@ public class HistoryService {
       ObjectId tip = Refs.tip(h.repository(), branch);
       if (tip == null) return Optional.empty();
       try (var walk = new RevWalk(h.repository())) {
-        return Optional.of(info(Refs.commit(walk.parseCommit(tip))));
+        return Optional.of(info(Refs.commit(walk.parseCommit(tip), h.store())));
       }
     }
   }
@@ -139,7 +139,7 @@ public class HistoryService {
       String id = index.get(snapshot.toLowerCase(Locale.ROOT));
       if (id == null) return Optional.empty();
       try (var walk = new RevWalk(h.repository())) {
-        return Optional.of(info(Refs.commit(walk.parseCommit(ObjectId.fromString(id)))));
+        return Optional.of(info(Refs.commit(walk.parseCommit(ObjectId.fromString(id)), h.store())));
       }
     }
   }
@@ -245,7 +245,7 @@ public class HistoryService {
       if (ids.size() > 1) throw new IllegalArgumentException("commit 前綴不唯一，請使用完整 id");
       if (ids.isEmpty()) return Optional.empty();
       try (var walk = new RevWalk(h.repository())) {
-        return Optional.of(info(Refs.commit(walk.parseCommit(ids.iterator().next()))));
+        return Optional.of(info(Refs.commit(walk.parseCommit(ids.iterator().next()), h.store())));
       } catch (org.eclipse.jgit.errors.IncorrectObjectTypeException | org.eclipse.jgit.errors.MissingObjectException e) {
         return Optional.empty();
       }
@@ -254,10 +254,10 @@ public class HistoryService {
 
   public CommitDetail detail(WorldRow w, DimensionId dim, String rev, String mcVersion) throws IOException {
     CommitInfo c = find(w, dim, rev).orElseThrow(() -> new NoSuchElementException("找不到 commit " + rev));
-    String key = org.worldgit.core.anvil.SavedData.NORMALIZATION + "/" + w.id() + "/" + dim + "/" + c.id();
+    String key = (org.worldgit.core.anvil.SavedData.NORMALIZATION + "-" + org.worldgit.core.version.VersionConversions.NORMALIZATION) + "/" + w.id() + "/" + dim + "/" + c.id();
     CommitDetail cached = detailCache.get(key);
     if (cached != null) return cached;
-    Path disk = storage.cacheDir().resolve("stats").resolve(org.worldgit.core.anvil.SavedData.NORMALIZATION).resolve(w.id()).resolve(dim.directoryName() + "-" + c.id() + ".json");
+    Path disk = storage.cacheDir().resolve("stats").resolve((org.worldgit.core.anvil.SavedData.NORMALIZATION + "-" + org.worldgit.core.version.VersionConversions.NORMALIZATION)).resolve(w.id()).resolve(dim.directoryName() + "-" + c.id() + ".json");
     if (Files.isRegularFile(disk)) {
       try {
         CommitDetail d = json.readValue(disk.toFile(), CommitDetail.class);
@@ -279,8 +279,12 @@ public class HistoryService {
   private CommitDetail compute(WorldRow w, DimensionId dim, CommitInfo c, String mcVersion) throws IOException {
     String parent = c.parents().isEmpty() ? null : c.parents().get(0);
     try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
-      ObjectStore store = h.store();
-      String parentTree = parent == null ? null : h.store().readCommit(parent).tree();
+      ObjectStore store = new MemoryObjects(h.store());
+      int comparisonVersion=parent==null?c.dataVersion():Math.max(c.dataVersion(),h.store().readCommit(parent).metadata().mcDataVersion());
+      if (comparisonVersion != c.dataVersion())
+        mcVersion = org.worldgit.core.version.MinecraftVersion.byDataVersion(comparisonVersion).id();
+      String parentTree = parent == null ? null : org.worldgit.core.version.VersionConversions.comparisonTree(store,h.store().readCommit(parent),comparisonVersion);
+      String comparisonTree=c.dataVersion()==comparisonVersion?c.tree():org.worldgit.core.version.VersionConversions.comparisonTree(store,h.store().readCommit(c.id()),comparisonVersion);
       if (parent == null) {
         // 第一個 commit：全部都是新增。不逐格解碼（大世界會非常慢），只列出 chunk 與 section 數。
         var chunks = new ArrayList<int[]>();
@@ -299,12 +303,12 @@ public class HistoryService {
         return new CommitDetail(c, null, true, 0, 0, 0, chunks.size(), sections, 0, 0, 0, List.of(), chunks,
             chunks.isEmpty() ? new int[] {0, 0, 0, 0} : b, List.of(), mcVersion);
       }
-      return diffDetail(store, dim, c, parent, parentTree, mcVersion);
+      return diffDetail(store, dim, c, parent, parentTree, comparisonTree, mcVersion);
     }
   }
 
-  private CommitDetail diffDetail(ObjectStore store, DimensionId dim, CommitInfo c, String parent, String parentTree, String mcVersion) throws IOException {
-    WorldDiff diff = new DiffEngine(store).compare(dim, parentTree, c.tree(), TOLERANCE, DiffEngine.Detail.SUMMARY);
+  private CommitDetail diffDetail(ObjectStore store, DimensionId dim, CommitInfo c, String parent, String parentTree, String comparisonTree, String mcVersion) throws IOException {
+    WorldDiff diff = new DiffEngine(store).compare(dim, parentTree, comparisonTree, TOLERANCE, DiffEngine.Detail.SUMMARY);
     var perChunk = new TreeMap<org.worldgit.core.model.ChunkPos, int[]>();
     for (var s : diff.sections()) {
       int[] v = perChunk.computeIfAbsent(s.chunk(), k -> new int[6]);

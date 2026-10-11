@@ -75,13 +75,18 @@ final class Refs {
     return new RefStore.Commit(c.name(), c.getTree().name(), Arrays.stream(c.getParents()).map(RevCommit::name).toList(), m);
   }
 
+  static RefStore.Commit commit(RevCommit c, RefStore store) throws IOException {
+    var result = commit(c);
+    return result.metadata().mcDataVersion() == 0 ? store.readCommit(c.name()) : result;
+  }
+
   /** 自某個 tip 往回的歷史（新到舊），最多 limit 個。 */
-  static List<RefStore.Commit> log(Repository repo, ObjectId tip, int limit) throws IOException {
+  static List<RefStore.Commit> log(Repository repo, ObjectId tip, int limit, RefStore store) throws IOException {
     try (var walk = new RevWalk(repo)) {
       walk.markStart(walk.parseCommit(tip));
       var out = new ArrayList<RefStore.Commit>();
       for (RevCommit c : walk) {
-        out.add(commit(c));
+        out.add(commit(c, store));
         if (out.size() >= limit) break;
       }
       return out;

@@ -22,6 +22,8 @@ export async function commitPage(root: HTMLElement, owner: string, world: string
   const palettes = await loadPalettes()
   let palette = await activePalette()
   const c = detail.commit
+  root.append(h('p',{class:'notice'},`Minecraft ${c.mcVersion ?? detail.mcVersion} · DataVersion ${c.dataVersion}`))
+  if(c.versionChange)root.append(h('details',{},h('summary',{},`${c.versionChange.from < c.versionChange.to ? '升級' : '降級'}紀錄（${c.versionChange.losses.length} 類損失）`),...c.versionChange.losses.map(l=>h('p',{},`${l.kind} ${l.source} → ${l.replacement} × ${l.count} · ${l.locations.join(', ')}`))))
   const params = new URLSearchParams(location.search)
 
   const hud = h('div', { class: 'overlay hud' }, '載入中…')

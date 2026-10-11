@@ -102,8 +102,16 @@ worldgit:
     assets:
       source-dir: ""              # 已解開的 client jar 目錄（<id>/assets、<id>/data）；空白＝從 Mojang 下載
     minecraft-versions:
+      - { id: "1.20.1", data-version: 3465 }
+      - { id: "1.20.4", data-version: 3700 }
+      - { id: "1.20.6", data-version: 3839 }
+      - { id: "1.21.1", data-version: 3955 }
+      - { id: "1.21.4", data-version: 4189 }
+      - { id: "1.21.8", data-version: 4440 }
       - { id: "1.21.11", data-version: 4671 }
+      - { id: "26.1.2", data-version: 4790 }
       - { id: "26.2", data-version: 4903 }
+      - { id: "26.3", data-version: 5023 }
 logging:
   level:
     org.eclipse.jgit: warn

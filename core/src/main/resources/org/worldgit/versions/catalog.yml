@@ -1,0 +1,11 @@
+versions:
+  - {id: '1.20.1', data-version: 3465, java: 17}
+  - {id: '1.20.4', data-version: 3700, java: 17}
+  - {id: '1.20.6', data-version: 3839, java: 21}
+  - {id: '1.21.1', data-version: 3955, java: 21}
+  - {id: '1.21.4', data-version: 4189, java: 21}
+  - {id: '1.21.8', data-version: 4440, java: 21}
+  - {id: '1.21.11', data-version: 4671, java: 21}
+  - {id: '26.1.2', data-version: 4790, java: 25}
+  - {id: '26.2', data-version: 4903, java: 25}
+  - {id: '26.3', data-version: 5023, java: 25}

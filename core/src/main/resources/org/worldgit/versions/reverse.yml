@@ -1,0 +1,107 @@
+# 每條規則在 from > boundary >= to 時執行；registry 差集自動辨識新增內容。
+revision: reverse-2026-10-10-16
+fallbacks:
+  block: minecraft:stone
+  item: minecraft:barrier
+  biome: minecraft:plains
+  entity: skip
+  block-entity: skip
+boundaries:
+  - {older: 3465, newer: 3700, changes: [short-grass, text-components]}
+  - {older: 3700, newer: 3839, changes: [item-components, turtle-scute, wolf-variants, attributes]}
+  - {older: 3839, newer: 3955, changes: [enchantment-registry, trial-content]}
+  - {older: 3955, newer: 4189, changes: [boat-types, attribute-prefix, custom-model-data]}
+  - {older: 4189, newer: 4440, changes: [text-nbt, equipment, entity-fields, block-entity-fields, potion-entities, enchantment-shape]}
+  - {older: 4440, newer: 4671, changes: [game-rule-registry, spawn, copper-content, saddles]}
+  - {older: 4671, newer: 4790, changes: [namespaced-storage, level-saved-data, difficulty-settings]}
+  - {older: 4790, newer: 4903, changes: [sulfur-content, name-tag]}
+  - {older: 4903, newer: 5023, changes: [pot-items, explorer-maps, wilderness-content]}
+renames:
+  - {boundary: 3465, kind: block, from: 'minecraft:short_grass', to: 'minecraft:grass'}
+  - {boundary: 3700, kind: item, from: 'minecraft:turtle_scute', to: 'minecraft:scute'}
+  - {boundary: 4790, kind: item, from: 'minecraft:name_tag', to: 'minecraft:name_tag'}
+# 深度遍歷時遇到符合 id 的 compound 才套用，避免改到同名自訂資料。
+  - {boundary: 3465, kind: item, from: 'minecraft:short_grass', to: 'minecraft:grass'}
+fields:
+  - {boundary: 3955, kind: entity, id: '*', from: attributes, to: Attributes}
+  - {boundary: 3465, kind: entity, id: '*', from: active_effects, to: ActiveEffects}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:furnace', from: cooking_total_time, to: CookTimeTotal}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:blast_furnace', from: cooking_total_time, to: CookTimeTotal}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:smoker', from: cooking_total_time, to: CookTimeTotal}
+  - {boundary: 4189, kind: block-entity, id: 'minecraft:beehive', from: bees, to: Bees}
+  - {boundary: 4189, kind: block-entity, id: 'minecraft:beehive', from: flower_pos, to: FlowerPos}
+  - {boundary: 4189, kind: block-entity, id: 'minecraft:decorated_pot', from: sherds, to: sherds}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:furnace', from: lit_time_remaining, to: BurnTime}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:furnace', from: cooking_time_spent, to: CookTime}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:blast_furnace', from: lit_time_remaining, to: BurnTime}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:blast_furnace', from: cooking_time_spent, to: CookTime}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:smoker', from: lit_time_remaining, to: BurnTime}
+  - {boundary: 3955, kind: block-entity, id: 'minecraft:smoker', from: cooking_time_spent, to: CookTime}
+  - {boundary: 4189, kind: entity, id: 'minecraft:phantom', from: size, to: Size}
+  - {boundary: 4189, kind: entity, id: 'minecraft:turtle', from: has_egg, to: HasEgg}
+  - {boundary: 4189, kind: entity, id: 'minecraft:vex', from: life_ticks, to: LifeTicks}
+  - {boundary: 4189, kind: entity, id: 'minecraft:tnt_minecart', from: fuse, to: TNTFuse}
+components-to-nbt:
+  'minecraft:damage': Damage
+  'minecraft:repair_cost': RepairCost
+  'minecraft:custom_model_data': CustomModelData
+  'minecraft:block_entity_data': BlockEntityTag
+  'minecraft:entity_data': EntityTag
+  'minecraft:trim': Trim
+  'minecraft:instrument': instrument
+  'minecraft:map_id': map
+  'minecraft:charged_projectiles': ChargedProjectiles
+  'minecraft:bundle_contents': Items
+  'minecraft:debug_stick_state': DebugProperty
+
+# 1.20.6–1.21.4 的 BE component patch 只在非空時重存。
+omit-empty-fields:
+  - {boundary: 4189, kind: block-entity, id: '*', field: components}
+
+# 26.3 招牌安全旗標在舊版不存在：true 與舊行為等價，false 降級會失去禁用能力。
+implicit-fields:
+  - {boundary: 4903, kind: block-entity, ids: ['minecraft:sign', 'minecraft:hanging_sign'],
+     field: allow_op_features, value: 1, source-default: 0}
+  - {boundary: 4903, kind: entity, id: '*', field: invulnerable_time, value: 0}
+  - {boundary: 4903, kind: block-entity, id: 'minecraft:brewing_stand',
+     field: total_brew_time, value: 400, equivalent: [0]}
+  - {boundary: 4903, kind: block-entity, id: 'minecraft:brewing_stand',
+     field: total_fuel, value: 20, equivalent: [0]}
+numeric-fields:
+  - {boundary: 4903, kind: block-entity, ids: ['minecraft:furnace', 'minecraft:smoker', 'minecraft:blast_furnace'],
+     fields: [cooking_total_time, CookTimeTotal, cooking_time_spent, CookTime, lit_time_remaining, BurnTime, lit_total_time], type: short}
+  - {boundary: 4903, kind: block-entity, id: 'minecraft:brewing_stand', fields: [BrewTime], type: short}
+  - {boundary: 4903, kind: block-entity, id: 'minecraft:brewing_stand', fields: [Fuel], type: byte}
+sign-components:
+  'minecraft:sign_text_front': front_text
+  'minecraft:sign_text_back': back_text
+  'minecraft:waxed': is_waxed
+
+defaults:
+  - {boundary: 4189, field: Fuse, id: 'minecraft:creeper', kind: entity, value: 30}
+  - {boundary: 4189, field: ExplosionRadius, id: 'minecraft:creeper', kind: entity, value: 3}
+  - {boundary: 4189, field: ExplosionPower, id: 'minecraft:ghast', kind: entity, value: 1}
+  - {boundary: 4189, field: HasLeftHorn, id: 'minecraft:goat', kind: entity, value: 1}
+  - {boundary: 4189, field: HasRightHorn, id: 'minecraft:goat', kind: entity, value: 1}
+  - {boundary: 4189, field: Pumpkin, id: 'minecraft:snow_golem', kind: entity, value: 1}
+  - {boundary: 4189, field: Color, id: 'minecraft:shulker', kind: entity, value: 16}
+  - {boundary: 4189, field: CollarColor, id: 'minecraft:cat', kind: entity, value: 14}
+  - {boundary: 4189, field: CollarColor, id: 'minecraft:wolf', kind: entity, value: 14}
+  - {boundary: 4189, field: DespawnDelay, id: 'minecraft:trader_llama', kind: entity,
+  value: 47999}
+  - {boundary: 4189, field: Duration, id: 'minecraft:area_effect_cloud', kind: entity,
+  value: -1}
+  - {boundary: 4189, field: ignoreEntities, id: 'minecraft:structure_block', kind: block-entity,
+  value: 1}
+  - {boundary: 4189, field: showboundingbox, id: 'minecraft:structure_block', kind: block-entity,
+  value: 1}
+  - {boundary: 4189, field: posY, id: 'minecraft:structure_block', kind: block-entity,
+  value: 1}
+  - {boundary: 4189, field: last_interacted_slot, id: 'minecraft:chiseled_bookshelf',
+  kind: block-entity, value: -1}
+  - {boundary: 4189, field: TransferCooldown, id: 'minecraft:hopper', kind: block-entity,
+  value: -1}
+  - {boundary: 4189, field: name, id: 'minecraft:jigsaw', kind: block-entity, value: 'minecraft:empty'}
+  - {boundary: 4189, field: target, id: 'minecraft:jigsaw', kind: block-entity, value: 'minecraft:empty'}
+  - {boundary: 4189, field: pool, id: 'minecraft:jigsaw', kind: block-entity, value: 'minecraft:empty'}
+  - {boundary: 4189, field: final_state, id: 'minecraft:jigsaw', kind: block-entity, value: 'minecraft:air'}

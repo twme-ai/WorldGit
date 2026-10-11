@@ -13,6 +13,8 @@ public final class CommitTrailers {
   public static String message(CommitMetadata m) {
     StringBuilder b = new StringBuilder(m.message().stripTrailing()).append("\n\n");
     append(b, "WorldGit-DataVersion", Integer.toString(m.mcDataVersion()));
+    append(b, "WorldGit-Minecraft", m.mcVersion());
+    if (m.versionChange() != null) append(b,"WorldGit-VersionChange",Base64.getUrlEncoder().withoutPadding().encodeToString(m.versionChange().bytes()));
     append(b, "WorldGit-Dimension", m.dimension().value());
     append(b, "WorldGit-Source", m.source().name().toLowerCase(Locale.ROOT));
     append(b, "WorldGit-Auto", Boolean.toString(m.auto()));
@@ -92,12 +94,14 @@ public final class CommitTrailers {
           committer,
           message,
           preciseTime,
-          Integer.parseInt(values.get("WorldGit-DataVersion")),
+          Integer.parseInt(values.getOrDefault("WorldGit-DataVersion","0")),
           new DimensionId(values.get("WorldGit-Dimension")),
           Source.valueOf(values.get("WorldGit-Source").toUpperCase(Locale.ROOT)),
           Boolean.parseBoolean(auto),
           UUID.fromString(values.get("WorldGit-Snapshot")),
-          contributions);
+          contributions,
+          values.get("WorldGit-Minecraft"),
+          values.containsKey("WorldGit-VersionChange") ? org.worldgit.core.version.ConversionReport.read(Base64.getUrlDecoder().decode(values.get("WorldGit-VersionChange"))) : null);
     } catch (RuntimeException e) {
       throw new IOException("WorldGit trailers 無效：" + e.getMessage(), e);
     }

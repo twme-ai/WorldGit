@@ -1,0 +1,7 @@
+"minecraft:chest": ["minecraft:chest", "minecraft:trapped_chest"]
+"minecraft:shulker_box": ["minecraft:shulker_box", "*:_shulker_box"]
+"minecraft:sign": ["*:_sign"]
+"minecraft:hanging_sign": ["*:_hanging_sign"]
+"minecraft:banner": ["*:_banner"]
+"minecraft:skull": ["*:_skull", "*:_head"]
+"minecraft:bed": ["*:_bed"]

@@ -177,7 +177,7 @@ export class Viewer {
     this.renderer.setAtlas(atlas, rects)
     atlas.close()
     if (!this.cfg.preview && this.cfg.detail.chunkCount > 0) {
-      for (const t of await api.tiles(this.cfg.owner, this.cfg.world, this.cfg.dimRepo, this.cfg.detail.commit.id).catch(() => [] as TileRef[])) this.tiles.set(`${t.rx},${t.rz}`, t)
+      for (const t of await api.tiles(this.cfg.owner, this.cfg.world, this.cfg.dimRepo, this.cfg.detail.commit.id, this.cfg.detail.mcVersion).catch(() => [] as TileRef[])) this.tiles.set(`${t.rx},${t.rz}`, t)
     }
     if (this.disposed) return
     if (!this.focusDone) this.initialFocus()
@@ -274,7 +274,8 @@ export class Viewer {
     const q = `x0=${wx * WINDOW}&z0=${wz * WINDOW}&x1=${wx * WINDOW + WINDOW - 1}&z1=${wz * WINDOW + WINDOW - 1}`
     const base = `/api/v1/worlds/${owner}/${world}/dims/${dimRepo}/commits/${detail.commit.id}`
     const against = this.cfg.base ? `&base=${encodeURIComponent(this.cfg.base)}` : ''
-    const url = (kind: string) => this.cfg.preview ? `${this.cfg.preview.base}/${kind}?${this.cfg.preview.query}&${q}` : `${base}/${kind}?${q}${against}${kind === 'entities' && !this.diffEnabled ? '&plain=true' : ''}`
+    const target = `&target=${encodeURIComponent(detail.mcVersion)}`
+    const url = (kind: string) => this.cfg.preview ? `${this.cfg.preview.base}/${kind}?${this.cfg.preview.query}&${q}` : `${base}/${kind}?${q}${against}${target}${kind === 'entities' && !this.diffEnabled ? '&plain=true' : ''}`
     const [chunkBuf, diffBuf, ents] = await Promise.all([
       getBuffer(url('chunks')),
       this.diffEnabled ? getBuffer(url('diff')) : Promise.resolve(null),
@@ -443,7 +444,8 @@ export class Viewer {
     try {
       const { owner, world, dimRepo, detail } = this.cfg
       const base = `/api/v1/worlds/${owner}/${world}/dims/${dimRepo}/commits/${detail.commit.id}/tiles/${rx}/${rz}`
-      const [png, hb] = await Promise.all([getBlob(`${base}.png`), getBuffer(`${base}.height`)])
+      const target = `?target=${encodeURIComponent(detail.mcVersion)}`
+      const [png, hb] = await Promise.all([getBlob(`${base}.png${target}`), getBuffer(`${base}.height${target}`)])
       const bmp = await createImageBitmap(png)
       const cv = new OffscreenCanvas(512, 512)
       const ctx = cv.getContext('2d', { willReadFrequently: true })!

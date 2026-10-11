@@ -84,7 +84,7 @@ public class BranchService {
         ObjectId tip = r.branches().get(name);
         if (tip == null) continue;
         try (var h = repos.open(w.ownerSlug(), w.slug(), r.dim()); var walk = new RevWalk(h.repository())) {
-          var c = HistoryService.info(Refs.commit(walk.parseCommit(tip)));
+          var c = HistoryService.info(Refs.commit(walk.parseCommit(tip), h.store()));
           heads.put(r.dim().value(), new BranchHead(c.id(), c.time(), c.snapshot(), c.auto(), c.message(), c.author()));
           if (lead == null || c.time() > lead.time() || (c.time() == lead.time() && r.dim().equals(DimensionId.OVERWORLD))) lead = c;
         }

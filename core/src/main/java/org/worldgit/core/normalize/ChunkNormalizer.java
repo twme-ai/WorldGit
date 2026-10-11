@@ -54,7 +54,9 @@ public final class ChunkNormalizer {
         if (rules.ignoredBlock(x, y, z)) continue;
         var clean = new Nbt.Compound();
         String id = be.string("id");
-        be.forEach(
+        var source = chunk.integer("DataVersion", 0) >= 5023 ? Nbt.copy(be) : be;
+        if (chunk.integer("DataVersion", 0) >= 5023) canonical263BlockEntity(source);
+        source.forEach(
             (k, v) -> {
               if (!Set.of("x", "y", "z").contains(k)
                   && !rules.ignoredField(
@@ -66,7 +68,8 @@ public final class ChunkNormalizer {
             });
         var map = bes.computeIfAbsent(Math.floorDiv(y, 16), k -> new TreeMap<>());
         int index = (x & 15) | ((z & 15) << 4) | ((y & 15) << 8);
-        if (map.put(index, Nbt.write(clean)) != null)
+        var canonical = chunk.integer("DataVersion", 0) <= 4189 ? LegacyText.normalize(clean) : clean;
+        if (map.put(index, Nbt.write(canonical)) != null)
           throw new IllegalArgumentException("block entity 座標重複");
       }
       for (Object o : chunk.list("sections").values()) {
@@ -79,10 +82,7 @@ public final class ChunkNormalizer {
           var states = new ArrayList<BlockState>();
           boolean needsBlocks = bes.containsKey(y);
           for (Object entry : palette) {
-            var p = (Nbt.Compound) entry;
-            var properties = new TreeMap<String, String>();
-            p.compound("Properties").forEach((k, v) -> properties.put(k, String.valueOf(v)));
-            var state = new BlockState(p.string("Name"), properties);
+            var state = org.worldgit.core.version.BlockStateNbt.read(entry,chunk.integer("DataVersion",0));
             states.add(state);
             needsBlocks |= !state.air();
           }
@@ -126,7 +126,8 @@ public final class ChunkNormalizer {
           sections.put(y, new Section(Collections.nCopies(4096, BlockState.AIR), bes.get(y)));
       var entities = new ArrayList<EntitySnapshot>();
       for (var e : entityData)
-        if (!rules.ignoredEntity(e, semantics)) entities.add(EntityNormalizer.normalize(e, rules));
+        if (!rules.ignoredEntity(e, semantics)) entities.add(EntityNormalizer.normalize(
+            chunk.integer("DataVersion", 0) <= 4189 ? LegacyText.normalize(e) : e, rules));
       entities.sort(Comparator.comparing(e -> e.uuid().toString()));
       var ticks = new Nbt.Compound();
       Comparator<Nbt.Compound> order =
@@ -176,6 +177,23 @@ public final class ChunkNormalizer {
     } catch (IllegalArgumentException | ClassCastException | IndexOutOfBoundsException e) {
       throw new IOException("chunk " + pos + " 正規化失敗：" + e.getMessage(), e);
     }
+  }
+
+  private static void canonical263BlockEntity(Nbt.Compound data) {
+    data.putIfAbsent("components", new Nbt.Compound());
+    var fields = switch (data.string("id")) {
+      case "minecraft:furnace", "minecraft:smoker", "minecraft:blast_furnace" -> {
+        data.putIfAbsent("speed_multiplier", 1f);
+        data.putIfAbsent("lit_total_time", 0);
+        yield List.of("cooking_total_time", "cooking_time_spent", "lit_time_remaining", "lit_total_time");
+      }
+      case "minecraft:brewing_stand" -> List.of("BrewTime", "Fuel");
+      default -> List.<String>of();
+    };
+    for (String field : fields)
+      if (data.get(field) instanceof Number value && value.longValue() >= Integer.MIN_VALUE
+          && value.longValue() <= Integer.MAX_VALUE && value.doubleValue() == value.longValue())
+        data.put(field, value.intValue());
   }
 
   public static int ceilLog2(int n) {

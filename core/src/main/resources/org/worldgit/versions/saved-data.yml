@@ -1,0 +1,14 @@
+# 原版 RaidRenamesDataFix 的欄位反向表；1.21.5 開始使用 codec。
+raid:
+  id: Id
+  started: Started
+  active: Active
+  ticks_active: TicksActive
+  raid_omen_level: BadOmenLevel
+  groups_spawned: GroupsSpawned
+  cooldown_ticks: PreRaidTicks
+  post_raid_ticks: PostRaidTicks
+  total_health: TotalHealth
+  group_count: NumGroups
+  status: Status
+  heroes_of_the_village: HeroesOfTheVillage

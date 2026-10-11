@@ -35,7 +35,7 @@ export function snapshotRow(owner: string, world: string, snap: SnapshotRow, dec
     const c = snap.commits[dim]
     if (c) {
       const stats = h('span', { class: 'stat muted' }, '…')
-      const chip = link(`/${owner}/${world}/commit/${dimRepo(dim)}/${short(c.id)}`, [dimLabel(dim), ' ', h('code', {}, short(c.id)), ' ', stats], 'chip')
+      const chip = link(`/${owner}/${world}/commit/${dimRepo(dim)}/${short(c.id)}`, [dimLabel(dim), ' ', h('code', {}, short(c.id)), ' ', h('span',{class:'badge'},c.mcVersion ?? `DataVersion ${c.dataVersion}`), ' ', c.versionChange ? h('span',{class:'badge'},`${c.versionChange.from < c.versionChange.to ? '升級' : '降級'}到 ${c.mcVersion}`) : null, ' ', stats], 'chip')
       chips.append(chip)
       const load = () => enqueue(async () => {
         try { stats.replaceWith(statSpans(await api.commit(owner, world, dimRepo(dim), c.id))) } catch { stats.textContent = '' }

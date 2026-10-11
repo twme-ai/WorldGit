@@ -1,6 +1,6 @@
 import { runOperation, downloadPrepared } from '../operations.ts'
 import { dimensionPicker } from './dimensions.ts'
-import { api, dimLabel, getJson, sendJson, type CommitInfo } from '../api.ts'
+import { api, dimLabel, dimRepo, getJson, sendJson, type CommitInfo } from '../api.ts'
 import { type Choice, type MergeReport } from '../merge.ts'
 import { navigate } from '../router.ts'
 import { session } from '../session.ts'
@@ -113,6 +113,7 @@ export async function releasesPage(root: HTMLElement,o:string,w:string){
 export async function releasePage(root:HTMLElement,o:string,w:string,id:string){try{
   const r=await getJson<Release>(`${base(o,w)}/releases/${id}`);crumbs(root,o,w,r.title)
   root.append(h('p',{},r.tag),h('p',{},r.body),...Object.entries(r.commits).map(([d,c])=>h('p',{},`${dimLabel(d)} @ ${c.slice(0,8)}`)),h('a',{href:`${base(o,w)}/releases/${id}/zip`,class:'btn primary',onClick:async(e:Event)=>{e.preventDefault();try{const op=await runOperation(base(o,w),{operation:'release-zip',release:id});downloadPrepared(base(o,w),op)}catch(e){error(e)}}},'下載世界 ZIP'),h('p',{class:'small'},'ZIP 可解壓直接開啟世界；不含玩家資料與 repo 歷史。'))
+  for(const [d,c] of Object.entries(r.commits)){const info=(await api.commit(o,w,dimRepo(d),c)).commit;root.append(h('p',{class:'notice'},`${dimLabel(d)}：Minecraft ${info.mcVersion ?? info.dataVersion}`))}
   if(session.me.username)root.append(h('button',{onClick:async()=>{try{await sendJson(`${base(o,w)}/releases/${id}`,'DELETE');navigate(`/${o}/${w}/releases`)}catch(e){error(e)}}},'刪除 Release'))
 }catch(e){root.append(errorBanner(e))}}
 export async function permissionsPage(root:HTMLElement,o:string,w:string){

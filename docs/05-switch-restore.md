@@ -132,7 +132,7 @@ chunk 半徑為正方形且含端點；block box 與 BE 逐格裁切。biome 是
 
 目標沒有的 chunk 預設保留，寫入 repo `untracked.yml`；status／下一次 switch 不把它算成未提交變動，explicit commit 重新納入追蹤，自動 commit 保留標記。`--delete-untracked` 只允許完整涵蓋的 chunk，存在 area 排除時拒絕。verify 回報的是可套用的已追蹤資料差異，保留的 untracked 另列數量，並非 raw region 位元組相同。
 
-目前 `.wgignore` 與目標不同時拒絕，而非自動遷移規則；低階 planner 可依兩邊排除區域產生 mask。相同規則下，範圍外方塊／BE 原始欄位保留，覆蓋的同類 BE／實體保留使用者明確忽略的頂層欄位；內建暫態資料不列入快照。跨 DataVersion 一律清楚拒絕，沒有 DataFixer 實作；舊→新可先用同版還原至複本，再啟動新版伺服器升級與重新 commit，不直接更改 DataVersion 數字。
+目前 `.wgignore` 與目標不同時拒絕，而非自動遷移規則；低階 planner 可依兩邊排除區域產生 mask。相同規則下，範圍外方塊／BE 原始欄位保留，覆蓋的同類 BE／實體保留使用者明確忽略的頂層欄位；內建暫態資料不列入快照。跨 DataVersion 政策已由 #172 取代：CLI 將目標投影到目前世界版本，升級用原版 DFU，有損降級須先確認並記錄 audit；完整流程見 [19](19-multiversion.md)。線上 adapter 的 DFU／確認接線由多版本任務 2／3 完成。
 
 ### world-meta 還原規則
 
@@ -140,7 +140,7 @@ chunk 半徑為正方形且含端點；block box 與 BE 逐格裁切。biome 是
 |---|---|---|
 | 出生點、LevelName、難度、hardcore、gamerules、world border、worldgen 設定 | 套用已追蹤的目標欄位；未追蹤／明確忽略欄位保留 | 保留 |
 | 地圖、scoreboard、custom boss events、26.2 各維度設定檔 | 還原已追蹤 NBT；目標移除且規則仍追蹤的檔案刪除 | 保留 |
-| DataVersion | 預檢要求同版，保留原值 | 保留 |
+| DataVersion | 先轉到目前世界版本，再預檢；升級 DFU／降級需確認 | 保留目前世界值 |
 | DataPacks | 清單必須相同，否則預檢拒絕；沒有快照的 datapack 檔案可供還原 | 保留 |
 | 玩家資料／背包／進度、Time／DayTime、天氣、未追蹤 level.dat 欄位 | 保留 | 保留 |
 | repo 的 track 設定 | 移動 HEAD 的 switch／有 revision 的 reset 同步 sidecar；其他 restore 保留 sidecar | 保留 |

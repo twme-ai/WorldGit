@@ -3,6 +3,8 @@ dependencies {
     implementation(libs.zstd)
     implementation(libs.lz4)
     implementation(libs.yaml)
+    implementation(enforcedPlatform("com.fasterxml.jackson:jackson-bom:2.21.7"))
+    implementation(libs.jackson)
     testImplementation(libs.jgit)
     testImplementation(libs.lz4)
 }

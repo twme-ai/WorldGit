@@ -11,4 +11,10 @@ final class CliMessages {
     for(int i=0;i<pairs.length;i+=2) template=template.replace("<"+pairs[i]+">",String.valueOf(pairs[i+1]));
     return template;
   }
+  static String version(String key,Object... pairs) {
+    String template=CATALOG.raw(System.getenv().getOrDefault("WGIT_LOCALE","zh_tw"),"multiversion."+key);
+    template=template.replaceAll("</?(?:green|yellow|gray)>","");
+    for(int i=0;i<pairs.length;i+=2)template=template.replace("<"+pairs[i]+">",String.valueOf(pairs[i+1]));
+    return template;
+  }
 }

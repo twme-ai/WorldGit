@@ -1,5 +1,11 @@
 # wgit
 
+跨版本模型與轉換見 [多版本設計](../docs/19-multiversion.md)。目標清單：1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11、26.1.2、26.2、26.3。CLI 自身需 Java 21；26.x DFU worker 需 Java 25（可用 `-Dworldgit.java25=/path/bin/java` 設定）。
+
+停服並 commit 現況後，可用 `wgit -w world upgrade --to 26.3` 建立版本 commit。降級先 `wgit -w world downgrade --to 1.20.4 --dry-run` 檢查損失，再加 `--accept-loss` 執行。兩者要求全部既有維度已 init；來源歷史保留。`show HEAD` 顯示版本與轉換報告，`log --graph` 標出版本變更；`export <zip> --to <version>` 可選輸出版本。
+
+不同版本的 status 將 HEAD 投影到目前世界版；唯讀 diff 投影到兩端的共同較新版。套用時轉到目前世界版，有損 switch／restore／merge 也需要 `--accept-loss`。外部 Minecraft 升級後 status 明確提示版本變化；請 commit 記錄它。下載的原版 jar 與映射只留 `.work/versions/`，不包含在 WorldGit 發行產物。
+
 Java 21+ 的離線世界版本控制。世界寫入與 migrate 必須在遊戲停止後執行；使用真正的 session.lock 檢查。Phase 5 的完整契約、實測紀錄及後續任務見 [設計](../docs/16-phase5-design.md)。Paper／Fabric／Hub 的使用介面由後續任務更新。
 
 常用操作的量測、索引失效與多世界 tick 隔離見 [效能紀錄](../docs/18-performance.md)。隱藏的全域 `--full` 可在 `status`、`commit`、`switch` 等指令強制完整擷取，供增量結果比對；`verify HEAD` 一律完整核對。
@@ -25,6 +31,7 @@ repo 在主世界根 `.worldgit`、其他維度地形資料目錄 `.worldgit`。
 | `init [--template creative\|survival] [--only\|--with-dimensions all\|nether,end]` | 只初始化路徑／指定維度；主世界互動詢問地獄與終界，無 TTY／JSON／CI 不追加；自訂維度不詢問 |
 | `status [--full]`、`diff [a [b]] [--blocks]` | 每維度獨立摘要／逐格差異；tracking 以最近 fetch 的 commit hash 算 ahead／behind |
 | `commit -m message` | 只有有變動的維度產生獨立 commit；snapshot 不構成全組約束 |
+| `upgrade --to version [--dry-run]`、`downgrade --to version [--dry-run\|--accept-loss]` | 停服後轉換整個世界，全部維度須已 init；預覽損失，確認後建立版本 commit |
 | `log [-n count] [--graph] [--all]` | 每維度歷史；--all 含所有分支／tag／tracking，JSON 提供共用 lane／edges／截斷 |
 | `branch [-d] [name [start]]` | 建立／刪除預設維度的分支；無名稱列出全部已 init 維度 |
 | `switch revision [--stash\|--force]` | 只切選定維度，hash 為 detached；工作區預設要求乾淨 |
@@ -40,11 +47,11 @@ repo 在主世界根 `.worldgit`、其他維度地形資料目錄 `.worldgit`。
 | `pull [remote [branch]] [--ff-only]` | fetch 後只對選定維度 FF／三方合併 |
 | `clone url [dir] [--branch dim=branch]` | 每維度預設分支，branch 可重複；--dimension 可用逗號選取多個，必須明確包含主世界 |
 | `tag [-l\|-d] [name [revision]] [-m message]` | 各維度獨立輕量／附註 tag |
-| `export [revision] out.zip [--rev dim=rev]` | 每維度 revision 組裝釋出 ZIP；未指定用 HEAD，不包含 repo／玩家 |
+| `export [revision] out.zip [--rev dim=rev] [--to version] [--accept-loss]` | 每維度 revision 組裝釋出 ZIP，可指定目標版；未指定用 HEAD，不包含 repo／玩家 |
 | `ignore list\|add\|remove\|move\|test\|check\|enable\|disable` | 有序規則編輯；行號保留註解／空行，--dry-run 看移除追蹤預覽，MERGING 禁止寫入 |
-| `migrate [--dry-run]` | 世界停止後搬舊位置，先驗證再原子發布、可重跑；未完成舊 journal 先用舊版恢復 |
+| `migrate [--dry-run\|--recover-version]` | 世界停止後搬舊 repo 位置；recover-version 復原中斷的版本遷移 |
 
-restore／switch／reset／stash／merge／resolve／remote 變更及傳輸支援既有 --dry-run；pull dry-run 仍真 fetch 更新 tracking。capture 可以寫入物件／可丟棄 index，不能把 dry-run 當成檔案系統全唯讀。目標沒有的 chunk 預設保留 untracked，explicit commit 可重新納入；`--delete-untracked` 須明確指定且符合排除限制。跨 DataVersion／不一致 DataPacks 仍預檢拒絕。
+restore／switch／reset／stash／merge／resolve／remote 變更及傳輸支援既有 --dry-run；pull dry-run 仍真 fetch 更新 tracking。capture 可以寫入物件／可丟棄 index，不能把 dry-run 當成檔案系統全唯讀。目標沒有的 chunk 預設保留 untracked，explicit commit 可重新納入；`--delete-untracked` 須明確指定且符合排除限制。不一致 DataPacks 仍預檢拒絕；跨 DataVersion 依前述轉換流程處理。
 
 ```sh
 wgit ignore list
@@ -67,3 +74,5 @@ Paper／Fabric 遊戲內 creative init 過渡期仍用 `entities: all`，觸及�
 PAT 放 WGIT_TOKEN（WGIT_AUTH=basic|bearer、WGIT_USERNAME），或權限 600 的使用者 credentials YAML；不能放 URL／世界資料。HTTP(S)／file transport，SSH 尚未支援。所有 pack ≤95 MB；遠端服務自行 GC／原生 git 直接 clone 的 pack 大小不由 WorldGit 保證。
 
 CLI 新增訊息使用共用 MiniMessage 訊息表，`WGIT_LOCALE=en_us` 可切換完成提示與 init 詢問（預設 zh_tw）。單獨攜帶已 init 的維度資料夾時，也可從 `.worldgit` HEAD 辨識版本及維度，執行 status／log／commit／switch；完整 clone／export 仍必須含主世界。
+
+跨版本套用的永久損失紀錄：`wgit show --operation <UUID>`。整世界遷移若因中斷留下 PREPARED：停服後 `wgit migrate --recover-version`，復原原世界與分支。

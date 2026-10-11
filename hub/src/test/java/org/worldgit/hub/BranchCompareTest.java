@@ -15,6 +15,69 @@ import org.worldgit.core.model.DimensionId;
 /** 分支列表（跨維度合併、預設分支、ahead／behind）、比較 API、授權 404 與請求上限。 */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 class BranchCompareTest extends AbstractBranchTest {
+  @Test void oldCommitVersionsAreInferredForBranchHistoryAndDirectViews() throws Exception {
+    var admin = accounts.findUser("admin").orElseThrow();
+    accounts.createWorld(admin, "admin", "legacy-versions", "legacy-versions", "", false).orElseThrow();
+    var path = storage.create("admin", "legacy-versions", DimensionId.OVERWORLD);
+    String id;
+    try (var store = new org.worldgit.core.store.JGitStore(path, false)) {
+      var editor = new org.worldgit.core.store.TreeEditor(store, null);
+      editor.putBlob("world-meta/level.nbt", org.worldgit.core.anvil.Nbt.write(
+          new org.worldgit.core.anvil.Nbt.Compound().with("DataVersion", 4671)));
+      var identity = new org.worldgit.core.model.CommitMetadata.Identity("test", "test@example.test");
+      id = store.commit(editor.write(), null, new org.worldgit.core.model.CommitMetadata(identity, identity,
+          "legacy", java.time.Instant.EPOCH, 0, DimensionId.OVERWORLD,
+          org.worldgit.core.model.CommitMetadata.Source.CLI, false, java.util.UUID.randomUUID(), List.of()));
+    }
+    String root = "/api/v1/worlds/admin/legacy-versions";
+    var snapshots = json(root + "/snapshots?branch=main", TOKEN);
+    assertEquals(4671, snapshots.get("snapshots").get(0).get("commits")
+        .get("minecraft:overworld").get("dataVersion").asInt());
+    var detail = json(root + "/dims/minecraft.overworld/commits/" + id, TOKEN);
+    assertEquals("1.21.11", detail.get("mcVersion").asText());
+    assertEquals("1.21.11", detail.get("commit").get("mcVersion").asText());
+  }
+
+  @Test void crossVersionViewRejectsIncompleteMetadataInsteadOfShowingRawDifferences() throws Exception {
+    var admin = accounts.findUser("admin").orElseThrow();
+    accounts.createWorld(admin, "admin", "incomplete-versions", "incomplete-versions", "", false).orElseThrow();
+    var path = storage.create("admin", "incomplete-versions", DimensionId.OVERWORLD);
+    String first, second;
+    try (var store = new org.worldgit.core.store.JGitStore(path, false)) {
+      var identity = new org.worldgit.core.model.CommitMetadata.Identity("test", "test@example.test");
+      String tree = store.writeTree(List.of());
+      first = store.commit(tree, null, new org.worldgit.core.model.CommitMetadata(identity, identity,
+          "old", java.time.Instant.EPOCH, 4671, DimensionId.OVERWORLD,
+          org.worldgit.core.model.CommitMetadata.Source.CLI, false, java.util.UUID.randomUUID(), List.of()));
+      second = store.commit(tree, first, new org.worldgit.core.model.CommitMetadata(identity, identity,
+          "new", java.time.Instant.EPOCH.plusSeconds(1), 5023, DimensionId.OVERWORLD,
+          org.worldgit.core.model.CommitMetadata.Source.CLI, false, java.util.UUID.randomUUID(), List.of()));
+    }
+    String root = "/api/v1/worlds/admin/incomplete-versions";
+    for (String endpoint : List.of("diff", "entities")) {
+      var response = get(root + "/dims/minecraft.overworld/commits/" + second + "/" + endpoint
+          + "?base=" + first + "&x0=0&z0=0&x1=0&z1=0", TOKEN);
+      assertEquals(422, response.statusCode());
+      assertTrue(new String(response.body(), java.nio.charset.StandardCharsets.UTF_8).contains("level.nbt"));
+    }
+    assertEquals(422, get(root + "/compare?a=" + first + "&b=" + second, TOKEN).statusCode());
+    assertEquals(400, get(root + "/dims/minecraft.overworld/commits/" + second
+        + "/chunks?target=1.21.11&x0=0&z0=0&x1=0&z1=0", TOKEN).statusCode());
+    assertEquals(200, get(root + "/dims/minecraft.overworld/commits/" + second
+        + "/chunks?target=26.3&x0=0&z0=0&x1=0&z1=0", TOKEN).statusCode());
+  }
+
+  @Test void versionTransitionsAndLossesAreVisibleInHistoryJson() throws Exception {
+    var admin=accounts.findUser("admin").orElseThrow();accounts.createWorld(admin,"admin","versions","versions","",false).orElseThrow();
+    var path=storage.create("admin","versions",DimensionId.OVERWORLD);
+    try(var store=new org.worldgit.core.store.JGitStore(path,false)) {
+      var identity=new org.worldgit.core.model.CommitMetadata.Identity("test","test@example.test");String tree=store.writeTree(List.of());
+      String first=store.commit(tree,null,new org.worldgit.core.model.CommitMetadata(identity,identity,"old",java.time.Instant.EPOCH,5023,DimensionId.OVERWORLD,org.worldgit.core.model.CommitMetadata.Source.CLI,false,java.util.UUID.randomUUID(),List.of()));
+      var report=new org.worldgit.core.version.ConversionReport(5023,4671,"test",List.of(new org.worldgit.core.version.ConversionReport.Loss("item","minecraft:black_cushion","minecraft:barrier",1,List.of("chest/slot1"))));
+      store.commit(tree,first,new org.worldgit.core.model.CommitMetadata(identity,identity,"downgrade",java.time.Instant.EPOCH.plusSeconds(1),4671,DimensionId.OVERWORLD,org.worldgit.core.model.CommitMetadata.Source.CLI,false,java.util.UUID.randomUUID(),List.of()).withVersionChange(report));
+    }
+    var page=json("/api/v1/worlds/admin/versions/snapshots",TOKEN);var commit=page.get("snapshots").get(0).get("commits").get("minecraft:overworld");assertEquals("1.21.11",commit.get("mcVersion").asText());assertEquals(5023,commit.get("versionChange").get("from").asInt());assertEquals("minecraft:black_cushion",commit.get("versionChange").get("losses").get(0).get("source").asText());
+  }
   @DynamicPropertySource
   static void props(DynamicPropertyRegistry r) throws Exception {
     prepareDirs();

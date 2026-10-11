@@ -1,5 +1,8 @@
 # 12 — Phase 2 進度
 
+> 2026-10-10 版本更新：本文跨 DataVersion 拒絕的記述是當時限制；core／CLI／Hub 現行政策已由 #172–#180 取代。平台 DFU／損失確認接線仍屬任務 2／3，見 [19](19-multiversion.md)。
+
+
 > 歷史紀錄：本文的全伺服器／整世界 tick freeze 描述，已由使用者於 2026-10-08 決定取代；目前採單 tick 原子套用或受影響 chunk 鎖，不使用 agent。現行模型與驗收見 [18](18-performance.md)。
 
 ## Hub

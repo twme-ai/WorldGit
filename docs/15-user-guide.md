@@ -4,6 +4,18 @@
 
 ---
 
+## 跨版本世界（任務 1）
+
+CLI／Hub 版本資料與設計見 [19 — 多版本](19-multiversion.md)。正式目標是 1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11、26.1.2、26.2、26.3；Paper／Folia、Fabric 的新增平台尚待任務 2／3，不因 CLI 已能讀取就代表可安裝插件。
+
+停止世界並 commit 現況，確認所有既有維度已 init，再執行 `wgit -w world upgrade --to 26.3`。升級使用原版 DFU，產生新的版本 commit，舊歷史仍可查。CLI 需 Java 21；26.x 轉換 worker 另需 Java 25。遷移中斷時停服執行 `wgit migrate --recover-version`；一般跨版本套用的損失可用 `wgit show --operation <UUID>` 查詢。
+
+26.1+ 原版自動檔案遷移會拒絕 Git 的唯讀 object，建議用上述 CLI upgrade 先遷移。若由 Minecraft 自動升級，先停服並把各維度 `.worldgit` 備份／移到世界外，成功後依新目錄放回，再以 status／commit 記錄；詳見 [多版本操作條件](19-multiversion.md#4-原版升級)。
+
+降級先執行 `wgit -w world downgrade --to 1.20.4 --dry-run`，檢查新版方塊／物品／實體／biome／欄位的損失清單；接受後使用同指令加 `--accept-loss`。預設新方塊換 stone、物品換 barrier、biome 換 plains、實體／BE 略過，可在 worldgit.yml 覆寫。`wgit show HEAD` 與 Hub commit 詳細頁能查轉換紀錄。
+
+switch／restore 將目標轉到目前世界版本；較舊 commit 自動升級，有損降級需確認。diff／merge preview 則先統一到較新版本。Minecraft 自行升級世界後，status 會提示「世界已由 X 升級到 Y」並建議 commit，不把 schema 變化全部當建造變更。`wgit export <zip> --to <version>` 可選離線輸出版本；Hub release 顯示版本並附 ZIP 版本資訊。
+
 ## Axiom 建築工具
 
 Paper 玩家在客戶端安裝對應 Minecraft 版的 Axiom，管理員在伺服器另裝 AxiomPaper；Fabric 單人直接搭配 Axiom，dedicated 則兩端安裝。已核對 Axiom 6.1.3／AxiomPaper 6.0.1 的 1.21.11 與 26.2。Folia 不啟用 Axiom 整合。
@@ -679,7 +691,7 @@ wgit clone https://hub.example/alice/castle selected --dimension minecraft:overw
 wgit export --rev minecraft:overworld=v1 --rev minecraft:the_nether=cavern release.zip
 ```
 
-switch／merge／stash／pull 只影響所選維度，其他維度可留在不同分支。MERGING／PARTIAL 也獨立；跨版本／資料包不一致仍拒絕。remote add 世界 URL 是批次便利，其他修改預設一維度。clone 各維度默認分支，組世界仍需要主世界 metadata。
+switch／merge／stash／pull 只影響所選維度，其他維度可留在不同分支。MERGING／PARTIAL 也獨立；CLI 跨版本先轉到世界版本，有損套用須確認，資料包不一致仍拒絕。remote add 世界 URL 是批次便利，其他修改預設一維度。clone 各維度默認分支，組世界仍需要主世界 metadata。
 
 ### 9.4 忽略規則與遷移
 
@@ -742,7 +754,7 @@ migrate 必須世界停止，先複製驗證、再原子發布，保留舊備份
    | conflicts | 有衝突區域尚未選擇 |
    | needs-review | 受保護分支要求的核準數未達 |
    | changes-requested | 有人要求修改 |
-   | unmergeable | 無法合併（例如版本不一致） |
+   | unmergeable | 無法合併（例如缺完整版本 metadata 或轉換不支援） |
 
 3. **衝突選擇**：在 PR 頁逐區選 ours／theirs／base，3D 檢視可切換「依目前選擇的合併結果」。選擇存在 PR 上；**PR 所選維度的來源或目標 tip 改變，舊選擇與審核全部作廢**，頁面會提示重新選擇。
 4. **審核**：Approve 或 Request changes。作者不能審核自己的 PR；選擇改變也會清除審核。
@@ -764,7 +776,7 @@ owner／admin 也不能繞過。Phase 4 的舊規則會以 `*` 繼承到各維�
 
 在 Releases 頁輸入名稱、標題及說明，**每維度各選 revision**（branch／tag／commit；預設 HEAD，也就是該維度預設分支）。release 保存建立當下的固定 commit map，之後各分支移動不會改變下載內容。不同維度可來自不同分支，無須同名 tag 或相同 snapshot UUID。
 
-世界首頁也提供每維度 revision 的完整世界 ZIP。下載先顯示組裝進度，完成後開始下載；解壓後可直接開啟（不含 repo、玩家資料）。至少需要主世界 metadata，各維度 DataVersion 必須相容。私人世界需要讀取權限；準備檔保留最多 5 分鐘，成功下載後刪除，再次下載會重新準備。
+世界首頁也提供每維度 revision 的完整世界 ZIP。下載先顯示組裝進度，完成後開始下載；解壓後可直接開啟（不含 repo、玩家資料）。至少需要主世界 metadata；不同 DataVersion 先由原版 DFU 統一到較新版，ZIP 附版本資訊。私人世界需要讀取權限；準備檔保留最多 5 分鐘，成功下載後刪除，再次下載會重新準備。
 
 ### 10.8 通知
 
@@ -943,7 +955,7 @@ wgit push origin main --tags
 | commit 被擋：PARTIAL | 上次套用中斷；`switch <目標> --force` 或 `reset --hard`（合併中斷用 `merge --abort`） |
 | commit 被擋：MERGING | 合併尚未完成；解決所有區域後 `merge --continue`，或 `merge --abort` |
 | 線上拒絕：需要刪除 chunk／世界設定不同 | 關服用 CLI 處理（[§4.5](#45-線上與離線的分工)） |
-| 拒絕：DataVersion／.wgignore／資料包清單不同 | 不同版本或規則的快照不能互相套用；先統一版本與規則 |
+| 拒絕：版本轉換／.wgignore／資料包清單不同 | CLI 會依世界版本轉換；有損降級先預覽並 --accept-loss。缺完整 metadata／未知版本仍拒絕；ignore／資料包清單需先統一 |
 | push 被拒：non-fast-forward | 遠端有你沒有的提交；先 `pull` 合併再 push |
 | push 被拒：受保護分支 | 推到其他分支並開 PR |
 | 401 | PAT 錯誤、過期或沒設定；重新建立並檢查 credentials 檔或 `WGIT_TOKEN` |
@@ -963,7 +975,7 @@ wgit push origin main --tags
 ## 14. 已知限制
 
 - **Phase 5 Fabric**：玩家維度 init／追加按鈕、別名、圖／ignore 畫面、BossBar／HUD、完成摘要、錯誤複製與 touched 事件已接線；驗收與各項限制見 [16](16-phase5-design.md)。分支圖畫面顯示至多 200 提交，更早歷史用聊天分頁；別名及伺服器設定改動需重啟。
-- **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理；跨 DataVersion 不支援（沒有 DataFixer）。
+- **線上套用**：不刪除 chunk；地圖、記分板、世界生成等世界層級差異需離線處理；新增線上跨版本 DFU／損失確認需完成多版本任務 2／3，CLI 可依版本章節處理。
 - **作者歸屬**是 chunk 粒度，沒有逐格 blame；玩家登出提交的是整個世界，沒有 per-player staging。
 - **`modified-only`** 目前只記錄設定，平臺尚未自動蒐集玩家編輯集合，實際仍追蹤全部 chunk。
 - **遠端**：沒有 SSH；沒有 fork PR、squash／rebase；遊戲內不能合併或核准 PR；真實 GitHub／Gitea 未實測（URL 樣板以 JGit 與 git http-backend 驗證）。

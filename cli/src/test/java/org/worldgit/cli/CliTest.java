@@ -46,6 +46,75 @@ class CliTest {
   private JsonNode data(String output) throws Exception { return new ObjectMapper().readTree(output).path("data"); }
   private JsonNode single(String output) throws Exception { return data(output).path("minecraft:overworld").path("data"); }
 
+  @Test
+  void lossyRestorePreviewListsLossesAndLeavesWorldAndHeadUntouched() throws Exception {
+    Path fixture = Path.of(System.getProperty("worldgit.projectRoot"),
+        "core/src/test/resources/fixtures/26.2");
+    try (var files = Files.walk(fixture)) {
+      for (Path file : files.toList()) {
+        Path target = temp.resolve(fixture.relativize(file));
+        if (Files.isDirectory(file)) Files.createDirectories(target); else Files.copy(file, target);
+      }
+    }
+    assertEquals(0, run("init", "--only", "--template", "survival", "--format=json").code);
+    var layout = WorldLayout.discover(temp);
+    Path repository = layout.repository(DimensionId.OVERWORLD);
+    String before;
+    try (var store = new org.worldgit.core.store.JGitStore(repository, false)) {
+      before = store.head();
+      var original = store.readCommit(before);
+      var editor = new org.worldgit.core.store.TreeEditor(store, original.tree());
+      var level = org.worldgit.core.store.TreeEditor.find(store, original.tree(), "world-meta/level.nbt");
+      var data = Nbt.read(store.readBlob(level.id()));
+      data.put("DataVersion", 5023);
+      editor.putBlob("world-meta/level.nbt", Nbt.write(data));
+      var blocks = new ArrayList<>(Collections.nCopies(4096, org.worldgit.core.model.BlockState.AIR));
+      blocks.set(0, new org.worldgit.core.model.BlockState("minecraft:black_concrete_slab",
+          new TreeMap<>(Map.of("type", "bottom", "waterlogged", "false"))));
+      editor.putBlob("r.0.0/c.0.0/s.4.bin", org.worldgit.core.normalize.SnapshotCodec.section(
+          new org.worldgit.core.model.Section(blocks, new TreeMap<>())));
+      String tree = editor.write(); store.flush();
+      var m = original.metadata();
+      String commit = store.createCommit(tree, before, new org.worldgit.core.model.CommitMetadata(
+          m.author(), m.committer(), "26.3 content", m.time(), 5023, m.dimension(), m.source(),
+          false, java.util.UUID.randomUUID(), m.contributions()));
+      store.updateRef("refs/heads/newer", null, commit);
+    }
+    byte[] currentLevel = Files.readAllBytes(layout.world().resolve("level.dat"));
+    var preview = run("restore", "newer", "--dry-run", "--format=json");
+    assertEquals(0, preview.code, preview.out + preview.err);
+    assertTrue(preview.out.contains("minecraft:black_concrete_slab"), preview.out);
+    assertEquals("DRY_RUN", data(preview.out).path("state").asText());
+    assertArrayEquals(currentLevel, Files.readAllBytes(layout.world().resolve("level.dat")));
+    try (var store = new org.worldgit.core.store.JGitStore(repository, false)) {
+      assertEquals(before, store.head());
+    }
+    var rejected = run("restore", "newer", "--format=json");
+    assertEquals(1, rejected.code, rejected.out + rejected.err);
+    assertTrue(rejected.out.contains("--accept-loss"), rejected.out);
+    assertArrayEquals(currentLevel, Files.readAllBytes(layout.world().resolve("level.dat")));
+    Files.writeString(repository.resolve("worldgit.yml"),
+        "conversion:\n  replacements:\n    block:minecraft:black_concrete_slab: minecraft:gold_block\n");
+    var accepted = run("switch", "newer", "--accept-loss", "--format=json");
+    assertEquals(0, accepted.code, accepted.out + accepted.err);
+    assertTrue(accepted.out.contains("minecraft:gold_block"), accepted.out);
+    var status = run("status", "--format=json");
+    assertEquals(0, status.code, status.out + status.err);
+    var diff = data(status.out).path("dimensions").path("minecraft:overworld").path("value").path("diff");
+    for (String key : List.of("sections", "entities", "biomes", "metadata"))
+      assertEquals(0, diff.path(key).size(), status.out);
+    var switched = run("switch", "main", "--format=json");
+    assertEquals(0, switched.code, switched.out + switched.err);
+  }
+
+  @Test void showSerializesVersionCommitWithoutJavaTimeModule() throws Exception {
+    Path fixture=Path.of(System.getProperty("worldgit.projectRoot"),"core/src/test/resources/fixtures/1.21.11");
+    try(var files=Files.walk(fixture)){for(Path file:files.toList()){Path target=temp.resolve(fixture.relativize(file));if(Files.isDirectory(file))Files.createDirectories(target);else Files.copy(file,target);}}
+    assertEquals(0,run("init","--only","--format=json").code);
+    var shown=run("show","HEAD","--format=json");assertEquals(0,shown.code,shown.out+shown.err);
+    var commit=data(shown.out).path("minecraft:overworld");assertEquals("1.21.11",commit.path("minecraft").asText());assertEquals(4671,commit.path("dataVersion").asInt());assertDoesNotThrow(()->java.time.Instant.parse(commit.path("time").asText()));
+  }
+
   @Test void explicitModPackWorksThroughInitIgnoreRestoreAndStrictVerify() throws Exception {
     Path fixture=Path.of(System.getProperty("worldgit.projectRoot"),"core/src/test/resources/fixtures/1.21.11");
     try(var files=Files.walk(fixture)) { for(Path file:files.toList()) { Path target=temp.resolve(fixture.relativize(file)); if(Files.isDirectory(file))Files.createDirectories(target);else Files.copy(file,target); } }

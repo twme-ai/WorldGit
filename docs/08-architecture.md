@@ -104,7 +104,7 @@ interface LiveWorld {                       // 由 paper / fabric 實作；cli �
   - `level.dat` 的 gamerule、天氣、時間等搬到 `data/minecraft/*.dat`。→ `world-meta` 需要轉接層。
   - **chunk / section 的 NBT 結構完全相同**，只有 `DataVersion` 不同（4671 → 4903）。→ section 解析與正規化兩版可共用。
   - 實體多了/少了少數欄位；空的 `minecraft:bed` block entity 在 26.2 消失。
-- **跨版本的 repo**：同一個 repo 可能先後被 1.21.11 與 26.2 的伺服器使用。commit 記錄 `DataVersion`；新版本讀舊 commit 時透過遊戲自己的 DataFixer 升級（在伺服器/模組端做，不在 core 裡重寫）；**舊版本不能 checkout 新版本的 commit**（明確報錯）。
+- **跨版本的 repo（決定 #172–#180）**：同一 repo 可含十個指定正式版的 commit，記錄 Minecraft 版本、`DataVersion` 與轉換報告。唯讀比較投影到共同最大版本；CLI 套用投影到目前世界版本，升級由隔離原版 DFU worker 處理，降級由 YAML 規則與反向 codec 處理並要求損失確認。線上 adapter 提供伺服器既有 DFU 與確認介面，於任務 2／3 接線；完整版本與平台範圍見 [19](19-multiversion.md)。
 - **網頁端的版本**：Hub 的 3D 檢視需要對應版本的方塊模型與材質，依 commit 的 `DataVersion` 載入對應資源（見 [10](10-web-frontend.md) §3）。
 
 ## 6. 插件 ↔ 客戶端模組的連線

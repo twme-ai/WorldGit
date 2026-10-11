@@ -583,3 +583,11 @@ fabric.ignore.no-screen: '<gray>忽略規則畫面需要 WorldGit Fabric 客戶�
 paper.phase5.summary.region: '區域 <n>'
 fabric.tag.created: '已建立'
 fabric.tag.deleted: '已刪除'
+
+multiversion.version: 'Minecraft <version>（DataVersion <data_version>）'
+multiversion.external-upgrade: '<yellow>世界已由 <from> 升級到 <to>。請提交版本變更。</yellow>'
+multiversion.upgrade: '<green>已升級到 <version>。</green>'
+multiversion.downgrade: '<yellow>已降級到 <version>。</yellow>'
+multiversion.loss: '<yellow><kind>：<source> → <replacement> × <count></yellow>'
+multiversion.confirm: '<yellow>請檢查損失清單，再加上 --accept-loss 重試。</yellow>'
+multiversion.online-confirm: '<yellow>降級將損失 <count> 類內容。點擊確認。</yellow>'

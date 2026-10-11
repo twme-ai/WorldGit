@@ -43,7 +43,7 @@ public class AssetService {
 
   public McVersion versionFor(int dataVersion) {
     return props.minecraftVersions().stream()
-        .filter(v -> v.dataVersion() <= dataVersion)
+        .filter(v -> v.dataVersion() == dataVersion)
         .max(Comparator.comparingInt(McVersion::dataVersion))
         .orElseThrow(() -> new IllegalArgumentException("不支援的 DataVersion " + dataVersion
             + "（已設定：" + props.minecraftVersions() + "）"));

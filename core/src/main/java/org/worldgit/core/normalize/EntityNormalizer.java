@@ -20,6 +20,7 @@ public final class EntityNormalizer {
           "HasTicked",
           "TicksFrozen",
           "HurtTime",
+          "invulnerable_time",
           "HurtByTimestamp",
           "DeathTime",
           "FallFlying",

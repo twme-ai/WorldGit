@@ -5,6 +5,7 @@ export interface Person { name: string; email: string }
 export interface CommitInfo {
   id: string; parents: string[]; tree: string; time: number
   author: Person; committer: Person; message: string; auto: boolean; source: string
+  mcVersion?: string; versionChange?: {from:number;to:number;rules:string;losses:{kind:string;source:string;replacement:string;count:number;locations:string[]}[]}|null
   dataVersion: number; dimension: string; snapshot: string; coAuthors: string[]
 }
 export interface DimensionState { id: string; repo: string; head: string | null; headTime: number | null; commits: number }
@@ -105,7 +106,7 @@ export const api = {
   compare: (o: string, w: string, a: string, b: string, dimension?: string) =>
     getJson<CompareResult>(`/api/v1/worlds/${o}/${w}/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}${dimension?`&dimension=${encodeURIComponent(dimension)}`:''}`),
   commit: (o: string, w: string, dimRepo: string, rev: string) => getJson<CommitDetail>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}`),
-  tiles: (o: string, w: string, dimRepo: string, rev: string) => getJson<TileRef[]>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}/tiles`),
+  tiles: (o: string, w: string, dimRepo: string, rev: string, target?: string) => getJson<TileRef[]>(`/api/v1/worlds/${o}/${w}/dims/${dimRepo}/commits/${rev}/tiles${target ? `?target=${encodeURIComponent(target)}` : ''}`),
   palettes: () => getJson<Palettes>('/api/v1/diff-palettes'),
   tokens: () => getJson<{ id: string; name: string; kind: string; createdAt: number; expiresAt: number | null; lastUsedAt: number | null; scope: string }[]>('/api/v1/tokens'),
   createToken: (name: string, expiresAt?: string, scope = 'read') => sendJson<{ token: string }>('/api/v1/tokens', 'POST', { name, expiresAt, scope }),

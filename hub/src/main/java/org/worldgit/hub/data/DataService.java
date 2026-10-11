@@ -12,11 +12,14 @@ import org.worldgit.core.diff.DiffEngine;
 import org.worldgit.core.model.ChunkPos;
 import org.worldgit.core.model.DimensionId;
 import org.worldgit.core.normalize.SnapshotCodec;
+import org.worldgit.core.version.MinecraftVersion;
+import org.worldgit.core.version.VersionConversions;
 import org.worldgit.hub.account.Models.WorldRow;
 import org.worldgit.hub.assets.AssetService;
 import org.worldgit.hub.git.RepoCache;
 import org.worldgit.hub.history.Dto.CommitInfo;
 import org.worldgit.hub.history.HistoryService;
+import org.worldgit.hub.history.MemoryObjects;
 import org.worldgit.hub.storage.RepoStorage;
 
 /** 3D 檢視器與地圖需要的資料：chunk 視窗、diff 視窗、實體、俯視 tile。 */
@@ -60,9 +63,22 @@ public class DataService {
   }
 
   public byte[] chunks(WorldRow w, DimensionId dim, String rev, Window win) throws IOException {
+    return chunks(w, dim, rev, null, win);
+  }
+
+  private int target(CommitInfo c, String version) throws IOException {
+    int target = version == null || version.isBlank() ? c.dataVersion()
+        : MinecraftVersion.byId(version).dataVersion();
+    if (target < c.dataVersion()) throw new IllegalArgumentException("唯讀檢視只可升級到共同版本，不能隱藏降級損失");
+    return target;
+  }
+
+  public byte[] chunks(WorldRow w, DimensionId dim, String rev, String version, Window win) throws IOException {
     CommitInfo c = commit(w, dim, rev);
     try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
-      return ChunkWire.chunks(h.store(), new TreeNav(h.store(), c.tree()), win.chunks());
+      var store = new MemoryObjects(h.store());
+      String tree = VersionConversions.comparisonTree(store, h.store().readCommit(c.id()), target(c, version));
+      return ChunkWire.chunks(store, new TreeNav(store, tree), win.chunks());
     }
   }
 
@@ -72,34 +88,49 @@ public class DataService {
     String baseId = base != null && !base.isBlank() ? commit(w, dim, base).id() : c.parents().isEmpty() ? null : c.parents().get(0);
     try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
       if (baseId == null) return ChunkWire.diff(new org.worldgit.core.diff.WorldDiff(dim, List.of(), List.of(), List.of(), List.of()));
-      String baseTree = h.store().readCommit(baseId).tree();
-      var diff = new DiffEngine(h.store()).compare(dim, baseTree, c.tree(), HistoryService.TOLERANCE, DiffEngine.Detail.BLOCKS, new HashSet<>(win.chunks()));
+      var store = new MemoryObjects(h.store());
+      var before = h.store().readCommit(baseId);
+      int target = Math.max(c.dataVersion(), before.metadata().mcDataVersion());
+      String baseTree = VersionConversions.comparisonTree(store, before, target);
+      String tree = VersionConversions.comparisonTree(store, h.store().readCommit(c.id()), target);
+      var diff = new DiffEngine(store).compare(dim, baseTree, tree, HistoryService.TOLERANCE, DiffEngine.Detail.BLOCKS, new HashSet<>(win.chunks()));
       return ChunkWire.diff(diff);
     }
   }
 
   /** 視窗內的實體（JSON）；若 commit 有 parent，附上每個 UUID 的 diff 種類。 */
   public ArrayNode entities(WorldRow w, DimensionId dim, String rev, String base, boolean plain, Window win) throws IOException {
+    return entities(w, dim, rev, base, plain, null, win);
+  }
+
+  public ArrayNode entities(WorldRow w, DimensionId dim, String rev, String base, boolean plain, String version, Window win) throws IOException {
     CommitInfo c = commit(w, dim, rev);
     var out = json.createArrayNode();
     try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
-      var nav = new TreeNav(h.store(), c.tree());
+      var store = new MemoryObjects(h.store());
       Map<UUID, String> kinds = new HashMap<>();
       var removed = new ArrayList<org.worldgit.core.diff.WorldDiff.EntityChange>();
       String baseId = base != null && !base.isBlank() ? commit(w, dim, base).id() : c.parents().isEmpty() ? null : c.parents().get(0);
+      int target = target(c, version);
+      String tree;
       if (!plain && baseId != null) {
-        String baseTree = h.store().readCommit(baseId).tree();
-        var diff = new DiffEngine(h.store()).compare(dim, baseTree, c.tree(), HistoryService.TOLERANCE, DiffEngine.Detail.SUMMARY, new HashSet<>(win.chunks()));
+        var before = h.store().readCommit(baseId);
+        target = Math.max(target, before.metadata().mcDataVersion());
+        if (version != null && target > target(c, version)) throw new IllegalArgumentException("檢視版本必須涵蓋比較兩端的 DataVersion");
+        String baseTree = VersionConversions.comparisonTree(store, before, target);
+        tree = VersionConversions.comparisonTree(store, h.store().readCommit(c.id()), target);
+        var diff = new DiffEngine(store).compare(dim, baseTree, tree, HistoryService.TOLERANCE, DiffEngine.Detail.SUMMARY, new HashSet<>(win.chunks()));
         for (var e : diff.entities()) {
           kinds.put(e.uuid(), e.kind().name().toLowerCase(Locale.ROOT));
           if (e.after() == null) removed.add(e);
         }
-      }
+      } else tree = VersionConversions.comparisonTree(store, h.store().readCommit(c.id()), target);
+      var nav = new TreeNav(store, tree);
       for (ChunkPos pos : win.chunks()) {
         var files = nav.chunk(pos);
         var entry = files == null ? null : files.get("entities.bin");
         if (entry == null) continue;
-        for (var e : SnapshotCodec.entities(h.store().readBlob(entry.id()))) addEntity(out, e, kinds.get(e.uuid()));
+        for (var e : SnapshotCodec.entities(store.readBlob(entry.id()))) addEntity(out, e, kinds.get(e.uuid()));
       }
       for (var e : removed) addEntity(out, e.before(), "removed");
     }
@@ -121,13 +152,19 @@ public class DataService {
   public record TileRef(int rx, int rz, int chunks, String id) {}
 
   public List<TileRef> tiles(WorldRow w, DimensionId dim, String rev) throws IOException {
+    return tiles(w, dim, rev, null);
+  }
+
+  public List<TileRef> tiles(WorldRow w, DimensionId dim, String rev, String version) throws IOException {
     CommitInfo c = commit(w, dim, rev);
     try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
-      var nav = new TreeNav(h.store(), c.tree());
+      var store = new MemoryObjects(h.store());
+      String tree = VersionConversions.comparisonTree(store, h.store().readCommit(c.id()), target(c, version));
+      var nav = new TreeNav(store, tree);
       var out = new ArrayList<TileRef>();
       for (var r : nav.regions().entrySet()) {
         int[] rc = TreeNav.regionCoords(r.getKey());
-        out.add(new TileRef(rc[0], rc[1], h.store().readTree(r.getValue()).size(), r.getValue()));
+        out.add(new TileRef(rc[0], rc[1], store.readTree(r.getValue()).size(), r.getValue()));
       }
       return out;
     }
@@ -136,10 +173,17 @@ public class DataService {
   public record TileData(byte[] png, byte[] heights, String etag) {}
 
   public Optional<TileData> tile(WorldRow w, DimensionId dim, String rev, int rx, int rz) throws IOException, InterruptedException {
+    return tile(w, dim, rev, null, rx, rz);
+  }
+
+  public Optional<TileData> tile(WorldRow w, DimensionId dim, String rev, String targetVersion, int rx, int rz) throws IOException, InterruptedException {
     CommitInfo c = commit(w, dim, rev);
-    String version = assets.versionFor(c.dataVersion()).id();
+    int target = target(c, targetVersion);
+    String version = assets.versionFor(target).id();
     try (var h = repos.open(w.ownerSlug(), w.slug(), dim)) {
-      var region = new TreeNav(h.store(), c.tree()).regions().get("r." + rx + "." + rz);
+      var store = new MemoryObjects(h.store());
+      String tree = VersionConversions.comparisonTree(store, h.store().readCommit(c.id()), target);
+      var region = new TreeNav(store, tree).regions().get("r." + rx + "." + rz);
       if (region == null) return Optional.empty();
       String key = region + "-" + version + "-" + TILE_VERSION;
       Path dir = storage.cacheDir().resolve("tiles");
@@ -149,7 +193,7 @@ public class DataService {
           if (!Files.isRegularFile(png) || !Files.isRegularFile(hts)) {
             tileSlots.acquire();
             try {
-              var result = new TileRenderer(h.store(), assets.mapColors(version), assets.biomeColors(version)).render(region, rx, rz);
+              var result = new TileRenderer(store, assets.mapColors(version), assets.biomeColors(version)).render(region, rx, rz);
               Files.createDirectories(dir);
               write(hts, result.heights());
               write(png, result.png());

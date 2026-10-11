@@ -55,6 +55,8 @@ public final class WorldOperations implements AutoCloseable {
    */
   public interface LiveAccess {
     SnapshotSource source(WorldLayout.Dimension dimension) throws IOException;
+    /** 由目標伺服器提供既有 DFU；Task 2／3 接上，null 使用隔離原版程序。 */
+    default org.worldgit.core.version.NbtUpgrader dataFixer(){return null;}
 
     /** 局部來源：必須以 owner 活資料或完成 IO 的磁碟快照讀取指定 chunks；不需 scan。 */
     default SnapshotSource source(WorldLayout.Dimension dimension, Set<ChunkPos> chunks)
@@ -160,6 +162,24 @@ public final class WorldOperations implements AutoCloseable {
   private final LiveAccess live;
   private final EntityTagRegistry.PackResolver packResolver;
   private final double tolerance;
+  private boolean acceptLoss;
+  private final SortedMap<DimensionId,org.worldgit.core.version.ConversionReport> conversions = new TreeMap<>();
+  private final SortedMap<String,org.worldgit.core.version.ConversionReport> conversionAudits = new TreeMap<>();
+  public WorldOperations acceptLoss(boolean value) { acceptLoss=value;return this; }
+  public Map<DimensionId,org.worldgit.core.version.ConversionReport> conversionReports(){return Collections.unmodifiableMap(conversions);}
+  public Map<String,org.worldgit.core.version.ConversionReport> conversionAudits(){return Collections.unmodifiableMap(conversionAudits);}
+  private String converted(DimensionRepository repo, RefStore.Commit commit) throws IOException {
+    if(commit==null)return null;
+    var result=org.worldgit.core.version.VersionConversions.convert(repo.objects(),commit.tree(),repo.dimension(),commit.metadata().mcDataVersion(),layout.dataVersion(),repo.directory().resolve("worldgit.yml"),acceptLoss,live==null?null:live.dataFixer());
+    if(commit.metadata().mcDataVersion()!=layout.dataVersion()){conversions.put(repo.dimension(),result.report());conversionAudits.put(repo.dimension().value()+"/"+commit.id(),result.report());}
+    return result.tree();
+  }
+
+  private String comparableHead(DimensionRepository repo, RefStore.Commit commit) throws IOException {
+    return org.worldgit.core.version.VersionConversions.convert(repo.objects(), commit.tree(),
+        repo.dimension(), commit.metadata().mcDataVersion(), layout.dataVersion(),
+        repo.directory().resolve("worldgit.yml"), true, live == null ? null : live.dataFixer()).tree();
+  }
 
   public WorldOperations(WorldLayout layout) throws IOException {
     this(layout, null);
@@ -247,7 +267,7 @@ public final class WorldOperations implements AutoCloseable {
   private ApplyPlanner.Options options(
       DimensionRepository repo, RefStore.Commit target, boolean meta, boolean delete)
       throws IOException {
-    DataVersions.requireSame(target.metadata().mcDataVersion(), layout.dataVersion());
+    converted(repo,target);
     if (!target.metadata().dimension().equals(repo.dimension()))
       throw new IOException("目標 commit 的維度不符");
     String configPath =
@@ -276,7 +296,7 @@ public final class WorldOperations implements AutoCloseable {
         tolerance,
         delete,
         meta,
-        target.metadata().mcDataVersion());
+        layout.dataVersion());
   }
 
   private String capture(DimensionRepository repo) throws IOException {
@@ -312,7 +332,7 @@ public final class WorldOperations implements AutoCloseable {
               entry.getValue().objects(),
               entry.getKey(),
               capture(entry.getValue()),
-              target.tree(),
+              converted(entry.getValue(),target),
               scope,
               options);
       applier.validateMetadata(plan);
@@ -330,7 +350,7 @@ public final class WorldOperations implements AutoCloseable {
                   repo.objects(),
                   dim,
                   locked,
-                  commits.get(dim).tree(),
+                  converted(repo, commits.get(dim)),
                   scope,
                   options(repo, commits.get(dim), meta, delete));
           applier.validateMetadata(next);
@@ -472,7 +492,7 @@ public final class WorldOperations implements AutoCloseable {
       if (!new DiffEngine(repo.objects())
           .compare(
               repo.dimension(),
-              repo.refs().readCommit(head).tree(),
+              comparableHead(repo, repo.refs().readCommit(head)),
               tracked,
               tolerance,
               DiffEngine.Detail.SUMMARY)
@@ -565,7 +585,7 @@ public final class WorldOperations implements AutoCloseable {
           var ids = new HashSet<UUID>();
           for (var op : plan.entities()) ids.add(op.uuid());
           String head = hooks.protect() || hooks.stashMessage() != null
-              ? repo.refs().readCommit(repo.refs().head()).tree() : null;
+              ? comparableHead(repo, repo.refs().readCommit(repo.refs().head())) : null;
           Replanner replanner = prepared.replanner;
           var result =
               LockedRecheck.check(
@@ -612,7 +632,7 @@ public final class WorldOperations implements AutoCloseable {
         var repo = repos.get(entry.getKey());
         String fresh = capture(repo);
         var diff = LockedRecheck.dirt(repo.objects(), entry.getKey(),
-            repo.refs().readCommit(repo.refs().head()).tree(), trackedTree(repo, fresh, false), tolerance);
+            comparableHead(repo, repo.refs().readCommit(repo.refs().head())), trackedTree(repo, fresh, false), tolerance);
         if (!diff.empty()) throw PreflightChangedException.of(diff, attempt);
         plans.put(entry.getKey(), prepared.replanner.apply(entry.getKey(), fresh));
       }
@@ -799,8 +819,35 @@ public final class WorldOperations implements AutoCloseable {
 
   private void writeJournal(Map<String, Object> journal) throws IOException {
     try (var timing = OperationTimings.stage("journal")) {
+      if(!conversionAudits.isEmpty()) journal.put("version-conversions",conversionJournal(conversionAudits));
       OperationState.write(stateRoot.resolve("apply-state.yml"), journal);
+      if(!conversionAudits.isEmpty()) {
+        String id=String.valueOf(journal.get("operation"));
+        if(!id.matches("[0-9a-f-]{36}"))throw new IOException("跨版本操作的 audit id 無效");
+        OperationState.write(stateRoot.resolve("version-audit").resolve(id+".yml"),journal);
+      }
     }
+  }
+
+  /** 每筆集合獨立，避免 YAML writer 對共用的空 List 或損失樣本產生 alias。 */
+  static Map<String, Object> conversionJournal(
+      Map<String, org.worldgit.core.version.ConversionReport> reports) {
+    var rows = new TreeMap<String, Object>();
+    for (var entry : reports.entrySet()) {
+      var report = entry.getValue();
+      var losses = new ArrayList<Map<String, Object>>();
+      for (var loss : report.losses())
+        losses.add(Map.of("kind", loss.kind(), "source", loss.source(),
+            "replacement", loss.replacement(), "count", loss.count(),
+            "locations", new ArrayList<>(loss.locations())));
+      var row = new LinkedHashMap<String, Object>();
+      row.put("from", report.from());
+      row.put("to", report.to());
+      row.put("rules", report.rules());
+      row.put("losses", losses);
+      rows.put(entry.getKey(), row);
+    }
+    return rows;
   }
 
   private static String message(Exception ex) {
@@ -1209,9 +1256,8 @@ public final class WorldOperations implements AutoCloseable {
       var baseCommit = (RefStore.Commit) null;
       var theirs = target;
       String otherParent = target == null ? null : target.id();
-      DataVersions.requireSame(ours.metadata().mcDataVersion(), layout.dataVersion());
-      if (target != null)
-        DataVersions.requireSame(target.metadata().mcDataVersion(), layout.dataVersion());
+      String oursTree=converted(repo,ours);
+      if(target!=null)converted(repo,target);
       if (mode.equals("merge")) {
         String base = target == null ? null : MergeBases.unique(refs, ours.id(), target.id());
         if (base != null) baseCommit = refs.readCommit(base);
@@ -1237,18 +1283,14 @@ public final class WorldOperations implements AutoCloseable {
         }
         otherParent = null;
       }
-      if (baseCommit != null)
-        DataVersions.requireSame(baseCommit.metadata().mcDataVersion(), layout.dataVersion());
-      if (theirs != null)
-        DataVersions.requireSame(theirs.metadata().mcDataVersion(), layout.dataVersion());
-      String rawBase = baseCommit == null ? empty : baseCommit.tree(),
-          rawTheirs = theirs == null ? empty : theirs.tree();
+      String rawBase = baseCommit == null ? empty : converted(repo,baseCommit),
+          rawTheirs = theirs == null ? empty : converted(repo,theirs);
       String br = TreeFilter.rules(repo.objects(), rawBase),
-          or = TreeFilter.rules(repo.objects(), ours.tree()),
+          or = TreeFilter.rules(repo.objects(), oursTree),
           tr = TreeFilter.rules(repo.objects(), rawTheirs);
       String rules = IgnoreRuleMerge.merge(br, or, tr);
       String bt = TreeFilter.filter(repo.objects(), rawBase, rules, semantics),
-          ot = TreeFilter.filter(repo.objects(), ours.tree(), rules, semantics),
+          ot = TreeFilter.filter(repo.objects(), oursTree, rules, semantics),
           tt = TreeFilter.filter(repo.objects(), rawTheirs, rules, semantics);
       if (!rules.equals(or)) ot = captureRules(repo, rules);
       var result =

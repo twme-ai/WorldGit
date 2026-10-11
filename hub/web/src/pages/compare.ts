@@ -99,9 +99,10 @@ export async function comparePage(root: HTMLElement, owner: string, world: strin
       saveURL()
       const detail = dimensionDetail(d)
       const commit = view === 'before' ? d.a : d.b
-      const mc = view === 'before' ? d.beforeMcVersion : d.mcVersion
+      const commonMc = d.a && d.b && d.a.dataVersion > d.b.dataVersion ? d.beforeMcVersion : d.mcVersion
+      const mc = view === 'before' ? d.beforeMcVersion : view === 'after' ? d.mcVersion : commonMc
       if (!commit || !mc) { hud.textContent = '這一端沒有 commit。'; return }
-      // 純世界模式保留比較的焦點，使用各自資源與內容；上色才載入 a→b diff。
+      // 前／後使用各自版本；上色的 chunk、diff、實體與 LOD 統一到共同較新版。
       const display = detail ?? { commit, parent: null, initial: false, added: 0, removed: 0, modified: 0, chunkCount: 1, sectionCount: 0,
         entitiesAdded: 0, entitiesRemoved: 0, entitiesModified: 0, entityChanges: [], changedChunks: [], bounds: [0, 0, 0, 0], metadataChanges: [], mcVersion: mc }
       try {

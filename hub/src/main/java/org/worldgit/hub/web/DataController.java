@@ -31,9 +31,9 @@ public class DataController {
 
   @GetMapping("/chunks")
   ResponseEntity<byte[]> chunks(HttpServletRequest req, @PathVariable String owner, @PathVariable String world, @PathVariable String dim,
-      @PathVariable String rev, @RequestParam int x0, @RequestParam int z0, @RequestParam int x1, @RequestParam int z1) throws IOException {
+      @PathVariable String rev, @RequestParam(required = false) String target, @RequestParam int x0, @RequestParam int z0, @RequestParam int x1, @RequestParam int z1) throws IOException {
     var w = access.world(req, owner, world, Role.READER);
-    return immutable(data.chunks(w, Access.dimension(dim), rev, new Window(x0, z0, x1, z1)), BINARY);
+    return immutable(data.chunks(w, Access.dimension(dim), rev, target, new Window(x0, z0, x1, z1)), BINARY);
   }
 
   @GetMapping("/diff")
@@ -47,33 +47,34 @@ public class DataController {
   @GetMapping("/entities")
   ResponseEntity<byte[]> entities(HttpServletRequest req, @PathVariable String owner, @PathVariable String world, @PathVariable String dim,
       @PathVariable String rev, @RequestParam(required = false) String base, @RequestParam(defaultValue = "false") boolean plain,
+      @RequestParam(required = false) String target,
       @RequestParam int x0, @RequestParam int z0, @RequestParam int x1, @RequestParam int z1) throws IOException {
     var w = access.world(req, owner, world, Role.READER);
     return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).cacheControl(CacheControl.noStore())
-        .body(BoundedJson.encode(json, data.entities(w, Access.dimension(dim), rev, base, plain, new Window(x0, z0, x1, z1))));
+        .body(BoundedJson.encode(json, data.entities(w, Access.dimension(dim), rev, base, plain, target, new Window(x0, z0, x1, z1))));
   }
 
   @GetMapping("/tiles")
   List<DataService.TileRef> tiles(HttpServletRequest req, @PathVariable String owner, @PathVariable String world, @PathVariable String dim,
-      @PathVariable String rev) throws IOException {
+      @PathVariable String rev, @RequestParam(required = false) String target) throws IOException {
     var w = access.world(req, owner, world, Role.READER);
-    return data.tiles(w, Access.dimension(dim), rev);
+    return data.tiles(w, Access.dimension(dim), rev, target);
   }
 
   @GetMapping("/tiles/{rx}/{rz}.png")
   ResponseEntity<byte[]> tilePng(HttpServletRequest req, @PathVariable String owner, @PathVariable String world, @PathVariable String dim,
-      @PathVariable String rev, @PathVariable int rx, @PathVariable int rz) throws IOException, InterruptedException {
+      @PathVariable String rev, @PathVariable int rx, @PathVariable int rz, @RequestParam(required = false) String target) throws IOException, InterruptedException {
     var w = access.world(req, owner, world, Role.READER);
-    var t = data.tile(w, Access.dimension(dim), rev, rx, rz).orElseThrow(() -> new ApiError.NotFound("沒有這個 tile"));
+    var t = data.tile(w, Access.dimension(dim), rev, target, rx, rz).orElseThrow(() -> new ApiError.NotFound("沒有這個 tile"));
     return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).eTag("\"" + t.etag() + "\"")
         .cacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePrivate()).body(t.png());
   }
 
   @GetMapping("/tiles/{rx}/{rz}.height")
   ResponseEntity<byte[]> tileHeights(HttpServletRequest req, @PathVariable String owner, @PathVariable String world, @PathVariable String dim,
-      @PathVariable String rev, @PathVariable int rx, @PathVariable int rz) throws IOException, InterruptedException {
+      @PathVariable String rev, @PathVariable int rx, @PathVariable int rz, @RequestParam(required = false) String target) throws IOException, InterruptedException {
     var w = access.world(req, owner, world, Role.READER);
-    var t = data.tile(w, Access.dimension(dim), rev, rx, rz).orElseThrow(() -> new ApiError.NotFound("沒有這個 tile"));
+    var t = data.tile(w, Access.dimension(dim), rev, target, rx, rz).orElseThrow(() -> new ApiError.NotFound("沒有這個 tile"));
     return ResponseEntity.ok().contentType(BINARY).eTag("\"" + t.etag() + "h\"")
         .cacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePrivate()).body(t.heights());
   }

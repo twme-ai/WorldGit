@@ -68,21 +68,20 @@ public final class BareWorldMerge implements AutoCloseable {
       var repo = e.getValue();
       var o = ours.get(d);
       var t = theirs.get(d);
-      DataVersions.requireSame(o.metadata().mcDataVersion(), t.metadata().mcDataVersion());
+      int commonVersion=Math.max(o.metadata().mcDataVersion(),t.metadata().mcDataVersion());
       String base = MergeBases.unique(repo.refs(), o.id(), t.id());
       String empty = repo.objects().writeTree(List.of());
-      String bt = base == null ? empty : repo.refs().readCommit(base).tree();
-      if (base != null)
-        DataVersions.requireSame(
-            o.metadata().mcDataVersion(), repo.refs().readCommit(base).metadata().mcDataVersion());
-      requirePacks(repo.objects(), o.tree(), t.tree());
+      if(base!=null)commonVersion=Math.max(commonVersion,repo.refs().readCommit(base).metadata().mcDataVersion());
+      String rawOurs=org.worldgit.core.version.VersionConversions.comparisonTree(repo.objects(),o,commonVersion),rawTheirs=org.worldgit.core.version.VersionConversions.comparisonTree(repo.objects(),t,commonVersion);
+      String bt=base==null?empty:org.worldgit.core.version.VersionConversions.comparisonTree(repo.objects(),repo.refs().readCommit(base),commonVersion);
+      requirePacks(repo.objects(), rawOurs, rawTheirs);
       String br = TreeFilter.rules(repo.objects(), bt),
-          or = TreeFilter.rules(repo.objects(), o.tree()),
-          tr = TreeFilter.rules(repo.objects(), t.tree());
+          or = TreeFilter.rules(repo.objects(), rawOurs),
+          tr = TreeFilter.rules(repo.objects(), rawTheirs);
       String rules = IgnoreRuleMerge.merge(br, or, tr);
       bt = TreeFilter.filter(repo.objects(), bt, rules, semantics);
-      String ot = TreeFilter.filter(repo.objects(), o.tree(), rules, semantics),
-          tt = TreeFilter.filter(repo.objects(), t.tree(), rules, semantics);
+      String ot = TreeFilter.filter(repo.objects(), rawOurs, rules, semantics),
+          tt = TreeFilter.filter(repo.objects(), rawTheirs, rules, semantics);
       var merged =
           new MergeEngine(
                   repo.objects(),
@@ -235,7 +234,7 @@ public final class BareWorldMerge implements AutoCloseable {
               author,
               message,
               Instant.now(),
-              metadata.mcDataVersion(),
+              Math.max(Math.max(metadata.mcDataVersion(),repo.refs().readCommit(c.theirs()).metadata().mcDataVersion()),c.base()==null?0:repo.refs().readCommit(c.base()).metadata().mcDataVersion()),
               e.getKey(),
               CommitMetadata.Source.HUB,
               false,
