@@ -21,7 +21,7 @@ def repository(world, dimension='minecraft:overworld', version=None, paper=False
     if dimension == 'minecraft:overworld':
         return world / '.worldgit'
     namespace, path = dimension.split(':', 1)
-    if version in ('1.20.1', '1.20.4', '1.21.11') and namespace == 'minecraft' and path in ('the_nether', 'the_end'):
+    if version in ('1.20.1', '1.20.4', '1.20.6', '1.21.1', '1.21.11') and namespace == 'minecraft' and path in ('the_nether', 'the_end'):
         if paper:
             world = world.parent / (world.name + ('_nether' if path == 'the_nether' else '_the_end'))
         return world / ('DIM-1' if path == 'the_nether' else 'DIM1') / '.worldgit'

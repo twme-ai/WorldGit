@@ -11,6 +11,7 @@ common:
 
 paper:
   version:
+    folia-unavailable: "WorldGit cannot accept Folia <version>: no official build is available, so this platform has not been verified. Use a supported official Folia build or Paper <version>."
     confirm-required: "Review the conversion loss list and confirm before retrying."
     mismatch: "Adapter DataVersion mismatch for <version>: expected <expected>, actual <actual>."
     load-failed: "Cannot load the <version> adapter (<adapter>): <error>."

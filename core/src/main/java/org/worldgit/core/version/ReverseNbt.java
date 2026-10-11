@@ -265,7 +265,8 @@ public final class ReverseNbt {
     }
     if (to <= 4189 && n.containsKey("CustomName") && !(n.get("CustomName") instanceof String))
       n.put("CustomName", json(n.get("CustomName")));
-    if (to <= 3955 && n.get("Attributes") instanceof Nbt.ListTag a) {
+    String attributesKey = to <= 3839 ? "Attributes" : "attributes";
+    if (to <= 3955 && n.get(attributesKey) instanceof Nbt.ListTag a) {
       var values = new ArrayList<Object>();
       for (Object value : a.values()) {
         var c = (Nbt.Compound) value;
@@ -274,12 +275,18 @@ public final class ReverseNbt {
           loss.add("attribute", id, "skip", path);
           continue;
         }
-        c.put("Name", id);
-        if (c.containsKey("base")) c.put("Base", c.remove("base"));
-        c.remove("id");
+        if (to <= 3839) {
+          c.put("Name", id);
+          if (c.containsKey("base")) c.put("Base", c.remove("base"));
+          c.remove("id");
+        } else {
+          c.put("id", id);
+          if (c.containsKey("Base")) c.put("base", c.remove("Base"));
+          c.remove("Name");
+        }
         values.add(c);
       }
-      n.put("Attributes", new Nbt.ListTag(10, values));
+      n.put(attributesKey, new Nbt.ListTag(10, values));
     }
     // 陶罐的新版裝飾是 item stack；舊版只接受四個 id。
     if (to <= 4903
@@ -441,7 +448,8 @@ public final class ReverseNbt {
                 : walk(v, path + "/" + key, depth + 1);
         if (converted != null) out.put(key, converted);
       }
-      n.put("components", out);
+      if (out.isEmpty()) n.remove("components");
+      else n.put("components", out);
       n.put("count", count);
       n.remove("Count");
       return n;

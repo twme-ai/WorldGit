@@ -71,7 +71,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     catch (IOException e) { getLogger().warning("無法建立語言覆寫目錄：" + e.getMessage()); }
     platform = new Platform(this);
     try {
-      bridge = NmsBridges.select(Bukkit.getMinecraftVersion(), getClassLoader());
+      bridge = NmsBridges.select(Bukkit.getMinecraftVersion(), getClassLoader(), platform.folia());
     } catch (RuntimeException e) {
       getLogger().severe(e.getMessage());
       getServer().getPluginManager().disablePlugin(this);

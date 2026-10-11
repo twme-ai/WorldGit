@@ -9,7 +9,7 @@ import org.worldgit.core.store.*;
 /** 一致入口；同版本不下載／啟動 DFU。快取鍵包含輸入 tree、版本、規則與設定。 */
 public final class VersionConversions {
   private VersionConversions() {}
-  public static final String NORMALIZATION = "multiversion-canonical-v13-legacy-metadata";
+  public static final String NORMALIZATION = "multiversion-canonical-v14-components-native-form";
 
   /** Saved data may retain its older file version until it becomes dirty after a server upgrade. */
   public static Map<String, byte[]> capturedSavedData(Map<String, byte[]> input, int target,

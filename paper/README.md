@@ -1,6 +1,6 @@
 # WorldGit Paper / Folia 插件（Phase 5：維度與操作體驗）
 
-同一個發佈 jar 支援 Paper / Folia 的 Minecraft **1.20.1、1.20.4、1.21.11 與 26.2**。前三版使用 Java 21，26.2 使用 Java 25。`common` 只引用公開 Paper API；`v1_20_1`、`v1_20_4`、`v1_21_11`、`v26_2` 以 paperweight-userdev 2.0.0-beta.21 各自編譯薄 NMS 轉接層，啟動時只載入符合版本的類別。
+同一個發佈 jar 支援 Paper 的 Minecraft **1.20.1、1.20.4、1.20.6、1.21.1、1.21.11 與 26.2**；Folia 支援其中的 **1.20.1、1.20.4、1.20.6、1.21.11、26.2**。1.x 使用 Java 21，26.2 使用 Java 25。Folia 1.21.1 官方沒有 build，**不可驗收**；啟動會明確說明並停用插件。`common` 只引用公開 Paper API，各精確版本的 NMS 轉接層以 paperweight-userdev 2.0.0-beta.21 編譯，啟動時只載入符合版本的類別。
 
 Phase 5 任務 3：所有 repo 指令預設使用玩家所在世界群的目前維度；console 的其他 repo 指令預設伺服器第一個世界的主世界，init 必須明確指定 `--world <世界名>` 與 `--dimension <id>` 或 `--all`。主世界 init 的聊天按鈕可追加既存地獄／終界，沒有自動建立其他 repo。`--dimension` 覆寫目標，`--all` 逐維度完成、各自回報；其中一維度失敗不回滾其他成功。
 
@@ -16,9 +16,13 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 
 較舊 commit 的 switch／merge／reset 使用目前伺服器的原版 DFU 自動升級。有損降級先在聊天或 console 顯示完整損失，包含替代值、數量與座標樣本；檢查後點確認或執行 `/wg confirm <token>`。代碼五分鐘內有效、限原執行者且單次使用。世界、HEAD、規則或損失改變時需重新預覽／確認；`--force` 不略過損失確認。verify 為唯讀，dry-run 不改世界。資料包與世界 metadata 不同的線上還原仍要求離線 CLI。
 
-common 編譯 Paper API 1.20.1；舊兩版使用 Bukkit 指令 registry，較新版本使用 Lifecycle。舊 adapter 各自 reobf，正式 jar 透過 paper-plugin.yml 載入 Java 21 bytecode。未知／尚未實作的 catalog 版本明確停用，不能將 1.20.2 等相似版本視為已支援。
+1.20.4→1.20.6 時，Paper 可能把舊 `keep-spawn-loaded=false` 設定遷移成 `spawnChunkRadius=0`；較舊歷史中缺少此規則，原版缺省投影為 `2`。這種設定差異會在任何寫入前被拒絕，需先決定要保留的設定，再停服用 CLI 還原。正式預檢不會為了通過 components 升級而略過 gamerule（#213）。
 
-Paper 1.20.x 的整合使用官方 FAWE 2.8.4 release（官方 jar 自報 2.8.5-SNAPSHOT）。**官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收**；舊 Folia 保留整合測試並明記略過，原生場景照常驗收。詳細矩陣、決策 #196 起及限制見 [多版本 §7／§8](../docs/19-multiversion.md)。
+common 編譯 Paper API 1.20.1；舊兩版使用 Bukkit 指令 registry，1.20.6 起使用 Lifecycle，components 兩版處理舊 redirect 與 Brigadier 邊界。舊 adapter 各自 reobf，正式 jar 透過 paper-plugin.yml 載入 Java 21 bytecode。未知／尚未實作的 catalog 版本明確停用，不能將 1.20.2 等相似版本視為已支援。
+
+1.20.6／1.21.1 固定精確 dev bundle、Mojang production 名稱與 Java 21。`components-shared` 只共用完整 NBT／registry-aware BE codec 與指令來源，build 比較兩版共享 bytecode；chunk system、tick guard、ticket、IO 各自實作。1.21.4 是否加入同來源家族仍待逐版驗證。
+
+Paper 1.20.1／1.20.4 的整合使用官方 FAWE 2.8.4 release（官方 jar 自報 2.8.5-SNAPSHOT）；1.20.6／1.21.1 使用官方 FAWE 2.15.0 release。**官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收**；舊 Folia 保留整合測試並明記略過，原生場景照常驗收。詳細矩陣、決策 #196 起及限制見 [多版本 §7／§8](../docs/19-multiversion.md)。
 
 ## Axiom
 
@@ -135,6 +139,23 @@ FAWE bulk 路徑用 `IBatchProcessor` 記錄 chunk 與 actor，純 WorldEdit 用
 - **驗收**：`python3 paper/tools/acceptance.py <paper|folia> <1.21.11|26.2> phase3`（port 25701–25704，自帶 bench.lock），證據放 `.work/paper-phase3/`。結果見 [docs/13](../docs/13-phase3-progress.md)「Paper／Folia」。
 
 ## 重現驗收與量測
+
+新增 components 平台的完整驗收（各腳本自持 bench.lock，依序執行）：
+
+```bash
+python3 paper/tools/acceptance.py paper 1.20.6
+python3 paper/tools/phase5.py paper 1.20.6
+python3 paper/tools/acceptance.py folia 1.20.6
+python3 paper/tools/phase5.py folia 1.20.6
+python3 paper/tools/acceptance.py paper 1.21.1
+python3 paper/tools/phase5.py paper 1.21.1
+python3 paper/tools/multiversion.py
+python3 paper/tools/components.py paper 1.20.6
+python3 paper/tools/components.py folia 1.20.6
+python3 paper/tools/components.py paper 1.21.1
+```
+
+`multiversion.py --pair 1.20.4:1.20.6 --pair 1.20.6:1.21.1` 可只跑新邊界；預設也保留 1.20.1↔1.20.4。`components.py` 直接驗收 NMS 未展開的 block／fluid ticks、替換清除與鎖住後的剩餘延遲／priority（#170、#213），fixture 按精確 bundle 編譯且不進正式插件。結果集中在 `.work/mv2-2/`，正式矩陣見 [多版本 §8](../docs/19-multiversion.md#8-驗收與限制)。Folia 1.21.1 沒有官方 build，腳本明確拒絕。
 
 所有腳本使用伺服器／baseline 的副本、127.0.0.1、offline mode、port 25671–25674。**acceptance、smoke、benchmark 自己取得 bench.lock，不要再包外層 flock。** SIGTERM 與例外會走清理流程；最後會停止 server 與 bot。
 
@@ -285,4 +306,4 @@ feedback:
 
 所有設定需重啟；`/wg reload` 只重載語言。線上 clone／export／migrate 沒有入口，沿用 CLI 的停止世界要求。第三方直接寫 NMS 或未經 WE／FAWE hook 的 UUID 改寫不屬於可攔截事件；無法把任意第三方寫入推測成玩家觸及。
 
-驗收腳本自持 bench.lock：`python3 paper/tools/phase5.py --matrix` 跑 Paper／Folia 四版及別名衝突／停用；`python3 paper/tools/phase5_screenshots.py paper 1.21.11`（亦可指定其他組合）用真客戶端拍攝八種畫面。證據與限制見 [Phase 5 設計紀錄](../docs/16-phase5-design.md)，截圖在 [phase5](docs/screenshots/phase5/)。
+驗收腳本自持 bench.lock：`python3 paper/tools/phase5.py --matrix` 跑目前支援的 11 組 Paper／Folia 平台及四組別名衝突／停用；`python3 paper/tools/phase5_screenshots.py paper 1.21.11`（亦可指定其他組合）用真客戶端拍攝八種畫面。證據與限制見 [Phase 5 設計紀錄](../docs/16-phase5-design.md)，截圖在 [phase5](docs/screenshots/phase5/)。

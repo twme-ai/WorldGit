@@ -2,7 +2,7 @@ import java.util.zip.ZipFile
 
 // 發佈用的單一插件 jar：版本無關本體（paper:common）＋ core/platform-api/protocol ＋ 每個 Minecraft 版本一個 NMS 轉接層。
 // 執行時依 Bukkit.getMinecraftVersion() 只載入符合的轉接層（見 NmsBridges）。
-val adapters = listOf(":paper:v1_21_11", ":paper:v26_2")
+val adapters = listOf(":paper:v1_20_6", ":paper:v1_21_1", ":paper:v1_21_11", ":paper:v26_2")
 val legacyAdapters = listOf(":paper:v1_20_1", ":paper:v1_20_4")
 (adapters + legacyAdapters).forEach { evaluationDependsOn(it) }
 
@@ -15,7 +15,7 @@ tasks.jar {
     dependsOn(configurations.runtimeClasspath)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
-        // 轉接層以 Mojang 名稱編譯；Paper 1.21.x 看到這個屬性就不會把插件當成 Spigot 名稱去 remap。
+        // 轉接層以 Mojang 名稱編譯；Paper 1.20.5+ 看到這個屬性就不會把插件當成 Spigot 名稱去 remap。
         attributes("paperweight-mappings-namespace" to "mojang")
         attributes("Implementation-Version" to project.version)
     }
@@ -49,3 +49,26 @@ val verifyOptionalApi = tasks.register("verifyOptionalApi") {
     }
 }
 tasks.named("check") { dependsOn(verifyOptionalApi) }
+
+// 只有兩個精確 bundle 產生完全一致 bytecode 的來源才可在發佈 jar 合併。
+val verifyComponentsSources = tasks.register("verifyComponentsSources") {
+    val variants = listOf(":paper:v1_20_6", ":paper:v1_21_1").map {
+        project(it).tasks.named<JavaCompile>("compileJava")
+    }
+    dependsOn(variants)
+    variants.forEach { inputs.dir(it.flatMap { task -> task.destinationDirectory }) }
+    doLast {
+        val roots = variants.map { it.get().destinationDirectory.get().asFile }
+        val files = roots.first().walkTopDown().filter {
+            it.isFile && it.extension == "class" && it.name.startsWith("Components")
+        }.map { it.relativeTo(roots.first()).path }.toList()
+        check(files.isNotEmpty()) { "components shared sources were not compiled" }
+        files.forEach { path ->
+            check(roots.drop(1).all { root -> root.resolve(path).readBytes().contentEquals(roots.first().resolve(path).readBytes()) }) {
+                "components shared bytecode differs: $path; isolate this source in its version adapter"
+            }
+        }
+    }
+}
+tasks.jar { dependsOn(verifyComponentsSources) }
+tasks.named("check") { dependsOn(verifyComponentsSources) }

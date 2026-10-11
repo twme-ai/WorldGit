@@ -14,9 +14,11 @@ RUN = os.path.join(WORK, 'paper-delivery', 'run')
 JARS = os.path.join(WORK, 'jars')
 PLUGIN_JAR_GLOB = os.path.join(ROOT, 'paper/plugin/build/libs')
 PORTS = {'paper-1.21.11': 25671, 'paper-26.2': 25672, 'folia-1.21.11': 25673, 'folia-26.2': 25674}
-PORTS.update({f'{platform}-{version}':25675+i*2+j for i,version in enumerate(['1.20.1','1.20.4']) for j,platform in enumerate(['paper','folia'])})
-JAVA = {'1.20.1':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.20.4':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.21.11': '/usr/lib/jvm/java-21-openjdk-amd64/bin/java', '26.2': '/usr/lib/jvm/java-25-openjdk-amd64/bin/java'}
+PORTS.update({f'{platform}-{version}':25675+i*2+j for i,version in enumerate(['1.20.1','1.20.4','1.20.6','1.21.1']) for j,platform in enumerate(['paper','folia'])})
+JAVA = {'1.20.6':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.21.1':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.20.1':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.20.4':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.21.11': '/usr/lib/jvm/java-21-openjdk-amd64/bin/java', '26.2': '/usr/lib/jvm/java-25-openjdk-amd64/bin/java'}
 EXTRA = {
+    'fawe-1.20.6':'FastAsyncWorldEdit-Bukkit-2.15.0.jar',
+    'fawe-1.21.1':'FastAsyncWorldEdit-Bukkit-2.15.0.jar',
     'fawe-1.20.1':'FastAsyncWorldEdit-Bukkit-2.8.4.jar',
     'fawe-1.20.4':'FastAsyncWorldEdit-Bukkit-2.8.4.jar',
     'we-7.2.18':'worldedit-bukkit-7.2.18.jar',
@@ -103,6 +105,8 @@ def offline_uuid(name):
 
 class Server:
     def __init__(self, platform, version, plugins=(), config=None, view=4, fresh=True, ops=('WgBot', 'WgBot2', 'WgBot3', 'WgBot4', 'WgAdmin'), extra_props=None, xmx='2G', fawe_allow=True, baseline=None, run_label=None, all_entities=True):
+        if platform == 'folia' and version in ('1.21.1','26.3'):
+            raise RuntimeError(f'Folia {version} 官方沒有 build，不可驗收；請使用已支援的官方 Folia 版本或 Paper。')
         self.name = f'{platform}-{version}'
         self.platform, self.version, self.xmx = platform, version, xmx
         self.dir = os.path.join(RUN, run_label or self.name)

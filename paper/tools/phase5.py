@@ -9,7 +9,7 @@ def terminate(signum,frame):raise KeyboardInterrupt('Phase5 runner terminated')
 signal.signal(signal.SIGTERM,terminate)
 
 def fixture(destination,conflict=False,version='1.21.11'):
-    api=next((ROOT/('.work/gradle-home/caches/modules-2/files-2.1/io.papermc.paper/paper-api/'+(version if version in ('1.20.1','1.20.4') else '1.21.11')+'-R0.1-SNAPSHOT')).rglob('*.jar'))
+    api=next((ROOT/('.work/gradle-home/caches/modules-2/files-2.1/io.papermc.paper/paper-api/'+(version if version in ('1.20.1','1.20.4','1.20.6','1.21.1') else '1.21.11')+'-R0.1-SNAPSHOT')).rglob('*.jar'))
     jars=[api]
     for group in ['com.mojang/brigadier','net.kyori/adventure-api','net.kyori/adventure-key','org.jetbrains/annotations','net.md-5/bungeecord-chat','net.kyori/examination-api','net.kyori/examination-string']:
         jars+=list((ROOT/'.work/gradle-home/caches/modules-2/files-2.1'/group).rglob('*.jar'))
@@ -76,7 +76,7 @@ def run(platform,version,conflict=False,disabled=False):
               mark=len(bot.lines);bot.ask('chat /'+alias+' help','chat_sent');time.sleep(1);check(alias+' disabled',not any('WorldGit -' in r['t'] for r in chats(mark)));continue
             rows=command(alias+' help');check(alias+' alias',any('WorldGit -' in row['t'] for row in rows))
           check('help includes localized confirm syntax',any('/wg confirm <token>' in row['t'] and 'confirm a loss preview' in row['t'] for row in rows))
-          if version in ('1.21.11','26.2'):
+          if version in ('1.20.6','1.21.1','1.21.11','26.2'):
             rows=command('execute as @s run worldgit:git help')
             check('execute redirect preserves namespaced alias',any('WorldGit -' in row['t'] for row in rows) and any('finished: SUCCESS' in row['t'] for row in rows),chat=rows)
           if not (conflict or disabled):
@@ -109,7 +109,7 @@ def run(platform,version,conflict=False,disabled=False):
           rows=command(append.removeprefix('/'));check('append button initializes selected dimension',initialized('minecraft:the_end'),chat=rows)
           # 已有地獄 repo；移除空白 fixture repo 後另次 server run 驗地獄追加按鈕。
           check('creative player-touched default','player-touched' in (repository(server.world)/'worldgit-repo.yml').read_text())
-          if version in ('1.21.11','26.2'):
+          if version in ('1.20.6','1.21.1','1.21.11','26.2'):
             for prefix in ['worldgit:git','execute as @s run worldgit:git']:
               text='/'+prefix+' switch ma'
               packet=bot.ask('suggest '+text,'suggestions')['packet']
@@ -176,11 +176,11 @@ def run(platform,version,conflict=False,disabled=False):
     (out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(out/'results.json',flush=True)
     return result['success']
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('platform',nargs='?',choices=['paper','folia']);parser.add_argument('version',nargs='?',choices=['1.20.1','1.20.4','1.21.11','26.2']);parser.add_argument('--matrix',action='store_true');parser.add_argument('--conflict',action='store_true');parser.add_argument('--disabled',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('platform',nargs='?',choices=['paper','folia']);parser.add_argument('version',nargs='?',choices=['1.20.1','1.20.4','1.20.6','1.21.1','1.21.11','26.2']);parser.add_argument('--matrix',action='store_true');parser.add_argument('--conflict',action='store_true');parser.add_argument('--disabled',action='store_true');args=parser.parse_args()
     if args.matrix:
       ok=True
       for platform,version,conflict,disabled in [(platform,version,False,False)
-          for version in ('1.20.1','1.20.4','1.21.11','26.2') for platform in ('paper','folia')]+[
+          for version in ('1.20.1','1.20.4','1.20.6','1.21.1','1.21.11','26.2') for platform in ('paper','folia') if (platform,version)!=('folia','1.21.1')]+[
           ('paper','1.20.1',True,False),('folia','1.20.4',False,True),
           ('paper','1.21.11',True,False),('folia','26.2',False,True)]:
         if not run(platform,version,conflict,disabled):ok=False;break

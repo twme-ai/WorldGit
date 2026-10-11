@@ -1,5 +1,5 @@
 # 每條規則在 from > boundary >= to 時執行；registry 差集自動辨識新增內容。
-revision: reverse-2026-10-10-16
+revision: reverse-2026-10-11-17
 fallbacks:
   block: minecraft:stone
   item: minecraft:barrier
@@ -23,7 +23,7 @@ renames:
 # 深度遍歷時遇到符合 id 的 compound 才套用，避免改到同名自訂資料。
   - {boundary: 3465, kind: item, from: 'minecraft:short_grass', to: 'minecraft:grass'}
 fields:
-  - {boundary: 3955, kind: entity, id: '*', from: attributes, to: Attributes}
+  - {boundary: 3839, kind: entity, id: '*', from: attributes, to: Attributes}
   - {boundary: 3465, kind: entity, id: '*', from: active_effects, to: ActiveEffects}
   - {boundary: 3955, kind: block-entity, id: 'minecraft:furnace', from: cooking_total_time, to: CookTimeTotal}
   - {boundary: 3955, kind: block-entity, id: 'minecraft:blast_furnace', from: cooking_total_time, to: CookTimeTotal}

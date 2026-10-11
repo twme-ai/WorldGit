@@ -10,6 +10,7 @@ common:
 
 paper:
   version:
+    folia-unavailable: "WorldGit 無法驗收 Folia <version>：官方沒有此版 build，平台尚未驗收，因此停用插件。請使用已支援的官方 Folia build 或 Paper <version>。"
     confirm-required: "請檢查轉換損失清單，確認後再重試。"
     mismatch: "<version> 轉接層的 DataVersion 不符：預期 <expected>，實際 <actual>。"
     load-failed: "無法載入 <version> 的轉接層（<adapter>）：<error>。"

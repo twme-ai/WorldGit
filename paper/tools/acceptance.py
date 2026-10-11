@@ -1,4 +1,4 @@
-"""Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.20.1|1.20.4|1.21.11|26.2> [scenarios...]
+"""Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.20.1|1.20.4|1.20.6|1.21.1|1.21.11|26.2> [scenarios...]
 
 scenarios：basic（commit 兩次無變動、bot 放一格、status 恰好 1 個 section、CLI 看到同樣歷史）、attribution（兩個 bot 各改一處）、
            mod（握手與 status/diff 傳送）、display（沒裝模組：BlockDisplay fallback，只對請求者可見、/wg clear、逾時、登出、不進實體快照）、worldedit（//set 大範圍）、auto（自動 commit：定時、登出）、shutdown（關閉前 commit 與離線 CLI 一致）
@@ -17,7 +17,7 @@ os.makedirs(RESULTS, exist_ok=True)
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 results = {'server': NAME, 'steps': [], 'started': time.strftime('%F %T')}
 results['scenarios'] = wanted
-legacy_folia = platform == 'folia' and version in ('1.20.1', '1.20.4')
+legacy_folia = platform == 'folia' and version in ('1.20.1', '1.20.4', '1.20.6')
 results['skipped'] = ([{'scenario': 'worldedit', 'reason': '官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收'}]
                       if legacy_folia and 'worldedit' in wanted else [])
 # 每次執行保留原始證據，局部重跑不會抹掉已驗證場景。

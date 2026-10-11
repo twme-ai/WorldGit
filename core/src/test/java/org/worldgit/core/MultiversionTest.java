@@ -15,6 +15,44 @@ class MultiversionTest {
   @TempDir Path temp;
 
   @Test
+  void entityAttributesUseTheNativeShapeAcrossThe1206To1211Boundary() throws Exception {
+    for (int source : List.of(3955, 5023)) {
+      for (int target : List.of(3839, 3955)) {
+        if (source <= target) continue;
+        var loss = new ConversionReport.Collector();
+        var reverse = new ReverseNbt(new ReverseRules(source, target, null), loss, source, target);
+        var input = new Nbt.Compound().with("id", "minecraft:armor_stand")
+            .with("attributes", new Nbt.ListTag(10, List.of(new Nbt.Compound()
+                .with("id", source == 3955 ? "minecraft:generic.max_health" : "minecraft:max_health")
+                .with("base", 37.5d))));
+        var output = reverse.convert(input, "entity", "armor_stand");
+        String key = target == 3839 ? "Attributes" : "attributes";
+        assertFalse(output.containsKey(target == 3839 ? "attributes" : "Attributes"));
+        var attribute = (Nbt.Compound) output.list(key).values().getFirst();
+        assertEquals("minecraft:generic.max_health", attribute.string(target == 3839 ? "Name" : "id"));
+        assertEquals(37.5d, attribute.get(target == 3839 ? "Base" : "base"));
+        assertFalse(attribute.containsKey(target == 3839 ? "id" : "Name"));
+        assertFalse(loss.report(source, target, "test").lossy());
+      }
+    }
+  }
+
+  @Test
+  void itemFallbackOmitsAnEmptyNativePatchAndKeepsOpaqueCustomData() throws Exception {
+    var loss = new ConversionReport.Collector();
+    var reverse = new ReverseNbt(new ReverseRules(3955, 3839, null), loss, 3955, 3839);
+    var item = reverse.convert(new Nbt.Compound().with("id", "minecraft:mace").with("count", 1), "item", "Items[1]");
+    assertEquals("minecraft:barrier", item.string("id"));
+    assertEquals(1, item.integer("count", 0));
+    assertFalse(item.containsKey("components"));
+    assertTrue(loss.report(3955, 3839, "test").lossy());
+    var opaque = new Nbt.Compound().with("components", new Nbt.Compound()).with("Count", 7);
+    var sword = reverse.convert(new Nbt.Compound().with("id", "minecraft:diamond_sword").with("count", 1)
+        .with("components", new Nbt.Compound().with("minecraft:custom_data", opaque)), "item", "Items[0]");
+    assertArrayEquals(Nbt.write(opaque), Nbt.write(sword.compound("components").compound("minecraft:custom_data")));
+  }
+
+  @Test
   void oldComponentVersionsOmitEmptyBlockEntityPatchButPreserveNonemptyPatch() throws Exception {
     for (int target : List.of(3839, 3955, 4189, 4440)) {
       var loss = new ConversionReport.Collector();

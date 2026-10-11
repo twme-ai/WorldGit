@@ -11,10 +11,18 @@ public final class NmsBridges {
       Map.of(
           "1.20.1", "org.worldgit.paper.v1_20_1.Bridge_1_20_1",
           "1.20.4", "org.worldgit.paper.v1_20_4.Bridge_1_20_4",
+          "1.20.6", "org.worldgit.paper.v1_20_6.Bridge_1_20_6",
+          "1.21.1", "org.worldgit.paper.v1_21_1.Bridge_1_21_1",
           "1.21.11", "org.worldgit.paper.v1_21_11.Bridge_1_21_11",
           "26.2", "org.worldgit.paper.v26_2.Bridge_26_2");
 
   public static NmsBridge select(String minecraftVersion, ClassLoader loader) {
+    return select(minecraftVersion,loader,false);
+  }
+
+  public static NmsBridge select(String minecraftVersion, ClassLoader loader, boolean folia) {
+    if(folia && java.util.Set.of("1.21.1","26.3").contains(minecraftVersion))
+      throw new UnsupportedOperationException(Messages.plain(Messages.text("paper.version.folia-unavailable","version",minecraftVersion)));
     try { org.worldgit.core.version.MinecraftVersion.byId(minecraftVersion); }
     catch(java.io.IOException error) { throw new UnsupportedOperationException(Messages.plain(Messages.text("paper.version.unsupported","version",minecraftVersion,"supported",String.join(", ",new java.util.TreeSet<>(ADAPTERS.keySet())))),error); }
     String className = ADAPTERS.get(minecraftVersion);
