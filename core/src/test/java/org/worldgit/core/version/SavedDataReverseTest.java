@@ -9,6 +9,19 @@ import org.worldgit.core.anvil.Nbt;
 import org.worldgit.core.anvil.SavedData;
 
 class SavedDataReverseTest {
+  @Test void forcedTicketsKeepPositionsAndAuditLevelsThatLegacyCannotRepresent() throws Exception {
+    var ticket = new Nbt.Compound().with("chunk_pos", new int[] {-1, 2})
+        .with("type", "minecraft:forced").with("level", 30).with("ticks_left", Long.MIN_VALUE);
+    var root = new Nbt.Compound().with("data", new Nbt.Compound().with("tickets", new Nbt.ListTag(10, List.of(ticket))));
+    var loss = new ConversionReport.Collector();
+    SavedDataReverse.convert(root, "SAVED_DATA_TICKETS", 4440, 4189, loss);
+    assertArrayEquals(new long[] {(2L << 32) | 0xffffffffL}, (long[]) root.compound("data").get("Forced"));
+    var report = loss.report(4440, 4189, "test");
+    assertEquals(1, report.losses().size());
+    assertEquals("chunk-ticket-level", report.losses().getFirst().kind());
+    assertEquals("level=30", report.losses().getFirst().source());
+    assertEquals("31", report.losses().getFirst().replacement());
+  }
   @Test
   void raidsAndForcedChunksRemainReadableByLegacyCodecs() throws Exception {
     var raid =

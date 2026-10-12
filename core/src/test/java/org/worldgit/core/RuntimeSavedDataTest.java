@@ -20,6 +20,63 @@ import org.worldgit.core.store.*;
 /** 26.x 的時鐘、天氣、流浪商人等 runtime saved-data 必須和 1.21.11 的 level.dat 白名單同語意。 */
 class RuntimeSavedDataTest {
   @TempDir Path temp;
+
+  @Test void forcedTicketInfiniteRepresentationsAndOrderingAreEquivalentAcrossNativePaths() throws Exception {
+    for (String path : List.of("data/chunks.dat", "data/minecraft/chunk_tickets.dat")) {
+      var first = new Nbt.Compound().with("chunk_pos", new int[] {2, -3}).with("level", 31)
+          .with("type", "minecraft:forced").with("ticks_left", 0L);
+      var second = new Nbt.Compound().with("chunk_pos", new int[] {0, 0}).with("level", 31)
+          .with("type", "minecraft:forced").with("ticks_left", Long.MIN_VALUE);
+      var a = nbt(new Nbt.Compound().with("tickets", new Nbt.ListTag(10, List.of(first, second))));
+      var b = nbt(new Nbt.Compound().with("tickets", new Nbt.ListTag(10,
+          List.of(Nbt.copy(second).with("ticks_left", 0L), Nbt.copy(first).with("ticks_left", Long.MIN_VALUE)))));
+      assertArrayEquals(SavedData.normalize(key(path), a), SavedData.normalize(key(path), b));
+      var output = Nbt.read(SavedData.normalize(key(path), a)).compound("data").list("tickets");
+      assertEquals(2, output.values().size());
+      assertTrue(output.values().stream().noneMatch(x -> ((Nbt.Compound) x).containsKey("ticks_left")));
+      assertTrue(first.containsKey("ticks_left"));
+      var changed = Nbt.copy(first).with("level", 30);
+      assertFalse(Arrays.equals(SavedData.normalize(key(path), a), SavedData.normalize(key(path),
+          nbt(new Nbt.Compound().with("tickets", new Nbt.ListTag(10, List.of(changed, second)))))));
+    }
+  }
+
+  @Test void finiteAndCustomTicketDataRemainMeaningfulAndNamespaceScoped() throws Exception {
+    for (String type : List.of("minecraft:portal", "mod:forced")) {
+      var ticket = new Nbt.Compound().with("chunk_pos", new int[] {2, -3}).with("level", 31)
+          .with("type", type).with("ticks_left", 100L).with("custom", "preserve");
+      var a = nbt(new Nbt.Compound().with("tickets", new Nbt.ListTag(10, List.of(ticket))));
+      var b = nbt(new Nbt.Compound().with("tickets", new Nbt.ListTag(10, List.of(Nbt.copy(ticket).with("ticks_left", 99L)))));
+      var output = Nbt.read(SavedData.normalize(key("data/chunks.dat"), a)).compound("data");
+      assertEquals(100L, ((Nbt.Compound) output.list("tickets").values().getFirst()).get("ticks_left"));
+      assertEquals("preserve", ((Nbt.Compound) output.list("tickets").values().getFirst()).string("custom"));
+      assertFalse(Arrays.equals(SavedData.normalize(key("data/chunks.dat"), a), SavedData.normalize(key("data/chunks.dat"), b)));
+      assertArrayEquals(a, SavedData.normalize(key("data/mod/chunks.dat"), a));
+    }
+  }
+
+  @Test void optionalSavedDataListsFollowTheNativeCodecAndRetainNonemptyOrUnknownContent() throws Exception {
+    for (String path : List.of("data/raids.dat", "data/raids_nether.dat", "data/minecraft/raids.dat")) {
+      var empty = nbt(new Nbt.Compound().with("next_id", 7));
+      assertArrayEquals(SavedData.normalize(key(path), empty), SavedData.normalize(key(path),
+          nbt(new Nbt.Compound().with("next_id", 7).with("raids", new Nbt.ListTag(10, List.of())))));
+      var raid = new Nbt.Compound().with("id", 3).with("center", new int[] {1, 64, 2});
+      var output = Nbt.read(SavedData.normalize(key(path), nbt(new Nbt.Compound().with("next_id", 7)
+          .with("raids", new Nbt.ListTag(10, List.of(raid)))))).compound("data");
+      assertEquals(7, output.integer("next_id", 0));
+      assertArrayEquals(Nbt.write(raid), Nbt.write((Nbt.Compound) output.list("raids").values().getFirst()));
+      assertTrue(Nbt.read(SavedData.normalize(key(path), nbt(new Nbt.Compound()
+          .with("NextAvailableID", 7).with("Raids", new Nbt.ListTag(10, List.of())))))
+          .compound("data").containsKey("Raids"));
+    }
+    for (String path : List.of("data/chunks.dat", "data/minecraft/chunk_tickets.dat")) {
+      assertNull(SavedData.normalize(key(path), nbt(new Nbt.Compound().with("tickets", new Nbt.ListTag(10, List.of())))));
+      var unknown = nbt(new Nbt.Compound().with("tickets", new Nbt.ListTag(10, List.of())).with("opaque", 7));
+      assertEquals(7, Nbt.read(SavedData.normalize(key(path), unknown)).compound("data").integer("opaque", 0));
+      var forced = Nbt.read(SavedData.normalize(key(path), nbt(new Nbt.Compound().with("Forced", new long[] {5, 1}))));
+      assertArrayEquals(new long[] {1, 5}, (long[]) forced.compound("data").get("Forced"));
+    }
+  }
   private static final List<String> TRANSIENT =
       List.of("data/minecraft/world_clocks.dat", "data/minecraft/weather.dat", "data/minecraft/wandering_trader.dat");
 

@@ -66,10 +66,11 @@ public final class ReverseNbt {
         }
     }
     if ((kind.equals("entity") || kind.equals("player")) && to <= 4189) {
+      boolean modernSaddle = n.compound("equipment").get("saddle") instanceof Nbt.Compound saddle
+          && !saddle.isEmpty();
       if (n.string("id").equals("minecraft:splash_potion")
           || n.string("id").equals("minecraft:lingering_potion")) n.put("id", "minecraft:potion");
       if (n.get("equipment") instanceof Nbt.Compound equipment) {
-        var air = new Nbt.Compound();
         n.put(
             "HandItems",
             new Nbt.ListTag(
@@ -85,7 +86,18 @@ public final class ReverseNbt {
                     equipment.compound("head"))));
         if (equipment.containsKey("body"))
           n.put(to <= 3700 ? "ArmorItem" : "body_armor_item", equipment.get("body"));
-        if (equipment.containsKey("saddle")) n.put("SaddleItem", equipment.get("saddle"));
+        if (equipment.containsKey("saddle")) {
+          var saddle = equipment.compound("saddle");
+          if (Set.of("minecraft:pig", "minecraft:strider").contains(n.string("id"))) {
+            n.put("Saddle", (byte) (saddle.isEmpty() ? 0 : 1));
+            if (!saddle.isEmpty() && (!saddle.string("id").equals("minecraft:saddle")
+                || !saddle.compound("components").isEmpty()))
+              loss.add("equipment", "saddle item data", "Saddle=true", path);
+          } else n.put("SaddleItem", saddle);
+        }
+        for (String slot : equipment.keySet())
+          if (!Set.of("mainhand", "offhand", "feet", "legs", "chest", "head", "body", "saddle").contains(slot))
+            loss.add("equipment-slot", slot, "skip", path);
         n.remove("equipment");
       }
       if (n.get("drop_chances") instanceof Nbt.Compound c) {
@@ -101,13 +113,38 @@ public final class ReverseNbt {
                     number(c, "legs", .085f),
                     number(c, "chest", .085f),
                     number(c, "head", .085f))));
+        if (c.containsKey("body")) n.put("body_armor_drop_chance", number(c, "body", .085f));
+        if (c.containsKey("saddle") && !modernSaddle)
+          loss.add("equipment-drop-chance", "saddle=" + number(c, "saddle", .085f), "skip", path);
+        for (String slot : c.keySet())
+          if (!Set.of("mainhand", "offhand", "feet", "legs", "chest", "head", "body", "saddle").contains(slot))
+            loss.add("equipment-drop-chance", slot, "skip", path);
         n.remove("drop_chances");
+      }
+      if (modernSaddle) {
+        float chance = number(input.compound("drop_chances"), "saddle", .085f);
+        // Legacy saddled entities always drop their saddle. Native 2.0 is the
+        // guaranteed/preserved item convention; every chance >=1 remains certain.
+        if (!(chance >= 1f))
+          loss.add("equipment-drop-chance", "saddle=" + chance, "1.0", path);
       }
     }
     if (!original.isEmpty() && !kind.equals("player")) {
       String id = rules.id(kind, n.string("id"), path, loss);
       if (id.equals("skip")) return null;
       n.put("id", id);
+    }
+    // 1.21.5 omits empty equipment and default drop chances. The older Mob and
+    // ArmorStand serializers always write their fixed-size arrays.
+    if (kind.equals("entity") && rules.crosses(4189)
+        && VersionYaml.resource("vanilla-health.yml").containsKey(n.string("id"))) {
+      n.putIfAbsent("HandItems", emptyItems(2));
+      n.putIfAbsent("ArmorItems", emptyItems(4));
+      if (!n.string("id").equals("minecraft:armor_stand")) {
+        n.putIfAbsent("HandDropChances", new Nbt.ListTag(5, List.of(.085f, .085f)));
+        n.putIfAbsent("ArmorDropChances", new Nbt.ListTag(5, List.of(.085f, .085f, .085f, .085f)));
+        if (n.containsKey("body_armor_item")) n.putIfAbsent("body_armor_drop_chance", .085f);
+      }
     }
     rules.fields(kind, n);
     rules.legacyFields(kind, n, path, loss);
@@ -143,9 +180,9 @@ public final class ReverseNbt {
           loss.add("field", "furnace speed_multiplier=" + x, "1", path);
         n.remove("speed_multiplier");
       }
-      if (to <= 3955) n.remove(
-          "lit_total_time"); // derived fuel duration; old versions recalculate this from the fuel
-      // stack
+      if (to <= 3955 && n.remove("lit_total_time") instanceof Number duration
+          && duration.intValue() != 0)
+        loss.add("block-entity-field", "lit_total_time=" + duration, "recalculate from fuel", path);
     }
     if(kind.equals("block-entity") && to <= 3955 && n.containsKey("lock")) {
       Object value=n.remove("lock");
@@ -316,6 +353,12 @@ public final class ReverseNbt {
     return n.get(key) instanceof Number x ? x.floatValue() : fallback;
   }
 
+  private static Nbt.ListTag emptyItems(int count) {
+    var items = new ArrayList<Object>();
+    for (int i = 0; i < count; i++) items.add(new Nbt.Compound());
+    return new Nbt.ListTag(10, items);
+  }
+
   private String attribute(String id) {
     return id.startsWith("minecraft:") && !id.contains(".")
         ? "minecraft:generic." + id.substring(10)
@@ -409,7 +452,10 @@ public final class ReverseNbt {
         if (to <= 4903 && key.equals("minecraft:pot_decorations") && v instanceof Nbt.Compound d)
           v = decorations(d, path);
         if (to <= 4189) {
-          if(key.equals("minecraft:attribute_modifiers") && v instanceof Nbt.ListTag list) {
+          if(key.equals("minecraft:attribute_modifiers")
+              && (v instanceof Nbt.ListTag || v instanceof Nbt.Compound)) {
+            var wrapper = v instanceof Nbt.Compound c ? c : new Nbt.Compound();
+            var list = v instanceof Nbt.ListTag l ? l : wrapper.list("modifiers");
             var modifiers=new ArrayList<Object>();
             for(Object value:list.values()){
               var modifier=Nbt.copy((Nbt.Compound)value);
@@ -420,7 +466,7 @@ public final class ReverseNbt {
               if(modifier.containsKey("display")){loss.add("component-field","attribute_modifiers/display","skip",path);modifier.remove("display");}
               modifiers.add(modifier);
             }
-            v=new Nbt.Compound().with("modifiers",new Nbt.ListTag(10,modifiers));
+            v=wrapper.with("modifiers",new Nbt.ListTag(10,modifiers));
           }
           if (Set.of("minecraft:custom_name", "minecraft:item_name").contains(key)
               && (from > 4189 || !(v instanceof String))) v = json(v);
@@ -430,6 +476,11 @@ public final class ReverseNbt {
                     8, l.values().stream()
                         .map(x -> from <= 4189 && x instanceof String ? x : (Object) json(x))
                         .toList());
+          if (from > 4189 && key.equals("minecraft:written_book_content") && v instanceof Nbt.Compound book)
+            for (Object page : book.list("pages").values())
+              if (page instanceof Nbt.Compound filtered)
+                for (String field : List.of("raw", "filtered"))
+                  if (filtered.containsKey(field)) filtered.put(field, json(filtered.get(field)));
           if (Set.of("minecraft:enchantments", "minecraft:stored_enchantments").contains(key)
               && v instanceof Nbt.Compound c
               && !c.containsKey("levels")) v = new Nbt.Compound().with("levels", c);

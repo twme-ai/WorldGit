@@ -47,7 +47,7 @@ class NmsBridgesTest {
       var loader = new ClassLoader(null) {
         @Override public Class<?> loadClass(String name) { throw new AssertionError(name); }
       };
-      for (String version : List.of("1.20", "1.20.2", "1.20.10", "1.21.11.1", "26.20", "1.21.4")) {
+      for (String version : List.of("1.20", "1.20.2", "1.20.10", "1.21.11.1", "26.20", "26.1.2")) {
         var error = assertThrows(UnsupportedOperationException.class, () -> NmsBridges.select(version, loader));
         assertTrue(error.getMessage().contains(version));
         assertTrue(error.getMessage().contains("1.20.1"));

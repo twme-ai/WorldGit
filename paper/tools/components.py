@@ -6,8 +6,8 @@ import harness
 ROOT=Path(harness.ROOT)
 def terminate(signum,frame):raise KeyboardInterrupt('components runner terminated')
 signal.signal(signal.SIGTERM,terminate)
-def run(platform,version):
- out=ROOT/'.work/mv2-2/pending'/f'{platform}-{version}';out.mkdir(parents=True,exist_ok=True)
+def run(platform,version,output_root):
+ out=output_root/f'{platform}-{version}';out.mkdir(parents=True,exist_ok=True)
  result={'platform':platform,'version':version,'success':False};server=None
  with harness.BenchLock():
   try:
@@ -21,7 +21,11 @@ def run(platform,version):
    for group in ['com.mojang/brigadier','com.mojang/datafixerupper','com.mojang/authlib','com.mojang/logging','it.unimi.dsi/fastutil','org.jetbrains/annotations','org.joml/joml','net.kyori/adventure-api','net.kyori/adventure-key','net.kyori/examination-api','net.kyori/examination-string','net.md-5/bungeecord-chat']:
     jars+=list((base/group).rglob('*.jar'))
    classes=out/'classes';classes.mkdir(exist_ok=True)
-   subprocess.run(['/usr/lib/jvm/java-21-openjdk-amd64/bin/javac','--release','21','-cp',os.pathsep.join(map(str,jars)),'-d',str(classes),str(ROOT/'paper/tools/components-fixture/ComponentsFixture.java')],check=True)
+   source=ROOT/'paper/tools/components-fixture/ComponentsFixture.java'
+   if version in ('1.21.4','1.21.8'):
+    source=out/'ComponentsFixture.java'
+    source.write_text((ROOT/'paper/tools/components-fixture/ComponentsFixture.java').read_text().replace('BuiltInRegistries.BLOCK.get(', 'BuiltInRegistries.BLOCK.getValue(').replace('BuiltInRegistries.FLUID.get(', 'BuiltInRegistries.FLUID.getValue('))
+   subprocess.run(['/usr/lib/jvm/java-21-openjdk-amd64/bin/javac','--release','21','-cp',os.pathsep.join(map(str,jars)),'-d',str(classes),str(source)],check=True)
    with zipfile.ZipFile(Path(server.dir)/'plugins/components-fixture.jar','w') as jar:
     for p in classes.rglob('*.class'):jar.write(p,str(p.relative_to(classes)))
     jar.writestr('META-INF/MANIFEST.MF','Manifest-Version: 1.0\npaperweight-mappings-namespace: mojang\n\n')
@@ -39,6 +43,6 @@ def run(platform,version):
    (out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(platform,version,result['success'],flush=True)
  return result['success']
 if __name__=='__main__':
- parser=argparse.ArgumentParser();parser.add_argument('platform',choices=['paper','folia']);parser.add_argument('version',choices=['1.20.6','1.21.1']);args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument('platform',choices=['paper','folia']);parser.add_argument('version',choices=['1.20.6','1.21.1','1.21.4','1.21.8']);parser.add_argument('--output-root',type=Path,default=ROOT/'.work/paper-pending');args=parser.parse_args()
  if (args.platform,args.version)==('folia','1.21.1'):parser.error('Folia 1.21.1 官方沒有 build，不可驗收')
- raise SystemExit(0 if run(args.platform,args.version) else 1)
+ raise SystemExit(0 if run(args.platform,args.version,args.output_root) else 1)

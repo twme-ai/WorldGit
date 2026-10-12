@@ -9,8 +9,8 @@ TARGET='--world world --dimension minecraft:overworld'
 def terminate(signum,frame):raise KeyboardInterrupt('multiversion runner terminated')
 signal.signal(signal.SIGTERM,terminate)
 
-def run(older,newer):
-    OUT=ROOT/'.work/mv2-2/online'/f'{older}-to-{newer}'
+def run(older,newer,output_root):
+    OUT=output_root/f'{older}-to-{newer}'
     OUT.mkdir(parents=True,exist_ok=True)
     evidence={'older':older,'newer':newer,'success':False,'checks':[],'console_logs':[]}
     server=None
@@ -68,15 +68,70 @@ def run(older,newer):
             shutil.copytree(ROOT/'.work/paper-delivery/fixtures'/('acceptance-flat-'+older),base)
             subprocess.run([harness.JAVA[older],'-cp',str(ROOT/'cli/build/libs/wgit.jar'),str(ROOT/'paper/tools/MultiversionFixture.java'),str(base/'world/level.dat')],check=True)
             server=start(older,base,'mv2-online-source-'+older)
+            # The newer server saves an empty scoreboard at startup. Create the same
+            # native file before the source commit; preserve the metadata preflight.
+            server.cmd('scoreboard objectives add wg_fixture dummy',r'(?i)created')
+            server.cmd('scoreboard objectives remove wg_fixture',r'(?i)removed')
+            empty=server.cmd('scoreboard objectives list',r'(?i)no objectives')
+            check('source has an explicitly empty native scoreboard','no objectives' in empty.lower(),console=empty)
             server.cmd('setblock 4 64 4 gold_block',r'(?i)changed')
             server.cmd('setblock 5 64 4 chest',r'(?i)changed')
-            sword=('{Slot:0b,id:"minecraft:diamond_sword",Count:1b,tag:{display:{Name:\'{"text":"WorldGit sword"}\',Lore:[\'{"text":"WorldGit lore"}\']},Enchantments:[{id:"minecraft:sharpness",lvl:3s}],opaque:{Count:7,components:{untouched:1b}}}}'
-                   if older in ('1.20.1','1.20.4') else
-                   '{Slot:0b,id:"minecraft:diamond_sword",count:1,components:{"minecraft:custom_name":\'{"text":"WorldGit sword"}\',"minecraft:lore":[\'{"text":"WorldGit lore"}\'],"minecraft:enchantments":{levels:{"minecraft:sharpness":3}},"minecraft:custom_data":{opaque:{Count:7,components:{untouched:1b}}}}}')
+            def sword_stack(version):
+                if version in ('1.20.1','1.20.4'):
+                    return '{Slot:0b,id:"minecraft:diamond_sword",Count:1b,tag:{display:{Name:\'{"text":"WorldGit sword"}\',Lore:[\'{"text":"WorldGit lore"}\']},Enchantments:[{id:"minecraft:sharpness",lvl:3s}],opaque:{Count:7,components:{untouched:1b}}}}'
+                if version in ('1.20.6','1.21.1','1.21.4'):
+                    name='\'{"text":"WorldGit sword"}\'';lore='\'{"text":"WorldGit lore"}\''
+                    enchantments='{levels:{"minecraft:sharpness":3}}'
+                else:
+                    name='{text:"WorldGit sword"}';lore='{text:"WorldGit lore"}'
+                    enchantments='{"minecraft:sharpness":3}'
+                extra=''
+                if version in ('1.21.1','1.21.4','1.21.8','1.21.11'):
+                    model='42' if version=='1.21.1' else '{floats:[42.0f]}'
+                    attribute='minecraft:generic.attack_damage' if version=='1.21.1' else 'minecraft:attack_damage'
+                    modifier='{type:"'+attribute+'",id:"worldgit:fixture",amount:3.0d,operation:"add_value",slot:"mainhand"}'
+                    modifiers='{modifiers:['+modifier+']}' if version in ('1.21.1','1.21.4') else '['+modifier+']'
+                    extra=',"minecraft:custom_model_data":'+model+',"minecraft:attribute_modifiers":'+modifiers
+                return '{Slot:0b,id:"minecraft:diamond_sword",count:1,components:{"minecraft:custom_name":'+name+',"minecraft:lore":['+lore+'],"minecraft:enchantments":'+enchantments+extra+',"minecraft:custom_data":{opaque:{Count:7,components:{untouched:1b}}}}}'
+            def boundary_setup(s):
+                if s.version not in ('1.21.1','1.21.4','1.21.8','1.21.11'):return
+                old_text=s.version in ('1.21.1','1.21.4')
+                text='\'{"text":"WorldGit entity","color":"gold"}\'' if old_text else '{text:"WorldGit entity",color:"gold"}'
+                equipment=('{HandItems:[{id:"minecraft:diamond_sword",count:1},{}],ArmorItems:[{},{},{},{id:"minecraft:diamond_helmet",count:1}]}'
+                           if old_text else '{equipment:{mainhand:{id:"minecraft:diamond_sword",count:1},head:{id:"minecraft:diamond_helmet",count:1}}}')
+                s.cmd('data merge entity @e[type=armor_stand,tag=mv2,limit=1] '+equipment,r'(?i)modified')
+                s.cmd('data merge entity @e[type=armor_stand,tag=mv2,limit=1] {CustomName:'+text+'}',r'(?i)modified')
+                attr='minecraft:generic.max_health' if s.version=='1.21.1' else 'minecraft:max_health'
+                s.cmd('attribute @e[type=armor_stand,tag=mv2,limit=1] '+attr+' base set 37.5',r'(?i)base value')
+                boat='boat' if s.version=='1.21.1' else 'oak_boat'
+                s.cmd('summon '+boat+' 12 70 12 {Tags:["mv2boat"],NoGravity:1b,Invulnerable:1b'+(',Type:"oak"' if s.version=='1.21.1' else '')+'}',r'(?i)summoned')
+                saddle='Saddle:1b' if old_text else 'equipment:{saddle:{id:"minecraft:saddle",count:1}}'
+                s.cmd('summon pig 4 70 10 {Tags:["mv2pig"],NoAI:1b,NoGravity:1b,PersistenceRequired:1b,'+saddle+'}',r'(?i)summoned')
+                s.cmd('setblock 7 64 4 oak_sign',r'(?i)changed')
+                line='\'{"text":"WorldGit sign","color":"blue"}\'' if old_text else '{text:"WorldGit sign",color:"blue"}'
+                empty='\'""\'' if old_text else '""'
+                s.cmd('data merge block 7 64 4 {front_text:{messages:['+line+','+empty+','+empty+','+empty+']}}',r'(?i)modified')
+            def boundary_check(s,label):
+                if s.version not in ('1.21.1','1.21.4','1.21.8','1.21.11'):return
+                old_text=s.version in ('1.21.1','1.21.4')
+                stand=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get entity @e[type=armor_stand,tag=mv2,limit=1]',r'(?i)entity data'))
+                check(label+' equipment text and attributes',all(x in stand for x in ['minecraft:diamond_sword','minecraft:diamond_helmet','WorldGit entity','gold','37.5d'])
+                      and ('HandItems' in stand and 'ArmorItems' in stand if old_text else 'equipment' in stand),console=stand)
+                pig=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get entity @e[type=pig,tag=mv2pig,limit=1]',r'(?i)entity data'))
+                check(label+' saddle',('Saddle: 1b' in pig if old_text else 'minecraft:saddle' in pig and 'equipment' in pig),console=pig)
+                boat=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get entity @e[tag=mv2boat,limit=1]',r'(?i)entity data'))
+                check(label+' boat split',('Type: "oak"' in boat if s.version=='1.21.1' else 'Type:' not in boat),console=boat)
+                sign=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get block 7 64 4 front_text',r'(?i)block data'))
+                check(label+' sign text','WorldGit sign' in sign and 'blue' in sign,console=sign)
+            sword=sword_stack(older)
             server.cmd('data merge block 5 64 4 {Items:['+sword+']}',r'(?i)modified')
             server.cmd('summon armor_stand 8 70 8 {Tags:["mv2"],NoGravity:1b,Invisible:1b}',r'(?i)summoned')
+            boundary_setup(server)
+            boundary_check(server,'source native')
             command(server,'wg init '+TARGET)
             legacy=git(server,'rev-parse','HEAD');evidence['legacy_commit']=legacy
+            git(server,'cat-file','-e',legacy+':world-meta/scoreboard.dat.nbt')
+            check('source commit contains native scoreboard metadata',True)
             command(server,'wg branch legacy '+TARGET)
             server.stop();oldbase=OUT/'old-base';clone_worlds(server,oldbase);shutil.rmtree(server.dir);server=None
             server=start(newer,oldbase,'mv2-online-source-'+newer)
@@ -96,10 +151,15 @@ def run(older,newer):
                 check('1.20.4 real vanilla max_absorption attribute','8' in attr,console=attr)
                 loss_source='minecraft:generic.max_absorption'
             else:
-                component_sword='{Slot:0b,id:"minecraft:diamond_sword",count:1,components:{"minecraft:custom_name":\'{"text":"WorldGit sword"}\',"minecraft:lore":[\'{"text":"WorldGit lore"}\'],"minecraft:enchantments":{levels:{"minecraft:sharpness":3}},"minecraft:custom_data":{opaque:{Count:7,components:{untouched:1b}}}}}'
-                special=('{Slot:1b,id:"minecraft:diamond",count:3,components:{"minecraft:food":{nutrition:3,saturation:0.3f,can_always_eat:1b,eat_seconds:1.6f}}}'
-                         if newer=='1.20.6' else '{Slot:1b,id:"minecraft:mace",count:1}')
-                loss_source='minecraft:food' if newer=='1.20.6' else 'minecraft:mace'
+                component_sword=sword_stack(newer)
+                special_items={'1.21.1':'minecraft:mace','1.21.4':'minecraft:pale_oak_log',
+                               '1.21.8':'minecraft:happy_ghast_spawn_egg','1.21.11':'minecraft:nautilus_spawn_egg'}
+                if newer=='1.20.6':
+                    special='{Slot:1b,id:"minecraft:diamond",count:3,components:{"minecraft:food":{nutrition:3,saturation:0.3f,can_always_eat:1b,eat_seconds:1.6f}}}'
+                    loss_source='minecraft:food'
+                else:
+                    loss_source=special_items[newer]
+                    special='{Slot:1b,id:"'+loss_source+'",count:1}'
                 server.cmd('data merge block 5 64 4 {Items:['+component_sword+','+special+']}',r'(?i)modified')
                 actual=server.cmd('data get block 5 64 4 Items',r'(?i)block data')
                 check('real source contains version-specific item data',loss_source in actual,console=actual)
@@ -108,6 +168,9 @@ def run(older,newer):
                 plain=re.sub(r'\x1b\[[0-9;]*m','',actual)
                 check(label,all(x in plain for x in ['minecraft:diamond_sword','WorldGit sword','WorldGit lore','minecraft:sharpness','opaque','Count: 7','untouched: 1b'])
                       and ('components:' in plain if s.version not in ('1.20.1','1.20.4') else 'Count: 1b' in plain and 'tag:' in plain),console=actual)
+                if s.version in ('1.21.1','1.21.4','1.21.8','1.21.11'):
+                    attribute='minecraft:generic.attack_damage' if s.version=='1.21.1' else 'minecraft:attack_damage'
+                    check(label+' custom model and item attribute modifier',all(x in plain for x in ['minecraft:custom_model_data','42','worldgit:fixture',attribute]),console=actual)
             command(server,'wg commit '+TARGET+' -m source-'+newer)
             modern=git(server,'rev-parse','HEAD');evidence['modern_commit']=modern
             command(server,'wg branch modern '+TARGET)
@@ -116,6 +179,7 @@ def run(older,newer):
             rows=command(server,'wg verify '+TARGET)
             check('upgraded commit verifies with zero changes',bool(re.search(r'Stats\[chunks=0, sections=0, biomeSections=0, entityPuts=0, entityRemoves=0, chunkDeletes=0, untrackedKept=0, metaFiles=0\]', rows)),console=rows)
             check_sword(server,'automatic upgrade preserves physical name lore enchantments and opaque custom data')
+            boundary_check(server,'automatic upgrade')
             source=OUT/'source.git';shutil.rmtree(source,ignore_errors=True);shutil.copytree(repository(server.world),source)
             server.stop();shutil.rmtree(server.dir);server=None
             imported=OUT/'target-base';shutil.rmtree(imported,ignore_errors=True);shutil.copytree(oldbase,imported)
@@ -146,6 +210,7 @@ def run(older,newer):
             rows=command(server,'wg verify '+TARGET)
             check('downgraded commit verifies with zero changes',bool(re.search(r'Stats\[chunks=0, sections=0, biomeSections=0, entityPuts=0, entityRemoves=0, chunkDeletes=0, untrackedKept=0, metaFiles=0\]', rows)),console=rows)
             check_sword(server,'confirmed downgrade preserves physical name lore enchantments and opaque custom data')
+            boundary_check(server,'confirmed downgrade')
             mark=len(bot.lines);bot.ask('chat /wg confirm '+current,'chat_sent');time.sleep(2)
             check('token is single use',any('invalid' in e.get('t','').lower() for e in bot.lines[mark:]),chat=bot.lines[mark:])
             # Reset and merge use the same pre-write gate; their previews cannot mutate the world.
@@ -192,8 +257,10 @@ def run(older,newer):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
-    pairs=['1.20.1:1.20.4','1.20.4:1.20.6','1.20.6:1.21.1']
+    pairs=['1.20.1:1.20.4','1.20.4:1.20.6','1.20.6:1.21.1',
+           '1.21.1:1.21.4','1.21.4:1.21.8','1.21.8:1.21.11']
     parser.add_argument('--pair',action='append',choices=pairs)
+    parser.add_argument('--output-root',type=Path,default=ROOT/'.work/paper-multiversion')
     args=parser.parse_args()
     for pair in args.pair or pairs:
-        if not run(*pair.split(':')):raise SystemExit(1)
+        if not run(*pair.split(':'),args.output_root):raise SystemExit(1)

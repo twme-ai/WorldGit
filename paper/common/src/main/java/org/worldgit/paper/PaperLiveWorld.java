@@ -104,9 +104,8 @@ final class PaperLiveWorld implements LiveWorld {
     // gamerule 是受追蹤的設定，不能以「底噪」排除。level.dat / saved data 可能要到 shutdown 才寫回，
     // 因此在全域排程器取一份活資料，避免線上 commit 偷偷保存舊 gamerule。
     if (dataVersion() < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) {
-      var level = Nbt.read(metadata.get("level.nbt"));
-      level.put("DataVersion", dataVersion());
-      level.putAll(active);
+      var level = PaperMetadataProjection.liveLevel(Nbt.read(metadata.get("level.nbt")),
+          active, dataVersion(), plugin.bridge().dataFixer());
       metadata.put("level.nbt", Nbt.write(level));
     } else {
       var data = new Nbt.Compound().with("DataVersion", dataVersion()).with("data", active.compound(dataVersion()<4671?"GameRules":"game_rules"));

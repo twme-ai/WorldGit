@@ -13,6 +13,8 @@ public final class NmsBridges {
           "1.20.4", "org.worldgit.paper.v1_20_4.Bridge_1_20_4",
           "1.20.6", "org.worldgit.paper.v1_20_6.Bridge_1_20_6",
           "1.21.1", "org.worldgit.paper.v1_21_1.Bridge_1_21_1",
+          "1.21.4", "org.worldgit.paper.v1_21_4.Bridge_1_21_4",
+          "1.21.8", "org.worldgit.paper.v1_21_8.Bridge_1_21_8",
           "1.21.11", "org.worldgit.paper.v1_21_11.Bridge_1_21_11",
           "26.2", "org.worldgit.paper.v26_2.Bridge_26_2");
 

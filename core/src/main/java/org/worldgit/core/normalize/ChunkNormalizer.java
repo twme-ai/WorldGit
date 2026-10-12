@@ -10,6 +10,8 @@ import org.worldgit.core.model.*;
 public final class ChunkNormalizer {
   private final IgnoreRules rules;
   private final EntitySemantics semantics;
+  private static final Set<String> BOAT_WOODS = Set.of("oak", "spruce", "birch", "jungle",
+      "acacia", "dark_oak", "mangrove", "cherry", "bamboo", "pale_oak");
   private static final Set<String> FURNACE =
       Set.of("lit_time_remaining", "cooking_time_spent", "BurnTime", "CookTime");
   private static final Map<String, Set<String>> BE_IGNORE =
@@ -56,6 +58,7 @@ public final class ChunkNormalizer {
         String id = be.string("id");
         var source = chunk.integer("DataVersion", 0) >= 5023 ? Nbt.copy(be) : be;
         if (chunk.integer("DataVersion", 0) >= 5023) canonical263BlockEntity(source);
+        source = org.worldgit.core.version.NativeNbtForms.blockEntity(source, chunk.integer("DataVersion", 0));
         source.forEach(
             (k, v) -> {
               if (!Set.of("x", "y", "z").contains(k)
@@ -127,7 +130,7 @@ public final class ChunkNormalizer {
       var entities = new ArrayList<EntitySnapshot>();
       for (var e : entityData)
         if (!rules.ignoredEntity(e, semantics)) entities.add(EntityNormalizer.normalize(
-            chunk.integer("DataVersion", 0) <= 4189 ? LegacyText.normalize(e) : e, rules));
+            canonicalEntity(e, chunk.integer("DataVersion", 0)), rules));
       entities.sort(Comparator.comparing(e -> e.uuid().toString()));
       var ticks = new Nbt.Compound();
       Comparator<Nbt.Compound> order =
@@ -177,6 +180,43 @@ public final class ChunkNormalizer {
     } catch (IllegalArgumentException | ClassCastException | IndexOutOfBoundsException e) {
       throw new IOException("chunk " + pos + " 正規化失敗：" + e.getMessage(), e);
     }
+  }
+
+  private static Nbt.Compound canonicalEntity(Nbt.Compound entity, int version) {
+    var source = nativeBoat(entity, version);
+    return version <= 4189 ? LegacyText.normalize(source)
+        : org.worldgit.core.version.NativeNbtForms.entity(source, version);
+  }
+
+  /** DFU retains Type after the split; the native fixed-wood boat codec omits it. */
+  private static Nbt.Compound nativeBoat(Nbt.Compound entity, int version) {
+    if (version < 4189) return entity;
+    var result = entity;
+    if (entity.get("Type") instanceof String wood && BOAT_WOODS.contains(wood)) {
+      String prefix = "minecraft:" + wood;
+      String id = entity.string("id");
+      if (id.equals(prefix + "_boat") || id.equals(prefix + "_chest_boat")
+          || wood.equals("bamboo") && (id.equals(prefix + "_raft") || id.equals(prefix + "_chest_raft"))) {
+        result = Nbt.copy(entity);
+        result.remove("Type");
+      }
+    }
+    if (entity.get("Passengers") instanceof Nbt.ListTag passengers) {
+      ArrayList<Object> changed = null;
+      for (int i = 0; i < passengers.values().size(); i++) {
+        var before = (Nbt.Compound) passengers.values().get(i);
+        var after = nativeBoat(before, version);
+        if (after != before) {
+          if (changed == null) changed = new ArrayList<>(passengers.values());
+          changed.set(i, after);
+        }
+      }
+      if (changed != null) {
+        if (result == entity) result = Nbt.copy(entity);
+        result.put("Passengers", new Nbt.ListTag(passengers.type(), changed));
+      }
+    }
+    return result;
   }
 
   private static void canonical263BlockEntity(Nbt.Compound data) {

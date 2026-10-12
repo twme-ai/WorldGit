@@ -181,7 +181,7 @@ final class MetadataConversion {
         }
         level.remove("spawn");
       }
-      if (to < MinecraftVersion.NAMESPACED_STORAGE && level.containsKey("world_border")) {
+      if (to <= 4440 && level.containsKey("world_border")) {
         var b = level.compound("world_border");
         var names =
             Map.of(
@@ -200,7 +200,13 @@ final class MetadataConversion {
                 "damage_per_block",
                 "BorderDamagePerBlock");
         for (var e : names.entrySet())
-          if (b.containsKey(e.getKey())) level.put(e.getValue(), b.get(e.getKey()));
+          if (b.containsKey(e.getKey())) {
+            Object value = b.get(e.getKey());
+            // Legacy WorldBorder.Settings.write stores these integer settings as doubles.
+            if (Set.of("warning_blocks", "warning_time").contains(e.getKey()) && value instanceof Number number)
+              value = number.doubleValue();
+            level.put(e.getValue(), value);
+          }
         level.remove("world_border");
       }
     }

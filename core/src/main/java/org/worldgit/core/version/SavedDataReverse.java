@@ -44,6 +44,8 @@ final class SavedDataReverse {
           loss.add("chunk-ticket", ticket.string("type"), "skip", "saved-data/tickets");
           continue;
         }
+        if (ticket.integer("level", 31) != 31)
+          loss.add("chunk-ticket-level", "level=" + ticket.integer("level", 31), "31", "saved-data/tickets");
         if (ticket.get("chunk_pos") instanceof int[] pos && pos.length == 2)
           forced.add((pos[0] & 0xffffffffL) | ((long) pos[1] << 32));
         else throw new IOException("chunk ticket 座標無法反向轉換");

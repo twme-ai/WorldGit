@@ -10,8 +10,8 @@ class VersionContractsTest {
   @AfterEach void restoreLocale() { Messages.configure(MessageCatalog.bundled(),"en_us"); }
   @Test void selectorUsesExactCatalogAndOnlyInstalledAdapters() {
     Messages.configure(MessageCatalog.bundled(),"en_us");
-    assertEquals(Set.of("1.20.1","1.20.4","1.20.6","1.21.1","1.21.11","26.2"),NmsBridges.supported());
-    for(String version:List.of("1.20.10","1.20.1-R0.1","1.21.4","26.2.1","26.3")) {
+    assertEquals(Set.of("1.20.1","1.20.4","1.20.6","1.21.1","1.21.4","1.21.8","1.21.11","26.2"),NmsBridges.supported());
+    for(String version:List.of("1.20.10","1.20.1-R0.1","26.1.2","26.2.1","26.3")) {
       var error=assertThrows(UnsupportedOperationException.class,()->NmsBridges.select(version,getClass().getClassLoader()));
       assertTrue(error.getMessage().contains(version));assertTrue(error.getMessage().contains("Available adapters"));
     }

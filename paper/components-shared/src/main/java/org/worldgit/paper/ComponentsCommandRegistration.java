@@ -58,11 +58,12 @@ final class ComponentsCommandRegistration {
   private static Input input(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context,CommandDispatcher<CommandSource> dispatcher) {
     context=context.getLastChild();
     String root=dispatcher.getRoot().getChildren().iterator().next().getName();
-    // 1.20.6／1.21.1 的 registrar 預設用 redirect 註冊短名稱；child context 不再含根 literal。
+    // 1.20.6／1.21.1 aliases redirect; 1.21.4 may clone the alias literal instead.
     if(context.getNodes().isEmpty())return new Input(root,context.getInput().length()-root.length());
     var first=context.getNodes().getFirst();
     String parsed=first.getNode().getName();
-    if(parsed.equals(root) || parsed.endsWith(":"+root)) {
+    if(parsed.equals(root) || parsed.endsWith(":"+root)
+        || root.equals("wg") && (parsed.equals("worldgit") || parsed.endsWith(":worldgit"))) {
       int end=first.getRange().getEnd();
       return new Input(root+context.getInput().substring(end),end-root.length());
     }

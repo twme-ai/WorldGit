@@ -1,5 +1,5 @@
 # 每條規則在 from > boundary >= to 時執行；registry 差集自動辨識新增內容。
-revision: reverse-2026-10-11-17
+revision: reverse-2026-10-12-20
 fallbacks:
   block: minecraft:stone
   item: minecraft:barrier
@@ -40,7 +40,7 @@ fields:
   - {boundary: 4189, kind: entity, id: 'minecraft:phantom', from: size, to: Size}
   - {boundary: 4189, kind: entity, id: 'minecraft:turtle', from: has_egg, to: HasEgg}
   - {boundary: 4189, kind: entity, id: 'minecraft:vex', from: life_ticks, to: LifeTicks}
-  - {boundary: 4189, kind: entity, id: 'minecraft:tnt_minecart', from: fuse, to: TNTFuse}
+  - {boundary: 3955, kind: entity, id: 'minecraft:tnt_minecart', from: fuse, to: TNTFuse}
 components-to-nbt:
   'minecraft:damage': Damage
   'minecraft:repair_cost': RepairCost

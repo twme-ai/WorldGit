@@ -23,6 +23,40 @@ class MetadataConversionTest {
         .encodeToString(path.getBytes(StandardCharsets.UTF_8)) + ".nbt";
   }
 
+  @Test void modernBorderWarningsRestoreTheExactLegacyDoubleTagsWithoutLoss() throws Exception {
+    var border = new Nbt.Compound().with("center_x", -12.5d).with("center_z", 42d)
+        .with("size", 1234d).with("safe_zone", 3d).with("damage_per_block", .4d)
+        .with("warning_blocks", 7).with("warning_time", 18);
+    var files = Map.of("level.nbt", Nbt.write(new Nbt.Compound().with("DataVersion", 4671)
+        .with("world_border", border)));
+    for (int target : List.of(4440, 4189, 3955)) {
+      var loss = new ConversionReport.Collector();
+      var reverse = new ReverseNbt(new ReverseRules(4671, target, null), loss, 4671, target);
+      var level = Nbt.read(MetadataConversion.convert(files, DimensionId.OVERWORLD,
+          4671, target, null, reverse, loss).get("level.nbt"));
+      assertEquals(7d, level.get("BorderWarningBlocks"));assertEquals(18d, level.get("BorderWarningTime"));
+      assertEquals(-12.5d, level.get("BorderCenterX"));assertEquals(42d, level.get("BorderCenterZ"));
+      assertEquals(1234d, level.get("BorderSize"));assertEquals(3d, level.get("BorderSafeZone"));
+      assertEquals(.4d, level.get("BorderDamagePerBlock"));assertFalse(level.containsKey("world_border"));
+      assertFalse(loss.report(4671, target, "test").lossy());
+    }
+    assertEquals(7, border.get("warning_blocks"));
+  }
+
+  @Test void namespacedBorderKeepsTheNative12111LevelSchemaAndIntegerWarnings() throws Exception {
+    var border = new Nbt.Compound().with("center_x", -12.5d).with("center_z", 42d)
+        .with("warning_blocks", 7).with("warning_time", 18).with("custom", "retain");
+    var files = Map.of("level.nbt", Nbt.write(new Nbt.Compound().with("DataVersion", 5023)),
+        "world_border.dat.nbt", Nbt.write(new Nbt.Compound().with("DataVersion", 5023).with("data", border)));
+    var loss = new ConversionReport.Collector();
+    var reverse = new ReverseNbt(new ReverseRules(5023, 4671, null), loss, 5023, 4671);
+    var level = Nbt.read(MetadataConversion.convert(files, DimensionId.OVERWORLD,
+        5023, 4671, null, reverse, loss).get("level.nbt"));
+    assertArrayEquals(Nbt.write(border), Nbt.write(level.compound("world_border")));
+    assertFalse(level.containsKey("BorderWarningBlocks"));assertFalse(level.containsKey("BorderCenterX"));
+    assertFalse(loss.report(5023, 4671, "test").lossy());
+  }
+
   @Test
   void oldToOldConversionPreservesSavedDataAndReportsNewGamerules() throws Exception {
     String raids=saved("data/raids.dat"), chunks=saved("data/chunks.dat");

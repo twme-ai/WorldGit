@@ -1,6 +1,6 @@
 # 19 — 多版本世界與跨版本歷史
 
-研究日期：2026-10-09；實作與驗收持續至 2026-10-11。本文件涵蓋任務 1（core／CLI／Hub／platform-api），以及任務 2（Paper／Folia）、任務 3（Fabric）的交接。平台能下載不等於 WorldGit 已驗收；任務 2 子任務①新增 1.20.1／1.20.4，子任務②新增 1.20.6／1.21.1 的線上轉接層，與既有 1.21.11／26.2 共用發行 jar；Folia 1.21.1 無官方 build、不可驗收，其餘平台仍待後續子任務。
+研究日期：2026-10-09；實作與驗收持續至 2026-10-12。本文件涵蓋任務 1（core／CLI／Hub／platform-api），以及任務 2（Paper／Folia）、任務 3（Fabric）的交接。平台能下載不等於 WorldGit 已驗收；任務 2 子任務①新增 1.20.1／1.20.4，子任務②新增 1.20.6／1.21.1、子任務③新增 1.21.4／1.21.8 的線上轉接層，與既有 1.21.11／26.2 共用發行 jar；Folia 1.21.1 無官方 build、不可驗收，其餘平台仍待後續子任務。
 
 ## 1. 來源與目標版本
 
@@ -161,9 +161,35 @@ bridge 提供目標伺服器 `DataFixers`／`NbtOps` 和實際 DV，擷取與寫
 
 子任務②（2026-10-11，#208–#215）新增 `v1_20_6`／`v1_21_1`，精確 dev bundle 為 `1.20.6-R0.1-20241030.191541-126`／`1.21.1-R0.1-20250328.161643-128`，皆為 Mojang production 名稱、Java 21。Paper runtime 固定 build 151／133，Folia 1.20.6 固定 build 6；官方下載 manifest 與實際 jar checksum 留在 `.work/mv2-2/`。Folia 1.21.1 回 `version_not_found`，selector 在載入 adapter 前用 MiniMessage 語系訊息說明沒有官方 build、不可驗收，並停用插件。
 
-components（1.20.6–1.21.4）仍是候選 source 家族。已確認的共用來源僅有 `components-shared` 的完整 NBT／registry-aware BE codec 與舊 Lifecycle 指令來源；兩個精確 bundle 都編譯，發行 jar 前比較共享 bytecode，一處不同即拒絕合併。1.20.6 仍為舊 Paper chunk system；1.21.1 已為 Moonrise，其 tick 集合保存 ChunkAndHolder 身分，guard 要保留原 wrapper。兩版各自使用已確認的 entity callback／UUID lookup、ticket、光照完成回呼、terrain／entity／POI 存檔與 flush。鎖與替換 scheduled ticks 前都先 unpackTicks（#170），保留剩餘延遲、priority 與 owner clock；不借用其他版的欄位或 freeze。1.21.4 是否能加入共用來源由子任務③確認。
+components（1.20.6–1.21.4）仍是候選 source 家族。已確認的共用來源僅有 `components-shared` 的完整 NBT／registry-aware BE codec 與舊 Lifecycle 指令來源；兩個精確 bundle 都編譯，發行 jar 前比較共享 bytecode，一處不同即拒絕合併。1.20.6 仍為舊 Paper chunk system；1.21.1 已為 Moonrise，其 tick 集合保存 ChunkAndHolder 身分，guard 要保留原 wrapper。兩版各自使用已確認的 entity callback／UUID lookup、ticket、光照完成回呼、terrain／entity／POI 存檔與 flush。鎖與替換 scheduled ticks 前都先 unpackTicks（#170），保留剩餘延遲、priority 與 owner clock；不借用其他版的欄位或 freeze。1.21.4 已於子任務③逐 bundle 核對並加入這組共用來源。
 
 1.20.6／1.21.1 的 Lifecycle 短名預設使用 redirect；child context 可能省略根 literal，按已解析節點範圍重建原操作尾段，再回投補全與錯誤游標（#211）。Brigadier 使用單參數 parse，source 的位置／執行者由該版 native handle 轉接；較新兩版保留原來源。
+
+子任務③（2026-10-12，#216–#232）新增 `v1_21_4`／`v1_21_8`，精確 dev bundle 為 `1.21.4-R0.1-20250925.065901-228`／`1.21.8-R0.1-20250906.215025-55`，Mojang production 名稱、Java 21。Paper runtime build 232／60、Folia 各 build 6；manifest／checksum 在 `.work/mv2-3/artifact-proof.json`。Folia 兩版有官方 WorldEdit 7.4.2（Java 21），Paper 使用 FAWE 2.15.0，各官方發行的 Minecraft／平台範圍及 SHA-512 一併核對。
+
+1.21.4 的 NBT／registry-aware BE 與 Lifecycle 指令來源加入 `components-shared`；發行前比對 1.20.6／1.21.1／1.21.4 三組完整 class，任何差異都拒絕合併。1.21.8 的 NBT text／equipment 屬 modern 家族，僅共享已確認的 `commands-modern`；與 1.21.11 的完整 Java 21 class 同樣必須相同。26.2 編譯器為 Java 25，lambda 名稱與 class body 不同，逐版編譯並另驗真服，沒有以略過 header 的比對宣稱 bytecode 相同（#217）。
+
+1.21.4 使用 Moonrise 的 ChunkAndHolder，保留原 wrapper；1.21.8 的 tick 清單直接是 LevelChunk。1.21.8 的 ticket constructor 為 `(long, boolean, TicketUse.LOADING)`，與後續 FLAG_LOADING 版本不同；metadata 使用該版 `scheduleSave()` 的完成 future，region 存檔方法三參數，terrain／entity／POI flush、callback、UUID lookup 保持自己 adapter。鎖與替換都先展開 pending ticks，owner clock、剩餘延遲、priority 的原版容器斷言保留。Folia 1.21.4 的 MinecraftServer 在所有世界存檔與 MoonriseRegionFileIO.flush 完成後報 `All I/O tasks to complete`；1.21.8 仍報 `All RegionFile I/O tasks to complete`，由精確 adapter 接入關閉 commit 完成訊號（#222）。
+
+反向 equipment 邊界補齊 Mob／ArmorStand 的固定陣列與 Mob 預設 drop chances，保留 body item／chance；pig／strider 回 Saddle 布林，horse 回 SaddleItem。無法表示的 saddle 元件、非預設 chance 與未知槽逐項列損失。非 LivingEntity 不加設備陣列，custom_data 不透明（#218）。attribute_modifiers wrapper 的 show_in_tooltip 保留，type 按目標 registry 轉換；written book 的 raw／filtered page 與名稱／lore／招牌回 JSON。非零 lit_total_time 降到 ≤3955 列重算損失，其餘熔爐欄位保留 short／溢位驗證；TNT minecart fuse 舊名邊界修為 3955。reverse revision 18、首輪 v15-intermediate-native-form 使舊轉換／統計快取失效（#219）；後續 #225／#226 再更新 boat 與 saved-data 的原生等價格式。
+
+原版 Disabled 實驗包的投影補入 `redstone_experiments`／`minecart_improvements`，名單取目標 server available packs；Enabled 順序與啟用實驗不改，自訂 Disabled 政策與 Bukkit 資產保持原預檢。`paper-metadata-v2` 拒用舊投影快取，新增雙向與自訂政策回歸，真服首跑 metadata 拒絕證據保留（#223）。
+
+真服 DFU 的拆分 boat ID 仍帶舊 Type，原生重存則省略；DV≥4189 的已知原版木材 ID／一致 Type 及乘客僅省略冗餘欄位，舊 boat、模組 namespace、不一致 Type、custom_data 保留。以 DFU 殘留形狀與 native 重存補回歸；正規化 v16-native-boat-form 拒用舊投影，版本字串在執行期讀取，避免中止後 incremental build 的舊 inline 常數（#225）。
+
+saved-data 依 1.21.8 原生 codec 處理永久 forced ticket 的缺省 ticks_left、集合順序與空 tickets／raids。只對已知原版路徑及永久 forced 類型省略期限；座標、level、其他 ticket 有限期限、非空襲擊、next_id 與自訂資料完整保留。降回舊 Forced 時非預設 level 列損失；SavedData v5 與階段版本 `multiversion-canonical-v17-native-saved-data-form` 拒用舊投影／索引快取（#226）。
+
+DFU 的舊 HandItems／ArmorItems 與 saddle 只在各槽完全等於 modern equipment 時省略；不一致資料、自訂 namespace 與 custom_data 保留。原生 BE 缺省空 components 與 pig 的 temperate variant 補在缺省欄位，已有內容不改，維持既有同版原生快照表示。正規化更新為 v18-native-equipment-form，原始 PARTIAL 及逐 tree／物理 NBT 比較留在 `.work/mv2-3/failures/dfu-equipment-native-form/`（#227）。
+
+modern saddle=2.0 與舊版保證掉落等價；缺省 chance=0.085 或其他低於 1 的機率降到保證掉落時必須列損失，沒有設備的機率欄位省略也列損失。reverse revision 更新為 19，補缺省機率回歸並維持原生 2.0 的無損斷言（#228）。
+
+1.21.8↔1.21.11 另確認 Bukkit 原生 marker 的 schema 邊界：舊 pack_format 與新同值 min_format／max_format major／minor 陣列雙向投影，只處理精確原生描述／schema 與無其他資產的空標記包；自訂範圍、欄位、描述及內容完整保留。1.21.11 bridge 使用實際格式94.1、enabled features、available packs 與活 DataPacks；現代 game_rules 補缺省值而不覆蓋已有值。fingerprint 更新 v3 含 minor；stale level.dat 先由目標 DFU 投影 LEVEL 再覆蓋活設定，避免舊 GameRules 混入新 game_rules，同版跳過DFU、較新磁碟DV拒絕，不觸發資料包重載或完整世界存檔（#229）。
+
+world_border 自1.21.11已是compound，降到DV≤4440才改回舊欄位；舊 WorldBorder.Settings.write 的警告距離／時間使用double，反向轉換恢復相同數值的DoubleTag，避免純型別差異被嚴格預檢拒絕。1.21.11保留現代compound／整數，26.x storage layout 的拆分是另一個邊界。兩組型別／schema回歸保留完整設定與未知資料；最終正規化更新v19-native-border-form、reverse revision20，首跑拒絕與官方bytecode證據在 `.work/mv2-3/failures/native-border-warning-width/`（#230）。
+
+1.21.4 的 Lifecycle 別名可提供 cloned worldgit 根literal，1.20.6／1.21.1則可能只留下redirect child。components 共用輸入投影同時辨識 canonical root／已知worldgit別名與redirect child，保留 source、cursor及補全offset；短worldgit、namespaced與execute補全都由真封包驗收，三bundle完整共享class比較仍保留（#231）。
+
+Folia1.21.4 的 headless bot 驗收需按原生respawn保留旗標與實際維度改變保留既有正血量；Folia不重送相同health，Mineflayer的無條件dead狀態會使look／互動永遠等待。listener完成後才更新client，位置／chunk就緒才發player_loaded；死亡不套用、沒有改伺服器實體NBT。原生命名牌與before-init觸及繼承、追蹤斷言仍完整驗證，旗標／維度／health／ready證據保留（#232）。
 
 ### Fabric
 
@@ -267,9 +293,45 @@ Folia 關閉鉤子以 adapter 的 I/O 完成訊號為準（#204）。1.20.1／1.
 
 最終插件 SHA-256：`7e11761f9febf256126c3df53b21c3af4f07fff576303dc1d913960e83cde9a0`。舊 Lifecycle redirect、ANSI 比對、fixture 路徑／原版實驗包、spawnChunkRadius 設定差異與 #214 首跑 PARTIAL 均保留於 `.work/mv2-2/failures/`，修正後重驗，既有斷言全部保留。
 
-Folia 1.21.1 沒有官方 build，不可驗收；Folia 1.20.6 的 WorldEdit 缺口按 #200 明記未驗收。只有已編譯且 bytecode 相同的 NBT／指令來源共享，1.21.4 尚未加入已確認家族。世界設定／資料包差異仍保持線上拒絕；keep-spawn-loaded 遷移後的新 gamerule 差異先驗證拒絕，再明確採原版預設值建立相容 fixture。
+Folia 1.21.1 沒有官方 build，不可驗收；Folia 1.20.6 的 WorldEdit 缺口按 #200 明記未驗收。只有已編譯且 bytecode 相同的 NBT／指令來源共享；子任務②完成時，1.21.4 尚未加入已確認家族，子任務③的確認與驗收見下文。世界設定／資料包差異仍保持線上拒絕；keep-spawn-loaded 遷移後的新 gamerule 差異先驗證拒絕，再明確採原版預設值建立相容 fixture。
 
 子任務③新決策從 #216 起；先固定 `v1_21_4`／`v1_21_8` 的精確 bundle，確認 callback、設備 codec、tick 集合 wrapper、ticket 與 IO barrier，再擴充 selector、官方 Paper／Folia 矩陣與跨版本線上工具。
+
+### 任務 2 子任務③完成驗收（2026-10-12）
+
+基底 `9074d50`，工作樹未提交；新增 Paper／Folia 1.21.4、1.21.8，決策 #216–#232。前回合對話中斷後，序列 runner 繼續完成剩餘矩陣；接續回合逐份核對終態、退出碼、原始證據與最終插件 SHA，沒有依過時 pid 重新啟動 runner。完整修改清單、命令、耗時及清理見 `.work/mv2-3/report.md`、`summary.json`、`evidence-audit.json` 與各 `*-receipt.json`。
+
+| 命令／平台 | 結果 | 證據 |
+|---|---|---|
+| `GRADLE_USER_HOME=.work/gradle-home flock --close .work/bench.lock ./gradlew --no-daemon --configure-on-demand --max-workers=1 build` | 480 JUnit，0 failure／error／skipped；`git diff --check` 通過 | `.work/mv2-3/build-final.log`、`unit-results.json` |
+| `acceptance.py paper 1.21.4`、`phase5.py paper 1.21.4` | 33／33、55／55；官方 FAWE 2.15.0 | `.work/mv2-3/acceptance-paper-1.21.4-results.json`、`phase5-paper-1.21.4.log` |
+| `acceptance.py folia 1.21.4`、`phase5.py folia 1.21.4` | 33／33、56／56；官方 WorldEdit 7.4.2，沒有略過整合 | `.work/mv2-3/acceptance-folia-1.21.4-results.json`、`phase5-folia-1.21.4.log` |
+| `acceptance.py paper 1.21.8`、`phase5.py paper 1.21.8` | 33／33、55／55；官方 FAWE 2.15.0 | `.work/mv2-3/acceptance-paper-1.21.8-results.json`、`phase5-paper-1.21.8.log` |
+| `acceptance.py folia 1.21.8`、`phase5.py folia 1.21.8` | 33／33、56／56；官方 WorldEdit 7.4.2，沒有略過整合 | `.work/mv2-3/acceptance-folia-1.21.8-results.json`、`phase5-folia-1.21.8.log` |
+| `multiversion.py --pair 1.21.1:1.21.4`、`--pair 1.21.4:1.21.8`、`--pair 1.21.8:1.21.11` | 各 53／53；自動升級、中文損失預覽、未確認不寫入、token 綁定及 switch／reset／merge verify 零差異 | `.work/mv2-3/online/*/results.json` |
+| `components.py <platform> <version>`：新增四平台 | 四組通過；pending ticks 替換清除、lock unpack、owner clock／delay 600／priority -1,1 | `.work/mv2-3/pending/*/results.json` |
+| `acceptance.py <platform> <version> phase2-entities`：新增四平台 | 各 12／12；UUID 普查、巢狀乘客、跨維度及未載入磁碟實體 | `.work/paper-phase2/entities-*/results.json` |
+| `acceptance.py folia 1.21.4 sigterm`、`folia 1.21.8 sigterm` | 各 1／1；JVM 自行結束、關閉 commit +1／auto／SUCCESS、停服後三維度零差異 | `.work/mv2-3/sigterm-folia-*-results.json` |
+| `acceptance.py paper <version>`：1.20.1／1.20.6／1.21.1／1.21.11／26.2 | 五組各 33／33 | `.work/mv2-3/acceptance-paper-*-results.json` |
+| `phase4_regressions.py --case paper-1.21.11-phase2 --case folia-1.21.11-phase2` | 兩組全綠 | `.work/mv2-3/phase2-regressions.log` |
+| common API 與完整共享 class 比對 | API 引用與 class／interface 無缺漏；components 三 bundle、modern 兩個 Java 21 bundle 逐 byte 相同 | `.work/mv2-3/api-compatibility.json`、`shared-sources-proof.json` |
+
+跨版讀回另核對 boat ID／Type、equipment／saddle、attributes、custom_model_data、JSON／NBT 名稱／lore／招牌、附魔與不透明 custom_data。真服首跑失敗及修正證據保留 `.work/mv2-3/failures/`，沒有刪測試或放寬斷言。最終快取契約為 `multiversion-canonical-v19-native-border-form`、`runtime-saved-data-v5-native-defaults`、reverse revision 20、`paper-metadata-v3`（含 marker minor format）。
+
+同機 Paper 26.2／Java 25、相同 fixture、無玩家、三輪；基準 jar SHA 與 `9074d50` 發行產物一致。status／switch 端到端 p50 秒數不含 harness settle sleep。
+
+| 操作 | 9074d50 | 本次 | 變化 |
+|---|---:|---:|---:|
+| `status-noop` | 0.254 | 0.255 | +0.39% |
+| `switch-noop` | 0.703 | 0.702 | -0.04% |
+| `switch-1` | 1.448 | 1.449 | +0.07% |
+| `switch-100` | 8.422 | 8.399 | -0.27% |
+
+四項 p50 比值幾何平均 1.000；此抽樣未見實質退步，不代表大型實體／BE 世界。原始樣本 `.work/perf/mv2-3-before-paper-26.2/`、`mv2-3-after-paper-26.2/`。
+
+最終插件 SHA-256：`f7967c8a484c6a9fa5dd43f9033d6cea5e7c038c825b990be3e5390a41632946`；CLI：`514eae9dcffd0bcdf38d4d428b66a96c79614a41e56019e180385978ac1dcc12`。有損降級仍須確認；自訂資料包或受追蹤世界設定不同時保持線上拒絕，需停服用 CLI。Folia 1.21.1 與舊 Folia WorldEdit 的官方缺口保持原註記；本次兩版 Folia 都完成官方 WorldEdit 驗收。
+
+子任務④新決策從 #233 起，建議先固定 `v26_1_2`／`v26_3` 的精確 bundle、Java 25 與官方 Paper／Folia build；核對 namespaced saved-data、ValueInput／ValueOutput、新 state codec、ticket／owner／UUID／IO，再逐版編譯與真服驗收。沒有官方 Folia build 時沿用 #210 的明確拒絕與未驗收註記。
 
 轉換後的歷史 chunk 再按同一份 `.wgignore` 正規化；空 tick 清單省略，ID 改名後重新排序。舊版實體載入所需的 `Health` 等預設值只在物理實體化時補入，不進歷史雜湊。離線套用同 UUID、同類型的實體時保留目前生命值；新實體依 max_health 與原版預設值補足，並遞迴處理乘客。轉換與 Hub 統計快取的正規化版本同步更新（#179）。
 

@@ -2,7 +2,7 @@ import java.util.zip.ZipFile
 
 // 發佈用的單一插件 jar：版本無關本體（paper:common）＋ core/platform-api/protocol ＋ 每個 Minecraft 版本一個 NMS 轉接層。
 // 執行時依 Bukkit.getMinecraftVersion() 只載入符合的轉接層（見 NmsBridges）。
-val adapters = listOf(":paper:v1_20_6", ":paper:v1_21_1", ":paper:v1_21_11", ":paper:v26_2")
+val adapters = listOf(":paper:v1_20_6", ":paper:v1_21_1", ":paper:v1_21_4", ":paper:v1_21_8", ":paper:v1_21_11", ":paper:v26_2")
 val legacyAdapters = listOf(":paper:v1_20_1", ":paper:v1_20_4")
 (adapters + legacyAdapters).forEach { evaluationDependsOn(it) }
 
@@ -50,9 +50,9 @@ val verifyOptionalApi = tasks.register("verifyOptionalApi") {
 }
 tasks.named("check") { dependsOn(verifyOptionalApi) }
 
-// 只有兩個精確 bundle 產生完全一致 bytecode 的來源才可在發佈 jar 合併。
+// 每個精確 bundle 產生完全一致 bytecode 的來源才可在發佈 jar 合併。
 val verifyComponentsSources = tasks.register("verifyComponentsSources") {
-    val variants = listOf(":paper:v1_20_6", ":paper:v1_21_1").map {
+    val variants = listOf(":paper:v1_20_6", ":paper:v1_21_1", ":paper:v1_21_4").map {
         project(it).tasks.named<JavaCompile>("compileJava")
     }
     dependsOn(variants)
@@ -72,3 +72,27 @@ val verifyComponentsSources = tasks.register("verifyComponentsSources") {
 }
 tasks.jar { dependsOn(verifyComponentsSources) }
 tasks.named("check") { dependsOn(verifyComponentsSources) }
+
+val verifyModernCommands = tasks.register("verifyModernCommands") {
+    val variants = listOf(":paper:v1_21_8", ":paper:v1_21_11").map {
+        project(it).tasks.named<JavaCompile>("compileJava")
+    }
+    dependsOn(variants)
+    variants.forEach { inputs.dir(it.flatMap { task -> task.destinationDirectory }) }
+    doLast {
+        val roots = variants.map { it.get().destinationDirectory.get().asFile }
+        val files = roots.first().walkTopDown().filter {
+            it.isFile && it.extension == "class" && it.name.startsWith("ModernCommandRegistration")
+        }.map { it.relativeTo(roots.first()).path }.toList()
+        check(files.isNotEmpty()) { "modern command shared sources were not compiled" }
+        files.forEach { path ->
+            // Both adapters use Java 21; require identical complete class files.
+            val expected = roots.first().resolve(path).readBytes().toList()
+            check(roots.drop(1).all { root -> root.resolve(path).readBytes().toList() == expected }) {
+                "modern command bytecode differs: $path; isolate this source in its version adapter"
+            }
+        }
+    }
+}
+tasks.jar { dependsOn(verifyModernCommands) }
+tasks.named("check") { dependsOn(verifyModernCommands) }

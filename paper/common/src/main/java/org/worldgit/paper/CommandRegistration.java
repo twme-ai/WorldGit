@@ -12,7 +12,7 @@ final class CommandRegistration {
   static void register(WorldGitPlugin plugin,CommandTree.Actions actions,CommandSuggestions suggestions) {
     if(!Set.of("1.20.1","1.20.4").contains(plugin.bridge().minecraftVersion())) {
       try {
-        Class.forName("org.worldgit.paper."+(Set.of("1.20.6","1.21.1").contains(plugin.bridge().minecraftVersion())
+        Class.forName("org.worldgit.paper."+(Set.of("1.20.6","1.21.1","1.21.4").contains(plugin.bridge().minecraftVersion())
             ? "ComponentsCommandRegistration" : "ModernCommandRegistration"),true,plugin.getClass().getClassLoader())
             .getDeclaredMethod("register",WorldGitPlugin.class,CommandTree.Actions.class,CommandSuggestions.class)
             .invoke(null,plugin,actions,suggestions);

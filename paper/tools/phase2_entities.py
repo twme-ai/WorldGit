@@ -41,7 +41,7 @@ def run(platform,version):
     with BenchLock():
         harness.RUN=os.path.join(WORK,'paper-phase2','run')
         baseline=os.path.join(WORK,'paper-delivery','fixtures','acceptance-flat-'+version)
-        if version in ('1.20.6','1.21.1'):
+        if version in ('1.20.6','1.21.1','1.21.4','1.21.8'):
             stable=os.path.join(evidence,'fixture')
             shutil.copytree(baseline,stable)
             subprocess.run([harness.JAVA[version],'-Xmx512m','-cp',os.path.join(ROOT,'cli/build/libs/wgit.jar'),
@@ -50,14 +50,14 @@ def run(platform,version):
         s=Server(platform,version,baseline=baseline,run_label=f'entities-{platform}-{version}',view=2,
                  config={'auto-commit':{'enabled':False,'on-shutdown':False},'commit':{'timeout-seconds':900}})
         try:
-            if version in ('1.20.6','1.21.1'): fixture(s,version)
+            if version in ('1.20.6','1.21.1','1.21.4','1.21.8'): fixture(s,version)
             s.start(); result['console']=os.path.relpath(s.evidence_log,ROOT)
             cmd(s,'wg debug guard on',r'WGCHUNKGUARD locked')
             s.bot('WgBot'); nether_bot=s.bot('WgBot2')
             s.cmd('tp WgBot 200 70 -184')
             s.cmd('execute in minecraft:the_nether run tp WgBot2 -184 70 200')
             cmd(s,'wg debug entities overworld 12 -12 seed')
-            if version in ('1.20.6','1.21.1'):
+            if version in ('1.20.6','1.21.1','1.21.4','1.21.8'):
                 # 舊版 NoAI 仍會遞減 EggLayTime；以原版 jockey flag 安定 fixture，完整保留 timer 欄位。
                 output=s.cmd('wgentityfixture',r'WGENTITYFIXTURE (success|failed)')
                 check('原版 jockey flag 固定蛋計時且不忽略欄位','WGENTITYFIXTURE success jockey=true' in output,output=output)
@@ -115,5 +115,5 @@ def run(platform,version):
                     if os.path.isfile(source):
                         target=os.path.join(forensic,filename);os.makedirs(os.path.dirname(target),exist_ok=True);shutil.copy2(source,target)
             shutil.rmtree(s.dir,ignore_errors=True)
-            if version in ('1.20.6','1.21.1'): shutil.rmtree(baseline,ignore_errors=True)
+            if version in ('1.20.6','1.21.1','1.21.4','1.21.8'): shutil.rmtree(baseline,ignore_errors=True)
     return 0 if all(step['ok'] for step in result['steps']) else 1

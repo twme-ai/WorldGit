@@ -1,4 +1,4 @@
-"""Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.20.1|1.20.4|1.20.6|1.21.1|1.21.11|26.2> [scenarios...]
+"""Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.20.1|1.20.4|1.20.6|1.21.1|1.21.4|1.21.8|1.21.11|26.2> [scenarios...]
 
 scenarios：basic（commit 兩次無變動、bot 放一格、status 恰好 1 個 section、CLI 看到同樣歷史）、attribution（兩個 bot 各改一處）、
            mod（握手與 status/diff 傳送）、display（沒裝模組：BlockDisplay fallback，只對請求者可見、/wg clear、逾時、登出、不進實體快照）、worldedit（//set 大範圍）、auto（自動 commit：定時、登出）、shutdown（關閉前 commit 與離線 CLI 一致）
@@ -397,7 +397,7 @@ def main():
                 os.path.join(WORK, 'worlds', version, 'baseline'), baseline, '16'], check=True, timeout=180)
         results['fixture_kind'] = 'synthetic-flat'
         plugins = ([f'fawe-{version}'] if platform == 'paper' else [] if legacy_folia
-                   else [f'we-{"7.4.2" if version == "1.21.11" else "7.4.5"}'])
+                   else [f'we-{"7.4.2" if version in ("1.21.4","1.21.8","1.21.11") else "7.4.5"}'])
         s = Server(platform, version, baseline=baseline, plugins=plugins, config={'auto-commit': {'enabled': False, 'on-shutdown': True}, 'show': {'display-max-entities': 20, 'display-seconds': 10}})
         try:
             s.start()

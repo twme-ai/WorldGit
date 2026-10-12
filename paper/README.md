@@ -1,6 +1,6 @@
 # WorldGit Paper / Folia 插件（Phase 5：維度與操作體驗）
 
-同一個發佈 jar 支援 Paper 的 Minecraft **1.20.1、1.20.4、1.20.6、1.21.1、1.21.11 與 26.2**；Folia 支援其中的 **1.20.1、1.20.4、1.20.6、1.21.11、26.2**。1.x 使用 Java 21，26.2 使用 Java 25。Folia 1.21.1 官方沒有 build，**不可驗收**；啟動會明確說明並停用插件。`common` 只引用公開 Paper API，各精確版本的 NMS 轉接層以 paperweight-userdev 2.0.0-beta.21 編譯，啟動時只載入符合版本的類別。
+同一個發佈 jar 支援 Paper 的 Minecraft **1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11 與 26.2**；Folia 支援其中的 **1.20.1、1.20.4、1.20.6、1.21.4、1.21.8、1.21.11、26.2**。1.x 使用 Java 21，26.2 使用 Java 25。Folia 1.21.1 官方沒有 build，**不可驗收**；啟動會明確說明並停用插件。`common` 只引用公開 Paper API，各精確版本的 NMS 轉接層以 paperweight-userdev 2.0.0-beta.21 編譯，啟動時只載入符合版本的類別。
 
 Phase 5 任務 3：所有 repo 指令預設使用玩家所在世界群的目前維度；console 的其他 repo 指令預設伺服器第一個世界的主世界，init 必須明確指定 `--world <世界名>` 與 `--dimension <id>` 或 `--all`。主世界 init 的聊天按鈕可追加既存地獄／終界，沒有自動建立其他 repo。`--dimension` 覆寫目標，`--all` 逐維度完成、各自回報；其中一維度失敗不回滾其他成功。
 
@@ -18,11 +18,11 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 
 1.20.4→1.20.6 時，Paper 可能把舊 `keep-spawn-loaded=false` 設定遷移成 `spawnChunkRadius=0`；較舊歷史中缺少此規則，原版缺省投影為 `2`。這種設定差異會在任何寫入前被拒絕，需先決定要保留的設定，再停服用 CLI 還原。正式預檢不會為了通過 components 升級而略過 gamerule（#213）。
 
-common 編譯 Paper API 1.20.1；舊兩版使用 Bukkit 指令 registry，1.20.6 起使用 Lifecycle，components 兩版處理舊 redirect 與 Brigadier 邊界。舊 adapter 各自 reobf，正式 jar 透過 paper-plugin.yml 載入 Java 21 bytecode。未知／尚未實作的 catalog 版本明確停用，不能將 1.20.2 等相似版本視為已支援。
+common 編譯 Paper API 1.20.1；舊兩版使用 Bukkit 指令 registry，1.20.6 起使用 Lifecycle，components 三版處理舊 redirect 與 Brigadier 邊界。舊 adapter 各自 reobf，正式 jar 透過 paper-plugin.yml 載入 Java 21 bytecode。未知／尚未實作的 catalog 版本明確停用，不能將 1.20.2 等相似版本視為已支援。
 
-1.20.6／1.21.1 固定精確 dev bundle、Mojang production 名稱與 Java 21。`components-shared` 只共用完整 NBT／registry-aware BE codec 與指令來源，build 比較兩版共享 bytecode；chunk system、tick guard、ticket、IO 各自實作。1.21.4 是否加入同來源家族仍待逐版驗證。
+1.20.6／1.21.1／1.21.4 固定精確 dev bundle、Mojang production 名稱與 Java 21。`components-shared` 只共用完整 NBT／registry-aware BE codec 與指令來源，build 比較三版完整共享 bytecode；chunk system、tick guard、ticket、IO 各自實作。1.21.8 的現代文字／equipment codec 與 1.21.11／26.2 屬同來源家族，僅共用已確認的 `commands-modern`；1.21.8／1.21.11 的指令 class 完整比對，Java 25 的 26.2 另行編譯與真服驗證。1.21.8 的 TicketUse、metadata 存檔 future 與 IO 簽章留在自己的 adapter。
 
-Paper 1.20.1／1.20.4 的整合使用官方 FAWE 2.8.4 release（官方 jar 自報 2.8.5-SNAPSHOT）；1.20.6／1.21.1 使用官方 FAWE 2.15.0 release。**官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收**；舊 Folia 保留整合測試並明記略過，原生場景照常驗收。詳細矩陣、決策 #196 起及限制見 [多版本 §7／§8](../docs/19-multiversion.md)。
+Paper 1.20.1／1.20.4 的整合使用官方 FAWE 2.8.4 release（官方 jar 自報 2.8.5-SNAPSHOT）；1.20.6／1.21.1／1.21.4／1.21.8 使用官方 FAWE 2.15.0 release；Folia 1.21.4／1.21.8 使用官方 WorldEdit 7.4.2（Java 21）。**官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收**；舊 Folia 保留整合測試並明記略過，原生場景照常驗收。詳細矩陣、決策 #196 起及限制見 [多版本 §7／§8](../docs/19-multiversion.md)。
 
 ## Axiom
 

@@ -9,7 +9,9 @@ import java.util.*;
 public final class SavedData {
   private SavedData() {}
   /** 暫態規則也用於歷史 tree；不可只在磁碟 capture 排除。 */
-  public static final String NORMALIZATION = "runtime-saved-data-v4";
+  public static final String NORMALIZATION = normalizationVersion();
+  private static String normalizationVersion() { return "runtime-saved-data-v5-native-defaults"; }
+  private static final Set<String> TICKET_FILES = Set.of("data/chunks.dat", "data/minecraft/chunk_tickets.dat");
   private static final Set<String> RUNTIME_FILES = Set.of(
       "data/minecraft/world_clocks.dat", "data/minecraft/weather.dat",
       "data/minecraft/wandering_trader.dat");
@@ -44,13 +46,16 @@ public final class SavedData {
     if (path == null) return bytes;
     if (RUNTIME_FILES.contains(path)) return null;
     String field = runtimeField(path);
-    if (field == null && !path.equals("data/minecraft/stopwatches.dat")) return bytes;
+    if (field == null && !path.equals("data/minecraft/stopwatches.dat") && !TICKET_FILES.contains(path)) return bytes;
     var root = Nbt.read(bytes);
     var data = root.compound("data");
     if (field != null) {
       data.remove(field);
       if (field.equals("tick")) data.remove("Tick");
+      if (field.equals("tick") && data.get("raids") instanceof Nbt.ListTag raids && raids.values().isEmpty())
+        data.remove("raids"); // The modern raid codec omits its empty default list.
     }
+    if (TICKET_FILES.contains(path)) stableTickets(data);
     if (path.equals("data/minecraft/random_sequences.dat") || path.equals("data/random_sequences.dat")) {
       // RNG 游標不追蹤；/random reset 的設定仍保留，預設檔的首次建立沒有差異。
       if (data.integer("salt", 0) == 0) data.remove("salt");
@@ -65,6 +70,25 @@ public final class SavedData {
     root.put("data", data);
     if (data.isEmpty() && root.keySet().stream().allMatch(key -> Set.of("data", "DataVersion").contains(key))) return null;
     return Nbt.write(root);
+  }
+
+  private static void stableTickets(Nbt.Compound data) {
+    if (data.get("Forced") instanceof long[] forced) {
+      if (forced.length == 0) data.remove("Forced");
+      else Arrays.sort(forced);
+    }
+    if (!(data.get("tickets") instanceof Nbt.ListTag tickets) || tickets.type() != 10 && tickets.type() != 0) return;
+    if (tickets.values().isEmpty()) { data.remove("tickets"); return; }
+    var sorted = new ArrayList<Nbt.Compound>();
+    for (Object value : tickets.values()) {
+      var ticket = (Nbt.Compound) value;
+      // The native forced type has timeout=0; neither 0 nor Moonrise's MIN_VALUE expires.
+      if (ticket.string("type").equals("minecraft:forced") && ticket.get("ticks_left") instanceof Number)
+        ticket.remove("ticks_left");
+      sorted.add(ticket);
+    }
+    sorted.sort((a, b) -> Arrays.compareUnsigned(Nbt.write(a), Nbt.write(b)));
+    data.put("tickets", new Nbt.ListTag(10, new ArrayList<Object>(sorted)));
   }
   public static Map<String, byte[]> capture(Path directory, String prefix) throws IOException {
     return capture(directory, prefix, false);

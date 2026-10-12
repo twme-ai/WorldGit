@@ -125,7 +125,13 @@ class Fields263Test {
         assertEquals((short) 1600, furnace.get("lit_total_time"));
         assertFalse(furnace.containsKey("CookTimeTotal"));
       }
-      assertFalse(loss.report(5023, target, "test").lossy());
+      var report = loss.report(5023, target, "test");
+      if (target == 3955) {
+        assertEquals(1, report.losses().size());
+        assertEquals("block-entity-field", report.losses().getFirst().kind());
+        assertEquals("lit_total_time=1600", report.losses().getFirst().source());
+        assertEquals("recalculate from fuel", report.losses().getFirst().replacement());
+      } else assertFalse(report.lossy());
     }
   }
 

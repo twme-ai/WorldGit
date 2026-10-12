@@ -73,6 +73,39 @@ bot.on('end', (r) => { out({ ev: 'end', r }); process.exit(0) })
 bot.on('health', () => out({ ev: 'health', health: bot.health, food: bot.food }))
 bot.on('message', (m) => { const t = m.toString(); if (t.trim()) out({ ev: 'chat', t, json: m.json }) })
 
+// Dimension transfers keep the existing player and positive health. Folia need
+// not resend an unchanged health packet; Mineflayer otherwise remains "dead"
+// and its look task never receives movement ticks after the transition.
+let keptEntityDataPending = false
+let respawnGeneration = 0
+bot._client.prependListener('respawn', (packet) => {
+  const previousDimension = bot.game?.dimension
+  const generation = ++respawnGeneration
+  out({ev:'respawn_metadata',copyMetadata:packet.copyMetadata,health:bot.health,isAlive:bot.isAlive,previousDimension})
+  keptEntityDataPending = false
+  // Run after Mineflayer has applied the new dimension and its respawn listeners.
+  setImmediate(() => {
+    if (generation !== respawnGeneration || typeof packet.copyMetadata !== 'number' || !(bot.health > 0)) return
+    const entityDataKept = (packet.copyMetadata & 2) !== 0
+    const dimensionTransfer = (packet.copyMetadata & 1) !== 0 && previousDimension !== undefined
+      && previousDimension !== bot.game.dimension
+    if (!entityDataKept && !dimensionTransfer) return
+    bot.isAlive = true
+    keptEntityDataPending = true
+    out({ev:'respawn_health_preserved',health:bot.health,copyMetadata:packet.copyMetadata,previousDimension,dimension:bot.game.dimension})
+    acknowledgeKeptEntityData()
+  })
+})
+function acknowledgeKeptEntityData () {
+  if (!keptEntityDataPending || bot._client.state !== 'play' || !bot.entity?.position
+      || !Number.isFinite(bot.entity.position.x) || bot.blockAt(bot.entity.position) == null) return
+  keptEntityDataPending = false
+  if (bot.supportFeature('sendsPlayerLoadedPacket')) bot._client.write('player_loaded', {})
+  out({ev:'respawn_metadata_ready',health:bot.health,pos:bot.entity.position})
+}
+bot.on('forcedMove', acknowledgeKeptEntityData)
+bot.on('chunkColumnLoad', acknowledgeKeptEntityData)
+
 const rl = readline.createInterface({ input: process.stdin })
 rl.on('line', async (line) => {
   const a = line.trim().split(/\s+/)

@@ -13,6 +13,9 @@ class MultiversionFixture {
     var expected = switch (data.integer("DataVersion", 0)) {
       case 3465 -> Set.of("bundle");
       case 3700, 3839 -> Set.of("bundle", "trade_rebalance", "update_1_21");
+      case 3955 -> Set.of("bundle", "trade_rebalance");
+      case 4189 -> Set.of("trade_rebalance", "redstone_experiments", "minecart_improvements");
+      case 4440 -> Set.of("trade_rebalance", "redstone_experiments", "minecart_improvements");
       default -> throw new IllegalStateException("Unsupported fixture DataVersion: " + data.integer("DataVersion", 0));
     };
     var packs = data.compound("DataPacks");
@@ -27,7 +30,7 @@ class MultiversionFixture {
     }
     if (!disabled.equals(expected) || packs.list("Disabled").values().size() != expected.size())
       throw new IllegalStateException("Unexpected vanilla disabled packs: " + disabled + "; expected " + expected);
-    disabled.addAll(List.of("bundle", "update_1_21"));
+    if (data.integer("DataVersion", 0) <= 3839) disabled.addAll(List.of("bundle", "update_1_21"));
     packs.put("Disabled", new Nbt.ListTag(8, new ArrayList<Object>(disabled)));
     try (var stream = new GZIPOutputStream(Files.newOutputStream(level))) { stream.write(Nbt.write(root)); }
   }
