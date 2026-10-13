@@ -8,6 +8,7 @@ import org.worldgit.core.anvil.Nbt;
 import org.worldgit.core.version.NbtUpgrader;
 
 class PaperMetadataProjectionTest {
+  @org.junit.jupiter.api.io.TempDir java.nio.file.Path folder;
   private static String asset(String path) {
     return "asset." + Base64.getUrlEncoder().withoutPadding().encodeToString(path.getBytes(StandardCharsets.UTF_8));
   }
@@ -17,6 +18,70 @@ class PaperMetadataProjectionTest {
     return PaperMetadataProjection.wrap((type, raw, from, to) -> raw, 3700,
         new Nbt.Compound().with("doMobSpawning", "true").with("maxCommandForkCount", "65536"),
         format, List.of("vanilla", "bundle", "trade_rebalance", "update_1_21", "file/bukkit"));
+  }
+
+  private static String saved(String path) {
+    return "minecraft.overworld.saved." + Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(path.getBytes(StandardCharsets.UTF_8)) + ".nbt";
+  }
+
+  @Test void currentNativeMarkerUsesTargetBytesButCustomSchemasAndAssetsStayUntouched() throws Exception {
+    try(var gzip=new java.util.zip.GZIPOutputStream(java.nio.file.Files.newOutputStream(folder.resolve("level.dat")))) {
+      gzip.write(Nbt.write(new Nbt.Compound().with("Data",new Nbt.Compound())));
+    }
+    var markerFile=folder.resolve("datapacks/bukkit/pack.mcmeta");java.nio.file.Files.createDirectories(markerFile.getParent());
+    String nativeText="{\n  \"pack\": {\n    \"description\": \"Persistent resources provided by plugins\",\n    \"min_format\": [107, 1],\n    \"max_format\": 107\n  }\n}\n";
+    java.nio.file.Files.writeString(markerFile,nativeText);
+    var base=PaperMetadataProjection.wrap((type,raw,from,to)->raw,4903,new Nbt.Compound(),107,1,List.of("vanilla"));
+    var backend=PaperMetadataProjection.forWorld(base,"minecraft.overworld",UUID.randomUUID(),folder);
+    var input=new TreeMap<String,byte[]>();input.put(MARKER,JSON.getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(nativeText.getBytes(StandardCharsets.UTF_8),backend.projectMetadata(input,4790,4903).get(MARKER));
+    input.put(MARKER,nativeText.getBytes(StandardCharsets.UTF_8));
+    var old=PaperMetadataProjection.wrap((type,raw,from,to)->raw,4790,new Nbt.Compound(),101,1,List.of("vanilla"));
+    String projected=new String(old.projectMetadata(input,4903,4790).get(MARKER),StandardCharsets.UTF_8);
+    assertTrue(projected.contains("Data pack for resources provided by Bukkit plugins"));assertTrue(projected.contains("[101, 1]"));
+    for(String custom:List.of(nativeText.replace("\"max_format\": 107","\"max_format\": 108"),
+        nativeText.replace("\"max_format\": 107","\"max_format\": 107, \"custom\": true"))) {
+      input.put(MARKER,custom.getBytes(StandardCharsets.UTF_8));
+      assertArrayEquals(input.get(MARKER),backend.projectMetadata(input,4790,4903).get(MARKER));
+    }
+    input.put(MARKER,JSON.getBytes(StandardCharsets.UTF_8));input.put(asset("datapacks/bukkit/data/custom/function/test.mcfunction"),"say keep".getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(input.get(MARKER),backend.projectMetadata(input,4790,4903).get(MARKER));
+  }
+
+  @Test void paperStorageBoundaryUsesSourceSettingsAndKeepsUnknownPayloadsStrict() throws Exception {
+    try(var gzip=new java.util.zip.GZIPOutputStream(java.nio.file.Files.newOutputStream(folder.resolve("level.dat")))) {gzip.write(Nbt.write(new Nbt.Compound().with("Data",new Nbt.Compound())));}
+    var level = new Nbt.Compound().with("GameType",1).with("difficulty_settings",
+        new Nbt.Compound().with("difficulty","easy").with("hardcore",(byte)0).with("locked",(byte)0))
+        .with("spawn",new Nbt.Compound().with("dimension","minecraft:overworld")
+            .with("pos",new int[]{8,64,8}).with("yaw",0f).with("pitch",0f));
+    var base = PaperMetadataProjection.wrap((type,raw,from,to)->raw,4790,new Nbt.Compound(),101,1,List.of("vanilla"));
+    var uuid = UUID.fromString("00112233-4455-6677-8899-aabbccddeeff");
+    var backend = PaperMetadataProjection.forWorld(base,"minecraft.overworld",uuid,folder);
+    var input = new TreeMap<String,byte[]>();input.put("level.nbt",Nbt.write(level));
+    String events = "saved." + Base64.getUrlEncoder().withoutPadding()
+        .encodeToString("data/minecraft/scheduled_events.dat".getBytes(StandardCharsets.UTF_8)) + ".nbt";
+    input.put(events,Nbt.write(new Nbt.Compound().with("DataVersion",4790).with("data",
+        new Nbt.Compound().with("events",new Nbt.ListTag(10,List.of())))));
+    var out = backend.projectMetadata(input,4671,4790);
+    assertFalse(out.containsKey(events));assertArrayEquals(input.get(events),out.get("minecraft.overworld."+events));
+    assertArrayEquals(new int[]{0x00112233,0x44556677,0x8899aabb,0xccddeeff},
+        (int[])Nbt.read(out.get(saved("data/paper/metadata.dat"))).compound("data").get("uuid"));
+    var overrides = Nbt.read(out.get(saved("data/paper/level_overrides.dat"))).compound("data");
+    assertEquals(1,overrides.get("game_type"));assertEquals("easy",overrides.compound("difficulty_settings").string("difficulty"));
+    assertArrayEquals(new int[]{8,64,8},(int[])overrides.compound("spawn").get("pos"));
+    assertFalse(overrides.compound("spawn").containsKey("dimension"));
+    assertFalse(out.containsKey(saved("data/paper/persistent_data_container.dat")));
+    assertNotEquals(backend.projectionFingerprint(),PaperMetadataProjection.forWorld(base,"minecraft.overworld",UUID.randomUUID(),folder).projectionFingerprint());
+    var old = PaperMetadataProjection.wrap((type,raw,from,to)->raw,4671,new Nbt.Compound(),94,1,List.of("vanilla"));
+    var back = old.projectMetadata(out,4790,4671);
+    assertFalse(back.containsKey(saved("data/paper/metadata.dat")));assertFalse(back.containsKey(saved("data/paper/level_overrides.dat")));
+    overrides.put("custom:setting",42);
+    out.put(saved("data/paper/level_overrides.dat"),Nbt.write(new Nbt.Compound().with("data",overrides)));
+    out.put(saved("data/paper/persistent_data_container.dat"),Nbt.write(new Nbt.Compound().with("data",new Nbt.Compound().with("custom:opaque",42))));
+    back = old.projectMetadata(out,4790,4671);
+    assertArrayEquals(out.get(saved("data/paper/level_overrides.dat")),back.get(saved("data/paper/level_overrides.dat")));
+    assertArrayEquals(out.get(saved("data/paper/persistent_data_container.dat")),back.get(saved("data/paper/persistent_data_container.dat")));
   }
 
   @Test void fillsOnlyMissingNativeDefaultsAndProjectsEmptyPlatformMarker() throws Exception {
@@ -71,7 +136,7 @@ class PaperMetadataProjectionTest {
       assertEquals(enabled, output.list("Enabled").values());
       assertEquals(available.stream().filter(x -> !x.equals("vanilla")).sorted().toList(), output.list("Disabled").values());
       assertEquals(source, Nbt.read(input.get("level.nbt")).compound("DataPacks").list("Disabled").values());
-      assertTrue(projection.projectionFingerprint().startsWith("paper-metadata-v3:"));
+      assertTrue(projection.projectionFingerprint().startsWith("paper-metadata-v6:"));
     }
   }
 
@@ -131,6 +196,26 @@ class PaperMetadataProjectionTest {
     input.put(MARKER, JSON.getBytes(StandardCharsets.UTF_8));
     input.put(asset("datapacks/bukkit/data/custom/function/test.mcfunction"), "say retain".getBytes(StandardCharsets.UTF_8));
     assertArrayEquals(input.get(MARKER), projection.projectMetadata(input, 4440, 4671).get(MARKER));
+  }
+
+  @Test void namespacedRulesUseNativeDefaultsAndPreserveExistingAndCustomData() throws Exception {
+    for (int target : List.of(4790, 4903, 5023)) {
+      var defaults = new Nbt.Compound().with("minecraft:spawn_mobs", (byte) 1)
+          .with("minecraft:random_tick_speed", 3);
+      var projection = PaperMetadataProjection.wrap((type, raw, from, to) -> raw,
+          target, defaults, 100, 1, List.of("vanilla"));
+      var input = new TreeMap<String, byte[]>();
+      var saved = new Nbt.Compound().with("DataVersion", target).with("data",
+          new Nbt.Compound().with("minecraft:spawn_mobs", (byte) 0).with("custom:rule", 42));
+      input.put("minecraft.overworld.game_rules.dat.nbt", Nbt.write(saved));
+      input.put("custom.game_rules_backup.dat.nbt", Nbt.write(saved));
+      var output = projection.projectMetadata(input, 4671, target);
+      var rules = Nbt.read(output.get("minecraft.overworld.game_rules.dat.nbt")).compound("data");
+      assertEquals((byte) 0, rules.get("minecraft:spawn_mobs"));
+      assertEquals(3, rules.get("minecraft:random_tick_speed"));assertEquals(42, rules.get("custom:rule"));
+      assertArrayEquals(input.get("custom.game_rules_backup.dat.nbt"), output.get("custom.game_rules_backup.dat.nbt"));
+      assertFalse(Nbt.read(input.get("minecraft.overworld.game_rules.dat.nbt")).compound("data").containsKey("minecraft:random_tick_speed"));
+    }
   }
 
   @Test void liveLevelUpgradesStaleDiskSchemaBeforeOverlayWithoutDfuForSameVersion() throws Exception {

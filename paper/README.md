@@ -1,6 +1,6 @@
 # WorldGit Paper / Folia 插件（Phase 5：維度與操作體驗）
 
-同一個發佈 jar 支援 Paper 的 Minecraft **1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11 與 26.2**；Folia 支援其中的 **1.20.1、1.20.4、1.20.6、1.21.4、1.21.8、1.21.11、26.2**。1.x 使用 Java 21，26.2 使用 Java 25。Folia 1.21.1 官方沒有 build，**不可驗收**；啟動會明確說明並停用插件。`common` 只引用公開 Paper API，各精確版本的 NMS 轉接層以 paperweight-userdev 2.0.0-beta.21 編譯，啟動時只載入符合版本的類別。
+同一個發佈 jar 支援 Paper 的 Minecraft **1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11、26.1.2、26.2、26.3**；Folia 支援其中的 **1.20.1、1.20.4、1.20.6、1.21.4、1.21.8、1.21.11、26.1.2、26.2**。1.x 使用 Java 21，26.x 使用 Java 25。Folia 1.21.1／26.3 官方沒有 build，**不可驗收**；啟動會明確說明並停用插件。`common` 只引用公開 Paper API，各精確版本的 NMS 轉接層以 paperweight-userdev 2.0.0-beta.21 編譯，啟動時只載入符合版本的類別。
 
 Phase 5 任務 3：所有 repo 指令預設使用玩家所在世界群的目前維度；console 的其他 repo 指令預設伺服器第一個世界的主世界，init 必須明確指定 `--world <世界名>` 與 `--dimension <id>` 或 `--all`。主世界 init 的聊天按鈕可追加既存地獄／終界，沒有自動建立其他 repo。`--dimension` 覆寫目標，`--all` 逐維度完成、各自回報；其中一維度失敗不回滾其他成功。
 
@@ -10,7 +10,7 @@ Phase 5 任務 3：所有 repo 指令預設使用玩家所在世界群的目前�
 GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers=1 :paper:plugin:build
 ```
 
-將 `paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar` 放到伺服器的 `plugins/`，啟動後執行 `/wg init`。未知 MC 版本會明確停用插件。26.2 adapter 是 Java 25 bytecode，其餘本體與共用模組是 Java 21。
+將 `paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar` 放到伺服器的 `plugins/`，啟動後執行 `/wg init`。未知 MC 版本會明確停用插件。26.1.2／26.2／26.3 adapter 是 Java 25 bytecode，其餘本體與共用模組是 Java 21。
 
 ## 跨版本線上操作
 
@@ -23,6 +23,12 @@ common 編譯 Paper API 1.20.1；舊兩版使用 Bukkit 指令 registry，1.20.6
 1.20.6／1.21.1／1.21.4 固定精確 dev bundle、Mojang production 名稱與 Java 21。`components-shared` 只共用完整 NBT／registry-aware BE codec 與指令來源，build 比較三版完整共享 bytecode；chunk system、tick guard、ticket、IO 各自實作。1.21.8 的現代文字／equipment codec 與 1.21.11／26.2 屬同來源家族，僅共用已確認的 `commands-modern`；1.21.8／1.21.11 的指令 class 完整比對，Java 25 的 26.2 另行編譯與真服驗證。1.21.8 的 TicketUse、metadata 存檔 future 與 IO 簽章留在自己的 adapter。
 
 Paper 1.20.1／1.20.4 的整合使用官方 FAWE 2.8.4 release（官方 jar 自報 2.8.5-SNAPSHOT）；1.20.6／1.21.1／1.21.4／1.21.8 使用官方 FAWE 2.15.0 release；Folia 1.21.4／1.21.8 使用官方 WorldEdit 7.4.2（Java 21）。**官方 WorldEdit 沒有支援 Folia 1.20.x 的版本，未驗收**；舊 Folia 保留整合測試並明記略過，原生場景照常驗收。詳細矩陣、決策 #196 起及限制見 [多版本 §7／§8](../docs/19-multiversion.md)。
+
+26.1.2／26.3 dev bundle 固定 `26.1.2.build.74-stable`／`26.3.build.177-stable`，Java 25、原版未混淆；Folia 26.1.2 使用官方 build 8。26.x 的 command／chunk guard 共用來源逐 bundle 編譯，build 比較三版完整 class；entity spawn、PDC、ticket／IO、registry-aware ValueInput／ValueOutput 留在精確 adapter。1.21.8–1.21.11 的 Java 21 family 不與 Java 25 指令 binary 混作 bytecode 相同的證據。
+
+26.1 的 layout 邊界是 DV 4790；26.3 的 palette 與嵌套 state 讀取 `id/properties` 或預設狀態字串，repo 保持完整屬性。反向轉換處理 difficulty、saved-data 位置、陶罐裝飾 stack、招牌能力、熔爐／釀造台型別及新 registry 內容；無法表示的內容逐項列損失。world_clocks、weather、wandering_trader 與 version_history 依既有暫態政策保留目前世界狀態。第一次由 1.x 開到 26.x 的實體檔案搬位遵循 [19 §4](../docs/19-multiversion.md#4-原版升級) 的 repo 備份與 FileFixer 條件；線上歷史升級仍自動使用目標伺服器 DFU。
+
+Paper 26.1.2／26.3 整合使用官方 FAWE 2.16.1 的 Paper artifact；Folia 26.1.2 使用官方 WorldEdit 7.4.5。26.3 bot 驗收的上游協定修正固定來源，與正式插件分開；重現方式與證據見 [19 §8](../docs/19-multiversion.md#8-驗收與限制)。
 
 ## Axiom
 
@@ -65,7 +71,7 @@ WorldGit 套用期間拒絕該鎖定世界的 Axiom 編輯（局部套用也保�
 
 `worldgit.admin` 包含上述指令與 `worldgit.notify` 通知。開發量測入口 `/wg debug` 只開放主控台，其他 sender 必須有 `worldgit.debug`（預設 false）。
 
-`/wg`、`/wgit`、`/git` 與 `/worldgit` 共用 Brigadier 指令樹。1.21.11／26.2 透過 `LifecycleEvents.COMMANDS` 註冊；1.20.1／1.20.4 以 Bukkit command registry 接入同一棵樹，由各版 bridge 提供座標與玩家參數。`plugin.yml` 只保留權限。每個節點的 `requires` 同時檢查權限與 sender：tool、diff、clear、conflict-preview 限玩家；status 的 --show、restore 的 --selection、comments 的 show／hide／--here 也限玩家。預設非 op 玩家只收到 log、clear、help；help 的主題同樣過濾。直接輸入無權限入口仍回覆既有多語言權限訊息。
+`/wg`、`/wgit`、`/git` 與 `/worldgit` 共用 Brigadier 指令樹。1.20.6 起透過 `LifecycleEvents.COMMANDS` 註冊；1.20.1／1.20.4 以 Bukkit command registry 接入同一棵樹，由各版 bridge 提供座標與玩家參數。`plugin.yml` 只保留權限。每個節點的 `requires` 同時檢查權限與 sender：tool、diff、clear、conflict-preview 限玩家；status 的 --show、restore 的 --selection、comments 的 show／hide／--here 也限玩家。預設非 op 玩家只收到 log、clear、help；help 的主題同樣過濾。直接輸入無權限入口仍回覆既有多語言權限訊息。
 
 聊天列會逐參數提示與上色；log 數量 1–100、diff 半徑 1–32 chunk、restore 的 --chunks 0–256、stash index ≥0、PR／衝突編號／頁碼 ≥1。`--box` 是兩個 `ArgumentTypes.blockPosition()`，除了原本六個整數，也接受相對於指令來源的 `~` 與區域座標 `^`；留言維度使用 namespaced key，debug 的玩家使用 player resolver。型別／範圍錯誤交由 Brigadier 標示位置，repo／Hub 業務錯誤仍使用原有 i18n 訊息。
 
@@ -157,7 +163,25 @@ python3 paper/tools/components.py paper 1.21.1
 
 `multiversion.py --pair 1.20.4:1.20.6 --pair 1.20.6:1.21.1` 可只跑新邊界；預設也保留 1.20.1↔1.20.4。`components.py` 直接驗收 NMS 未展開的 block／fluid ticks、替換清除與鎖住後的剩餘延遲／priority（#170、#213），fixture 按精確 bundle 編譯且不進正式插件。結果集中在 `.work/mv2-2/`，正式矩陣見 [多版本 §8](../docs/19-multiversion.md#8-驗收與限制)。Folia 1.21.1 沒有官方 build，腳本明確拒絕。
 
-所有腳本使用伺服器／baseline 的副本、127.0.0.1、offline mode、port 25671–25674。**acceptance、smoke、benchmark 自己取得 bench.lock，不要再包外層 flock。** SIGTERM 與例外會走清理流程；最後會停止 server 與 bot。
+26.x 新平台驗收（依序執行，每個 runner 結束後確實停服）：
+
+```bash
+python3 paper/tools/setup_bot_263.py
+python3 paper/tools/acceptance.py paper 26.1.2
+python3 paper/tools/phase5.py paper 26.1.2
+python3 paper/tools/acceptance.py paper 26.3
+python3 paper/tools/phase5.py paper 26.3
+python3 paper/tools/acceptance.py folia 26.1.2
+python3 paper/tools/phase5.py folia 26.1.2
+python3 paper/tools/multiversion.py --pair 1.21.11:26.1.2 --pair 26.1.2:26.2 --pair 26.2:26.3
+python3 paper/tools/components.py paper 26.1.2
+python3 paper/tools/components.py paper 26.3
+python3 paper/tools/components.py folia 26.1.2
+```
+
+`setup_bot_263.py` 只在 `.work/bot` 套用固定上游來源；先安裝 mineflayer 4.39.0／minecraft-data 3.117.0。Paper dev bundle、伺服器與 baseline 的官方來源證據在 `.work/mv2-4/`。Folia 26.3 沒有官方 build，selector 與 runner 都明確拒絕。
+
+所有腳本使用伺服器／baseline 的副本、127.0.0.1、offline mode、port 25671–25690。**acceptance、smoke、benchmark 自己取得 bench.lock，不要再包外層 flock。** SIGTERM 與例外會走清理流程；最後會停止 server 與 bot。
 
 ```bash
 timeout 1800 python3 paper/tools/acceptance.py paper 1.21.11 basic mod display shutdown

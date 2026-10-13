@@ -63,6 +63,11 @@ public final class NativeNbtForms {
       if (result == input) result = Nbt.copy(input);
       result.put("variant", "minecraft:temperate");
     }
+    if (version >= 4790 && Set.of("minecraft:pig", "minecraft:cow", "minecraft:chicken").contains(input.string("id"))
+        && !input.containsKey("sound_variant")) {
+      if (result == input) result = Nbt.copy(input);
+      result.put("sound_variant", "minecraft:classic");
+    }
     if (input.get("Passengers") instanceof Nbt.ListTag passengers) {
       ArrayList<Object> changed = null;
       for (int i = 0; i < passengers.values().size(); i++) {

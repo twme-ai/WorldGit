@@ -1,4 +1,4 @@
-"""Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.20.1|1.20.4|1.20.6|1.21.1|1.21.4|1.21.8|1.21.11|26.2> [scenarios...]
+"""Phase 1 Paper/Folia 插件驗收（單一平台）。用法：python3 acceptance.py <paper|folia> <1.20.1|1.20.4|1.20.6|1.21.1|1.21.4|1.21.8|1.21.11|26.1.2|26.2|26.3> [scenarios...]
 
 scenarios：basic（commit 兩次無變動、bot 放一格、status 恰好 1 個 section、CLI 看到同樣歷史）、attribution（兩個 bot 各改一處）、
            mod（握手與 status/diff 傳送）、display（沒裝模組：BlockDisplay fallback，只對請求者可見、/wg clear、逾時、登出、不進實體快照）、worldedit（//set 大範圍）、auto（自動 commit：定時、登出）、shutdown（關閉前 commit 與離線 CLI 一致）
@@ -54,7 +54,7 @@ def save():
 
 
 def repo_dir(s, dim='minecraft.overworld'):
-    return os.path.join(s.world, '.worldgit') if dim == 'minecraft.overworld' else (os.path.join(s.world,'dimensions',*dim.split('.',1),'.worldgit') if version=='26.2' else os.path.join(s.dir,'world_nether' if dim=='minecraft.the_nether' else 'world_the_end','DIM-1' if dim=='minecraft.the_nether' else 'DIM1','.worldgit'))
+    return os.path.join(s.world, '.worldgit') if dim == 'minecraft.overworld' else (os.path.join(s.world,'dimensions',*dim.split('.',1),'.worldgit') if version.startswith('26.') else os.path.join(s.dir,'world_nether' if dim=='minecraft.the_nether' else 'world_the_end','DIM-1' if dim=='minecraft.the_nether' else 'DIM1','.worldgit'))
 
 
 def git(s, dim, *args):
@@ -115,7 +115,7 @@ def scenario_basic(s):
     # 並讓 bot 先進場、把周圍 chunk 載入，之後才 init。活世界仍會有真實底噪，不能把「沒有玩家編輯」等同「沒有世界變動」。
     bot = s.bot('WgBot')
     # 1.21.11 起 gamerule 改名為 snake_case（舊名稱會被拒絕）；實際回應記進結果以便確認有生效
-    rules = [s.cmd('gamerule ' + g, r'(?i)game ?rule|incorrect|unknown', 20) for g in (('random_tick_speed 0', 'spawn_mobs false', 'advance_weather false') if version in ('1.21.11','26.2') else ('randomTickSpeed 0','doMobSpawning false','doWeatherCycle false'))]
+    rules = [s.cmd('gamerule ' + g, r'(?i)game ?rule|incorrect|unknown', 20) for g in (('random_tick_speed 0', 'spawn_mobs false', 'advance_weather false') if version in ('1.21.11','26.1.2','26.2','26.3') else ('randomTickSpeed 0','doMobSpawning false','doWeatherCycle false'))]
     results['fixture_gamerules'] = [strip(r)[-160:] for r in rules]
     s.cmd('gamemode creative WgBot')
     # baseline 含燃燒中的熔爐及排程流體 tick；先等它們穩定，再建立受測基準。

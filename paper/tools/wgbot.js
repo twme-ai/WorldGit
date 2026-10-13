@@ -150,7 +150,7 @@ rl.on('line', async (line) => {
     else if (cmd === 'use') { await bot.equip(bot.inventory.slots[36], 'hand'); await bot.activateBlock(bot.blockAt(new Vec3(+a[1], +a[2], +a[3])), new Vec3(0, 1, 0)); out({ev:'used'}) }
     else if (cmd === 'place_entity') {
       const block = bot.blockAt(new Vec3(+a[1], +a[2], +a[3]))
-      if (version === '26.2') { await bot._genericPlace(block, new Vec3(0, 1, 0), {forceLook:true}); out({ev:'entity_place_sent'}) }
+      if (version.startsWith('26.')) { await bot._genericPlace(block, new Vec3(0, 1, 0), {forceLook:true}); out({ev:'entity_place_sent'}) }
       else { const entity = await bot.placeEntity(block, new Vec3(0, 1, 0)); out({ev:'entity_placed', id:entity.id, name:entity.name}) }
     }
     else if (cmd === 'window') { const w = bot.currentWindow; out({ ev: 'window', opened: !!w, title: w && String(w.title), slots: w ? w.slots.filter((x) => x).length : 0, size: w ? w.slots.length : 0 }) }

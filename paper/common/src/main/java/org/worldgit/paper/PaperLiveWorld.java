@@ -56,7 +56,7 @@ final class PaperLiveWorld implements LiveWorld {
     this.world = world;
     this.layout = layout;
     this.inline = inline;
-    this.offline = new OfflineSnapshotSource(layout, layout.dimensions().get(state.id())).serverDataFixer(plugin.bridge().dataFixer(),plugin.bridge()::dataVersion);
+    this.offline = new OfflineSnapshotSource(layout, layout.dimensions().get(state.id())).serverDataFixer(plugin.bridge().dataFixer(world),plugin.bridge()::dataVersion);
   }
 
   LiveCopier.Stats stats() {
@@ -68,7 +68,7 @@ final class PaperLiveWorld implements LiveWorld {
     return liveSet.size();
   }
 
-  @Override public org.worldgit.core.version.NbtUpgrader dataFixer() { return plugin.bridge().dataFixer(); }
+  @Override public org.worldgit.core.version.NbtUpgrader dataFixer() { return plugin.bridge().dataFixer(world); }
   @Override
   public DimensionId dimension() {
     return state.id();
@@ -95,17 +95,17 @@ final class PaperLiveWorld implements LiveWorld {
   public Map<String, byte[]> worldMetadata() throws IOException {
     if (plugin.bridge().savesMetadata()) saveMetadata();
     var metadata = new TreeMap<>(offline.worldMetadata());
-    if (!dimension().equals(DimensionId.OVERWORLD) && dataVersion()<4903) return metadata;
+    if (!dimension().equals(DimensionId.OVERWORLD) && dataVersion()<org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) return metadata;
     var active = liveLevelMetadata(world);
     if (!dimension().equals(DimensionId.OVERWORLD)) {
-      if (dataVersion() >= 4903) metadata.put(dimension().directoryName()+".game_rules.dat.nbt",Nbt.write(new Nbt.Compound().with("DataVersion",dataVersion()).with("data",active.compound(dataVersion()<4671?"GameRules":"game_rules"))));
+      if (dataVersion() >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) metadata.put(dimension().directoryName()+".game_rules.dat.nbt",Nbt.write(new Nbt.Compound().with("DataVersion",dataVersion()).with("data",active.compound(dataVersion()<4671?"GameRules":"game_rules"))));
       return metadata;
     }
     // gamerule 是受追蹤的設定，不能以「底噪」排除。level.dat / saved data 可能要到 shutdown 才寫回，
     // 因此在全域排程器取一份活資料，避免線上 commit 偷偷保存舊 gamerule。
     if (dataVersion() < org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) {
       var level = PaperMetadataProjection.liveLevel(Nbt.read(metadata.get("level.nbt")),
-          active, dataVersion(), plugin.bridge().dataFixer());
+          active, dataVersion(), plugin.bridge().dataFixer(world));
       metadata.put("level.nbt", Nbt.write(level));
     } else {
       var data = new Nbt.Compound().with("DataVersion", dataVersion()).with("data", active.compound(dataVersion()<4671?"GameRules":"game_rules"));

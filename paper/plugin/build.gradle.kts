@@ -2,7 +2,7 @@ import java.util.zip.ZipFile
 
 // 發佈用的單一插件 jar：版本無關本體（paper:common）＋ core/platform-api/protocol ＋ 每個 Minecraft 版本一個 NMS 轉接層。
 // 執行時依 Bukkit.getMinecraftVersion() 只載入符合的轉接層（見 NmsBridges）。
-val adapters = listOf(":paper:v1_20_6", ":paper:v1_21_1", ":paper:v1_21_4", ":paper:v1_21_8", ":paper:v1_21_11", ":paper:v26_2")
+val adapters = listOf(":paper:v1_20_6", ":paper:v1_21_1", ":paper:v1_21_4", ":paper:v1_21_8", ":paper:v1_21_11", ":paper:v26_1_2", ":paper:v26_2", ":paper:v26_3")
 val legacyAdapters = listOf(":paper:v1_20_1", ":paper:v1_20_4")
 (adapters + legacyAdapters).forEach { evaluationDependsOn(it) }
 
@@ -96,3 +96,28 @@ val verifyModernCommands = tasks.register("verifyModernCommands") {
 }
 tasks.jar { dependsOn(verifyModernCommands) }
 tasks.named("check") { dependsOn(verifyModernCommands) }
+
+// 三個未混淆的 Java 25 bundle 只合併完整 class 完全一致的 modern 來源。
+val verifyModern26Sources = tasks.register("verifyModern26Sources") {
+    val variants = listOf(":paper:v26_1_2", ":paper:v26_2", ":paper:v26_3").map {
+        project(it).tasks.named<JavaCompile>("compileJava")
+    }
+    dependsOn(variants)
+    variants.forEach { inputs.dir(it.flatMap { task -> task.destinationDirectory }) }
+    doLast {
+        val roots = variants.map { it.get().destinationDirectory.get().asFile }
+        val files = roots.first().walkTopDown().filter {
+            it.isFile && it.extension == "class" &&
+                (it.name.startsWith("ChunkTickGuard") || it.name.startsWith("ModernCommandRegistration"))
+        }.map { it.relativeTo(roots.first()).path }.toList()
+        check(files.isNotEmpty()) { "26.x modern shared sources were not compiled" }
+        files.forEach { path ->
+            val expected = roots.first().resolve(path).readBytes()
+            check(roots.drop(1).all { root -> root.resolve(path).readBytes().contentEquals(expected) }) {
+                "26.x shared bytecode differs: $path; isolate this source in its version adapter"
+            }
+        }
+    }
+}
+tasks.jar { dependsOn(verifyModern26Sources) }
+tasks.named("check") { dependsOn(verifyModern26Sources) }

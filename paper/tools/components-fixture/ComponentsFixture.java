@@ -24,13 +24,19 @@ public final class ComponentsFixture extends JavaPlugin {
       bridge=(NmsBridge)getter.invoke(plugin);
     }catch(Exception error){throw new IllegalStateException(error);}
     getCommand("wgcomponents").setExecutor((sender,command,label,args)->{
-      var world=Bukkit.getWorlds().getFirst();
-      world.getChunkAtAsync(8,8,false).whenComplete((ignored,error)->{
+      var world=Objects.requireNonNull(Bukkit.getWorld("world"),"pending fixture world");
+      require(world.getKey().toString().equals("minecraft:overworld"),"pending fixture must use overworld");
+      world.getChunkAtAsync(8,8,false).whenComplete((loaded,error)->{
         if(error!=null) {sender.sendMessage("WGCOMPONENTS failed "+error);return;}
-        Bukkit.getRegionScheduler().execute(this,world,8,8,()->{
+        if(loaded==null) {sender.sendMessage("WGCOMPONENTS failed fixture chunk missing in "+world.getKey());return;}
+        // Folia 的 async FULL 載入 callback 已在 owner；其暫時 ticket 只保留到 callback 返回。
+        // 不再轉排下一個 region task，避免 chunk 在取得 tick guard 前被卸載。
           AutoCloseable hold=null;
           try {
+            require(Bukkit.isOwnedByCurrentRegion(world,8,8),"async fixture callback must own chunk");
+            require(loaded.getWorld()==world && loaded.getX()==8 && loaded.getZ()==8,"async fixture chunk identity");
             var level=((CraftWorld)world).getHandle();var chunk=level.getChunkSource().getChunkNow(8,8);
+            require(chunk!=null,"fixture chunk must be FULL on owner in "+world.getKey());
             var blocks=(LevelChunkTicks<?>)chunk.getBlockTicks();var fluids=(LevelChunkTicks<?>)chunk.getFluidTicks();
             var field=LevelChunkTicks.class.getDeclaredField("pendingTicks");field.setAccessible(true);
             // 兩個從真 chunk NBT 載入、尚未 ticking 的容器；getAll/removeIf 此時看不到 pending。
@@ -54,7 +60,6 @@ public final class ComponentsFixture extends JavaPlugin {
               }catch(Throwable failure){try{locked.close();}catch(Exception cleanup){failure.addSuppressed(cleanup);}sender.sendMessage("WGCOMPONENTS failed "+failure);failure.printStackTrace();}
             },20);
           }catch(Throwable failure){if(hold!=null)try{hold.close();}catch(Exception cleanup){failure.addSuppressed(cleanup);}sender.sendMessage("WGCOMPONENTS failed "+failure);failure.printStackTrace();}
-        });
       });return true;
     });
   }

@@ -22,11 +22,19 @@ public final class TreeFilter {
     for (String name : List.of("world-meta", "dimension-meta")) {
       var metadata = store.readTree(tree).get(name);
       if (metadata == null || metadata.kind() != ObjectStore.Kind.TREE) continue;
-      for (var entry : store.readTree(metadata.id()).values()) {
-        if (entry.kind() != ObjectStore.Kind.BLOB || SavedData.relativePath(entry.name()) == null) continue;
-        String path = name + "/" + entry.name();
-        if (SavedData.transientEntry(entry.name())) { editor.remove(path); changed = true; continue; }
-        byte[] raw = store.readBlob(entry.id()), normalized = SavedData.normalize(entry.name(), raw);
+      var original = new TreeMap<String,byte[]>();
+      for (var entry : store.readTree(metadata.id()).values())
+        if (entry.kind() == ObjectStore.Kind.BLOB) original.put(entry.name(),store.readBlob(entry.id()));
+      var canonical = MetadataNormalizer.nativeLayout(original);
+      if (!canonical.keySet().equals(original.keySet()) || canonical.entrySet().stream()
+          .anyMatch(entry -> !Arrays.equals(entry.getValue(),original.get(entry.getKey())))) {
+        editor.replaceTree(name,canonical);changed=true;
+      }
+      for (var entry : canonical.entrySet()) {
+        if (SavedData.relativePath(entry.getKey()) == null) continue;
+        String path = name + "/" + entry.getKey();
+        if (SavedData.transientEntry(entry.getKey())) { editor.remove(path); changed = true; continue; }
+        byte[] raw = entry.getValue(), normalized = SavedData.normalize(entry.getKey(), raw);
         if (!Arrays.equals(raw, normalized)) {
           if (normalized == null) editor.remove(path); else editor.putBlob(path, normalized);
           changed = true;

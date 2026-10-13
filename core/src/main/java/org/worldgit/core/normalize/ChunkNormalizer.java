@@ -227,7 +227,14 @@ public final class ChunkNormalizer {
         data.putIfAbsent("lit_total_time", 0);
         yield List.of("cooking_total_time", "cooking_time_spent", "lit_time_remaining", "lit_total_time");
       }
-      case "minecraft:brewing_stand" -> List.of("BrewTime", "Fuel");
+      case "minecraft:brewing_stand" -> {
+        // DFU leaves these absent; the native 26.3 ValueInput/ValueOutput codec
+        // materializes the vanilla brewing defaults when loading and saving.
+        data.putIfAbsent("total_brew_time", 400);
+        data.putIfAbsent("total_fuel", 20);
+        data.putIfAbsent("speed_multiplier", 1f);
+        yield List.of("BrewTime", "Fuel");
+      }
       default -> List.<String>of();
     };
     for (String field : fields)

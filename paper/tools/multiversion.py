@@ -41,10 +41,22 @@ def run(older,newer,output_root):
             source=Path(s.dir)/name
             if source.exists():shutil.copytree(source,destination/name)
     def start(version,baseline,label):
-        s=harness.Server('paper',version,baseline=str(baseline),run_label=label,view=2,
+        s=harness.Server('paper',version,baseline=str(baseline),run_label=label,view=2,extra_props={'gamemode':'survival'},
              config={'language':'en_us','auto-commit':{'enabled':False,'on-shutdown':False}})
+        held=OUT/('filefixer-repo-'+version)
+        migrate=version==newer and newer.startswith('26.')
+        if migrate:
+            shutil.rmtree(held,ignore_errors=True);shutil.move(str(repository(s.world)),held)
         try:
-            s.start();evidence['console_logs'].append(str(Path(s.evidence_log).relative_to(ROOT)))
+            s.start()
+            if migrate:
+                shutil.rmtree(repository(s.world),ignore_errors=True);shutil.move(str(held),repository(s.world))
+                check('native FileFixer migrated test copy without scanning Git objects',
+                      (Path(s.world)/'dimensions/minecraft/overworld/region').is_dir()
+                      and repository(s.world).is_dir())
+            mode=s.cmd('defaultgamemode survival',r'(?i)game ?mode')
+            check('fixture explicitly uses compatible survival default game mode','survival' in mode.lower(),console=mode)
+            evidence['console_logs'].append(str(Path(s.evidence_log).relative_to(ROOT)))
             evidence['plugin_sha256']=hashlib.sha256((Path(s.dir)/'plugins/worldgit-paper.jar').read_bytes()).hexdigest()
             s.cmd('forceload add 0 0',r'(?i)(forced|force loading)');
             loaded=s.cmd('forceload query 0 0',r'(?i)marked for force loading')
@@ -65,7 +77,14 @@ def run(older,newer,output_root):
     try:
         with harness.BenchLock():
             base=OUT/'prepared-base';shutil.rmtree(base,ignore_errors=True)
-            shutil.copytree(ROOT/'.work/paper-delivery/fixtures'/('acceptance-flat-'+older),base)
+            fixture=ROOT/'.work/paper-delivery/fixtures'/('multiversion-flat-'+older)
+            if not fixture.exists():
+                native=OUT/'native-source';shutil.rmtree(native,ignore_errors=True);native.mkdir()
+                shutil.copytree(ROOT/'.work/worlds'/older/'multiversion/world',native/'world')
+                subprocess.run([harness.JAVA[older],'-Xmx512m','-cp',str(ROOT/'cli/build/libs/wgit.jar'),
+                    str(ROOT/'paper/tools/ScaleFixture.java'),older,str(native),str(fixture),'16'],check=True)
+                shutil.rmtree(native)
+            shutil.copytree(fixture,base)
             subprocess.run([harness.JAVA[older],'-cp',str(ROOT/'cli/build/libs/wgit.jar'),str(ROOT/'paper/tools/MultiversionFixture.java'),str(base/'world/level.dat')],check=True)
             server=start(older,base,'mv2-online-source-'+older)
             # The newer server saves an empty scoreboard at startup. Create the same
@@ -86,7 +105,7 @@ def run(older,newer,output_root):
                     name='{text:"WorldGit sword"}';lore='{text:"WorldGit lore"}'
                     enchantments='{"minecraft:sharpness":3}'
                 extra=''
-                if version in ('1.21.1','1.21.4','1.21.8','1.21.11'):
+                if version in ('1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3'):
                     model='42' if version=='1.21.1' else '{floats:[42.0f]}'
                     attribute='minecraft:generic.attack_damage' if version=='1.21.1' else 'minecraft:attack_damage'
                     modifier='{type:"'+attribute+'",id:"worldgit:fixture",amount:3.0d,operation:"add_value",slot:"mainhand"}'
@@ -94,7 +113,7 @@ def run(older,newer,output_root):
                     extra=',"minecraft:custom_model_data":'+model+',"minecraft:attribute_modifiers":'+modifiers
                 return '{Slot:0b,id:"minecraft:diamond_sword",count:1,components:{"minecraft:custom_name":'+name+',"minecraft:lore":['+lore+'],"minecraft:enchantments":'+enchantments+extra+',"minecraft:custom_data":{opaque:{Count:7,components:{untouched:1b}}}}}'
             def boundary_setup(s):
-                if s.version not in ('1.21.1','1.21.4','1.21.8','1.21.11'):return
+                if s.version not in ('1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3'):return
                 old_text=s.version in ('1.21.1','1.21.4')
                 text='\'{"text":"WorldGit entity","color":"gold"}\'' if old_text else '{text:"WorldGit entity",color:"gold"}'
                 equipment=('{HandItems:[{id:"minecraft:diamond_sword",count:1},{}],ArmorItems:[{},{},{},{id:"minecraft:diamond_helmet",count:1}]}'
@@ -110,9 +129,20 @@ def run(older,newer,output_root):
                 s.cmd('setblock 7 64 4 oak_sign',r'(?i)changed')
                 line='\'{"text":"WorldGit sign","color":"blue"}\'' if old_text else '{text:"WorldGit sign",color:"blue"}'
                 empty='\'""\'' if old_text else '""'
-                s.cmd('data merge block 7 64 4 {front_text:{messages:['+line+','+empty+','+empty+','+empty+']}}',r'(?i)modified')
+                s.cmd('data merge block 7 64 4 {front_text:{messages:['+line+','+empty+','+empty+','+empty+']}'+(',allow_op_features:1b' if s.version=='26.3' else '')+'}',r'(?i)modified')
+                if newer.startswith('26.'):
+                    s.cmd('setblock 8 64 4 furnace',r'(?i)changed')
+                    duration='237' if s.version=='26.3' else '237s'
+                    s.cmd('data merge block 8 64 4 {cooking_total_time:'+duration+'}',r'(?i)modified')
+                    s.cmd('setblock 9 64 4 decorated_pot',r'(?i)changed')
+                    sherds=('{back:{id:"minecraft:brick"},left:{id:"minecraft:archer_pottery_sherd"},right:{id:"minecraft:arms_up_pottery_sherd"},front:{id:"minecraft:brick"}}'
+                            if s.version=='26.3' else '["minecraft:brick","minecraft:archer_pottery_sherd","minecraft:arms_up_pottery_sherd","minecraft:brick"]')
+                    s.cmd('data merge block 9 64 4 {sherds:'+sherds+'}',r'(?i)modified')
+                    s.cmd('setblock 10 64 4 brewing_stand',r'(?i)changed')
+                    s.cmd('setblock 11 64 4 oak_log[axis=x]',r'(?i)changed')
+                    s.cmd('setblock 12 64 4 oak_log',r'(?i)changed')
             def boundary_check(s,label):
-                if s.version not in ('1.21.1','1.21.4','1.21.8','1.21.11'):return
+                if s.version not in ('1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3'):return
                 old_text=s.version in ('1.21.1','1.21.4')
                 stand=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get entity @e[type=armor_stand,tag=mv2,limit=1]',r'(?i)entity data'))
                 check(label+' equipment text and attributes',all(x in stand for x in ['minecraft:diamond_sword','minecraft:diamond_helmet','WorldGit entity','gold','37.5d'])
@@ -123,6 +153,15 @@ def run(older,newer,output_root):
                 check(label+' boat split',('Type: "oak"' in boat if s.version=='1.21.1' else 'Type:' not in boat),console=boat)
                 sign=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get block 7 64 4 front_text',r'(?i)block data'))
                 check(label+' sign text','WorldGit sign' in sign and 'blue' in sign,console=sign)
+                if newer.startswith('26.'):
+                    states=s.cmd('execute if block 11 64 4 oak_log[axis=x] if block 12 64 4 oak_log[axis=y] run say MV2_STATES_OK','MV2_STATES_OK')
+                    check(label+' explicit and default block states', 'MV2_STATES_OK' in states, console=states)
+                    furnace=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get block 8 64 4',r'(?i)block data'))
+                    check(label+' furnace native numeric width',('cooking_total_time: 237s' in furnace if s.version!='26.3' else 'cooking_total_time: 237,' in furnace),console=furnace)
+                    pot=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get block 9 64 4 sherds',r'(?i)block data'))
+                    check(label+' pot decorations preserve both sherds',all(x in pot for x in ['minecraft:archer_pottery_sherd','minecraft:arms_up_pottery_sherd']) and ('left:' in pot if s.version=='26.3' else '[' in pot),console=pot)
+                    brew=re.sub(r'\x1b\[[0-9;]*m','',s.cmd('data get block 10 64 4',r'(?i)block data'))
+                    check(label+' brewing native numeric width',('Fuel: 0b' in brew and 'BrewTime: 0s' in brew if s.version!='26.3' else 'Fuel: 0,' in brew and 'BrewTime: 0,' in brew),console=brew)
             sword=sword_stack(older)
             server.cmd('data merge block 5 64 4 {Items:['+sword+']}',r'(?i)modified')
             server.cmd('summon armor_stand 8 70 8 {Tags:["mv2"],NoGravity:1b,Invisible:1b}',r'(?i)summoned')
@@ -153,7 +192,8 @@ def run(older,newer,output_root):
             else:
                 component_sword=sword_stack(newer)
                 special_items={'1.21.1':'minecraft:mace','1.21.4':'minecraft:pale_oak_log',
-                               '1.21.8':'minecraft:happy_ghast_spawn_egg','1.21.11':'minecraft:nautilus_spawn_egg'}
+                               '1.21.8':'minecraft:happy_ghast_spawn_egg','1.21.11':'minecraft:nautilus_spawn_egg','26.1.2':'minecraft:golden_dandelion',
+                               '26.2':'minecraft:sulfur','26.3':'minecraft:poplar_log'}
                 if newer=='1.20.6':
                     special='{Slot:1b,id:"minecraft:diamond",count:3,components:{"minecraft:food":{nutrition:3,saturation:0.3f,can_always_eat:1b,eat_seconds:1.6f}}}'
                     loss_source='minecraft:food'
@@ -168,7 +208,7 @@ def run(older,newer,output_root):
                 plain=re.sub(r'\x1b\[[0-9;]*m','',actual)
                 check(label,all(x in plain for x in ['minecraft:diamond_sword','WorldGit sword','WorldGit lore','minecraft:sharpness','opaque','Count: 7','untouched: 1b'])
                       and ('components:' in plain if s.version not in ('1.20.1','1.20.4') else 'Count: 1b' in plain and 'tag:' in plain),console=actual)
-                if s.version in ('1.21.1','1.21.4','1.21.8','1.21.11'):
+                if s.version in ('1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3'):
                     attribute='minecraft:generic.attack_damage' if s.version=='1.21.1' else 'minecraft:attack_damage'
                     check(label+' custom model and item attribute modifier',all(x in plain for x in ['minecraft:custom_model_data','42','worldgit:fixture',attribute]),console=actual)
             command(server,'wg commit '+TARGET+' -m source-'+newer)
@@ -234,6 +274,9 @@ def run(older,newer,output_root):
             evidence['success']=True
     except BaseException:
         evidence['error']=traceback.format_exc();print(evidence['error'],flush=True)
+        if server:
+            caches=Path(server.dir)/'.work/versions/conversions'
+            if caches.is_dir():shutil.copytree(caches,OUT/'failure-conversions',dirs_exist_ok=True)
         if server and repository(server.world).is_dir():
             diagnostic=OUT/'failure-repo'
             shutil.rmtree(diagnostic,ignore_errors=True)
@@ -246,19 +289,21 @@ def run(older,newer,output_root):
             if not evidence['success']:
                 physical=OUT/'failure-world'
                 shutil.rmtree(physical,ignore_errors=True);physical.mkdir()
-                for name in ('level.dat','region/r.0.0.mca','entities/r.0.0.mca'):
+                prefix='dimensions/minecraft/overworld/' if server.version.startswith('26.') else ''
+                for name in ('level.dat',prefix+'region/r.0.0.mca',prefix+'entities/r.0.0.mca'):
                     source=Path(server.world)/name
                     if source.is_file():
                         target=physical/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target)
             shutil.rmtree(server.dir,ignore_errors=True)
-        for name in ('prepared-base','old-base','target-base','source.git'):shutil.rmtree(OUT/name,ignore_errors=True)
+        for name in ('prepared-base','old-base','target-base','source.git','native-source'):shutil.rmtree(OUT/name,ignore_errors=True)
         save()
     return evidence['success']
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     pairs=['1.20.1:1.20.4','1.20.4:1.20.6','1.20.6:1.21.1',
-           '1.21.1:1.21.4','1.21.4:1.21.8','1.21.8:1.21.11']
+           '1.21.1:1.21.4','1.21.4:1.21.8','1.21.8:1.21.11',
+           '1.21.11:26.1.2','26.1.2:26.2','26.2:26.3']
     parser.add_argument('--pair',action='append',choices=pairs)
     parser.add_argument('--output-root',type=Path,default=ROOT/'.work/paper-multiversion')
     args=parser.parse_args()

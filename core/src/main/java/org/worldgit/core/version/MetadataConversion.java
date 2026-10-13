@@ -40,7 +40,8 @@ final class MetadataConversion {
         input.containsKey("level.nbt") ? Nbt.read(input.get("level.nbt")) : new Nbt.Compound();
     String prefix = dimension.directoryName() + ".";
     // 26.x 的固定 saved-data 別名先折回 LEVEL dynamic，讓 DFU 使用正確的 schema。
-    if (from >= MinecraftVersion.NAMESPACED_STORAGE) {
+    // WorldBorder 已在 1.21.11 使用 SavedData；搬位與 codec 邊界不能混為一談。
+    if (from >= 4671) {
       if (to < MinecraftVersion.NAMESPACED_STORAGE
           && input.containsKey("custom_boss_events.dat.nbt"))
         level.put(

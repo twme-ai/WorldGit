@@ -12,6 +12,7 @@ public final class MetadataNormalizer {
 
   public static SortedMap<String, byte[]> normalize(Map<String, byte[]> metadata, IgnoreRules rules)
       throws IOException {
+    metadata = nativeLayout(metadata);
     var result = new TreeMap<String, byte[]>();
     for (var entry : metadata.entrySet()) {
       byte[] bytes = SavedData.normalize(entry.getKey(), entry.getValue());
@@ -29,6 +30,20 @@ public final class MetadataNormalizer {
       if (!data.isEmpty()) result.put(entry.getKey(), Nbt.write(data));
     }
     return result;
+  }
+
+  /** 1.21.11 的 LEVEL DFU 暫存 border 與原生 SavedData 為同一組設定。 */
+  public static SortedMap<String, byte[]> nativeLayout(Map<String, byte[]> metadata) throws IOException {
+    var out = new TreeMap<>(metadata);
+    if (!metadata.containsKey("level.nbt")) return out;
+    var level = Nbt.read(metadata.get("level.nbt"));
+    if (level.integer("DataVersion",0) != 4671 || !(level.get("world_border") instanceof Nbt.Compound border)) return out;
+    var nativeFile = metadata.containsKey("world_border.dat.nbt") ? Nbt.read(metadata.get("world_border.dat.nbt")) : null;
+    if (nativeFile != null && (!Set.of("data","DataVersion").containsAll(nativeFile.keySet())
+        || !Arrays.equals(Nbt.write(border),Nbt.write(nativeFile.compound("data"))))) return out;
+    if (nativeFile == null) out.put("world_border.dat.nbt",Nbt.write(new Nbt.Compound().with("DataVersion",4671).with("data",Nbt.copy(border))));
+    level.remove("world_border");out.put("level.nbt",Nbt.write(level));
+    return out;
   }
 
   private static boolean chunkTickets(String name) {

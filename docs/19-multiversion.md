@@ -1,6 +1,6 @@
 # 19 — 多版本世界與跨版本歷史
 
-研究日期：2026-10-09；實作與驗收持續至 2026-10-12。本文件涵蓋任務 1（core／CLI／Hub／platform-api），以及任務 2（Paper／Folia）、任務 3（Fabric）的交接。平台能下載不等於 WorldGit 已驗收；任務 2 子任務①新增 1.20.1／1.20.4，子任務②新增 1.20.6／1.21.1、子任務③新增 1.21.4／1.21.8 的線上轉接層，與既有 1.21.11／26.2 共用發行 jar；Folia 1.21.1 無官方 build、不可驗收，其餘平台仍待後續子任務。
+研究日期：2026-10-09；實作與驗收持續至 2026-10-13。本文件涵蓋任務 1（core／CLI／Hub／platform-api），以及任務 2（Paper／Folia）、任務 3（Fabric）的交接。平台能下載不等於 WorldGit 已驗收；任務 2 子任務①–④已新增八版線上轉接層，與既有 1.21.11／26.2 共用發行 jar，涵蓋十個 Paper／八個官方 Folia 版本。Folia 1.21.1／26.3 無官方 build、不可驗收；子任務⑤接續全矩陣對抗與效能，Fabric 新版平台仍待任務 3。
 
 ## 1. 來源與目標版本
 
@@ -191,6 +191,22 @@ world_border 自1.21.11已是compound，降到DV≤4440才改回舊欄位；舊 
 
 Folia1.21.4 的 headless bot 驗收需按原生respawn保留旗標與實際維度改變保留既有正血量；Folia不重送相同health，Mineflayer的無條件dead狀態會使look／互動永遠等待。listener完成後才更新client，位置／chunk就緒才發player_loaded；死亡不套用、沒有改伺服器實體NBT。原生命名牌與before-init觸及繼承、追蹤斷言仍完整驗證，旗標／維度／health／ready證據保留（#232）。
 
+子任務④（2026-10-13，#233–#250）新增 `v26_1_2`／`v26_3`，精確 dev bundle `26.1.2.build.74-stable`／`26.3.build.177-stable`，原版未混淆、Java 25；Paper runtime build 74／177、Folia 26.1.2 build 8，官方 manifest／checksum 在 `.work/mv2-4/artifact-proof.json`。Folia 26.3 官方 API 仍回 `version_not_found`，載入 adapter 前明確拒絕；Paper 同版使用自己的 adapter。
+
+26.1.2／26.2／26.3 的 `commands-modern`／`nms-shared` 逐 bundle 編譯，發行前必須通過三組完整 Java 25 class 比對。26.3 不再有 `BlockState.is(Object)`，chunk guard 改用相同 block 的身分比較。1.21.8–1.21.11 的 Java 21 指令 class 仍分組比對，不把 Java 25 的編譯器差異忽略後宣稱共用完整 binary。26.1.2 的 PDC 從 CraftWorld 取得，實體載入使用 EntitySpawnReason；26.2／26.3 使用 EntitySpawnRequest。census、UUID、ticket／IO、registry-aware BE／Entity ValueInput／ValueOutput 保持精確 adapter；pending ticks 在 lock／replace 前 unpack，以 owner clock 保留 delay／priority（#234）。
+
+DV4790是維度／saved-data layout邊界；跨26.x保留difficulty_settings，降回1.21.11還原Difficulty／DifficultyLocked／hardcore。26.x bridge依原生codec複製活difficulty、全域DataPacks與game_rules；分拆的每個已存在gamerule別名補原生缺省，已有設定及未知欄位不覆蓋，不建立缺少的維度。projection fingerprint更新paper-metadata-v4；時鐘、天氣、流浪商人、RNG／raids自然游標與version_history延續#159–#162的暫態政策（#235）。
+
+26.3 palette與嵌套state接受id/properties及預設狀態字串，補來源registry defaults，repo仍保存完整屬性。反向處理Name/Properties、陶罐裝飾stack、招牌front/back/waxed與allow_op_features、熔爐／釀造台寬度和速度；新registry內容與非等價能力列損失。線上三組邊界用原生名稱／lore／附魔／custom_data、設備、attribute、saddle、招牌、陶罐、熔爐、釀造台及default／explicit state驗收。每次26.x升級的FileFixer測試副本暫移唯讀Git repo，原版搬位完成後放回，遵循#186，不改Git object權限；歷史commit的線上DFU仍自動執行（#236／#237）。
+
+Paper新兩版使用[官方 FAWE 2.16.1 Paper artifact](https://modrinth.com/plugin/fastasyncworldedit/version/A1gBu4MM)（#246）；Folia26.1.2使用官方WorldEdit7.4.5，支援範圍與SHA-512留證。26.3驗收bot依上游固定commit補協定data、entityDelta、teleport座標、light mask、digging及physics feature。只安裝在.work/bot，不進正式插件；`paper/tools/setup_bot_263.py`可重現並保存checksum（#238）。上游未完成的新增item元件codec不作fixture，不由bot通過推論所有新物品玩法已驗收。26.3 的原生 listener 在每個 client tick 只接受一個含位置的移動封包；驗收 bot 在實際 physics tick 後送 tick_end，擴充 teleport_confirm 已帶位置／旋轉，不再另送傳送位置封包。保持物理模擬與伺服器檢查，持續連線、真放置與封包抽查留證；setup 可冪等重現（#248）。新版 entityDelta 的 move.steps 由 bot 依序累加1/4096位移，position sync 區分linear／stepped；缺少速度時保留原值。未知或非有限資料明確失敗，舊版不套用這個分支；真命名牌的NaN look首次失敗與wire trace留證（#249）。線上來源由純原版multiversion世界的world副本建立，維持原資料包的嚴格斷言（#239）。
+
+真服跨4790另補#240／#241：server DFU涵蓋現代SavedData References及1.21.11的stopwatches／border；1.21.11已存在的border別名先折回LEVEL，capture升級尚未重存的固定檔案。Paper的scheduled_events維度位置及metadata／level_overrides／PDC使用世界上下文；歷史設定不覆蓋，UUID保留目前世界身分，未知欄位及非空PDC仍拒絕不相容的線上還原。三版原生Paper codec均為DataFixTypes.NONE，只省略精確schema／已核對版本的runtime DataVersion header，UUID、spawn、difficulty、PDC等payload仍比較。SavedData v6、projection v5使舊平台快取失效。pig／cow／chicken缺少的classic sound_variant按DV4790補原生值，已有內容不改；最終版本正規化v21-native-26-entity-form（#242）。
+
+後續原生格式修正：1.21.11的border在DV4671以原生SavedData別名作等價正規化，衝突值／未知wrapper保留；舊data/stopwatches與新namespaced路徑共同保留目前時間戳，只追蹤名稱。SavedData v7、版本正規化v22-native-12111-border-storage（#243）。Paper26.2的新原生空Bukkit marker描述及min-array／max-major schema只對已確認的空marker投影，使用目標原生bytes，projection v6；自訂pack政策不變。fixture明確使用survival properties與原生命令，保留mode差異被拒的證據（#244）。
+
+26.3 原生釀造台 ValueInput／ValueOutput 的缺省 total_brew_time=400、total_fuel=20、speed_multiplier=1f，在 DFU 尚未補欄位時以相同原生值正規化；既有值、自訂 ID 與 custom_data 保留，非預設值反向損失仍逐項列出。原生 serializer bytecode、首次 PARTIAL 與 normalize／reverse 回歸留證；最終版本正規化為 v23-native-263-brewing-defaults（#245）。欄位格式依 [26.3 官方說明](https://www.minecraft.net/en-us/article/minecraft-java-edition-26-3)。
+
 ### Fabric
 
 沿用 `mc<version>` + shared source + logic 模組，新增八個目標模組；保留單人／dedicated 同一正確邏輯。1.20.1/4 的 Loom remap／Java21，1.20.6–1.21.11 Mojang mappings／remap，26.x unobfuscated Loom 路徑與 Java25 分開。暫不導入 Stonecutter，以免平台移植與 build system 大改同時發生；來源家族透過共享目錄或少量 adapter 提供。每一版的 mixin target／descriptor 要用 jar 驗證，require=1 保留 fail-fast，不能用 require=0 掩蓋注入失敗。
@@ -332,6 +348,62 @@ Folia 1.21.1 沒有官方 build，不可驗收；Folia 1.20.6 的 WorldEdit 缺�
 最終插件 SHA-256：`f7967c8a484c6a9fa5dd43f9033d6cea5e7c038c825b990be3e5390a41632946`；CLI：`514eae9dcffd0bcdf38d4d428b66a96c79614a41e56019e180385978ac1dcc12`。有損降級仍須確認；自訂資料包或受追蹤世界設定不同時保持線上拒絕，需停服用 CLI。Folia 1.21.1 與舊 Folia WorldEdit 的官方缺口保持原註記；本次兩版 Folia 都完成官方 WorldEdit 驗收。
 
 子任務④新決策從 #233 起，建議先固定 `v26_1_2`／`v26_3` 的精確 bundle、Java 25 與官方 Paper／Folia build；核對 namespaced saved-data、ValueInput／ValueOutput、新 state codec、ticket／owner／UUID／IO，再逐版編譯與真服驗收。沒有官方 Folia build 時沿用 #210 的明確拒絕與未驗收註記。
+
+### 任務 2 子任務④完成驗收（2026-10-13）
+
+基底 `6620d92`、未提交；新增 Paper26.1.2／26.3、Folia26.1.2，決策 #233–#250。完整修改清單、命令／退出碼／耗時、原始console／chat、產物SHA與清理見 `.work/mv2-4/report.md`、`validation-summary.json`、`evidence-audit.json` 與各 `*-receipt.json`。前回合通過證據已重新核對；Folia pending 修正後從中止處接續。
+
+| 命令／平台 | 結果 | 證據 |
+|---|---|---|
+| `build` | 490 JUnit，0 failure／error／skipped | `.work/mv2-4/build.log` |
+| `build-final` | 490 JUnit，0 failure／error／skipped | `.work/mv2-4/build-final.log` |
+| `diff-check` | 通過 | `.work/mv2-4/diff-check.log` |
+| `sigterm-folia-26.1.2` | 1／1 | `.work/mv2-4/sigterm-folia-26.1.2-results.json` |
+| `phase5-paper-26.2` | 55／55 | `.work/paper-phase5/paper-26.2-1791873921/results.json` |
+| `phase2-regressions` | 2／2 | `.work/paper-phase4/regressions-1791874067/results.json` |
+| `perf-before` | 通過 | `.work/perf/mv2-4-before-paper-26.2/result.json` |
+| `perf-after` | 通過 | `.work/perf/mv2-4-after-paper-26.2/result.json` |
+| `api-compatibility` | 十版 API 成員／class-interface／官方 Adventure SHA 全部通過 | `.work/mv2-4/api-compatibility.json` |
+| `pending-regression-paper-1.20.6` | 1／1 | `.work/mv2-4/pending-regression/paper-1.20.6/results.json` |
+| `pending-regression-folia-1.21.4` | 1／1 | `.work/mv2-4/pending-regression/folia-1.21.4/results.json` |
+| `online-1.21.11-to-26.1.2` | 69／69 | `.work/mv2-4/online/1.21.11-to-26.1.2/results.json` |
+| `online-26.1.2-to-26.2` | 69／69 | `.work/mv2-4/online/26.1.2-to-26.2/results.json` |
+| `online-26.2-to-26.3` | 69／69 | `.work/mv2-4/online/26.2-to-26.3/results.json` |
+| `acceptance-paper-26.1.2` | 33／33 | `.work/mv2-4/acceptance-paper-26.1.2-results.json` |
+| `phase5-paper-26.1.2` | 55／55 | `.work/paper-phase5/paper-26.1.2-1791851860/results.json` |
+| `pending-paper-26.1.2` | 1／1 | `.work/mv2-4/pending/paper-26.1.2/results.json` |
+| `entities-paper-26.1.2` | 12／12 | `.work/paper-phase2/entities-paper-26.1.2-1791852177/results.json` |
+| `acceptance-paper-26.3` | 33／33 | `.work/mv2-4/acceptance-paper-26.3-results.json` |
+| `phase5-paper-26.3` | 55／55 | `.work/paper-phase5/paper-26.3-1791854015/results.json` |
+| `pending-paper-26.3` | 1／1 | `.work/mv2-4/pending/paper-26.3/results.json` |
+| `entities-paper-26.3` | 12／12 | `.work/paper-phase2/entities-paper-26.3-1791854251/results.json` |
+| `acceptance-folia-26.1.2` | 33／33 | `.work/mv2-4/acceptance-folia-26.1.2-results.json` |
+| `phase5-folia-26.1.2` | 56／56 | `.work/paper-phase5/folia-26.1.2-1791854838/results.json` |
+| `pending-folia-26.1.2` | 1／1 | `.work/mv2-4/pending/folia-26.1.2/results.json` |
+| `entities-folia-26.1.2` | 12／12 | `.work/paper-phase2/entities-folia-26.1.2-1791871980/results.json` |
+| `acceptance-paper-1.20.1` | 33／33 | `.work/mv2-4/acceptance-paper-1.20.1-results.json` |
+| `acceptance-paper-1.21.4` | 33／33 | `.work/mv2-4/acceptance-paper-1.21.4-results.json` |
+| `acceptance-paper-1.21.11` | 33／33 | `.work/mv2-4/acceptance-paper-1.21.11-results.json` |
+| `acceptance-paper-26.2` | 33／33 | `.work/mv2-4/acceptance-paper-26.2-results.json` |
+
+新三平台 acceptance 各33／33，Paper phase5 各55／55、Folia56／56，官方 Paper FAWE2.16.1／Folia WorldEdit7.4.5皆完整驗收。Paper26.1.2最終acceptance已改用官方Paper artifact完整重驗；初次Bukkit結果另保留。三組線上邊界各69／69，升級全自動；降級完整中文預覽、未確認不寫入、token綁定與單次使用、switch／reset／merge確認後verify零差異，原生BE／item／state欄位直接讀回。
+
+三平台 pending ticks、UUID／巢狀乘客與未載入磁碟普查通過；Folia SIGTERM的JVM自行結束、關閉commit+1／auto／SUCCESS、停服後三維度零差異通過。#250的pending fixture明確選world／核對維度，在async FULL callback核對owner及chunk身分後直接驗pending並取guard的loading ticket，避免轉排task後原臨時ticket已釋放；20 owner ticks後仍保留delay600／priority−1,1。兩個新Paper及Paper1.20.6／Folia1.21.4的既有pending fixture重新驗收，全部原斷言保留。
+
+common API逐十版核對，26.x的8個完整共享Java25 class逐byte相同；Java21／25家族仍分別核對。最終快取契約為v23-native-263-brewing-defaults、SavedData v7、reverse revision20、paper-metadata-v6。首次失敗保留 `.work/mv2-4/failures/`；沒有刪除測試或放寬斷言。
+
+同機Paper26.2／Java25、同fixture、無玩家、三輪，基準jar與6620d92發行產物SHA相同；端到端p50秒數不含harness settle sleep。
+
+| 操作 | 6620d92 | 本次 | 變化 |
+|---|---:|---:|---:|
+| `status-noop` | 0.255 | 0.254 | -0.37% |
+| `switch-noop` | 0.703 | 0.702 | -0.25% |
+| `switch-1` | 1.456 | 1.451 | -0.32% |
+| `switch-100` | 8.434 | 8.400 | -0.40% |
+
+四項p50比值幾何平均 0.997；原始樣本 `.work/perf/mv2-4-before-paper-26.2/`、`mv2-4-after-paper-26.2/`。三輪合成抽樣不代表大型實體／BE世界。最終插件SHA-256：`8f5759cbb058134c7b3c22f7850889385b2951ba01ceaf611e37e6756cbf8b6b`。
+
+Folia26.3沒有官方build，啟動／runner明確拒絕；舊Folia WorldEdit缺口維持#200。26.3驗收bot的固定上游協定修正只在.work，尚未完成的新item元件codec不由本次fixture推論已驗收；world-meta／自訂資料包差異仍須停服CLI，跨維度仍非原子。子任務⑤決策從#251起，先做十個Paper／八個Folia全矩陣apply、owner對抗、GUI loss token／cancel／PARTIAL／shutdown與大型世界效能；保留官方缺口，不擴用未驗證binary。
 
 轉換後的歷史 chunk 再按同一份 `.wgignore` 正規化；空 tick 清單省略，ID 改名後重新排序。舊版實體載入所需的 `Health` 等預設值只在物理實體化時補入，不進歷史雜湊。離線套用同 UUID、同類型的實體時保留目前生命值；新實體依 max_health 與原版預設值補足，並遞迴處理乘客。轉換與 Hub 統計快取的正規化版本同步更新（#179）。
 

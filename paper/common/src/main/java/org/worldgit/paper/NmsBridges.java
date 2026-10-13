@@ -16,6 +16,8 @@ public final class NmsBridges {
           "1.21.4", "org.worldgit.paper.v1_21_4.Bridge_1_21_4",
           "1.21.8", "org.worldgit.paper.v1_21_8.Bridge_1_21_8",
           "1.21.11", "org.worldgit.paper.v1_21_11.Bridge_1_21_11",
+          "26.1.2", "org.worldgit.paper.v26_1_2.Bridge_26_1_2",
+          "26.3", "org.worldgit.paper.v26_3.Bridge_26_3",
           "26.2", "org.worldgit.paper.v26_2.Bridge_26_2");
 
   public static NmsBridge select(String minecraftVersion, ClassLoader loader) {

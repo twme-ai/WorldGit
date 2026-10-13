@@ -58,7 +58,7 @@ public final class Bridge_26_2 implements NmsBridge {
   }
   @Override public int dataVersion() { return net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version(); }
   @Override public org.worldgit.core.version.NbtUpgrader dataFixer() {
-    return (type,input,from,to)->{
+    org.worldgit.core.version.NbtUpgrader vanilla=(type,input,from,to)->{
       if(to!=dataVersion() || from>to)throw new IOException("DFU target does not match server DataVersion");
       com.mojang.datafixers.DSL.TypeReference reference=switch(type) {
         case "CHUNK"->net.minecraft.util.datafix.fixes.References.CHUNK;
@@ -71,11 +71,34 @@ public final class Bridge_26_2 implements NmsBridge {
         case "SAVED_DATA_TICKETS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_TICKETS;
         case "SAVED_DATA_RAIDS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_RAIDS;
         case "SAVED_DATA_RANDOM_SEQUENCES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_RANDOM_SEQUENCES;
+        case "SAVED_DATA_CUSTOM_BOSS_EVENTS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_CUSTOM_BOSS_EVENTS;
+        case "SAVED_DATA_ENDER_DRAGON_FIGHT"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_ENDER_DRAGON_FIGHT;
+        case "SAVED_DATA_GAME_RULES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_GAME_RULES;
+        case "SAVED_DATA_SCHEDULED_EVENTS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_SCHEDULED_EVENTS;
+        case "SAVED_DATA_STOPWATCHES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_STOPWATCHES;
+        case "SAVED_DATA_STRUCTURE_FEATURE_INDICES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_STRUCTURE_FEATURE_INDICES;
+        case "SAVED_DATA_WANDERING_TRADER"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_WANDERING_TRADER;
+        case "SAVED_DATA_WEATHER"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_WEATHER;
+        case "SAVED_DATA_WORLD_BORDER"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_WORLD_BORDER;
+        case "SAVED_DATA_WORLD_CLOCKS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_WORLD_CLOCKS;
+        case "SAVED_DATA_WORLD_GEN_SETTINGS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_WORLD_GEN_SETTINGS;
         default->throw new IOException("Unsupported server DFU type: "+type);
       };
       var fixed=net.minecraft.util.datafix.DataFixers.getDataFixer().update(reference,new com.mojang.serialization.Dynamic<>(net.minecraft.nbt.NbtOps.INSTANCE,toTag(input)),from,to);
       return Raw.convert((CompoundTag)fixed.getValue());
     };
+    try {
+      var server=net.minecraft.server.MinecraftServer.getServer();
+      var features=server.getWorldData().enabledFeatures();
+      var rules=net.minecraft.world.level.gamerules.GameRules.codec(features)
+          .encodeStart(net.minecraft.nbt.NbtOps.INSTANCE,new net.minecraft.world.level.gamerules.GameRules(features)).getOrThrow();
+      var format=net.minecraft.SharedConstants.getCurrentVersion().packVersion(net.minecraft.server.packs.PackType.SERVER_DATA);
+      return org.worldgit.paper.PaperMetadataProjection.wrap(vanilla,dataVersion(),Raw.convert((CompoundTag)rules),
+          format.major(),format.minor(),server.getPackRepository().getAvailableIds());
+    } catch(IOException error) {throw new java.io.UncheckedIOException(error);}
+  }
+  @Override public org.worldgit.core.version.NbtUpgrader dataFixer(World world) {
+    return org.worldgit.paper.PaperMetadataProjection.forWorld(dataFixer(),new org.worldgit.core.model.DimensionId(world.getKey().toString()).directoryName(),world.getUID(),world.getWorldFolder().toPath());
   }
   @Override public java.util.Set<java.util.UUID> knownEntityIds(World world) {
     return java.util.Arrays.stream(level(world).moonrise$getEntityLookup().getAllCopy()).map(net.minecraft.world.entity.Entity::getUUID).collect(java.util.stream.Collectors.toUnmodifiableSet());
@@ -87,6 +110,18 @@ public final class Bridge_26_2 implements NmsBridge {
     var tag = net.minecraft.world.level.gamerules.GameRules.codec(level.enabledFeatures())
         .encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, level.getGameRules()).getOrThrow();
     return Raw.convert((CompoundTag) tag);
+  }
+
+  @Override public Nbt.Compound copyLevelMetadata(World world) throws IOException {
+    var data=level(world).serverLevelData;
+    var packs=net.minecraft.world.level.DataPackConfig.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE,level(world).getServer().getWorldData().getDataConfiguration().dataPacks())
+        .result().orElseThrow(()->new IOException("Cannot encode live DataPacks"));
+    var settings=new net.minecraft.world.level.LevelSettings.DifficultySettings(data.getDifficulty(),data.isHardcore(),data.isDifficultyLocked());
+    var difficulty=net.minecraft.world.level.LevelSettings.DifficultySettings.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE,settings)
+        .result().orElseThrow(()->new IOException("Cannot encode live difficulty settings"));
+    return new Nbt.Compound().with("GameType",data.getGameType().getId())
+        .with("difficulty_settings",Raw.convert((CompoundTag)difficulty))
+        .with("DataPacks",Raw.convert((CompoundTag)packs));
   }
 
   @Override public boolean savesMetadata() { return true; }

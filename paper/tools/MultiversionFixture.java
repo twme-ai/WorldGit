@@ -15,7 +15,7 @@ class MultiversionFixture {
       case 3700, 3839 -> Set.of("bundle", "trade_rebalance", "update_1_21");
       case 3955 -> Set.of("bundle", "trade_rebalance");
       case 4189 -> Set.of("trade_rebalance", "redstone_experiments", "minecart_improvements");
-      case 4440 -> Set.of("trade_rebalance", "redstone_experiments", "minecart_improvements");
+      case 4440, 4671, 4790, 4903, 5023 -> Set.of("trade_rebalance", "redstone_experiments", "minecart_improvements");
       default -> throw new IllegalStateException("Unsupported fixture DataVersion: " + data.integer("DataVersion", 0));
     };
     var packs = data.compound("DataPacks");

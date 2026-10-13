@@ -9,11 +9,11 @@ IDS=('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee','bbbbbbbb-cccc-dddd-eeee-fffffffffff
 
 def fixture(server,version):
     base=Path(WORK)/'gradle-home/caches/modules-2/files-2.1'
-    jars=[next((base/'io.papermc.paper/paper-api'/(version+'-R0.1-SNAPSHOT')).rglob('*.jar'))]
+    jars=[next((base/'io.papermc.paper/paper-api'/(version+'-R0.1-SNAPSHOT' if not version.startswith('26.') else {'26.1.2':'26.1.2.build.74-stable','26.3':'26.3.build.177-stable'}[version])).rglob('*.jar'))]
     for group in ['net.kyori/adventure-api','net.kyori/adventure-key','org.jetbrains/annotations','net.md-5/bungeecord-chat','net.kyori/examination-api','net.kyori/examination-string']:
         jars+=list((base/group).rglob('*.jar'))
     classes=Path(server.dir)/'entity-fixture-classes';classes.mkdir()
-    subprocess.run(['/usr/lib/jvm/java-21-openjdk-amd64/bin/javac','--release','21','-cp',os.pathsep.join(map(str,jars)),
+    subprocess.run([str(Path(harness.JAVA[version]).with_name('javac')),'--release','25' if version.startswith('26.') else '21','-cp',os.pathsep.join(map(str,jars)),
                     '-d',str(classes),str(Path(ROOT)/'paper/tools/components-fixture/EntitiesFixturePlugin.java')],check=True)
     with zipfile.ZipFile(Path(server.dir)/'plugins/entities-fixture.jar','w') as jar:
         for path in classes.rglob('*.class'):jar.write(path,str(path.relative_to(classes)))
@@ -41,7 +41,7 @@ def run(platform,version):
     with BenchLock():
         harness.RUN=os.path.join(WORK,'paper-phase2','run')
         baseline=os.path.join(WORK,'paper-delivery','fixtures','acceptance-flat-'+version)
-        if version in ('1.20.6','1.21.1','1.21.4','1.21.8'):
+        if version in ('1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3'):
             stable=os.path.join(evidence,'fixture')
             shutil.copytree(baseline,stable)
             subprocess.run([harness.JAVA[version],'-Xmx512m','-cp',os.path.join(ROOT,'cli/build/libs/wgit.jar'),
@@ -50,14 +50,14 @@ def run(platform,version):
         s=Server(platform,version,baseline=baseline,run_label=f'entities-{platform}-{version}',view=2,
                  config={'auto-commit':{'enabled':False,'on-shutdown':False},'commit':{'timeout-seconds':900}})
         try:
-            if version in ('1.20.6','1.21.1','1.21.4','1.21.8'): fixture(s,version)
+            if version in ('1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3'): fixture(s,version)
             s.start(); result['console']=os.path.relpath(s.evidence_log,ROOT)
             cmd(s,'wg debug guard on',r'WGCHUNKGUARD locked')
             s.bot('WgBot'); nether_bot=s.bot('WgBot2')
             s.cmd('tp WgBot 200 70 -184')
             s.cmd('execute in minecraft:the_nether run tp WgBot2 -184 70 200')
             cmd(s,'wg debug entities overworld 12 -12 seed')
-            if version in ('1.20.6','1.21.1','1.21.4','1.21.8'):
+            if version in ('1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3'):
                 # 舊版 NoAI 仍會遞減 EggLayTime；以原版 jockey flag 安定 fixture，完整保留 timer 欄位。
                 output=s.cmd('wgentityfixture',r'WGENTITYFIXTURE (success|failed)')
                 check('原版 jockey flag 固定蛋計時且不忽略欄位','WGENTITYFIXTURE success jockey=true' in output,output=output)
@@ -115,5 +115,5 @@ def run(platform,version):
                     if os.path.isfile(source):
                         target=os.path.join(forensic,filename);os.makedirs(os.path.dirname(target),exist_ok=True);shutil.copy2(source,target)
             shutil.rmtree(s.dir,ignore_errors=True)
-            if version in ('1.20.6','1.21.1','1.21.4','1.21.8'): shutil.rmtree(baseline,ignore_errors=True)
+            if version in ('1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3'): shutil.rmtree(baseline,ignore_errors=True)
     return 0 if all(step['ok'] for step in result['steps']) else 1

@@ -50,7 +50,7 @@ final class PaperOperations implements AutoCloseable {
   private final Map<String,String> convertedTrees=new HashMap<>();
   private String converted(DimensionRepository repo,RefStore.Commit target) throws IOException {
     if(target==null)return null;
-    var result=org.worldgit.core.version.VersionConversions.convert(repo.objects(),target.tree(),repo.dimension(),target.metadata().mcDataVersion(),plugin.bridge().dataVersion(),repo.directory().resolve("worldgit.yml"),true,plugin.bridge().dataFixer());
+    var result=org.worldgit.core.version.VersionConversions.convert(repo.objects(),target.tree(),repo.dimension(),target.metadata().mcDataVersion(),plugin.bridge().dataVersion(),repo.directory().resolve("worldgit.yml"),true,plugin.bridge().dataFixer(mapping.worlds().get(repo.dimension())));
     if(target.metadata().mcDataVersion()!=plugin.bridge().dataVersion())conversions.put(repo.dimension().value()+"/"+target.id(),result.report());
     convertedTrees.put(target.id(),result.tree());return result.tree();
   }
@@ -82,7 +82,7 @@ final class PaperOperations implements AutoCloseable {
       }
       if(live.isEmpty()) throw new IOException("世界尚未 init");
       if(merge) core=WorldOperations.live(layout,new WorldOperations.LiveAccess() {
-        public org.worldgit.core.version.NbtUpgrader dataFixer() { return plugin.bridge().dataFixer(); }
+        public org.worldgit.core.version.NbtUpgrader dataFixer() { return plugin.bridge().dataFixer(mapping.worlds().get(selectedDimension)); }
         public int dataVersion(WorldLayout ignored) { return plugin.bridge().dataVersion(); }
         public void previewConversions(Map<String,org.worldgit.core.version.ConversionReport> reports) {plugin.versionConfirmations().preview(reports);}
         public void confirmConversions(Map<String,org.worldgit.core.version.ConversionReport> reports) throws IOException {

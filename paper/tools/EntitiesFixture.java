@@ -9,10 +9,19 @@ class EntitiesFixture {
     var world = Path.of(args[0]);
     var layout = WorldLayout.discover(world);
     var nether = layout.dimensions().get(new DimensionId("minecraft:the_nether"));
+    // A pure vanilla 26.x source can have no generated Nether storage yet.
+    // Create only the test copy's native region directory before discovery.
+    if (nether == null && layout.dataVersion() >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) {
+      Files.createDirectories(world.resolve("dimensions/minecraft/the_nether/region"));
+      layout = WorldLayout.discover(world);
+      nether = layout.dimensions().get(new DimensionId("minecraft:the_nether"));
+    }
+    if (nether == null) throw new java.io.IOException("Entity fixture has no native Nether storage: " + world);
+    final int dataVersion = layout.dataVersion();
     var sections = new ArrayList<Object>();
     for (int y = 0; y < 16; y++) sections.add(new Nbt.Compound().with("Y", (byte) y)
         .with("block_states", new Nbt.Compound().with("palette", new Nbt.ListTag(10,
-            List.<Object>of(new Nbt.Compound().with("Name", y < 4 ? "minecraft:stone" : "minecraft:air")))))
+            List.<Object>of(org.worldgit.core.version.BlockStateNbt.write(new BlockState(y < 4 ? "minecraft:stone" : "minecraft:air"), dataVersion)))))
         .with("biomes", new Nbt.Compound().with("palette", new Nbt.ListTag(8, List.<Object>of("minecraft:nether_wastes")))));
     var regions = new TreeMap<String, Map<Integer, Nbt.Compound>>();
     for (int x = -22; x <= 22; x++) for (int z = -22; z <= 22; z++) {

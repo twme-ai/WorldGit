@@ -21,6 +21,39 @@ import org.worldgit.core.store.*;
 class RuntimeSavedDataTest {
   @TempDir Path temp;
 
+  @Test void legacyAndNamespacedStopwatchesTrackNamesAndPreserveCurrentTimestampsOnApply() throws Exception {
+    for (String path : List.of("data/stopwatches.dat","data/minecraft/stopwatches.dat")) {
+      assertNull(SavedData.normalize(key(path),nbt(new Nbt.Compound().with("stopwatches",new Nbt.Compound()))));
+      var raw=nbt(new Nbt.Compound().with("stopwatches",new Nbt.Compound().with("custom:watch",123L)).with("custom",42));
+      var canonical=Nbt.read(SavedData.normalize(key(path),raw));
+      assertEquals(0L,canonical.compound("data").compound("stopwatches").get("custom:watch"));
+      assertEquals(42,canonical.compound("data").get("custom"));
+      var current=new Nbt.Compound().with("data",new Nbt.Compound().with("stopwatches",new Nbt.Compound().with("custom:watch",456L)));
+      var applied=SavedData.materialize(temp.resolve(path),canonical,current);
+      assertEquals(456L,applied.compound("data").compound("stopwatches").get("custom:watch"));
+      assertEquals(42,applied.compound("data").get("custom"));
+    }
+  }
+
+  @Test void paperNoneDfuCodecHeadersAreRuntimeButEveryPayloadFieldRemainsTracked() throws Exception {
+    String name = "minecraft.overworld.saved." + Base64.getUrlEncoder().withoutPadding()
+        .encodeToString("data/paper/metadata.dat".getBytes(StandardCharsets.UTF_8)) + ".nbt";
+    var identity = new Nbt.Compound().with("uuid",new int[]{1,2,3,4});
+    byte[] first = SavedData.normalize(name,Nbt.write(new Nbt.Compound().with("DataVersion",4790).with("data",identity)));
+    assertArrayEquals(first,SavedData.normalize(name,Nbt.write(new Nbt.Compound().with("DataVersion",5023).with("data",identity))));
+    identity.put("uuid",new int[]{5,6,7,8});
+    assertFalse(Arrays.equals(first,SavedData.normalize(name,Nbt.write(new Nbt.Compound().with("DataVersion",5023).with("data",identity)))));
+    for (int version : List.of(4671,5122)) {
+      byte[] raw=Nbt.write(new Nbt.Compound().with("DataVersion",version).with("data",identity));
+      assertArrayEquals(raw,SavedData.normalize(name,raw));
+    }
+    var unknown=new Nbt.Compound().with("DataVersion",5023).with("data",identity).with("custom",42);
+    assertArrayEquals(Nbt.write(unknown),SavedData.normalize(name,Nbt.write(unknown)));
+    identity.put("custom",42);
+    unknown=new Nbt.Compound().with("DataVersion",5023).with("data",identity);
+    assertArrayEquals(Nbt.write(unknown),SavedData.normalize(name,Nbt.write(unknown)));
+  }
+
   @Test void forcedTicketInfiniteRepresentationsAndOrderingAreEquivalentAcrossNativePaths() throws Exception {
     for (String path : List.of("data/chunks.dat", "data/minecraft/chunk_tickets.dat")) {
       var first = new Nbt.Compound().with("chunk_pos", new int[] {2, -3}).with("level", 31)

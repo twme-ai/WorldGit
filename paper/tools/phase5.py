@@ -76,7 +76,7 @@ def run(platform,version,conflict=False,disabled=False):
               mark=len(bot.lines);bot.ask('chat /'+alias+' help','chat_sent');time.sleep(1);check(alias+' disabled',not any('WorldGit -' in r['t'] for r in chats(mark)));continue
             rows=command(alias+' help');check(alias+' alias',any('WorldGit -' in row['t'] for row in rows))
           check('help includes localized confirm syntax',any('/wg confirm <token>' in row['t'] and 'confirm a loss preview' in row['t'] for row in rows))
-          if version in ('1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.2'):
+          if version in ('1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3'):
             rows=command('execute as @s run worldgit:git help')
             check('execute redirect preserves namespaced alias',any('WorldGit -' in row['t'] for row in rows) and any('finished: SUCCESS' in row['t'] for row in rows),chat=rows)
           if not (conflict or disabled):
@@ -109,7 +109,7 @@ def run(platform,version,conflict=False,disabled=False):
           rows=command(append.removeprefix('/'));check('append button initializes selected dimension',initialized('minecraft:the_end'),chat=rows)
           # 已有地獄 repo；移除空白 fixture repo 後另次 server run 驗地獄追加按鈕。
           check('creative player-touched default','player-touched' in (repository(server.world)/'worldgit-repo.yml').read_text())
-          if version in ('1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.2'):
+          if version in ('1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3'):
             for prefix in ['worldgit','worldgit:git','execute as @s run worldgit:git']:
               text='/'+prefix+' switch ma'
               packet=bot.ask('suggest '+text,'suggestions')['packet']
@@ -128,7 +128,7 @@ def run(platform,version,conflict=False,disabled=False):
           command('wg commit -m ignored');check('ignore committed excludes cow',uid not in entities())
           server.cmd('wgfixture WgBot',r'NATURAL_UUID=');line=next(l for l in server.lines_since(0)[::-1] if 'NATURAL_UUID=' in l);natural=re.search(r'NATURAL_UUID=([a-f0-9-]+)',line)[1]
           pos=bot.ask('pos','pos')['pos'];server.cmd('wgfixture WgBot give-armor','HELD=ARMOR_STAND');time.sleep(.5)
-          bot.ask('place_entity '+str(math.floor(pos['x'])-2)+' 63 '+str(math.floor(pos['z'])),'entity_place_sent' if version=='26.2' else 'entity_placed');time.sleep(2)
+          bot.ask('place_entity '+str(math.floor(pos['x'])-2)+' 63 '+str(math.floor(pos['z'])),'entity_place_sent' if version.startswith('26.') else 'entity_placed');time.sleep(2)
           observed=server.cmd('wgfixture WgBot inspect','ENTITIES=');armor=re.search(r'ARMOR_STAND:([a-f0-9-]+)',observed)[1]
           command('wg commit -m armor');check('placed armor stand tracked',armor in entities())
           server.cmd('wgfixture WgBot remove '+armor,'REMOVED=');command('wg restore HEAD')
@@ -176,11 +176,11 @@ def run(platform,version,conflict=False,disabled=False):
     (out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(out/'results.json',flush=True)
     return result['success']
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('platform',nargs='?',choices=['paper','folia']);parser.add_argument('version',nargs='?',choices=['1.20.1','1.20.4','1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.2']);parser.add_argument('--matrix',action='store_true');parser.add_argument('--conflict',action='store_true');parser.add_argument('--disabled',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('platform',nargs='?',choices=['paper','folia']);parser.add_argument('version',nargs='?',choices=['1.20.1','1.20.4','1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3']);parser.add_argument('--matrix',action='store_true');parser.add_argument('--conflict',action='store_true');parser.add_argument('--disabled',action='store_true');args=parser.parse_args()
     if args.matrix:
       ok=True
       for platform,version,conflict,disabled in [(platform,version,False,False)
-          for version in ('1.20.1','1.20.4','1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.2') for platform in ('paper','folia') if (platform,version)!=('folia','1.21.1')]+[
+          for version in ('1.20.1','1.20.4','1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3') for platform in ('paper','folia') if not (platform=='folia' and version in ('1.21.1','26.3'))]+[
           ('paper','1.20.1',True,False),('folia','1.20.4',False,True),
           ('paper','1.21.11',True,False),('folia','26.2',False,True)]:
         if not run(platform,version,conflict,disabled):ok=False;break

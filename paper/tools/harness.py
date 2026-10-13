@@ -14,9 +14,12 @@ RUN = os.path.join(WORK, 'paper-delivery', 'run')
 JARS = os.path.join(WORK, 'jars')
 PLUGIN_JAR_GLOB = os.path.join(ROOT, 'paper/plugin/build/libs')
 PORTS = {'paper-1.21.11': 25671, 'paper-26.2': 25672, 'folia-1.21.11': 25673, 'folia-26.2': 25674}
-PORTS.update({f'{platform}-{version}':25675+i*2+j for i,version in enumerate(['1.20.1','1.20.4','1.20.6','1.21.1','1.21.4','1.21.8']) for j,platform in enumerate(['paper','folia'])})
+PORTS.update({f'{platform}-{version}':25675+i*2+j for i,version in enumerate(['1.20.1','1.20.4','1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3']) for j,platform in enumerate(['paper','folia'])})
 JAVA = {'1.21.4':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.21.8':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.20.6':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.21.1':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.20.1':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.20.4':'/usr/lib/jvm/java-21-openjdk-amd64/bin/java','1.21.11': '/usr/lib/jvm/java-21-openjdk-amd64/bin/java', '26.2': '/usr/lib/jvm/java-25-openjdk-amd64/bin/java'}
+JAVA.update({v:'/usr/lib/jvm/java-25-openjdk-amd64/bin/java' for v in ('26.1.2','26.3')})
 EXTRA = {
+    'fawe-26.1.2':'FastAsyncWorldEdit-Paper-2.16.1.jar',
+    'fawe-26.3':'FastAsyncWorldEdit-Paper-2.16.1.jar',
     'fawe-1.21.4':'FastAsyncWorldEdit-Bukkit-2.15.0.jar',
     'fawe-1.21.8':'FastAsyncWorldEdit-Bukkit-2.15.0.jar',
     'fawe-1.20.6':'FastAsyncWorldEdit-Bukkit-2.15.0.jar',

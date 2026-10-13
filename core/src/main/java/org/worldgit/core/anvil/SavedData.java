@@ -10,7 +10,10 @@ public final class SavedData {
   private SavedData() {}
   /** 暫態規則也用於歷史 tree；不可只在磁碟 capture 排除。 */
   public static final String NORMALIZATION = normalizationVersion();
-  private static String normalizationVersion() { return "runtime-saved-data-v5-native-defaults"; }
+  private static String normalizationVersion() { return "runtime-saved-data-v7-legacy-stopwatches"; }
+  private static final Set<String> STOPWATCHES = Set.of("data/stopwatches.dat", "data/minecraft/stopwatches.dat");
+  private static final Set<String> PAPER_DATA = Set.of("data/paper/metadata.dat",
+      "data/paper/persistent_data_container.dat", "data/paper/level_overrides.dat");
   private static final Set<String> TICKET_FILES = Set.of("data/chunks.dat", "data/minecraft/chunk_tickets.dat");
   private static final Set<String> RUNTIME_FILES = Set.of(
       "data/minecraft/world_clocks.dat", "data/minecraft/weather.dat",
@@ -46,9 +49,19 @@ public final class SavedData {
     if (path == null) return bytes;
     if (RUNTIME_FILES.contains(path)) return null;
     String field = runtimeField(path);
-    if (field == null && !path.equals("data/minecraft/stopwatches.dat") && !TICKET_FILES.contains(path)) return bytes;
+    if (field == null && !STOPWATCHES.contains(path) && !TICKET_FILES.contains(path)
+        && !PAPER_DATA.contains(path)) return bytes;
     var root = Nbt.read(bytes);
     var data = root.compound("data");
+    // 三個原生 Paper codec 的 DataFixTypes 都是 NONE；header 不改變 payload schema。
+    // 只處理已核對的版本及 wrapper，不把未知／自訂欄位當成 runtime。
+    int version = root.integer("DataVersion", -1);
+    if (PAPER_DATA.contains(path) && version >= 4790 && version <= 5023
+        && Set.of("DataVersion", "data").containsAll(root.keySet()) && root.get("data") instanceof Nbt.Compound
+        && (path.equals("data/paper/persistent_data_container.dat")
+            || path.equals("data/paper/metadata.dat") && data.size() == 1 && data.get("uuid") instanceof int[] uuid && uuid.length == 4
+            || path.equals("data/paper/level_overrides.dat") && Set.of("game_time", "game_type", "difficulty_settings", "spawn", "initialized").containsAll(data.keySet())))
+      root.remove("DataVersion");
     if (field != null) {
       data.remove(field);
       if (field.equals("tick")) data.remove("Tick");
@@ -62,7 +75,7 @@ public final class SavedData {
       for (String key : List.of("include_world_seed", "include_sequence_id"))
         if (!data.containsKey(key) || data.integer(key, 1) == 1) data.remove(key);
     }
-    if (path.equals("data/minecraft/stopwatches.dat")) {
+    if (STOPWATCHES.contains(path)) {
       var watches = data.compound("stopwatches");
       watches.replaceAll((key, value) -> 0L);
       if (watches.isEmpty()) data.remove("stopwatches");
@@ -152,7 +165,7 @@ public final class SavedData {
       }
       target.put("data", data);
     }
-    if (path.equals("data/minecraft/stopwatches.dat")) {
+    if (STOPWATCHES.contains(path)) {
       var watches = target.compound("data").compound("stopwatches");
       watches.replaceAll((key, value) -> Nbt.copy(current.compound("data").compound("stopwatches").getOrDefault(key, 0L)));
       target.compound("data").put("stopwatches", watches);

@@ -5,7 +5,7 @@ import org.bukkit.World;
 import org.worldgit.core.anvil.Nbt;
 
 /**
- * 需要伺服器內部程式碼（NMS）的全部操作；每個 Minecraft 版本一個薄轉接層（paper:v1_21_11、paper:v26_2）實作。
+ * 需要伺服器內部程式碼（NMS）的全部操作；每個精確 Minecraft 版本一個薄轉接層實作。
  *
  * <p>共用程式碼不得直接碰 NMS。介面刻意只含三件事：普查已載入 chunk（任何執行緒）、在擁有該 chunk 的執行緒複製、
  * 把複製結果轉成中性 NBT（任何執行緒，通常在背景）。其餘（排程、事件、指令）都在版本無關的程式碼裡。
@@ -15,6 +15,8 @@ public interface NmsBridge {
   String minecraftVersion();
   int dataVersion();
   org.worldgit.core.version.NbtUpgrader dataFixer();
+  /** 世界的不可變平台身分；版本新增的 SavedData 投影不能借用另一個世界的 UUID。 */
+  default org.worldgit.core.version.NbtUpgrader dataFixer(World world) { return dataFixer(); }
   /** Player owner 操作；InventoryView 的 class／interface 邊界留在該版 API。 */
   default void openMenu(org.bukkit.entity.Player player,org.bukkit.inventory.Inventory inventory) {
     throw new UnsupportedOperationException("Inventory menus unavailable");

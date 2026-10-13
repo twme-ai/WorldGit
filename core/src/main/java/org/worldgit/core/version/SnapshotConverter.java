@@ -74,6 +74,7 @@ public final class SnapshotConverter implements AutoCloseable {
       var metadata=MetadataConversion.convert(
           files, dimension, from, to, from < to ? dfu() : null, reverse, losses, runtime);
       if (!ownsDfu) metadata=dfu.projectMetadata(metadata,from,to);
+      metadata=MetadataNormalizer.nativeLayout(metadata);
       editor.replaceTree(name,metadata);
     }
     String result = editor.write();

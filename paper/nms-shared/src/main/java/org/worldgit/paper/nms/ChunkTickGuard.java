@@ -230,7 +230,7 @@ public final class ChunkTickGuard {
       }
       @SuppressWarnings("unchecked") var queue=(Collection<net.minecraft.world.level.BlockEventData>)get(owner,"blockEvents");
       // Old piston events apply only if the target still has their original block.
-      for(var event:events) if(level.getBlockState(event.pos()).is(event.block())) queue.add(event);
+      for(var event:events) if(level.getBlockState(event.pos()).getBlock()==event.block()) queue.add(event);
       if(wasTicking) chunks(level,false).add(chunk);
       if(wasEntityTicking) chunks(level,true).add(chunk);
       if(entityStatusHeld) {

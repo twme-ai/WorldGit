@@ -17,15 +17,17 @@ def run(platform,version,output_root):
    server=harness.Server(platform,version,baseline=str(baseline),run_label='mv2-pending-'+platform+'-'+version,view=2,config={'auto-commit':{'enabled':False,'on-shutdown':False}})
    jars=[ROOT/('paper/v'+version.replace('.','_')+'/.gradle/caches/paperweight/taskCache/mappedServerJar.jar'),Path(harness.plugin_jar())]
    base=ROOT/'.work/gradle-home/caches/modules-2/files-2.1'
-   jars.append(next((base/'io.papermc.paper/paper-api'/(version+'-R0.1-SNAPSHOT')).rglob('*.jar')))
+   jars.append(next((base/'io.papermc.paper/paper-api'/(version+'-R0.1-SNAPSHOT' if not version.startswith('26.') else {'26.1.2':'26.1.2.build.74-stable','26.2':'26.2.build.129-stable','26.3':'26.3.build.177-stable'}[version])).rglob('*.jar')))
    for group in ['com.mojang/brigadier','com.mojang/datafixerupper','com.mojang/authlib','com.mojang/logging','it.unimi.dsi/fastutil','org.jetbrains/annotations','org.joml/joml','net.kyori/adventure-api','net.kyori/adventure-key','net.kyori/examination-api','net.kyori/examination-string','net.md-5/bungeecord-chat']:
     jars+=list((base/group).rglob('*.jar'))
    classes=out/'classes';classes.mkdir(exist_ok=True)
    source=ROOT/'paper/tools/components-fixture/ComponentsFixture.java'
-   if version in ('1.21.4','1.21.8'):
+   if version not in ('1.20.6','1.21.1'):
     source=out/'ComponentsFixture.java'
     source.write_text((ROOT/'paper/tools/components-fixture/ComponentsFixture.java').read_text().replace('BuiltInRegistries.BLOCK.get(', 'BuiltInRegistries.BLOCK.getValue(').replace('BuiltInRegistries.FLUID.get(', 'BuiltInRegistries.FLUID.getValue('))
-   subprocess.run(['/usr/lib/jvm/java-21-openjdk-amd64/bin/javac','--release','21','-cp',os.pathsep.join(map(str,jars)),'-d',str(classes),str(source)],check=True)
+   if version.startswith('26.'):
+    source.write_text(source.read_text().replace('net.minecraft.resources.ResourceLocation','net.minecraft.resources.Identifier'))
+   subprocess.run([str(Path(harness.JAVA[version]).with_name('javac')),'--release','25' if version.startswith('26.') else '21','-cp',os.pathsep.join(map(str,jars)),'-d',str(classes),str(source)],check=True)
    with zipfile.ZipFile(Path(server.dir)/'plugins/components-fixture.jar','w') as jar:
     for p in classes.rglob('*.class'):jar.write(p,str(p.relative_to(classes)))
     jar.writestr('META-INF/MANIFEST.MF','Manifest-Version: 1.0\npaperweight-mappings-namespace: mojang\n\n')
@@ -43,6 +45,6 @@ def run(platform,version,output_root):
    (out/'results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(platform,version,result['success'],flush=True)
  return result['success']
 if __name__=='__main__':
- parser=argparse.ArgumentParser();parser.add_argument('platform',choices=['paper','folia']);parser.add_argument('version',choices=['1.20.6','1.21.1','1.21.4','1.21.8']);parser.add_argument('--output-root',type=Path,default=ROOT/'.work/paper-pending');args=parser.parse_args()
- if (args.platform,args.version)==('folia','1.21.1'):parser.error('Folia 1.21.1 官方沒有 build，不可驗收')
+ parser=argparse.ArgumentParser();parser.add_argument('platform',choices=['paper','folia']);parser.add_argument('version',choices=['1.20.6','1.21.1','1.21.4','1.21.8','1.21.11','26.1.2','26.2','26.3']);parser.add_argument('--output-root',type=Path,default=ROOT/'.work/paper-pending');args=parser.parse_args()
+ if args.platform=='folia' and args.version in ('1.21.1','26.3'):parser.error(f'Folia {args.version} 官方沒有 build，不可驗收')
  raise SystemExit(0 if run(args.platform,args.version,args.output_root) else 1)

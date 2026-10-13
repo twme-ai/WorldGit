@@ -45,7 +45,7 @@ class ScaleFixture {
       for (String name : List.of("doMobSpawning", "doWeatherCycle", "doDaylightCycle")) rules.put(name, "false");
     }
     gzip(levelPath, level);
-    if (version.equals("26.2")) {
+    if (layout.dataVersion() >= org.worldgit.core.version.MinecraftVersion.NAMESPACED_STORAGE) {
       for (var dimension : layout.dimensions().values()) {
         Path path = dimension.directory().resolve("data/minecraft/game_rules.dat");
         if (Files.exists(path)) {
@@ -59,7 +59,7 @@ class ScaleFixture {
     int dataVersion = layout.dataVersion();
     var sections = new ArrayList<Nbt.Compound>();
     for (int y = -4; y < 20; y++) sections.add(new Nbt.Compound().with("Y", (byte) y)
-        .with("block_states", new Nbt.Compound().with("palette", new Nbt.ListTag(10, List.<Object>of(new Nbt.Compound().with("Name", y < 4 ? "minecraft:stone" : "minecraft:air")))))
+        .with("block_states", new Nbt.Compound().with("palette", new Nbt.ListTag(10, List.<Object>of(org.worldgit.core.version.BlockStateNbt.write(new org.worldgit.core.model.BlockState(y < 4 ? "minecraft:stone" : "minecraft:air"), layout.dataVersion())))))
         .with("biomes", new Nbt.Compound().with("palette", new Nbt.ListTag(8, List.<Object>of("minecraft:plains")))));
     // RegionFile.update 只讀取 NBT；共享不變的 section 模板降低 10000 chunk fixture 的記憶體量。
     var sectionTag = new Nbt.ListTag(10, new ArrayList<Object>(sections));

@@ -71,6 +71,9 @@ public final class Bridge_1_21_11 implements NmsBridge {
         case "SAVED_DATA_TICKETS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_TICKETS;
         case "SAVED_DATA_RAIDS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_RAIDS;
         case "SAVED_DATA_RANDOM_SEQUENCES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_RANDOM_SEQUENCES;
+        case "SAVED_DATA_STOPWATCHES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_STOPWATCHES;
+        case "SAVED_DATA_STRUCTURE_FEATURE_INDICES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_STRUCTURE_FEATURE_INDICES;
+        case "SAVED_DATA_WORLD_BORDER"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_WORLD_BORDER;
         default->throw new IOException("Unsupported server DFU type: "+type);
       };
       var fixed=net.minecraft.util.datafix.DataFixers.getDataFixer().update(reference,new com.mojang.serialization.Dynamic<>(net.minecraft.nbt.NbtOps.INSTANCE,toTag(input)),from,to);
@@ -85,6 +88,9 @@ public final class Bridge_1_21_11 implements NmsBridge {
       return org.worldgit.paper.PaperMetadataProjection.wrap(vanilla,dataVersion(),Raw.convert((CompoundTag)rules),
           format.major(),format.minor(),server.getPackRepository().getAvailableIds());
     } catch(IOException error) {throw new java.io.UncheckedIOException(error);}
+  }
+  @Override public org.worldgit.core.version.NbtUpgrader dataFixer(World world) {
+    return org.worldgit.paper.PaperMetadataProjection.forWorld(dataFixer(),new org.worldgit.core.model.DimensionId(world.getKey().toString()).directoryName(),world.getUID(),world.getWorldFolder().toPath());
   }
   @Override public java.util.Set<java.util.UUID> knownEntityIds(World world) {
     return java.util.Arrays.stream(level(world).moonrise$getEntityLookup().getAllCopy()).map(net.minecraft.world.entity.Entity::getUUID).collect(java.util.stream.Collectors.toUnmodifiableSet());

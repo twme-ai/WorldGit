@@ -11,7 +11,7 @@ public final class VersionConversions {
   private VersionConversions() {}
   // Resolve at runtime so incremental builds cannot retain an inlined previous version.
   public static final String NORMALIZATION = normalizationVersion();
-  private static String normalizationVersion() { return "multiversion-canonical-v19-native-border-form"; }
+  private static String normalizationVersion() { return "multiversion-canonical-v23-native-263-brewing-defaults"; }
 
   /** Saved data may retain its older file version until it becomes dirty after a server upgrade. */
   public static Map<String, byte[]> capturedSavedData(Map<String, byte[]> input, int target,
@@ -21,7 +21,11 @@ public final class VersionConversions {
       String path = org.worldgit.core.anvil.SavedData.relativePath(entry.getKey());
       String type = path == null
           ? entry.getKey().matches("map_\\d+\\.dat\\.nbt") ? "SAVED_DATA_MAP_DATA"
-              : entry.getKey().equals("scoreboard.dat.nbt") ? "SAVED_DATA_SCOREBOARD" : null
+              : entry.getKey().equals("scoreboard.dat.nbt") ? "SAVED_DATA_SCOREBOARD"
+              : entry.getKey().endsWith("world_border.dat.nbt") && target >= 4671 ? "SAVED_DATA_WORLD_BORDER"
+              : entry.getKey().endsWith("game_rules.dat.nbt") && target >= MinecraftVersion.NAMESPACED_STORAGE ? "SAVED_DATA_GAME_RULES"
+              : entry.getKey().endsWith("world_gen_settings.dat.nbt") && target >= MinecraftVersion.NAMESPACED_STORAGE ? "SAVED_DATA_WORLD_GEN_SETTINGS"
+              : entry.getKey().equals("custom_boss_events.dat.nbt") && target >= MinecraftVersion.NAMESPACED_STORAGE ? "SAVED_DATA_CUSTOM_BOSS_EVENTS" : null
           : MetadataConversion.savedType(path);
       if (type == null) continue;
       var raw = org.worldgit.core.anvil.Nbt.read(entry.getValue());
