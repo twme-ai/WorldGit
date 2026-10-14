@@ -13,7 +13,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -72,6 +71,12 @@ public final class WorldGitMod implements ModInitializer {
     @Override
     public void onInitialize() {
         Path configDir = FabricLoader.getInstance().getConfigDir();
+        try { org.worldgit.fabric.logic.VersionSelector.require(Platform.currentVersion(), ChunkCapture.currentDataVersion(), Platform.MINECRAFT); }
+        catch (IOException error) {
+            var catalog = org.worldgit.i18n.MessageCatalog.bundled();
+            throw new IllegalStateException(Mini.renderedPlain(catalog, "en_us", org.worldgit.fabric.logic.Msg.of("fabric.version.unsupported", "version", Platform.currentVersion()))
+                + " / " + Mini.renderedPlain(catalog, "zh_tw", org.worldgit.fabric.logic.Msg.of("fabric.version.unsupported", "version", Platform.currentVersion())));
+        }
         try {
             config = ServerConfig.load(configDir);
         } catch (IOException e) {
@@ -89,19 +94,13 @@ public final class WorldGitMod implements ModInitializer {
             }
             return true;
         });
-        Net.register();
-        ServerPlayNetworking.registerGlobalReceiver(
-                Net.HELLO.type(),
-                (payload, context) -> {
-                    var rt = runtime(context.server());
-                    if (rt != null) rt.onHello(context.player(), payload.bytes());
-                });
-        ServerPlayNetworking.registerGlobalReceiver(
-                Net.UI.type(),
-                (payload, context) -> {
-                    var rt = runtime(context.server());
-                    if (rt != null) rt.uiServer().onPacket(context.player(), payload.bytes());
-                });
+        Platform.registerServer((player, bytes) -> {
+            var rt = runtime(player.level().getServer());
+            if (rt != null) rt.onHello(player, bytes);
+        }, (player, bytes) -> {
+            var rt = runtime(player.level().getServer());
+            if (rt != null) rt.uiServer().onPacket(player, bytes);
+        });
         CommandRegistrationCallback.EVENT.register((dispatcher, buildContext, selection) -> WgCommands.register(dispatcher, config));
         // 裸 /git 在其他模組註冊之後才檢查，已存在時跳過並記錄。
         var late = net.minecraft.resources.Identifier.parse("worldgit:late");

@@ -102,7 +102,7 @@ final class RemoteCommands implements AutoCloseable {
   private void send(CommandSourceStack sender,java.util.function.Supplier<Component> message) {
     post(sender,()->{
       if(!online(sender))return;
-      var nativeText=net.kyori.adventure.platform.modcommon.MinecraftServerAudiences.of(rt.server()).asNative(message.get());
+      var nativeText=Platform.text(rt.server(), message.get());
       sender.sendSuccess(()->nativeText,false);
     });
   }
@@ -110,6 +110,10 @@ final class RemoteCommands implements AutoCloseable {
   private void fail(CommandSourceStack sender,Throwable error) {
     Throwable root=error;while(root instanceof CompletionException && root.getCause()!=null)root=root.getCause();
     var action=action();if(action!=null)action.failed(root);
+    if(root instanceof VersionConfirmations.Required) {
+      String message=rt.mask(String.valueOf(root.getMessage()));
+      post(sender,()->Texts.failure(sender,rt,Msg.prefixed(org.worldgit.fabric.logic.MessageKeys.COMMON_ERROR,"message",message)));return;
+    }
     if(root instanceof HubClient.Error e) {reply(sender,"error."+e.failure().name().toLowerCase(Locale.ROOT));return;}
     String text=mask(PlatformCredentials.redact(root));
     String reason=text.replaceAll("(?i)https?://\\S+","[URL]");
@@ -228,7 +232,12 @@ final class RemoteCommands implements AutoCloseable {
       })).whenComplete((r,e)->rt.postToServer(()->{
         try {OperationUi.within(action,()->{
           busy.remove(id);
-          if(e!=null)fail(sender,e);
+          if(e!=null) {
+            Throwable cause=e;while(cause instanceof CompletionException && cause.getCause()!=null)cause=cause.getCause();
+            // 世界尚未寫入；保留同一份遠端 tips／HEAD 預覽，讓 loss token 重試原指令。
+            if(cause instanceof VersionConfirmations.Required && online(sender))pending.putIfAbsent(id,p);
+            fail(sender,e);
+          }
           else {
             if(action!=null)action.observe(r);
             if(r.success())reply(sender,"result","state",r.state(),"count",r.merging()==null?0:r.merging().remaining());else fail(sender,new IOException(r.error()));

@@ -1,5 +1,5 @@
 """Phase 5 Fabric 驗收共用：真客戶端（Xvfb）控制、聊天 JSON 解析、證據記錄。呼叫端已持 bench.lock。"""
-import json,os,re,shutil,sys,time
+import json,os,re,shutil,sys,time,subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'paper/tools'))
@@ -10,7 +10,7 @@ SECRET_ENV='phase5-arbitrary-secret'
 SECRET_YAML='yaml-arbitrary-secret'
 SCREENSHOTS=ROOT/'fabric/docs/screenshots/phase5'
 
-def project(version):return 'mc1_21_11' if version=='1.21.11' else 'mc26_2'
+from versions import project
 
 class Recorder:
     """每個檢查寫入 result.json；失敗立即丟出 AssertionError。"""
@@ -22,7 +22,7 @@ class Recorder:
 
 class Client:
     """Gradle runClientGameTest（Phase5ClientGameTest）；control 目錄以 request/response JSON 溝通。"""
-    def __init__(self,work,version,single,port=0,language='en_us',artifact=None):
+    def __init__(self,work,version,single,port=0,language='en_us',artifact=None,world_source=None,server_config=None):
         self.sequence=0;self.work=work;self.version=version;self.single=single
         self.control=work/'client-control';self.control.mkdir(parents=True,exist_ok=True)
         self.run=ROOT/'.work/worlds/fabric-gametest'/(version+'-phase5')
@@ -30,13 +30,28 @@ class Client:
         if artifact:
             config=self.run/'config';config.mkdir(parents=True,exist_ok=True)
             (config/'worldgit-server.yml').write_text('locale: en_us\nauto-commit:\n  on-logout: false\n  on-stop: false\n  interval-minutes: 0\n')
+        legacy=version in ('1.20.1','1.20.4')
+        if legacy:
+            if not single: raise ValueError('Legacy client validation must run as one integrated Minecraft instance')
+            world=self.run/'saves/WorldGitPhase5'
+            shutil.rmtree(world,ignore_errors=True);world.parent.mkdir(parents=True,exist_ok=True)
+            baseline=ROOT/'.work/paper-delivery/fixtures'/('acceptance-flat-'+version)
+            shutil.copytree(world_source or baseline/'world',world)
+            if world_source is None:
+                for source,name in [(baseline/'world_nether/DIM-1','DIM-1'),(baseline/'world_the_end/DIM1','DIM1')]:
+                    if source.is_dir() and not (world/name).exists():shutil.copytree(source,world/name)
+            with (work/'fixture-prepare.log').open('w') as log:
+                subprocess.run(['/usr/lib/jvm/java-21-openjdk-amd64/bin/java','-cp',str(ROOT/'cli/build/libs/wgit.jar'),str(ROOT/'fabric/tools/LegacySingleWorld.java'),str(world)],check=True,stdout=log,stderr=subprocess.STDOUT)
+        if server_config is not None:
+            config=self.run/'config';config.mkdir(parents=True,exist_ok=True)
+            (config/'worldgit-server.yml').write_text(server_config)
         tmp=ROOT/'.work/fabric-tmp';tmp.mkdir(exist_ok=True)
         env={**os.environ,'JAVA_HOME':'/usr/lib/jvm/java-25-openjdk-amd64','GRADLE_USER_HOME':str(ROOT/'.work/gradle-home'),'ALSOFT_DRIVERS':'null','LIBGL_ALWAYS_SOFTWARE':'1','GALLIUM_DRIVER':'llvmpipe','LP_NUM_THREADS':'3','XDG_CACHE_HOME':str(tmp/'cache'),'XDG_CONFIG_HOME':str(tmp/'config'),'TMPDIR':str(tmp)}
         cmd=['xvfb-run','-a','-s','-screen 0 1280x720x24 -ac','./gradlew','--no-daemon','--configure-on-demand','--max-workers=1','-PwgtestPhase5=true','-PwgtestPhase5Dir='+str(self.control),'-PwgtestPhase5Single='+str(single).lower(),'-PwgtestPhase5Language='+language]
         if port:cmd+=['-PwgtestPaperPort='+str(port),'-PwgtestPaperReady='+str(self.control)]
         if artifact:cmd+=['-PwgtestPerformanceArtifact='+str(Path(artifact).resolve())]
         self.started=time.time()
-        task='runPerformanceClient' if artifact else 'runClientGameTest'
+        task='runLegacyTestClient' if legacy else 'runPerformanceClient' if artifact else 'runClientGameTest'
         self.process=Process(cmd+[f':fabric:{project(version)}:{task}'],ROOT,work/'client.log',env)
         try:self.ready=self.waitfile('ready.json',900)
         except BaseException:self.stop();raise
@@ -62,10 +77,11 @@ class Client:
             time.sleep(.3)
         raise TimeoutError(pattern+' '+str([r['text'] for r in self.chat(mark)][-8:]))
     def shot(self,name,destination=None):
-        """真正 framebuffer 截圖；複製到 fabric/docs/screenshots/phase5/<name>-<version>.png。"""
+        """真正 framebuffer 截圖；預設保存在本次 evidence，發布時可明確指定目錄。"""
         result=self.action('screenshot',name=name);source=next((self.run/'screenshots').glob('*'+result['file'].rsplit('.',1)[0]+'*.png'),None) or (self.run/'screenshots'/result['file'])
-        SCREENSHOTS.mkdir(parents=True,exist_ok=True)
-        target=SCREENSHOTS/(('single' if self.single else 'dedicated')+'-'+self.version+'-'+name+'.png');shutil.copy2(source,target);return target
+        folder=Path(destination) if destination is not None else self.work/'screenshots'
+        folder.mkdir(parents=True,exist_ok=True)
+        target=folder/(('single' if self.single else 'dedicated')+'-'+self.version+'-'+name+'.png');shutil.copy2(source,target);return target
     def finish(self):
         self.action('stop');self.process.wait('FABRIC5 DONE',180);self.process.proc.wait(180)
         if self.process.proc.returncode:raise RuntimeError('client test failed')

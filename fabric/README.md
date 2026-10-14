@@ -19,22 +19,27 @@ Axiom 的同步 server handler 由選用 mixin 包裝。方塊／BE／biome 的 
 
 | Minecraft | Java | Loader | Fabric API | Adventure Fabric | Loom |
 |---|---|---|---|---|---|
+| 1.20.1 | 21 | 0.19.5 | 0.92.12+1.20.1 | 原版 Text 轉接 | 1.17.21（remap） |
+| 1.20.4 | 21 | 0.19.5 | 0.97.3+1.20.4 | 原版 Text 轉接 | 1.17.21（remap） |
 | 1.21.11 | 21 | 0.19.5 | 0.141.6+1.21.11 | 6.8.0 | 1.17.21（remap） |
 | 26.2 | 25 | 0.19.5 | 0.161.0+26.2 | 7.1.1 | 1.17.21（不混淆） |
 
-沿用 Phase 0 已驗證的 Loader／API／Loom，未另行升級。兩版 Adventure 發行線分別搭配 Adventure 4.25／5.2；共用程式碼只使用兩邊共有的 API，已經兩版編譯及實機載入驗證。版本以根目錄 `gradle/libs.versions.toml` 為準。
+既有 1.21.11／26.2 的 Adventure 發行線分別搭配 Adventure 4.25／5.2；舊兩版使用 plain Adventure 4.25 與目標原版 Text。共用程式碼透過各版 bridge 轉接。版本以根目錄 `gradle/libs.versions.toml` 為準。
 
-安裝對應版本的 Fabric Loader、Fabric API 與下列 jar；WorldGit 已內嵌 core、platform-api、protocol、i18n、JGit 等必要依賴及 Adventure 平台。客戶端和專用伺服器使用同一個版本的 jar。
+安裝精確版本的 Fabric Loader、Fabric API 與下列 jar；WorldGit 已內嵌 core、platform-api、protocol、i18n、JGit 等必要依賴。舊兩版使用 plain Adventure／MiniMessage／Gson→原版 Text，沒有裝入現代 Adventure Fabric 平台。客戶端和專用伺服器使用同一個版本的 jar。十版 catalog 的其他六版尚待後續子任務，不使用相近版本的 binary；錯版本或 DV 在啟動時以語系訊息拒絕。
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64
 export GRADLE_USER_HOME="$PWD/.work/gradle-home"
 flock .work/bench.lock ./gradlew --configure-on-demand --max-workers=1 \
-  :core:test :fabric:logic:test :fabric:mc1_21_11:build :fabric:mc26_2:build
+  :core:test :fabric:logic:test :fabric:mc1_20_1:build :fabric:mc1_20_4:build \
+  :fabric:mc1_21_11:build :fabric:mc26_2:build
 ```
 
 產物：
 
+- `fabric/mc1_20_1/build/libs/worldgit-fabric-1.20.1-0.1.0-SNAPSHOT.jar`（Java 21，remap 至 intermediary）。
+- `fabric/mc1_20_4/build/libs/worldgit-fabric-1.20.4-0.1.0-SNAPSHOT.jar`（Java 21，remap 至 intermediary）。
 - `fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar`（Java 21，remap 至 intermediary）。
 - `fabric/mc26_2/build/libs/worldgit-fabric-26.2-0.1.0-SNAPSHOT.jar`（Java 25，不做 remap）。
 
@@ -209,7 +214,7 @@ python3 fabric/tools/accept-paper.py 26.2
 
 ## 目前限制
 
-線上不刪除 chunk：stash 若需刪除 HEAD 沒有的新增 chunk，預檢會拒絕，須關閉世界後使用 CLI stash；一般 switch 預設保留這些 chunk 並標 untracked。線上 metadata 目前只接出生點、1.21.11 的 gamerules／難度／邊界等 level.dat 設定，地圖／scoreboard／26.2 各維度 saved-data、世界生成等變動會在任何寫入前拒絕，須離線還原。跨 DataVersion、規則不同仍明確拒絕；沒有 DataFixer；合併流程見上方 Phase 3 章節。legacy `ChunkPatch` 套用入口仍拒絕，正式 Phase 2 使用 ApplyPlan。
+線上不刪除 chunk：stash 若需刪除 HEAD 沒有的新增 chunk，預檢會拒絕，須關閉世界後使用 CLI stash；一般 switch 預設保留這些 chunk 並標 untracked。線上 metadata 目前只接出生點、1.20.1／1.20.4／1.21.11 的 gamerules／難度／邊界等 level.dat 設定，地圖／scoreboard／26.2 各維度 saved-data、世界生成等變動會在任何寫入前拒絕，須離線還原。跨 DataVersion 使用目標 server DataFixers；升級自動，有損降級先顯示完整損失，原玩家／console 五分鐘內 `/wg confirm <token>` 才重試。token 單次使用，綁定來源、世界、HEAD、規則及伺服器設定，撤權、世界改動、reload 或重啟後失效；dry-run 不授權寫入。規則不同仍明確拒絕；合併流程見上方 Phase 3 章節。legacy `ChunkPatch` 套用入口仍拒絕，正式 Phase 2 使用 ApplyPlan。
 
 尚無準星「舊→新」UI、實體／biome 模型、流體或特殊 block entity renderer、Mod Menu 畫面、資源包重載後模型快取重建、Sodium／Iris 或硬體 GPU 驗收。鬼影使用固定光照與 quad 順序，沒有透明面排序／內部面消除；既有大量格數驗收是 3,072 格、6 sections，不能據此宣稱 100,000 格效能。早期 Phase 2 使用受控平坦世界及凍結 tick，不是大型自然生物世界的 TPS 量測；現行不凍結驗收另見 [18](../docs/18-performance.md)。
 
@@ -338,9 +343,22 @@ python3 fabric/tools/accept-phase5.py 26.2 --mode single
 # --mode all（預設）可在同一輪依序跑全部；--stages a|b|c|ab|ac|bc|abc 限定 dedicated 診斷範圍。
 ```
 
-Dedicated A 使用正式 mod jar、vanilla 協定 bot（含未裝模組／未授權玩家），B 使用 Xvfb 真客戶端，C／D 重啟檢查 YAML 停用與第三方 `/git` 衝突。single 在未開作弊的 owner 世界走同一入口；自然牛／命名、真物品放置盔甲座、還原與跨維度 UUID、進度、圖 refresh、ignore preview-confirm-commit 皆實測。圖複製／填入、聊天 click／hover 與真 framebuffer 都有證據，沒有合成 UI 封包。既有 fixture 改為明確 `--all` init、單維度 API 與 PR commit map 契約，保留完整逐格、UUID、三維度 refs、parents 與離線零差異檢查；新快照 UUID 不再跨維度分組，歷史測試按新契約核對各自提交。舊實體回歸明確使用 `entities: all`，新 creative 的 player-touched 預設另由 Phase 5 驗證。
+舊兩版同樣支援 `python3 fabric/tools/accept-phase5.py 1.20.1 --mode dedicated`／`--mode single`，1.20.4 亦同。依同時只跑一個 Minecraft 實例的限制，dedicated B 的真畫面、按鈕、HUD 與實際盔甲座編輯先以單一 integrated client 驗證，再關閉 client，用 dedicated 的原生 UI 封包驗證租約與撤權；既有斷言保留。舊 client 沒有 GameTest API，獨立 fixture 以真正 client executor／tick 控制原版 Screen，正式 jar 不含 fixture。
+
+```bash
+python3 fabric/tools/multiversion.py --mode dedicated
+python3 fabric/tools/multiversion.py --mode single
+python3 fabric/tools/accept-legacy-native.py 1.20.1 --mode all
+python3 fabric/tools/accept-legacy-native.py 1.20.4 --mode all
+```
+
+雙向線上驗收涵蓋 1.20.1→1.20.4 的自動 server DFU、1.20.4→1.20.1 的真實屬性損失、預覽不寫入、確認後 verify 零差異，以及玩家綁定、撤權、世界／規則／YAML 修改、重啟與單次使用。原生 fixture 驗證 pending block／fluid ticks 的 delay／priority／owner clock、setPosRaw 跨界阻擋、受鎖流體／活塞／落沙／實體／BE 與解鎖恢復、停服前 terrain／entity／POI barrier 及最後實體移除。腳本皆自行取得 bench.lock，結果與 log 分別留在 `.work/fabric-multiversion/`／`.work/fabric-native/`。
+
+Dedicated A 使用正式 mod jar、vanilla 協定 bot（含未裝模組／未授權玩家），B 使用 Xvfb 真客戶端，C／D 重啟檢查 YAML 停用與第三方 `/git` 衝突。single 在未開作弊的 owner 世界走同一入口；自然牛／命名、真物品放置盔甲座、還原與跨維度 UUID、進度、圖 refresh、ignore preview-confirm-commit 皆實測。圖複製／填入、聊天 click／hover 與真 framebuffer 都有證據，畫面檢查由真正 Screen 輸入觸發；dedicated 撤權另以相同 UI 協定的原生封包驗證。既有 fixture 改為明確 `--all` init、單維度 API 與 PR commit map 契約，保留完整逐格、UUID、三維度 refs、parents 與離線零差異檢查；新快照 UUID 不再跨維度分組，歷史測試按新契約核對各自提交。舊實體回歸明確使用 `entities: all`，新 creative 的 player-touched 預設另由 Phase 5 驗證。
 
 結果在 `.work/fabric-phase5/<mode>-<version>-<timestamp>/result.json`，包含步驟、jar SHA-256、聊天／console／BossBar 與關閉埠狀態。大型世界與複製 jar 在 finally 清除，保留 log／JSON。正式截圖在 [phase5](docs/screenshots/phase5/)，最終命令、項數與完整平台回歸表見 [設計與驗收](../docs/16-phase5-design.md)。
 
 
 2026-10-07 最終驗收：Phase 5 四組共 426 項；既有 regress-phase4 九案例、兩版 Phase 4 單人／dedicated、Paper 基本對接及四組 Paper／Folia Phase 3 全部通過。Paper 1.21.11／Folia 26.2 Phase 5 與 Paper 基本驗收亦完成受影響補驗；最終完整 build 及 git diff --check 通過。逐命令項數、網路失敗與補跑證據、Phase 5 完成總結見 [16](../docs/16-phase5-design.md#任務-4-最終回歸與受影響平台補驗2026-10-07)。
+
+2026-10-14 多版本任務3子任務①完成：新增1.20.1／1.20.4，兩版dedicated／單人Phase5共436項，雙向線上91項、原生對抗16項、既有兩版dedicated回歸350項及Paper26.2回歸33項全綠；最終完整build（505 JUnit）與diffcheck通過。十版selector、server DFU／單次損失token、舊payload／Text／IO／Mixin及效能、逐格證據與限制見[多版本驗收](../docs/19-multiversion.md#fabric-任務-3-子任務①2026-10-14)。新截圖留各次.work證據目錄，原有截圖已還原。子任務②從1.20.6／1.21.1的components與現代payload邊界開始。

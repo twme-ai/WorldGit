@@ -41,6 +41,16 @@ public final class Mini {
         return MM.deserialize(catalog.raw(locale, "common.prefix")).append(body);
     }
 
+    /** 啟動錯誤也經 MiniMessage 解析；console 使用同一份訊息的純文字。 */
+    public static String renderedPlain(MessageCatalog catalog, String locale, Msg msg) {
+        return renderedPlain(render(catalog, locale, msg, DiffPalette.DEFAULT));
+    }
+    private static String renderedPlain(Component component) {
+        var text = new StringBuilder(component instanceof net.kyori.adventure.text.TextComponent literal ? literal.content() : "");
+        for (var child : component.children()) text.append(renderedPlain(child));
+        return text.toString();
+    }
+
     /** 純文字樣板（寫進 git 歷史的訊息）：只替換 {@code <name>}，不解析 MiniMessage。 */
     public static String plain(MessageCatalog catalog, String locale, Msg msg) {
         String text = catalog.raw(locale, msg.key());

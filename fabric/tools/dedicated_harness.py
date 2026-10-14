@@ -10,6 +10,14 @@ import harness
 
 ROOT=Path(harness.ROOT)
 
+def runtime_copy(source, target):
+    """Immutable launcher libraries share storage; mutable worlds always use real copies."""
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
+    return target
+
 class Server(harness.Server):
     def __init__(self,version,evidence,baseline,mod,fixture,config=None,jvm=(),env=None,ops=()):
         self.name='fabric-'+version;self.version=version;self.platform='fabric'
@@ -19,12 +27,13 @@ class Server(harness.Server):
         target=Path(self.dir);target.mkdir()
         loader=ROOT/'.work/fabric-srv'/version
         for name in ['libraries','versions']:
-            shutil.copytree(loader/name,target/name)
+            if (loader/name).is_dir(): shutil.copytree(loader/name,target/name,copy_function=runtime_copy)
+        if (loader/'server.jar').exists(): runtime_copy(loader/'server.jar',target/'server.jar')
         # Installer 的原始 Minecraft jar／loader bootstrap 不在 versions/ 裡。
         # 沿用已暖機的專案快取，測試副本不必再次連線 Mojang 下載相同 jar。
         cached_server=loader/'.fabric/server'
         if cached_server.is_dir():
-            shutil.copytree(cached_server,target/'.fabric/server')
+            shutil.copytree(cached_server,target/'.fabric/server',copy_function=runtime_copy)
         shutil.copy2(loader/'fabric-server-launch.jar',target/'fabric-server-launch.jar')
         (target/'eula.txt').write_text('eula=true\n')
         shutil.copytree(baseline/'world',target/'world')
@@ -32,7 +41,9 @@ class Server(harness.Server):
             # Paper 將這些 shared saved-data 放在維度目錄；vanilla 26.2 從世界根目錄讀取。
             # 僅調整測試副本：生成設定用已驗收的 Fabric 世界，安靜規則用平坦 fixture。
             shared=target/'world/data/minecraft';shared.mkdir(parents=True,exist_ok=True)
-            shutil.copy2(loader/'world/data/minecraft/world_gen_settings.dat',shared/'world_gen_settings.dat')
+            source=loader/'world/data/minecraft/world_gen_settings.dat'
+            if not source.exists():source=ROOT/'.work/worlds/26.2/multiversion/world/data/minecraft/world_gen_settings.dat'
+            shutil.copy2(source,shared/'world_gen_settings.dat')
             shutil.copy2(baseline/'world/dimensions/minecraft/overworld/data/minecraft/game_rules.dat',shared/'game_rules.dat')
         (target/'mods').mkdir()
         for source,name in [(loader/'fabric-api.jar','fabric-api.jar'),(mod,'worldgit.jar'),(fixture,'worldgit-fixture.jar')]:shutil.copy2(source,target/'mods'/name)

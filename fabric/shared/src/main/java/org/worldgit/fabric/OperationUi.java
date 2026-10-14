@@ -7,7 +7,6 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerBossEvent;
@@ -64,6 +63,8 @@ public final class OperationUi {
   /** 一個使用者可見的動作。pending 計數歸零（所有非同步子工作都釋放）才算完成。 */
   public final class Action {
     final UUID id = UUID.randomUUID();
+    org.worldgit.fabric.logic.VersionConfirmationTokens.Approval conversionApproval;
+    java.util.function.Consumer<org.worldgit.fabric.logic.VersionConfirmationTokens.Approval> retry;
     final String operation;
     final CommandSourceStack source;
     final DimensionId dimension;
@@ -341,9 +342,9 @@ public final class OperationUi {
   }
 
   private void sendHud(ServerPlayer player, UiProtocol.Progress progress) {
-    if (!rt.handshake().supports(player.getUUID(), UiProtocol.CAPABILITY) || !ServerPlayNetworking.canSend(player, Net.UI.type())) return;
+    if (!rt.handshake().supports(player.getUUID(), UiProtocol.CAPABILITY) || !Platform.canSend(player, Net.UI)) return;
     try {
-      ServerPlayNetworking.send(player, Net.UI.of(UiProtocol.encode(progress)));
+      Platform.send(player, Net.UI, UiProtocol.encode(progress));
     } catch (IOException e) {
       ServerRuntime.LOG.warn("WORLDGIT HUD 進度封包編碼失敗：{}", e.toString());
     }

@@ -15,6 +15,30 @@ import org.worldgit.platform.*;
 /** Repo 執行緒上執行；owner futures 的等待不阻塞伺服器。共用 core journal／HEAD／stash 語意。 */
 final class FabricOperations implements WorldOperations.LiveAccess {
     private boolean regionMode,atomicApply;
+    private WorldOperations operations;
+    private boolean lossy;
+    void operations(WorldOperations value) { operations = value; }
+    @Override public int dataVersion(WorldLayout ignored) { return ChunkCapture.currentDataVersion(); }
+    @Override public org.worldgit.core.version.NbtUpgrader dataFixer() { return runtime.dataFixer(); }
+    @Override public void previewConversions(Map<String, org.worldgit.core.version.ConversionReport> reports) { runtime.versions().preview(reports); }
+    @Override public void confirmConversions(Map<String, org.worldgit.core.version.ConversionReport> reports) throws IOException {
+        lossy = reports.values().stream().anyMatch(org.worldgit.core.version.ConversionReport::lossy);
+        if (!lossy) return;
+        var state = new StringBuilder();
+        var action = OperationUi.current();
+        state.append(action == null ? "automatic" : action.operation).append(action == null ? "" : action.dimension);
+        state.append(runtime.config()).append(operations.conversionState());
+        appendFile(state, net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("worldgit-server.yml"));
+        for (var path : new org.worldgit.core.service.WorldRepositories(layout).tracked().values())
+            for (String name : List.of("HEAD", "worldgit.yml", "worldgit-repo.yml", ".wgignore")) appendFile(state, path.resolve(name));
+        runtime.versions().require(reports, state.toString());
+    }
+    private static void appendFile(StringBuilder state, java.nio.file.Path path) throws IOException {
+        state.append(path.toAbsolutePath()).append(':');
+        if (java.nio.file.Files.exists(path)) state.append(java.util.Base64.getEncoder().encodeToString(java.nio.file.Files.readAllBytes(path)));
+        else state.append("missing");
+        state.append('\n');
+    }
     private final Map<DimensionId,Map<ChunkPos,ChunkCapture.Raw>> atomicReceipts=new TreeMap<>();
     private final ServerRuntime runtime;
     private final WorldLayout layout;
@@ -37,7 +61,12 @@ final class FabricOperations implements WorldOperations.LiveAccess {
         positions.addAll(runtime.onServer(()->{
             var result=new TreeSet<ChunkPos>();
             var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(dimension.id().value())));
-            if(level!=null) for(var entity:level.getAllEntities()) if(ids.contains(entity.getUUID())) result.add(ServerRuntime.corePos(entity.chunkPosition()));
+            if(level!=null) {
+                var manager=(org.worldgit.fabric.mixin.EntityManagerAccess<net.minecraft.world.entity.Entity>)(Object)((org.worldgit.fabric.mixin.ServerLevelAccess)level).worldgit$entities();
+                for(long packed:manager.worldgit$chunksToSave()) manager.worldgit$sections().getExistingSectionsInChunk(packed)
+                    .flatMap(section->section.getEntities()).filter(entity->ids.contains(entity.getUUID()))
+                    .forEach(entity->result.add(ServerRuntime.corePos(entity.chunkPosition())));
+            }
             return result;
         }));
         return positions;
@@ -60,7 +89,7 @@ final class FabricOperations implements WorldOperations.LiveAccess {
             affected.addAll(extra.getOrDefault(plan.dimension(),Set.of()));
             chunks.put(plan.dimension(),affected);
         }
-        atomicApply=allowAtomic && plans.size()==1 && plans.stream().allMatch(p->runtime.config().atomicApply().eligible(p) && chunks.get(p.dimension()).equals(LiveApplyVerification.affected(p)) && extra.getOrDefault(p.dimension(),Set.of()).isEmpty()
+        atomicApply=allowAtomic && !lossy && plans.size()==1 && plans.stream().allMatch(p->runtime.config().atomicApply().eligible(p) && chunks.get(p.dimension()).equals(LiveApplyVerification.affected(p)) && extra.getOrDefault(p.dimension(),Set.of()).isEmpty()
             && runtime.onServer(()->{var level=runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(p.dimension().value())));
                 return level!=null && chunks.get(p.dimension()).stream().allMatch(pos->level.getChunkSource().getChunkNow(pos.x(),pos.z())!=null && level.areEntitiesLoaded(Integer.toUnsignedLong(pos.x())|((long)pos.z()<<32)));}));
         if(atomicApply) {var plan=plans.iterator().next();atomicApply=runtime.onServer(()->new FabricApply(runtime,runtime.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,net.minecraft.resources.Identifier.parse(plan.dimension().value()))),new HashMap<>()).atomicLightingSafe(plan));}
@@ -170,7 +199,7 @@ final class FabricOperations implements WorldOperations.LiveAccess {
             }));
             for(var pos:positions) {
                 var list=ids.stream().map(id->new ApplyPlan.EntityOp(id,pos,null)).toList();
-                for(int i=0;i<list.size();i+=64) batches.add(new ApplyPlan(dimension.id(),null,null,layout.dataVersion(),Scope.all(),List.of(),list.subList(i,Math.min(i+64,list.size())),Map.of(),List.of()));
+                for(int i=0;i<list.size();i+=64) batches.add(new ApplyPlan(dimension.id(),null,null,ChunkCapture.currentDataVersion(),Scope.all(),List.of(),list.subList(i,Math.min(i+64,list.size())),Map.of(),List.of()));
             }
         }
         // 全組 removal 已排在最前；terrain 然後 spawn，metadata 全組最後。

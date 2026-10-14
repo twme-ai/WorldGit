@@ -1,6 +1,6 @@
 # 19 — 多版本世界與跨版本歷史
 
-研究日期：2026-10-09；實作與驗收持續至 2026-10-14。本文件涵蓋任務 1（core／CLI／Hub／platform-api），以及任務 2（Paper／Folia）、任務 3（Fabric）的交接。平台能下載不等於 WorldGit 已驗收；任務 2 子任務①–④已新增八版線上轉接層，與既有 1.21.11／26.2 共用發行 jar，涵蓋十個 Paper／八個官方 Folia 版本。Folia 1.21.1／26.3 無官方 build、不可驗收；子任務⑤已完成使用者縮減範圍的固定 jar 50 格驗收、token／元件對抗與效能，正式逐版狀態見 §8；Fabric 新版平台仍待任務 3。
+研究日期：2026-10-09；實作與驗收持續至 2026-10-14。本文件涵蓋任務 1（core／CLI／Hub／platform-api），以及任務 2（Paper／Folia）、任務 3（Fabric）的交接。平台能下載不等於 WorldGit 已驗收；任務 2 子任務①–④已新增八版線上轉接層，與既有 1.21.11／26.2 共用發行 jar，涵蓋十個 Paper／八個官方 Folia 版本。Folia 1.21.1／26.3 無官方 build、不可驗收；子任務⑤已完成使用者縮減範圍的固定 jar 50 格驗收、token／元件對抗與效能，正式逐版狀態見 §8；Fabric 任務3子任務①已新增1.20.1／1.20.4，正式四版與驗收見 §8，其餘六版待後續子任務。
 
 ## 1. 來源與目標版本
 
@@ -235,7 +235,50 @@ cancel／shutdown受測副本明確指定與純原版baseline一致的survival�
 
 建議任務 3 拆五次：① legacy payload 1.20.1/4；② components 1.20.6/1.21.1；③ 1.21.4/8 mixin/callback；④ 26.1.2/26.3 ValueIO／state／DFU；⑤ 十版 dedicated + 單人、HUD／鬼影／loss confirmation、對抗與效能。估計 14–24 工程日，客戶端與 dedicated 一起移植，每次交付同時保留既有兩版回歸。
 
+子任務①（#272–#280）新增 `mc1_20_1`／`mc1_20_4`，正式 binary 共四版：1.20.1、1.20.4、1.21.11、26.2。selector 從十版 core catalog 精確取得模組 ID，再核對執行中 Minecraft ID／DV 與 artifact；未交付或相近版本不回退。兩個舊模組分別以自己的 Mojang mappings／Loom remap、Java 21 編譯，API 固定 0.92.12+1.20.1／0.97.3+1.20.4。純名稱轉接由建置產生；NBT、ticket、Text、UI、Mixin descriptor 留在逐版或 legacy-shared 來源，不提交生成 mappings。
+
+舊 payload 經 `Platform.registerServer`／`ClientPlatform.register` 轉成中性 channel bytes，舊版以 ResourceLocation／FriendlyByteBuf 接原生 networking，較新版使用自己的 CustomPacketPayload codec；protocol bytes 及上限共用。MiniMessage 使用 plain Adventure／Gson 與目標 DV 的 JSON 格式轉成原版 Text，舊模組不含 adventure-platform-fabric。`unpackTicks`、POST_UPDATE 光照回呼、terrain／entity／POI worker 同步、UUID 普查與 setPosRaw 邊界皆按原生 API 實作，defaultRequire=1 保持。
+
+單人 owner 與 dedicated 共用 platform-api server DFU 契約。目標 DV 取執行中 server，已卸載資料亦使用同一 DataFixers；metadata 投影補目標原版預設 gamerule 與純原版 Disabled 名單；已知 Fabric API 自動預設 pack 按目標實際啟用清單投影，只接受原版順序，自訂、重排或明確停用保持原值（#280）。升級自動；有損降級先列來源／替代／數量／座標，須原執行者在五分鐘內 `/wg confirm <token>`。token 綁 UUID／console、原操作、來源 commit、損失報告、世界／HEAD／規則／server YAML，單次消耗；重試與鎖後重算，撤權、登出、reload、重啟或內容改變失效。有損操作關閉原子快路徑，dry-run 不授權寫入。跨維度與自訂資料包的既有限制保持。
+
+實體擷取與 affected chunks 的普查讀 entity section storage，包含跨維度傳送至未 ticking 區塊、未列於原版可見 lookup 的實體；相同 UUID 的追蹤資格延續至目的維度。儲存 barrier 在停服前驗證最後一個實體移除已發布空資料，避免關機存檔掩蓋漏寫。
+
 ## 8. 驗收與限制
+
+<!-- mv3-1-acceptance-start -->
+
+### Fabric 任務 3 子任務①（2026-10-14）
+
+基於 `849e611`，#272–#280；正式 jar 四版 1.20.1／1.20.4／1.21.11／26.2。十版 catalog 精確 selector 已建立，其餘六版尚無正式 Fabric binary，明確拒絕。完整修改、決策、命令、失敗修正與子任務②起點見 `.work/mv3-1/report.md`；各格正式 mod／CLI SHA-256 與結果／log 雜湊已逐一核對，見 `final/evidence-audit.json`／`final/artifacts.json`。
+
+| 平台／模式 | Phase 5 | 雙向線上 | 原生對抗 |
+|---|---:|---:|---:|
+| Fabric 1.20.1 dedicated | 175/175 | 1.20.1↔1.20.4：47/47 | 4/4 |
+| Fabric 1.20.1 single | 43/43 | 1.20.1↔1.20.4：44/44 | 4/4 |
+| Fabric 1.20.4 dedicated | 175/175 | 同上，一輪涵蓋兩版 | 4/4 |
+| Fabric 1.20.4 single | 43/43 | 同上，一輪涵蓋兩版 | 4/4 |
+| Fabric 1.21.11 dedicated 回歸 | 175/175 | 此次未抽測 | 沿用既有驗收 |
+| Fabric 26.2 dedicated 回歸 | 175/175 | 此次未抽測 | 效能另驗鎖／IO／邊界 |
+| Paper 26.2 基本回歸 | 33/33 | 沿用任務2 | 沿用任務2 |
+
+指定真環境共926項全綠；最終完整 `GRADLE_USER_HOME=.work/gradle-home ./gradlew --no-daemon --configure-on-demand --max-workers=1 build`（外包 bench.lock）通過，505 JUnit、0 failure/error/skipped。兩版各41個原生 Mixin 成員／descriptor／callback 核對通過，defaultRequire=1。Python／JS syntax、`git diff --check` 通過；42份原有截圖檔與備份一致，新圖留測試證據目錄。
+
+雙向線上驗收包含自動 server DFU 升級、真實屬性／gamerule 損失預覽、未確認不寫入、確認後 switch／reset／merge／兩步 pull verify 零差異；玩家綁定、撤權、世界／規則／repo及server YAML修改、重啟及單次使用通過。五分鐘期限另有純邏輯測試。原生對抗核對 pending block／fluid ticks 的delay／priority／owner clock、setPosRaw邊界、流體／活塞／落沙／實體／BE保持及恢復、停服前terrain／entity／POI寫入與最後實體移除。
+
+依同時一個Minecraft實例的限制，dedicated B的真畫面／按鈕／HUD／trackedArmor編輯移到integrated client逐一執行，再以dedicated原生UI封包驗證租約／撤權；保留全部斷言。此次未同時啟動dedicated及真client，不宣稱完成兩程序的連線畫面驗收。A／C／D的dedicated網路、權限、實體與寫入，以及single未開作弊owner入口皆真環境驗證。第三方Axiom相容範圍未擴張；自訂資料包／world metadata限制與跨維度非原子保持。
+
+同機Fabric26.2／Java25、無玩家、三輪共同抽樣：
+
+| 操作 | 849e611 p50（秒） | 最終 jar p50（秒） | 變化 |
+|---|---:|---:|---:|
+| `status-noop` | 0.1038 | 0.1028 | -1.02% |
+| `switch-noop` | 0.1491 | 0.1526 | +2.30% |
+| `switch-1` | 0.3587 | 0.3665 | +2.16% |
+| `switch-100` | 9.2310 | 8.3300 | -9.76% |
+
+四項p50比值幾何平均0.9829；未見系統性退步，小範圍switch的增加約3–8ms仍保留，不宣稱每項變快。最終jar另跑1000chunks六次來回切換，p50=78.120s，所有鎖中tick／流體／紅石及遠區前進、TPS≥18、原生對抗／IO與verify斷言通過；最低TPS=19.985、最大tick gap=74.778ms。1000chunks沒有對應基準，不列為效能比較；三輪合成抽樣不代表所有mod／實體密集世界。原始樣本與hash見`.work/mv3-1/performance-comparison.json`。
+
+<!-- mv3-1-acceptance-end -->
 
 線上舊兩版 metadata 投影（#202）保留舊 layout 的 chunks／raids 等 saved-data；舊名 GameRules 也按目標 registry 列出不可表示的規則損失。伺服器 upgrader 在 DFU／反向 codec 後補目標原版缺省值，純原版 Disabled 實驗包名單依目標可用包重建，Enabled 完整保留。只有 `datapacks/bukkit` 沒有其他資產且 pack.mcmeta 恰為原版 Bukkit 自產 marker schema 時，才投影 pack_format；自訂 Disabled／marker／任何其他 Bukkit 包內容保持原值，差異仍由既有線上 metadata 預檢拒絕。這不授權在線重載資料包或改寫世界設定。
 

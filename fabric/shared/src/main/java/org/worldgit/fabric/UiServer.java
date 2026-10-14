@@ -3,7 +3,6 @@ package org.worldgit.fabric;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletionException;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.worldgit.core.graph.CommitGraph;
@@ -33,12 +32,12 @@ final class UiServer {
 
   boolean capable(ServerPlayer player) {
     return rt.handshake().ready(player.getUUID()) && rt.handshake().supports(player.getUUID(), UiProtocol.CAPABILITY)
-        && ServerPlayNetworking.canSend(player, Net.UI.type());
+        && Platform.canSend(player, Net.UI);
   }
 
   void send(ServerPlayer player, UiProtocol.Message message) {
     try {
-      ServerPlayNetworking.send(player, Net.UI.of(UiProtocol.encode(message)));
+      Platform.send(player, Net.UI, UiProtocol.encode(message));
     } catch (IOException e) {
       ServerRuntime.LOG.warn("WORLDGIT UI 封包編碼失敗：{}", e.toString());
     }
@@ -97,7 +96,7 @@ final class UiServer {
           } else if (rt.server().getPlayerList().getPlayer(player.getUUID()) == player) {
             action.note(summary -> summary.count(graph.nodes().size()));
             for (byte[] part : UiProtocol.encodeGraph(generation, dimension.value(), graph, request.open()))
-              ServerPlayNetworking.send(player, Net.UI.of(part));
+              Platform.send(player, Net.UI, part);
             if (request.open())
               Texts.send(player.createCommandSourceStack(), rt, List.of(Msg.prefixed(MessageKeys.GRAPH_SCREEN, "dimension", dimension.value())));
           }

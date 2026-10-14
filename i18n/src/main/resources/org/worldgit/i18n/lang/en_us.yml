@@ -226,6 +226,14 @@ paper:
       here: Use your current dimension and block position
 
 fabric:
+  version:
+    confirm-required: "Review the conversion loss list and confirm before retrying."
+    unsupported: "<red>WorldGit Fabric does not support Minecraft <version>. Available modules: 1.20.1, 1.20.4, 1.21.11, 26.2.</red>"
+    preview: "<yellow>Conversion <operation> will lose content. No world changes have been written.</yellow>"
+    source: "<gray><snapshot>: <from> → <to></gray>"
+    loss: "<yellow><kind> <source> → <replacement> × <count>; locations: <locations></yellow>"
+    confirm: "<gold>[Confirm conversion: /wg confirm <token>]</gold>"
+    invalid-token: "<red>Confirmation token is invalid, expired, or belongs to another player.</red>"
   help:
     title: "<aqua>WorldGit</aqua> - version control for Minecraft worlds"
     init: '  <white>/wg init</white> <gray>[--template creative|survival] [--track all|modified-only]</gray>'

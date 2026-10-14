@@ -1,0 +1,41 @@
+{
+  "required": true,
+  "package": "org.worldgit.fabric.mixin",
+  "plugin": "org.worldgit.fabric.mixin.OptionalIntegrationMixins",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AxiomPacketMixin",
+    "AxiomSetBlockMixin",
+    "AxiomWorldPropertyMixin",
+    "AxiomEntityLookupMixin",
+    "LevelChunkMixin",
+    "ChunkSimulationMixin",
+    "LevelTicksAccess",
+    "BlockEntityTickMixin",
+    "EntityChunkBoundaryMixin",
+    "EditPacketsMixin",
+    "PistonEditMixin",
+    "ExplosionEditMixin",
+    "BoneMealEditMixin",
+    "CommandEditMixin",
+    "ChunkMapAccess",
+    "ServerLevelAccess",
+    "EntityManagerAccess",
+    "SectionStorageAccess",
+    "TouchScopePlayerUseMixin",
+    "TouchScopeSummonMixin",
+    "TouchScopeDataEntityMixin",
+    "TouchScopeBreedingMixin",
+    "TouchScopeEggMixin",
+    "TouchScopeConvertMixin",
+    "TouchScopeAddEntityMixin",
+    "TouchScopeEntityMixin",
+    "ServerStorageAccess",
+    "SavedDataAccess",
+    "TerrainStorageAccess", "LightQueueAccess", "PlayerLanguageMixin", "ChunkDirtyMixin",
+    "EntityStorageAccess"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

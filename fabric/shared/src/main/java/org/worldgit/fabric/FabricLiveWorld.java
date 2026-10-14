@@ -63,7 +63,7 @@ final class FabricLiveWorld implements LiveWorld {
         this.level =
                 runtime.server()
                         .getLevel(ResourceKey.create(Registries.DIMENSION, Identifier.parse(dimension.id().value())));
-        this.disk = new OfflineSnapshotSource(layout, dimension, ModPacks.INSTANCE);
+        this.disk = new OfflineSnapshotSource(layout, dimension, ModPacks.INSTANCE).serverDataFixer(runtime.dataFixer(), ChunkCapture::currentDataVersion);
         this.apply = level == null ? null : new FabricApply(runtime, level, oldEntities);
     }
 
@@ -71,6 +71,8 @@ final class FabricLiveWorld implements LiveWorld {
     public DimensionId dimension() {
         return dimension.id();
     }
+
+    @Override public org.worldgit.core.version.NbtUpgrader dataFixer() { return runtime.dataFixer(); }
 
     @Override
     public int dataVersion() throws IOException {
@@ -110,10 +112,15 @@ final class FabricLiveWorld implements LiveWorld {
             if (chunk.isUnsaved()) unsaved.add(pos);
         }
         var entities = new HashSet<ChunkPos>();
-        for (Entity entity : level.getAllEntities()) {
+        var manager = (org.worldgit.fabric.mixin.EntityManagerAccess<Entity>) (Object)
+            ((org.worldgit.fabric.mixin.ServerLevelAccess) level).worldgit$entities();
+        for (long packed : manager.worldgit$chunksToSave()) {
+          for (Entity entity : manager.worldgit$sections().getExistingSectionsInChunk(packed)
+                  .flatMap(section -> section.getEntities()).toList()) {
             if (entity instanceof Player || entity.isRemoved()) continue;
             var c = entity.chunkPosition();
             entities.add(new ChunkPos(c.getMinBlockX() >> 4, c.getMinBlockZ() >> 4));
+          }
         }
         return new Gathered(loaded, unsaved, entities);
     }

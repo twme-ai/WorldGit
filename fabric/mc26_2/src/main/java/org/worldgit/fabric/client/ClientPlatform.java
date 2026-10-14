@@ -178,4 +178,29 @@ final class ClientPlatform {
     });
   }
 
+  static net.minecraft.network.chat.Component text(net.kyori.adventure.text.Component component) {
+    return net.kyori.adventure.platform.modcommon.MinecraftClientAudiences.of().asNative(component);
+  }
+  static void send(org.worldgit.fabric.Net.Channel channel, byte[] bytes) {
+    org.worldgit.fabric.Net.check(bytes);
+    net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(new org.worldgit.fabric.Platform.Payload(
+        new net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<>(net.minecraft.resources.Identifier.parse(channel.id())), bytes));
+  }
+  static void registerClient() {
+    org.worldgit.fabric.Platform.registerPayloads();
+    for (var channel : java.util.List.of(org.worldgit.fabric.Net.HELLO, org.worldgit.fabric.Net.UI, org.worldgit.fabric.Net.DIFF,
+        org.worldgit.fabric.Net.STATUS, org.worldgit.fabric.Net.CLEAR, org.worldgit.fabric.Net.COMMENTS, org.worldgit.fabric.Net.CONFLICTS, org.worldgit.fabric.Net.CONFLICT_PREVIEW)) {
+      var type = new net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<org.worldgit.fabric.Platform.Payload>(net.minecraft.resources.Identifier.parse(channel.id()));
+      net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(type, (payload, context) -> receive(channel, payload.bytes()));
+    }
+  }
+  static void receive(org.worldgit.fabric.Net.Channel channel, byte[] bytes) {
+    var rt = ClientRuntime.get();
+    if (channel.equals(org.worldgit.fabric.Net.HELLO)) rt.onHello(bytes);
+    else if (channel.equals(org.worldgit.fabric.Net.UI)) rt.onUi(bytes);
+    else if (channel.equals(org.worldgit.fabric.Net.COMMENTS)) rt.onComments(bytes);
+    else if (channel.equals(org.worldgit.fabric.Net.CONFLICTS)) rt.onMerge(org.worldgit.protocol.MergeProtocol.REGIONS, bytes);
+    else if (channel.equals(org.worldgit.fabric.Net.CONFLICT_PREVIEW)) rt.onMerge(org.worldgit.protocol.MergeProtocol.PREVIEW, bytes);
+    else rt.onPreview(bytes);
+  }
 }

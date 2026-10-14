@@ -20,7 +20,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.permissions.PermissionCheck;
 import org.worldgit.core.apply.Scope;
 import org.worldgit.core.config.WorldGitConfig;
 import org.worldgit.core.diff.DiffEngine;
@@ -48,26 +47,8 @@ public final class WgCommands {
 
     private static final AtomicBoolean WARNED_GIT = new AtomicBoolean();
 
-    private static PermissionCheck check(int level) {
-        return switch (level) {
-            case 0 -> Commands.LEVEL_ALL;
-            case 1 -> Commands.LEVEL_MODERATORS;
-            case 2 -> Commands.LEVEL_GAMEMASTERS;
-            case 3 -> Commands.LEVEL_ADMINS;
-            default -> Commands.LEVEL_OWNERS;
-        };
-    }
-
-    /** 單人世界的擁有者即使沒開作弊也允許（整合伺服器的 op 等級是 0）。 */
-    static Predicate<CommandSourceStack> allowed(int level) {
-        var check = Commands.hasPermission(check(level));
-        return source -> {
-            if (check.test(source)) return true;
-            var server = source.getServer();
-            var player = source.getPlayer();
-            return server != null && player != null && server.isSingleplayer() && server.isSingleplayerOwner(player.nameAndId());
-        };
-    }
+    /** 整合伺服器 owner 與原版權限皆由逐版 descriptor 轉接。 */
+    static Predicate<CommandSourceStack> allowed(int level) { return source -> Platform.allowed(source, level); }
 
     // ---- 補全 -------------------------------------------------------------------------
 
@@ -138,6 +119,7 @@ public final class WgCommands {
 
     private static final Map<String, Spec> SPECS = new LinkedHashMap<>();
     static {
+        SPECS.put("confirm", new Spec(false, run -> run.rt().versions().confirm(run.source(), run.text().trim())));
         SPECS.put("init", new Spec(false, WgCommands::init));
         SPECS.put("status", new Spec(false, WgCommands::status));
         SPECS.put("commit", new Spec(true, WgCommands::commit));
@@ -257,7 +239,14 @@ public final class WgCommands {
     }
 
     private static OperationUi.Action runOne(CommandContext<CommandSourceStack> ctx, ServerRuntime rt, String command, DimensionId dimension, Targets targets, Spec spec) {
+        return runOne(ctx, rt, command, dimension, targets, spec, null);
+    }
+
+    private static OperationUi.Action runOne(CommandContext<CommandSourceStack> ctx, ServerRuntime rt, String command, DimensionId dimension,
+            Targets targets, Spec spec, org.worldgit.fabric.logic.VersionConfirmationTokens.Approval approval) {
         var action = rt.ui().begin(ctx.getSource(), command, dimension);
+        action.conversionApproval = approval;
+        action.retry = accepted -> runOne(ctx, rt, command, dimension, targets, spec, accepted);
         OperationUi.within(action, () -> {
             var run = new Run(ctx, rt, action, dimension, targets, targets.rest(), command);
             try {
@@ -599,7 +588,7 @@ public final class WgCommands {
             if (screen) {
                 try {
                     for (byte[] part : UiProtocol.encodeGraph(generation, dimension.value(), graph, true))
-                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, Net.UI.of(part));
+                        Platform.send(player, Net.UI, part);
                 } catch (IOException e) {
                     throw new IllegalStateException(e);
                 }
@@ -958,7 +947,7 @@ public final class WgCommands {
                 var level = rt.server().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,
                     net.minecraft.resources.Identifier.parse(r.dimension().value())));
                 if (level == null) throw new IllegalArgumentException("維度尚未載入");
-                player.teleportTo(level, b.minX() + 0.5, b.maxY() + 2, b.minZ() + 0.5, Set.of(), player.getYRot(), player.getXRot(), true);
+                Platform.teleport(player, level, b.minX() + 0.5, b.maxY() + 2, b.minZ() + 0.5);
             }
             return lines;
         });
@@ -999,6 +988,7 @@ public final class WgCommands {
     private static void reload(Run run) {
         deliver(run, run.rt().runRepo(() -> {
             run.rt().catalog().reload();
+            run.rt().versions().clear();
             run.rt().refreshPalette();
             return true;
         }), ok -> List.of(Msg.prefixed(MessageKeys.RELOAD_DONE)));

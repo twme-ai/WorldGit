@@ -9,6 +9,8 @@ junit = "5.12.2"
 slf4j = "2.0.17"
 fabricLoader = "0.19.5"
 loom = "1.17.21"
+fabricApi1201 = "0.92.12+1.20.1"
+fabricApi1204 = "0.97.3+1.20.4"
 fabricApi121 = "0.141.6+1.21.11"
 fabricApi262 = "0.161.0+26.2"
 
@@ -24,6 +26,8 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
 fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabricLoader" }
+fabric-api-mc1201 = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi1201" }
+fabric-api-mc1204 = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi1204" }
 fabric-api-mc1211 = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi121" }
 fabric-api-mc262 = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabricApi262" }
 

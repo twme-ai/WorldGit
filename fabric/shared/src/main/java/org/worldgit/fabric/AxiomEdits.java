@@ -27,7 +27,7 @@ public final class AxiomEdits {
         // Coordinate-free handler guard rejects all dimensions while any apply is active.
         Texts.send(player.createCommandSourceStack(), rt, List.of(Msg.of(MessageKeys.COMMON_AXIOM_LOCKED)));
         var level = player.level();
-        int radius = Math.min(16, Math.max(2, player.clientInformation().viewDistance()));
+        int radius = Math.min(16, Math.max(2, Platform.viewDistance(player)));
         var pos = player.chunkPosition();
         for (int x=(pos.getMinBlockX() >> 4)-radius; x<=(pos.getMinBlockX() >> 4)+radius; x++) for (int z=(pos.getMinBlockZ() >> 4)-radius; z<=(pos.getMinBlockZ() >> 4)+radius; z++) {
             var chunk = level.getChunkSource().getChunkNow(x,z);

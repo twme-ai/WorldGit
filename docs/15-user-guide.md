@@ -6,7 +6,7 @@
 
 ## 跨版本世界（任務 1）
 
-CLI／Hub 版本資料與設計見 [19 — 多版本](19-multiversion.md)。正式目標是 1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11、26.1.2、26.2、26.3；Paper 已支援十版；Folia 支援其中除 1.21.1／26.3 的八版，這兩版沒有官方 Folia build，啟動會明確拒絕。Fabric 新增平台仍待任務 3。
+CLI／Hub 版本資料與設計見 [19 — 多版本](19-multiversion.md)。正式目標是 1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11、26.1.2、26.2、26.3；Paper 已支援十版；Folia 支援其中除 1.21.1／26.3 的八版，這兩版沒有官方 Folia build，啟動會明確拒絕。Fabric 子任務①新增 1.20.1／1.20.4，連同既有 1.21.11／26.2 共四版；其餘六版待後續子任務。
 
 停止世界並 commit 現況，確認所有既有維度已 init，再執行 `wgit -w world upgrade --to 26.3`。升級使用原版 DFU，產生新的版本 commit，舊歷史仍可查。CLI 需 Java 21；26.x 轉換 worker 另需 Java 25。遷移中斷時停服執行 `wgit migrate --recover-version`；一般跨版本套用的損失可用 `wgit show --operation <UUID>` 查詢。
 
@@ -75,7 +75,7 @@ WorldGit 把 Minecraft 世界當成 git 的工作區（working tree）：
 
 同一個世界可以在 Paper 上 commit、關服後用 CLI 檢查、push 到 Hub、別人 clone 下來用 Fabric 單人開啟，歷史完全相同。
 
-Paper 插件支援 **1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11（Java 21）及 26.1.2、26.2、26.3（Java 25）**；Folia 支援其中除 1.21.1／26.3 的八版。Folia 1.21.1／26.3 官方沒有 build，**不可驗收**，啟動會清楚說明並停用插件。Fabric 目前仍為 1.21.11／26.2。
+Paper 插件支援 **1.20.1、1.20.4、1.20.6、1.21.1、1.21.4、1.21.8、1.21.11（Java 21）及 26.1.2、26.2、26.3（Java 25）**；Folia 支援其中除 1.21.1／26.3 的八版。Folia 1.21.1／26.3 官方沒有 build，**不可驗收**，啟動會清楚說明並停用插件。Fabric 支援 1.20.1／1.20.4／1.21.11（Java 21）與 26.2（Java 25），各用精確版本的 jar。
 
 ---
 
@@ -109,14 +109,20 @@ export GRADLE_USER_HOME="$PWD/.work/gradle-home"
 |---|---|---|
 | CLI | `cli/build/libs/wgit.jar`（或 repo 根目錄的 `./wgit` 啟動腳本） | 任意位置，`java -jar wgit.jar …` |
 | Paper／Folia 插件（支援版本共用一個 jar） | `paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar` | 伺服器 `plugins/` |
+| Fabric 1.20.1 | `fabric/mc1_20_1/build/libs/worldgit-fabric-1.20.1-0.1.0-SNAPSHOT.jar` | 客戶端或伺服器 `mods/` |
+| Fabric 1.20.4 | `fabric/mc1_20_4/build/libs/worldgit-fabric-1.20.4-0.1.0-SNAPSHOT.jar` | 客戶端或伺服器 `mods/` |
 | Fabric 1.21.11 | `fabric/mc1_21_11/build/libs/worldgit-fabric-1.21.11-0.1.0-SNAPSHOT.jar` | 客戶端或伺服器 `mods/` |
 | Fabric 26.2 | `fabric/mc26_2/build/libs/worldgit-fabric-26.2-0.1.0-SNAPSHOT.jar` | 客戶端或伺服器 `mods/` |
 | Hub | `hub/build/libs/worldgit-hub.jar`，或 `hub/Containerfile` 建容器 | 見 [§11](#11-hub-架站者) |
+
+Fabric 單人 owner 不需開作弊。單人與 dedicated 跨版本線上升級自動；有損降級先預覽來源／替代／數量／座標，原執行者五分鐘內 `/wg confirm <token>` 才套用。token 單次使用；撤權、世界／HEAD／規則／設定改變、reload 或重啟後失效。未確認不寫世界，確認後重新預檢並 verify。世界設定／自訂資料包不同仍需停服使用 CLI。
 
 Fabric 需要的環境：
 
 | Minecraft | Java | Fabric Loader | Fabric API |
 |---|---|---|---|
+| 1.20.1 | 21 | 0.19.5 | 0.92.12+1.20.1 |
+| 1.20.4 | 21 | 0.19.5 | 0.97.3+1.20.4 |
 | 1.21.11 | 21 | 0.19.5 | 0.141.6+1.21.11 |
 | 26.2 | 25 | 0.19.5 | 0.161.0+26.2 |
 

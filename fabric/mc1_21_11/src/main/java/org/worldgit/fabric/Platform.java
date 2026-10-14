@@ -22,6 +22,44 @@ public final class Platform {
         return PayloadTypeRegistry.playC2S();
     }
 
+    public record Payload(net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<Payload> type, byte[] bytes)
+        implements net.minecraft.network.protocol.common.custom.CustomPacketPayload {}
+    static net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<Payload> type(Net.Channel channel) {
+        return new net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type<>(net.minecraft.resources.Identifier.parse(channel.id()));
+    }
+    private static boolean registered;
+    public static synchronized void registerPayloads() {
+        if (registered) return;
+        for (var channel : java.util.List.of(Net.HELLO, Net.UI, Net.DIFF, Net.STATUS, Net.CLEAR, Net.COMMENTS, Net.CONFLICTS, Net.CONFLICT_PREVIEW)) {
+            var type = type(channel);
+            var codec = new net.minecraft.network.codec.StreamCodec<RegistryFriendlyByteBuf, Payload>() {
+                public Payload decode(RegistryFriendlyByteBuf buf) {
+                    if (buf.readableBytes() > org.worldgit.protocol.Protocol.MAX_PAYLOAD) throw new IllegalArgumentException("oversize payload");
+                    byte[] bytes = new byte[buf.readableBytes()]; buf.readBytes(bytes); return new Payload(type, bytes);
+                }
+                public void encode(RegistryFriendlyByteBuf buf, Payload payload) { Net.check(payload.bytes()); buf.writeBytes(payload.bytes()); }
+            };
+            s2c().register(type, codec);
+            if (channel.equals(Net.HELLO) || channel.equals(Net.UI)) c2s().register(type, codec);
+        }
+        registered = true;
+    }
+    public static void registerServer(java.util.function.BiConsumer<net.minecraft.server.level.ServerPlayer, byte[]> hello,
+        java.util.function.BiConsumer<net.minecraft.server.level.ServerPlayer, byte[]> ui) {
+        registerPayloads();
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(type(Net.HELLO), (payload, context) -> hello.accept(context.player(), payload.bytes()));
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.registerGlobalReceiver(type(Net.UI), (payload, context) -> ui.accept(context.player(), payload.bytes()));
+    }
+    public static boolean canSend(net.minecraft.server.level.ServerPlayer player, Net.Channel channel) {
+        return net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player, type(channel));
+    }
+    public static void send(net.minecraft.server.level.ServerPlayer player, Net.Channel channel, byte[] bytes) {
+        Net.check(bytes); net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new Payload(type(channel), bytes));
+    }
+    public static net.minecraft.network.chat.Component text(net.minecraft.server.MinecraftServer server, net.kyori.adventure.text.Component component) {
+        return net.kyori.adventure.platform.modcommon.MinecraftServerAudiences.of(server).asNative(component);
+    }
+    public static String currentVersion() { return net.minecraft.SharedConstants.getCurrentVersion().id(); }
     /** 已載入 chunk 的追蹤事件；兩版的 CHUNK_LOAD 簽章不同。 */
     public static void registerChunkEvents(BiConsumer<ServerLevel, LevelChunk> load, BiConsumer<ServerLevel, LevelChunk> unload) {
         ServerChunkEvents.CHUNK_LOAD.register((level, chunk) -> load.accept(level, chunk));
@@ -61,4 +99,51 @@ public final class Platform {
         return waits;
     }
 
+    public static org.worldgit.core.version.NbtUpgrader dataFixer(net.minecraft.server.MinecraftServer server) throws java.io.IOException {
+        org.worldgit.core.version.NbtUpgrader backend = (type, input, from, to) -> {
+            if (to != ChunkCapture.currentDataVersion() || from > to) throw new java.io.IOException("DFU target does not match server DataVersion");
+      com.mojang.datafixers.DSL.TypeReference reference=switch(type) {
+        case "CHUNK"->net.minecraft.util.datafix.fixes.References.CHUNK;
+        case "ENTITY_CHUNK"->net.minecraft.util.datafix.fixes.References.ENTITY_CHUNK;
+        case "ITEM_STACK"->net.minecraft.util.datafix.fixes.References.ITEM_STACK;
+        case "LEVEL"->net.minecraft.util.datafix.fixes.References.LEVEL;
+        case "SAVED_DATA_MAP_DATA"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_MAP_DATA;
+        case "SAVED_DATA_SCOREBOARD"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_SCOREBOARD;
+        case "SAVED_DATA_COMMAND_STORAGE"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_COMMAND_STORAGE;
+        case "SAVED_DATA_MAP_INDEX"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_MAP_INDEX;
+        case "SAVED_DATA_TICKETS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_TICKETS;
+        case "SAVED_DATA_RAIDS"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_RAIDS;
+        case "SAVED_DATA_RANDOM_SEQUENCES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_RANDOM_SEQUENCES;
+        case "SAVED_DATA_STOPWATCHES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_STOPWATCHES;
+        case "SAVED_DATA_STRUCTURE_FEATURE_INDICES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_STRUCTURE_FEATURE_INDICES;
+        case "SAVED_DATA_WORLD_BORDER"->net.minecraft.util.datafix.fixes.References.SAVED_DATA_WORLD_BORDER;
+        default->throw new java.io.IOException("Unsupported server DFU type: "+type);
+      };
+            var fixed = net.minecraft.util.datafix.DataFixers.getDataFixer().update(reference,
+                new com.mojang.serialization.Dynamic<>(net.minecraft.nbt.NbtOps.INSTANCE, FabricApply.vanilla(input)), from, to);
+            return ChunkCapture.toCore((net.minecraft.nbt.CompoundTag) fixed.getValue());
+        };
+        var features = server.getWorldData().enabledFeatures();
+        var rules = net.minecraft.world.level.gamerules.GameRules.codec(features).encodeStart(net.minecraft.nbt.NbtOps.INSTANCE,
+            new net.minecraft.world.level.gamerules.GameRules(features)).getOrThrow();
+        return org.worldgit.fabric.logic.FabricMetadataProjection.wrap(backend, ChunkCapture.currentDataVersion(),
+            ChunkCapture.toCore((net.minecraft.nbt.CompoundTag) rules), server.getPackRepository().getAvailableIds(),
+            server.getWorldData().getDataConfiguration().dataPacks().getEnabled(),
+            server.getWorldData().getDataConfiguration().dataPacks().getDisabled());
+    }
+    public static boolean allowed(net.minecraft.commands.CommandSourceStack source, int level) {
+        var check = switch (level) {
+            case 0 -> net.minecraft.commands.Commands.LEVEL_ALL; case 1 -> net.minecraft.commands.Commands.LEVEL_MODERATORS;
+            case 2 -> net.minecraft.commands.Commands.LEVEL_GAMEMASTERS; case 3 -> net.minecraft.commands.Commands.LEVEL_ADMINS;
+            default -> net.minecraft.commands.Commands.LEVEL_OWNERS;
+        };
+        var player = source.getPlayer(); var server = source.getServer();
+        return net.minecraft.commands.Commands.hasPermission(check).test(source)
+            || player != null && server.isSingleplayer() && server.isSingleplayerOwner(player.nameAndId());
+    }
+    public static int viewDistance(net.minecraft.server.level.ServerPlayer player) { return player.clientInformation().viewDistance(); }
+    public static String language(net.minecraft.server.level.ServerPlayer player) { return player.clientInformation().language(); }
+    public static void teleport(net.minecraft.server.level.ServerPlayer player, net.minecraft.server.level.ServerLevel level, double x, double y, double z) {
+        player.teleportTo(level,x,y,z,java.util.Set.of(),player.getYRot(),player.getXRot(), true);
+    }
 }

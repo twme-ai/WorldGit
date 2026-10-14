@@ -1,9 +1,5 @@
 package org.worldgit.fabric;
 
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
 import org.worldgit.protocol.Protocol;
 import org.worldgit.protocol.MergeProtocol;
 
@@ -14,35 +10,8 @@ import org.worldgit.protocol.MergeProtocol;
 public final class Net {
     private Net() {}
 
-    public record Payload(CustomPacketPayload.Type<Payload> type, byte[] bytes) implements CustomPacketPayload {}
-
-    public record Channel(CustomPacketPayload.Type<Payload> type, StreamCodec<RegistryFriendlyByteBuf, Payload> codec) {
-        public Payload of(byte[] bytes) {
-            return new Payload(type, bytes);
-        }
-    }
-
-    private static Channel channel(String name) {
-        var type = new CustomPacketPayload.Type<Payload>(Identifier.parse(name));
-        var codec = new StreamCodec<RegistryFriendlyByteBuf, Payload>() {
-            @Override
-            public Payload decode(RegistryFriendlyByteBuf buf) {
-                int n = buf.readableBytes();
-                if (n > Protocol.MAX_PAYLOAD) throw new IllegalArgumentException("oversize payload: " + n);
-                byte[] bytes = new byte[n];
-                buf.readBytes(bytes);
-                return new Payload(type, bytes);
-            }
-
-            @Override
-            public void encode(RegistryFriendlyByteBuf buf, Payload payload) {
-                if (payload.bytes().length > Protocol.MAX_PAYLOAD)
-                    throw new IllegalArgumentException("oversize payload: " + payload.bytes().length);
-                buf.writeBytes(payload.bytes());
-            }
-        };
-        return new Channel(type, codec);
-    }
+    public record Channel(String id) {}
+    private static Channel channel(String name) { return new Channel(name); }
 
     public static final Channel HELLO = channel(Protocol.HELLO);
     public static final Channel DIFF = channel(Protocol.DIFF);
@@ -75,21 +44,7 @@ public final class Net {
         };
     }
 
-    private static boolean registered;
-
-    /** 伺服端與客戶端都要呼叫一次（單人世界兩邊在同一個 JVM，所以是冪等的）。 */
-    public static synchronized void register() {
-        if (registered) return;
-        registered = true;
-        Platform.s2c().register(HELLO.type(), HELLO.codec());
-        Platform.c2s().register(HELLO.type(), HELLO.codec());
-        Platform.s2c().register(UI.type(), UI.codec());
-        Platform.c2s().register(UI.type(), UI.codec());
-        Platform.s2c().register(DIFF.type(), DIFF.codec());
-        Platform.s2c().register(STATUS.type(), STATUS.codec());
-        Platform.s2c().register(CLEAR.type(), CLEAR.codec());
-        Platform.s2c().register(COMMENTS.type(), COMMENTS.codec());
-        Platform.s2c().register(CONFLICTS.type(), CONFLICTS.codec());
-        Platform.s2c().register(CONFLICT_PREVIEW.type(), CONFLICT_PREVIEW.codec());
+    public static void check(byte[] bytes) {
+        if (bytes.length > Protocol.MAX_PAYLOAD) throw new IllegalArgumentException("oversize payload: " + bytes.length);
     }
 }

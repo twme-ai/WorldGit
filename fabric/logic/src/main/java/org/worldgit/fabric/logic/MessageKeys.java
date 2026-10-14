@@ -37,6 +37,14 @@ public final class MessageKeys {
 
   public static final String MERGE_SELECT_UNSUPPORTED = def("fabric.merge.select-unsupported");
 
+  public static final String VERSION_UNSUPPORTED = def("fabric.version.unsupported", "version");
+  public static final String VERSION_CONFIRM_REQUIRED = def("fabric.version.confirm-required");
+  public static final String VERSION_INVALID_TOKEN = def("fabric.version.invalid-token");
+  public static final String VERSION_PREVIEW = def("fabric.version.preview", "operation");
+  public static final String VERSION_SOURCE = def("fabric.version.source", "snapshot", "from", "to");
+  public static final String VERSION_LOSS = def("fabric.version.loss", "kind", "source", "replacement", "count", "locations");
+  public static final String VERSION_CONFIRM = def("fabric.version.confirm", "token");
+
   // 說明
   public static final String HELP_TITLE = def("fabric.help.title");
   public static final String HELP_INIT = def("fabric.help.init");

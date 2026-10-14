@@ -12,5 +12,5 @@ dependencyResolutionManagement {
 rootProject.name = "worldgit"
 include("core", "platform-api", "protocol", "cli", "i18n")
 include("paper:axiom-api", "paper:common", "paper:v1_20_1", "paper:v1_20_4", "paper:v1_20_6", "paper:v1_21_1", "paper:v1_21_4", "paper:v1_21_8", "paper:v1_21_11", "paper:v26_1_2", "paper:v26_2", "paper:v26_3", "paper:plugin")
-include("fabric:logic", "fabric:mc1_21_11", "fabric:mc26_2")
+include("fabric:mc1_20_1", "fabric:mc1_20_4", "fabric:logic", "fabric:mc1_21_11", "fabric:mc26_2")
 include("hub")

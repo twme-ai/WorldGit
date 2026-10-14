@@ -12,19 +12,23 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'paper/tools'));sys.path.insert(0,str(ROOT/'fabric/tools'))
 import harness,dedicated_harness
 from cli_compat import repository,complete_verification_batch
+from versions import remapped
 import phase5_support as support
 from phase5_support import Recorder,Client,events,hover_text,texts,humanly,SECRET_ENV,SECRET_YAML
 
 JAVA=harness.JAVA
 BASE_CONFIG='locale: en_us\npermission-level: 2\nread-permission-level: 0\nauto-commit:\n  on-logout: true\n  on-stop: true\n  interval-minutes: 0\nfeedback:\n  terminal-seconds: 4\n'
 
+def named_tag(version):
+    return 'name_tag{display:{Name:\'"Named"\'}}' if version in ('1.20.1','1.20.4') else 'name_tag[custom_name=\'"Named"\']'
+
 def build(version,work):
-    project=support.project(version);fixture_task='remapDedicatedFixtureJar' if version=='1.21.11' else 'dedicatedFixtureJar'
+    project=support.project(version);fixture_task='remapDedicatedFixtureJar' if remapped(version) else 'dedicatedFixtureJar'
     with (work/'build.log').open('w') as out:
         subprocess.run(['./gradlew','--no-daemon','--configure-on-demand','--max-workers=1',f':fabric:{project}:assemble',f':fabric:{project}:{fixture_task}',':cli:fatJar'],cwd=ROOT,env=dict(os.environ,JAVA_HOME='/usr/lib/jvm/java-25-openjdk-amd64',GRADLE_USER_HOME=str(ROOT/'.work/gradle-home')),stdout=out,stderr=subprocess.STDOUT,check=True)
     suffix='-0.1.0-SNAPSHOT'
     mod=ROOT/f'fabric/{project}/build/libs/worldgit-fabric-{version}{suffix}.jar'
-    fixture=ROOT/f'fabric/{project}/build/libs/worldgit-fabric-{version}{suffix}-dedicated-fixture{"-remapped" if version=="1.21.11" else ""}.jar'
+    fixture=ROOT/f'fabric/{project}/build/libs/worldgit-fabric-{version}{suffix}-dedicated-fixture{"-remapped" if remapped(version) else ""}.jar'
     shutil.copy2(mod,work/'worldgit.jar');shutil.copy2(fixture,work/'fixture.jar');shutil.copy2(ROOT/'cli/build/libs/wgit.jar',work/'wgit.jar')
 
 class Session:
@@ -33,8 +37,9 @@ class Session:
         self.version=version;self.work=work/name;self.work.mkdir(parents=True)
         baseline=ROOT/'.work/paper-delivery/fixtures'/('acceptance-flat-'+version)
         self.server=dedicated_harness.Server(version,self.work,baseline,work/'worldgit.jar',work/'fixture.jar',config=config,jvm=jvm,env=env,ops=bots)
-        if version=='1.21.11':
-            for source,n in [(baseline/'world_nether/DIM-1','DIM-1'),(baseline/'world_the_end/DIM1','DIM1')]:shutil.copytree(source,Path(self.server.world)/n)
+        if remapped(version):
+            for source,n in [(baseline/'world_nether/DIM-1','DIM-1'),(baseline/'world_the_end/DIM1','DIM1')]:
+                if source.is_dir() and not (Path(self.server.world)/n).exists():shutil.copytree(source,Path(self.server.world)/n)
         self.bots={}
     @property
     def world(self):return self.server.world
@@ -59,7 +64,7 @@ def run(args):
         result['artifacts']={name:hashlib.sha256((work/name).read_bytes()).hexdigest() for name in ('worldgit.jar','fixture.jar','wgit.jar')}
         if args.mode in ('dedicated','all'):
             if 'a' in args.stages:session_a(args,work,result,check,sessions)
-            if 'b' in args.stages:session_b(args,work,result,check,sessions)
+            if 'b' in args.stages:session_b_serial(args,work,result,check,sessions)
             if 'c' in args.stages:session_cd(args,work,result,check,sessions)
         if args.mode in ('single','all'):session_single(args,work,result,check)
         result['success']=True
@@ -190,7 +195,7 @@ def session_a(args,work,result,check,sessions):
     pos=bot.ask('pos','pos')['pos'];px,py,pz=pos['x'],pos['y'],pos['z']
     cow_out=srv.cmd(f'wg test natural-cow {px+1.5} {py} {pz}',r'WGCOW uuid=');cow=re.search(r'uuid=([0-9a-f-]{36})',cow_out)[1]
     act('wg commit -m natural-cow');check('natural cow is not committed',cow not in probe(),entities=sorted(probe()))
-    srv.cmd(f'give WgBot name_tag[custom_name=\'"Named"\']',r'Gave');time.sleep(1)
+    srv.cmd('give WgBot '+named_tag(version),r'Gave');time.sleep(1)
     interact=bot.ask('interact_uuid '+cow,'entity_interacted',30);time.sleep(1.5)
     act('wg commit -m named-cow','SUCCESS');check('named cow becomes player-touched and is committed',cow in probe(),interact=interact.get('held'),entities=sorted(probe()))
     # ---- ignore 指令（無模組客戶端可用） ----
@@ -223,7 +228,7 @@ def session_a(args,work,result,check,sessions):
     srv.cmd(f'execute in minecraft:the_nether run tp {armor} 8 70 8',r'Teleported');time.sleep(2)
     # 目的地 entity chunk 可能未載入（不凍結後 chunk 會正常卸載）：實體在 entity manager 內但不在可見清單，故以 knownUuids 判斷。
     transferred=srv.cmd(f'execute in minecraft:the_nether run wg test known {armor}',r'WGKNOWN minecraft:the_nether')
-    check('transferred armor stand is present in the destination before restore','true' in transferred,entities=transferred)
+    check('transferred armor stand is present in the destination before restore',bool(re.search(r'WGKNOWN minecraft:the_nether true(?:\s|$)',transferred)),entities=transferred)
     rows=act('wg restore HEAD','FAILED');raw=json.dumps(rows,ensure_ascii=False)
     check('cross-dimension duplicate UUID is rejected before writing and names the dimension','minecraft:the_nether' in raw and 'duplicate UUID' in raw,chat=texts(rows)[-4:])
     act('wg commit --dimension minecraft:the_nether -m transferred','SUCCESS');check('destination dimension inherits the touched UUID',armor in probe('minecraft:the_nether'))
@@ -267,6 +272,8 @@ def session_a(args,work,result,check,sessions):
     check('server log has no unexpected ERROR',not [l for l in problems if 'ERROR' in l or 'Exception' in l],problems=problems[:8])
     verify=subprocess.run([JAVA['1.21.11'],'-jar',str(cli),'-w',srv.world,'--format=json','verify','HEAD','--all'],text=True,capture_output=True,timeout=900)
     check('offline verify has zero differences',verify.returncode==0 and complete_verification_batch(verify.stdout),stdout=verify.stdout[-400:])
+    # 後續 UI 場景不再讀此世界；保留 log／result，及早釋放已成功的副本空間。
+    shutil.rmtree(Path(s.server.dir),ignore_errors=True)
     os.environ.pop('WGIT_TOKEN',None)
 
 def client_command(client,command,timeout=300):
@@ -382,6 +389,84 @@ def session_b(args,work,result,check,sessions):
         if client:client.stop()
         session.stop()
 
+def session_b_serial(args,work,result,check,sessions):
+    """UI framebuffer 與真互動移到單一 integrated client，撤權另以原生 UI 封包驗證 dedicated。"""
+    uiwork=work/'serial-ui';uiwork.mkdir();client=None;world=None
+    try:
+        client=Client(uiwork,args.version,True,server_config=BASE_CONFIG);world=Path(client.ready['world'])
+        for dimension in ('minecraft:the_end','minecraft:the_nether','minecraft:overworld'):
+            client.action('prepare-dimension',dimension=dimension)
+        client.action('server-command',command='wg test fixture-stable')
+        rows=client_command(client,'wg init',900)
+        check('true client receives nether, End and All append buttons',len(events(rows,'run_command'))==3,clicks=events(rows,'run_command'))
+        client.action('chat-open');target=client.shot('init-append-buttons');result.setdefault('screenshots',[]).append(str(target.relative_to(ROOT)));client.action('close')
+        for dimension in ('minecraft:the_nether','minecraft:the_end'):
+            button=next(command for command in events(rows,'run_command') if '--dimension '+dimension in command)
+            client_command(client,button.removeprefix('/'),900)
+            check('client append command initializes '+dimension,(repository(world,dimension,args.version)/'HEAD').exists())
+        check('UI capability negotiated',client.ready['uiCapable'])
+        client_progress(client,check,result)
+        client.action('server-command',command='summon armor_stand 6 65 8 {NoGravity:1b}')
+        armor=client.action('entities',type='minecraft:armor_stand')['uuids'];check('UI fixture has one actual armor stand',len(armor)==1);armor=armor[0]
+        client_command(client,'wg commit -m armor-before-editor')
+        def probe():
+            return subprocess.check_output([JAVA['1.21.11'],'-cp',str(work/'wgit.jar'),str(ROOT/'paper/tools/phase5-fixture/Phase5RepoProbe.java'),str(repository(world))],text=True,timeout=300).split()
+        check('armor stand is tracked before the GUI edit',armor in probe())
+        client_ui(client,check,result)
+        check('GUI preview-confirm-commit excludes an actual tracked armor stand',armor not in probe())
+        client.finish()
+    finally:
+        if client:client.stop()
+        if world and world.is_relative_to(ROOT/'.work/worlds/fabric-gametest'):shutil.rmtree(world,ignore_errors=True)
+    # 伺服器接收的是與畫面相同的 IgnoreEdit，不借指令入口代替協定驗證。
+    session=Session(args.version,work,'session-b-protocol');sessions.append(session);session.start()
+    previous=harness.BOT_JS
+    try:
+        harness.BOT_JS=str(ROOT/'fabric/tools/ui-bot.js');bot=session.bot('WgBot',True)
+    finally:harness.BOT_JS=previous
+    try:
+        bot.wait_ev('hello_replied',90);chat=Chat(bot)
+        session.server.cmd('gamemode creative WgBot');session.server.cmd('wg test fixture-stable',r'WGSTABLE')
+        chat.say('wg init')
+        chat.say('wg ignore gui')
+        def ui(kind,**values):
+            import struct
+            utf=lambda text:struct.pack('>H',len(text.encode()))+text.encode()
+            return (bytes((1,7))+struct.pack('>q',values.get('request',1))+utf('minecraft:overworld')+utf(kind)
+                +struct.pack('>ii',0,0)+utf(values.get('text',''))+utf(values.get('code',''))+utf(values.get('token',''))+struct.pack('>i',0)).hex()
+        def packet(kind,**values):
+            mark=len(bot.lines);bot.ask('ui '+ui(kind,**values),'ui_sent');return mark
+        with bot.lock:views=[row for row in bot.lines if row.get('ev')=='ui' and bytes.fromhex(row['hex'])[1]==4]
+        if not views:raise AssertionError('dedicated did not publish actual UI view')
+        import struct
+        data=bytes.fromhex(views[-1]['hex']);offset=10
+        def read_utf():
+            nonlocal offset
+            size=struct.unpack_from('>H',data,offset)[0];offset+=2
+            text=data[offset:offset+size].decode();offset+=size;return text
+        read_utf();lease=read_utf()
+        mark=packet('add',text='entity minecraft:pig',token=lease)
+        deadline=time.monotonic()+90;preview=None
+        while time.monotonic()<deadline:
+            with bot.lock:preview=next((row for row in bot.lines[mark:] if row.get('ev')=='ui' and bytes.fromhex(row['hex'])[1]==5),None)
+            if preview:break
+            time.sleep(.1)
+        check('dedicated UI add publishes an actual server preview',preview is not None)
+        data=bytes.fromhex(preview['hex']);offset=10;read_utf();code=read_utf()
+        check('dedicated UI preview contains an explicit confirmation code',bool(code))
+        rules=(session.repo()/'.wgignore').read_bytes();session.server.cmd('deop WgBot',r'operator')
+        mark=packet('confirm',code=code,token=lease)
+        deadline=time.monotonic()+90
+        while time.monotonic()<deadline:
+            rows=chat.rows(mark)
+            if any('ignore.confirm finished: FAILED' in row['t'] for row in rows):break
+            time.sleep(.1)
+        check('dedicated refuses the stale UI confirmation after permission revocation and sends copy error',
+              bool(events(rows,'copy_to_clipboard')) and any('op level 2' in text for text in texts(rows)),chat=texts(rows))
+        check('revoked UI confirmation leaves the rules unchanged',(session.repo()/'.wgignore').read_bytes()==rules)
+        with bot.lock:result['dedicated_ui_wire']=[row for row in bot.lines if row.get('ev')=='ui']
+    finally:session.stop()
+
 def session_cd(args,work,result,check,sessions):
     for name,config,jvm in [('disabled',BASE_CONFIG+'aliases:\n  wgit: false\n  git: false\n',()),('conflict',BASE_CONFIG,('-Dworldgit.fixture.git=true',))]:
         session=Session(args.version,work,'session-'+name,config=config,jvm=jvm);sessions.append(session);session.start()
@@ -404,7 +489,7 @@ def session_cd(args,work,result,check,sessions):
 def session_single(args,work,result,check):
     directory=work/'single';directory.mkdir();client=None;world=None
     try:
-        client=Client(directory,args.version,True);world=Path(client.ready['world'])
+        client=Client(directory,args.version,True,server_config=BASE_CONFIG);world=Path(client.ready['world'])
         check('singleplayer UI capable owner without cheats',client.ready['uiCapable'])
         # 追加按鈕只列實際存在的維度；先進入並儲存 End，保持其 repo 未初始化。
         client.action('prepare-dimension',dimension='minecraft:the_end')
@@ -424,7 +509,7 @@ def session_single(args,work,result,check):
             return set(subprocess.check_output([JAVA['1.21.11'],'-cp',str(work/'wgit.jar'),str(ROOT/'paper/tools/phase5-fixture/Phase5RepoProbe.java'),str(repository(world))],text=True,timeout=300).split())
         cow=client.action('natural-cow')['uuid'];client_command(client,'wg commit -m natural-cow')
         check('singleplayer natural cow is excluded',cow not in probe())
-        client.action('server-command',command='give @a name_tag[custom_name=\'"Named"\']');client.action('wait-ticks',ticks=20)
+        client.action('server-command',command='give @a '+named_tag(args.version));client.action('wait-ticks',ticks=20)
         check('singleplayer real name-tag interaction succeeds',client.action('interact',uuid=cow)['ok']);client_command(client,'wg commit -m named-cow')
         check('singleplayer named cow is tracked',cow in probe())
         client.action('server-command',command='clear @a');client.action('server-command',command='give @a armor_stand');client.action('wait-ticks',ticks=20)
@@ -447,7 +532,7 @@ def session_single(args,work,result,check):
         if world and world.is_relative_to(ROOT/'.work/worlds/fabric-gametest'):shutil.rmtree(world,ignore_errors=True)
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('version',choices=['1.21.11','26.2']);parser.add_argument('--stages',default='abc',choices=['a','b','c','ab','ac','bc','abc']);parser.add_argument('--mode',choices=['dedicated','single','all'],default='all')
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('version',choices=['1.20.1','1.20.4','1.21.11','26.2']);parser.add_argument('--stages',default='abc',choices=['a','b','c','ab','ac','bc','abc']);parser.add_argument('--mode',choices=['dedicated','single','all'],default='all')
     def terminate(signum,frame):raise RuntimeError(f'terminated by signal {signum}')
     signal.signal(signal.SIGTERM,terminate)
     raise SystemExit(0 if run(parser.parse_args()) else 1)

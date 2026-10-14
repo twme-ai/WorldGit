@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.joml.Matrix4f;
@@ -130,7 +129,7 @@ public final class ClientRuntime {
   }
   private void sendUi(UiProtocol.Message message) {
     try {
-      if (uiCapable()) ClientPlayNetworking.send(Net.UI.of(UiProtocol.encode(message)));
+      if (uiCapable()) ClientPlatform.send(Net.UI, UiProtocol.encode(message));
     } catch (IOException | RuntimeException e) {
       LOG.warn("WORLDGIT UI 請求送出失敗：{}", e.toString());
     }
@@ -292,7 +291,7 @@ public final class ClientRuntime {
         LOG.warn("WORLDGIT 伺服器 protocol v{} 與本模組 v{} 不相容，不顯示預覽", hello.version(), Protocol.VERSION);
         return;
       }
-      ClientPlayNetworking.send(Net.HELLO.of(Protocol.encode(reply.get())));
+      ClientPlatform.send(Net.HELLO, Protocol.encode(reply.get()));
       handshaken = true;
       commentsCapable=hello.capabilities().contains(org.worldgit.protocol.CommentsProtocol.CAPABILITY);
       uiCapable=hello.capabilities().contains(UiProtocol.CAPABILITY);
@@ -420,7 +419,7 @@ public final class ClientRuntime {
   }
 
   Component text(Msg msg) {
-    return MinecraftClientAudiences.of().asNative(Mini.render(catalog, locale(), msg, palette()));
+    return ClientPlatform.text(Mini.render(catalog, locale(), msg, palette()));
   }
 
   String value(String key) {

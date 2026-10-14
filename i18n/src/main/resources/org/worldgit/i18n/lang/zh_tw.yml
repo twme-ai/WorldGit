@@ -225,6 +225,14 @@ paper:
       here: 使用目前維度與方塊座標
 
 fabric:
+  version:
+    confirm-required: "請檢查轉換損失清單，確認後再重試。"
+    unsupported: "<red>WorldGit Fabric 不支援 Minecraft <version>。可用模組：1.20.1、1.20.4、1.21.11、26.2。</red>"
+    preview: "<yellow>轉換 <operation> 將損失以下內容，尚未寫入世界。</yellow>"
+    source: "<gray><snapshot>：<from> → <to></gray>"
+    loss: "<yellow><kind> <source> → <replacement> × <count>；位置：<locations></yellow>"
+    confirm: "<gold>[確認轉換：/wg confirm <token>]</gold>"
+    invalid-token: "<red>確認 token 無效、已過期或屬於其他玩家。</red>"
   help:
     title: "<aqua>WorldGit</aqua> - Minecraft 世界的版本控制"
     init: '  <white>/wg init</white> <gray>[--template creative|survival] [--track all|modified-only]</gray>'

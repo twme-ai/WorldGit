@@ -15,7 +15,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData;
 import net.minecraft.world.level.storage.TagValueOutput;
-import net.minecraft.world.phys.AABB;
 import org.worldgit.core.anvil.Nbt;
 
 /**
@@ -40,9 +39,12 @@ final class ChunkCapture {
         for(var key:List.of("block_ticks","fluid_ticks")) for(var value:tag.getListOrEmpty(key)) if(value instanceof CompoundTag tick)
             tick.putInt("t",Math.toIntExact(tick.getIntOr("t",0)+elapsed));
         int minX = pos.getMinBlockX(), minZ = pos.getMinBlockZ();
-        var box = new AABB(minX, level.getMinY() - 1, minZ, minX + 16, level.getMaxY() + 2, minZ + 16);
         var entities = new ArrayList<CompoundTag>();
-        for (Entity entity : level.getEntities((Entity) null, box, e -> true)) {
+        var manager = (org.worldgit.fabric.mixin.EntityManagerAccess<Entity>) (Object)
+            ((org.worldgit.fabric.mixin.ServerLevelAccess) level).worldgit$entities();
+        // Capture the storage census, including entities outside vanilla's visible lookup.
+        for (Entity entity : manager.worldgit$sections().getExistingSectionsInChunk(Integer.toUnsignedLong(minX >> 4) | ((long) (minZ >> 4) << 32))
+                .flatMap(section -> section.getEntities()).toList()) {
             if (entity instanceof Player || !entity.shouldBeSaved()) continue;
             if (entity.chunkPosition().getMinBlockX() != minX || entity.chunkPosition().getMinBlockZ() != minZ) continue;
             var out = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());

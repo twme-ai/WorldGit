@@ -1,7 +1,6 @@
 package org.worldgit.fabric;
 
 import java.util.List;
-import net.kyori.adventure.platform.modcommon.MinecraftServerAudiences;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.minecraft.commands.CommandSourceStack;
@@ -18,7 +17,7 @@ public final class Texts {
   /** 玩家的客戶端語言（單人世界就是自己目前的遊戲語言）；沒有玩家（主控台）用設定的伺服器語言。 */
   public static String locale(ServerRuntime rt, ServerPlayer player) {
     if (player == null) return rt.config().locale();
-    String language = player.clientInformation().language();
+    String language = Platform.language(player);
     return language == null || language.isBlank() ? rt.config().locale() : language;
   }
 
@@ -27,7 +26,7 @@ public final class Texts {
   }
 
   public static Component component(ServerRuntime rt, String locale, Msg msg) {
-    return MinecraftServerAudiences.of(rt.server()).asNative(adventure(rt, locale, msg));
+    return Platform.text(rt.server(), adventure(rt, locale, msg));
   }
 
   /** 錯誤報告：優先沿用目前動作已建立的報告（秘密已遮罩）；沒有動作時建立一次性報告。 */
@@ -54,9 +53,9 @@ public final class Texts {
   private static void deliver(CommandSourceStack source, ServerRuntime rt, Msg msg, OperationResult.ErrorReport known, boolean failure) {
     String locale = locale(rt, source.getPlayer());
     var base = adventure(rt, locale, msg);
-    var server = MinecraftServerAudiences.of(rt.server());
-    var report = known != null ? known : report(rt, server.asNative(base).getString());
-    var shown = server.asNative(source.getPlayer() == null ? base : withCopy(rt, locale, base, report));
+
+    var report = known != null ? known : report(rt, Platform.text(rt.server(), base).getString());
+    var shown = Platform.text(rt.server(), source.getPlayer() == null ? base : withCopy(rt, locale, base, report));
     if (failure) source.sendFailure(shown);
     else source.sendSuccess(() -> shown, false);
     // console／RCON 沒有可點選按鈕：同一份報告以單行輸出。
@@ -84,9 +83,9 @@ public final class Texts {
 
   /** 已組好的 Adventure 元件（可點選／hover）；console 只會看到純文字。 */
   public static void sendComponents(CommandSourceStack source, ServerRuntime rt, List<net.kyori.adventure.text.Component> lines) {
-    var server = MinecraftServerAudiences.of(rt.server());
+
     for (var line : lines) {
-      Component component = server.asNative(line);
+      Component component = Platform.text(rt.server(), line);
       source.sendSuccess(() -> component, false);
     }
   }

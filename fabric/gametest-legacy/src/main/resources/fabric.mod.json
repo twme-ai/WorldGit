@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "worldgit-gametest",
+  "version": "1.0.0",
+  "name": "WorldGit legacy client tests",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "org.worldgit.fabric.DedicatedServerFixture"
+    ],
+    "client": [
+      "org.worldgit.fabric.gametest.LegacyClientRunner"
+    ]
+  },
+  "depends": {
+    "worldgit": "*",
+    "fabric-api": "*"
+  },
+  "mixins": [
+    "worldgit-fixture.mixins.json"
+  ]
+}

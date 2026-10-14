@@ -13,16 +13,9 @@ import org.worldgit.fabric.logic.ClientConnections;
 public final class WorldGitClient implements ClientModInitializer {
   @Override
   public void onInitializeClient() {
-    Net.register();
     ClientRuntime.init(FabricLoader.getInstance().getConfigDir());
     var connections = new ClientConnections<net.minecraft.client.multiplayer.ClientPacketListener>();
-    ClientPlayNetworking.registerGlobalReceiver(Net.HELLO.type(), (payload, context) -> ClientRuntime.get().onHello(payload.bytes()));
-    for (var channel : new Net.Channel[] {Net.DIFF, Net.STATUS, Net.CLEAR})
-      ClientPlayNetworking.registerGlobalReceiver(channel.type(), (payload, context) -> ClientRuntime.get().onPreview(payload.bytes()));
-    ClientPlayNetworking.registerGlobalReceiver(Net.CONFLICTS.type(), (payload, context) -> ClientRuntime.get().onMerge(org.worldgit.protocol.MergeProtocol.REGIONS,payload.bytes()));
-    ClientPlayNetworking.registerGlobalReceiver(Net.CONFLICT_PREVIEW.type(), (payload, context) -> ClientRuntime.get().onMerge(org.worldgit.protocol.MergeProtocol.PREVIEW,payload.bytes()));
-    ClientPlayNetworking.registerGlobalReceiver(Net.UI.type(), (payload, context) -> ClientRuntime.get().onUi(payload.bytes()));
-    ClientPlayNetworking.registerGlobalReceiver(Net.COMMENTS.type(),(payload,context)->ClientRuntime.get().onComments(payload.bytes()));
+    ClientPlatform.registerClient();
     var conflictsKey=ClientPlatform.registerKey("key.worldgit.conflicts", org.lwjgl.glfw.GLFW.GLFW_KEY_G);
     var graphKey=ClientPlatform.registerKey("key.worldgit.graph", org.lwjgl.glfw.GLFW.GLFW_KEY_H);
     var ignoreKey=ClientPlatform.registerKey("key.worldgit.ignore", org.lwjgl.glfw.GLFW.GLFW_KEY_K);

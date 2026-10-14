@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -42,6 +41,15 @@ public final class ServerRuntime {
     public static final Logger LOG = LoggerFactory.getLogger("WorldGit");
 
     private final MinecraftServer server;
+    private org.worldgit.core.version.NbtUpgrader dataFixer;
+    private final VersionConfirmations versions = new VersionConfirmations(this);
+    VersionConfirmations versions() { return versions; }
+    public boolean deniedConfirmation(ServerPlayer player, String command) { return versions.interceptDenied(player, command); }
+    org.worldgit.core.version.NbtUpgrader dataFixer() {
+        if (dataFixer == null) try { dataFixer = Platform.dataFixer(server); }
+        catch (IOException error) { throw new java.io.UncheckedIOException(error); }
+        return dataFixer;
+    }
     private final ServerConfig config;
     private final MessageCatalog catalog;
     private final Messages messages = new Messages();
@@ -512,7 +520,8 @@ public final class ServerRuntime {
                 if(cancel.get()) throw new IOException("作業已取消，尚未寫入世界");
                 var layout=WorldLayout.discover(worldRoot());
                 T result;
-                try(var ops=WorldOperations.live(layout,new FabricOperations(this,layout),dimension)) { result=action.run(ops); }
+                var access = new FabricOperations(this, layout);
+                try(var ops=WorldOperations.live(layout,access,dimension)) { access.operations(ops); result=action.run(ops); }
                 boolean partial=result instanceof WorldOperations.Result r && !r.success()
                     || result instanceof WorldOperations.MergeResult m && !m.success();
                 if(result instanceof WorldOperations.Result r && r.state()!=WorldOperations.State.DRY_RUN) onServer(()->{
@@ -561,7 +570,9 @@ public final class ServerRuntime {
         long preview = previewIds.getAndIncrement();
         return runRepo(() -> {
             var layout = WorldLayout.discover(worldRoot());
-            try (var ops = WorldOperations.live(layout, new FabricOperations(this, layout), dimension)) {
+            var access = new FabricOperations(this, layout);
+            try (var ops = WorldOperations.live(layout, access, dimension)) {
+                access.operations(ops);
                 var state = ops.merging();
                 if (state == null) throw new IOException("世界不在 MERGING");
                 var region = state.regions().stream().filter(r -> r.id() == id).findFirst()
@@ -801,6 +812,7 @@ public final class ServerRuntime {
     }
 
     void tick() {
+        versions.tick();
         drainServerTasks();
         drainTickTasks(false);
         ui.tick();
@@ -808,7 +820,7 @@ public final class ServerRuntime {
         for(var e:commentsOutbound.entrySet()) {
             var player=server.getPlayerList().getPlayer(e.getKey());if(player==null)continue;
             for(int i=0;i<config.preview().packetsPerTick() && !e.getValue().isEmpty();i++)
-                ServerPlayNetworking.send(player,Net.COMMENTS.of(e.getValue().poll()));
+                Platform.send(player, Net.COMMENTS, e.getValue().poll());
         }
         if(server.getTickCount()%10==0) mergeProgress();
         for(var group:protection.values()) for(var guard:group.values()) remember(guard);
@@ -816,10 +828,10 @@ public final class ServerRuntime {
         protection.values().removeIf(Map::isEmpty);
         for (var send : handshake.tick(server.getTickCount())) {
             ServerPlayer player = server.getPlayerList().getPlayer(send.player());
-            if (player == null || !ServerPlayNetworking.canSend(player, Net.HELLO.type())) continue;
+            if (player == null || !Platform.canSend(player, Net.HELLO)) continue;
             try {
                 var hello = new Protocol.Hello(Protocol.VERSION, send.nonce(), List.of(SERVER_CAPABILITIES), palette(dimensionId((ServerLevel) player.level())));
-                ServerPlayNetworking.send(player, Net.HELLO.of(Protocol.encode(hello)));
+                Platform.send(player, Net.HELLO, Protocol.encode(hello));
             } catch (IOException e) {
                 LOG.warn("WORLDGIT hello 編碼失敗", e);
             }
@@ -830,7 +842,7 @@ public final class ServerRuntime {
             for (int i = 0; i < config.preview().packetsPerTick(); i++) {
                 byte[] packet = e.getValue().poll();
                 if (packet == null) break;
-                ServerPlayNetworking.send(player, Net.forPacket(packet).of(packet));
+                Platform.send(player, Net.forPacket(packet), packet);
             }
         }
         if (server.getTickCount() % 100 == 0) autoCommitTick();
@@ -956,6 +968,7 @@ public final class ServerRuntime {
     }
 
     void shutdown() {
+        versions.clear();
         normalizer.shutdown();
         remote.close();commentsOutbound.clear();
         ui.close();
