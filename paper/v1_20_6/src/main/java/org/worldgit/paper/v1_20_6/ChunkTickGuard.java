@@ -17,6 +17,21 @@ import org.worldgit.core.anvil.Nbt;
 public final class ChunkTickGuard {
   private record Key(ServerLevel level, long chunk) {}
   private static final Map<Key, Hold> HOLDS = new ConcurrentHashMap<>();
+  /** Called only at the verified native Folia region-save point. */
+  public static int closeShutdownOwned(ServerLevel level) {
+    int restored=0;
+    for(var entry:HOLDS.entrySet()) {
+      var hold=entry.getValue();
+      if(hold.level==level && org.bukkit.Bukkit.isOwnedByCurrentRegion(level.getWorld(),hold.chunk.getPos().getMinBlockX()>>4,hold.chunk.getPos().getMinBlockZ()>>4)) {
+        hold.close();restored++;
+      }
+    }
+    for(var entity:clearEntityBoundary(level))
+      if(org.bukkit.Bukkit.isOwnedByCurrentRegion(entity))restoreEntity(entity);
+    return restored;
+  }
+  public static int pendingShutdownHolds() { return HOLDS.size(); }
+
   private static final Map<ServerLevel,Set<org.worldgit.core.model.ChunkPos>> BOUNDARIES=new ConcurrentHashMap<>();
   private static final Map<Entity,BoundaryCallback> CALLBACKS=new ConcurrentHashMap<>();
   private static final Field LEVEL_CALLBACK=field(Entity.class,"levelCallback");

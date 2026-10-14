@@ -99,11 +99,14 @@ public final class SnapshotConverter implements AutoCloseable {
                   "Entities",
                   new Nbt.ListTag(10, s.entities().stream().map(e -> (Object) e.data()).toList()));
       entities = dfu().upgrade("ENTITY_CHUNK", entities, from, to);
+      var nativeEntities=new ArrayList<Nbt.Compound>();
+      for(Object value:entities.list("Entities").values())
+        nativeEntities.add(NativeNbtForms.dfuEntity((Nbt.Compound)value,from,to,dfu()));
       return new ChunkNormalizer(normalizationRules, EntitySemantics.OFFLINE)
           .normalize(
               s.pos(),
               raw,
-              entities.list("Entities").values().stream().map(Nbt.Compound.class::cast).toList());
+              nativeEntities);
     }
     var sections = new TreeMap<Integer, Section>();
     for (var e : s.sections().entrySet()) {

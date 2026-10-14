@@ -44,7 +44,7 @@ public final class PaperMetadataProjection {
     var nativeRules = Nbt.copy(defaults);
     var experiments = new TreeSet<String>(available);
     experiments.retainAll(EXPERIMENTS);
-    String fingerprint = "paper-metadata-v6:" + target + ":" + packFormat + "." + packMinor + ":" + experiments
+    String fingerprint = "paper-metadata-v7:" + target + ":" + packFormat + "." + packMinor + ":" + experiments
         + ":" + Base64.getEncoder().encodeToString(Nbt.write(nativeRules));
     return new NbtUpgrader() {
       public Nbt.Compound upgrade(String type, Nbt.Compound input, int from, int to) throws IOException {
@@ -243,8 +243,11 @@ public final class PaperMetadataProjection {
       return pack.size()==2 && pack.path("pack_format").isIntegralNumber()
           || pack.size()==3 && nativeFormat(pack.path("min_format")) && nativeFormat(pack.path("max_format"))
               && pack.get("min_format").equals(pack.get("max_format"));
-    return CURRENT_DESCRIPTION.equals(description) && pack.size()==3 && nativeFormat(pack.path("min_format"))
-        && pack.path("max_format").isIntegralNumber() && pack.path("max_format").intValue()==pack.path("min_format").get(0).intValue();
+    var minimum=pack.path("min_format");
+    boolean compact=minimum.isIntegralNumber() && minimum.canConvertToInt() && minimum.intValue()>=0;
+    return CURRENT_DESCRIPTION.equals(description) && pack.size()==3 && (compact || nativeFormat(minimum))
+        && pack.path("max_format").isIntegralNumber() && pack.path("max_format").canConvertToInt()
+        && pack.path("max_format").intValue()==(compact ? minimum.intValue() : minimum.get(0).intValue());
   }
 
   private static boolean nativeFormat(com.fasterxml.jackson.databind.JsonNode format) {

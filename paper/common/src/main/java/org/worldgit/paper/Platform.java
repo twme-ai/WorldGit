@@ -36,6 +36,7 @@ public final class Platform implements ChunkScheduler {
   public void shuttingDown() {
     shuttingDown = true;
   }
+  public boolean isShuttingDown() { return shuttingDown; }
 
   /** 在擁有該 chunk 的執行緒上執行（Paper 為主執行緒；已在擁有者執行緒時仍排程，避免重入）。 */
   public void region(World world, int chunkX, int chunkZ, Runnable task) {

@@ -371,6 +371,12 @@ def scenario_sigterm(platform, version, baseline):
     hook_ok = platform != 'folia' or bool(re.search(r'shutdown\.commit (?:完成：|finished:)\s*SUCCESS', hook_log))
     step('SIGTERM 關閉：JVM 自行結束、關閉前 commit 建立、離線 CLI status 沒有變動', exited and len(commits(s)) == n + 1 and '關閉前' in head and 'WorldGit-Auto: true' in git(s, 'minecraft.overworld', 'log', '-1', '--format=%B') and hook_ok and len(summaries) == 3 and all(all(int(x) == 0 for x in row) for row in summaries),
          exited=exited, before=n, after=len(commits(s)), head=head, block=block, hook_log=hook_log[-1000:], status=strip(out))
+    if hook_log:
+        evidence=Path(WORK,'paper-delivery','logs',f'sigterm-{platform}-{version}-{time.time_ns()}-shutdown.log')
+        evidence.write_text(hook_log)
+        results['sigterm_shutdown_log']=str(evidence.relative_to(ROOT));save()
+    if os.environ.get('WG_COMPACT_EVIDENCE')=='1' and results['steps'][-1]['ok']:
+        shutil.rmtree(s.dir,ignore_errors=True)
 
 
 def main():

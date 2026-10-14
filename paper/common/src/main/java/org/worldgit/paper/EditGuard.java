@@ -20,6 +20,12 @@ final class EditGuard implements Listener {
   private final ThreadLocal<Boolean> ownWrite=ThreadLocal.withInitial(()->false);
   EditGuard(WorldGitPlugin plugin) { this.plugin=plugin; }
   void shutdown() {
+    if(plugin.platform().folia()) {
+      // The scheduler is halted before Folia disables plugins. The native
+      // shutdown thread has no region clock here; each adapter restores its
+      // holds when that thread binds the owner before saving that region.
+      tickLeases.clear();locked.clear();chunkLocks.clear();return;
+    }
     for(var entry:tickLeases.entrySet()) {
       var world=org.bukkit.Bukkit.getWorld(entry.getKey());if(world==null)continue;
       for(var hold:entry.getValue().held.entrySet()) if(plugin.platform().ownedHere(world,hold.getKey().x(),hold.getKey().z()))

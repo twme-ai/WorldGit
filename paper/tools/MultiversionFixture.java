@@ -33,5 +33,17 @@ class MultiversionFixture {
     if (data.integer("DataVersion", 0) <= 3839) disabled.addAll(List.of("bundle", "update_1_21"));
     packs.put("Disabled", new Nbt.ListTag(8, new ArrayList<Object>(disabled)));
     try (var stream = new GZIPOutputStream(Files.newOutputStream(level))) { stream.write(Nbt.write(root)); }
+    if(args.length>1) {
+      if(!args[1].equals("--empty-legacy-indices") || data.integer("DataVersion",0)!=3700)
+        throw new IllegalArgumentException("Empty legacy indices require the 1.20.4 jump fixture");
+      var directory=level.getParent().resolve("data");Files.createDirectories(directory);
+      for(String name:List.of("Mansion","Mineshaft","Monument","Stronghold","Temple","Village")) {
+        var path=directory.resolve(name+"_index.dat");
+        if(Files.exists(path))throw new IllegalStateException("Do not overwrite existing native index "+path);
+        var index=new Nbt.Compound().with("DataVersion",3700).with("data",new Nbt.Compound()
+            .with("All",new long[0]).with("Remaining",new long[0]));
+        try(var stream=new GZIPOutputStream(Files.newOutputStream(path))){stream.write(Nbt.write(index));}
+      }
+    }
   }
 }

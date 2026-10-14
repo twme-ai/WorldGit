@@ -11,7 +11,7 @@ public final class VersionConversions {
   private VersionConversions() {}
   // Resolve at runtime so incremental builds cannot retain an inlined previous version.
   public static final String NORMALIZATION = normalizationVersion();
-  private static String normalizationVersion() { return "multiversion-canonical-v23-native-263-brewing-defaults"; }
+  private static String normalizationVersion() { return "multiversion-canonical-v27-namespaced-dragon-gateways"; }
 
   /** Saved data may retain its older file version until it becomes dirty after a server upgrade. */
   public static Map<String, byte[]> capturedSavedData(Map<String, byte[]> input, int target,

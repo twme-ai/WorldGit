@@ -14,6 +14,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import org.worldgit.paper.CommandSource;
 
 import java.util.*;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
@@ -40,7 +41,9 @@ final class CommandTree {
     return sub.equals("conflict-select") ? "resolve" : sub.equals("comments") ? "comment" : sub;
   }
   static boolean allowed(CommandSource source, String sub) {
-    var sender = source.getSender();
+    return allowed(source.getSender(),sub);
+  }
+  static boolean allowed(CommandSender sender, String sub) {
     if (sub.equals("help")) return true;
     if(sub.equals("confirm"))return sender.hasPermission("worldgit.admin") || java.util.List.of("switch","restore","reset","merge","revert","cherry-pick","pull").stream().anyMatch(op->sender.hasPermission("worldgit.command."+op));
     if (sub.equals("debug")) return sender instanceof ConsoleCommandSender || sender.hasPermission("worldgit.debug");

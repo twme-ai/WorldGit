@@ -35,15 +35,66 @@ public final class MetadataNormalizer {
   /** 1.21.11 的 LEVEL DFU 暫存 border 與原生 SavedData 為同一組設定。 */
   public static SortedMap<String, byte[]> nativeLayout(Map<String, byte[]> metadata) throws IOException {
     var out = new TreeMap<>(metadata);
+    if(metadata.containsKey("level.nbt")) {
+      var level=Nbt.read(metadata.get("level.nbt"));
+      int version=level.integer("DataVersion",0);
+      if(version>=3465 && version<=4671 && level.get("DragonFight") instanceof Nbt.Compound dragon
+          && Set.of("DragonKilled","PreviouslyKilled","NeedsStateScanning","Dragon","Gateways",
+              "ExitPortalLocation","IsRespawning").containsAll(dragon.keySet())
+          && dragon.get("Gateways") instanceof int[] gateways) {
+        var values=new ArrayList<Object>();for(int gateway:gateways)values.add(gateway);
+        dragon.put("Gateways",new Nbt.ListTag(values.isEmpty()?0:3,values));
+        out.put("level.nbt",Nbt.write(level));
+      }
+    }
+    for (var entry : metadata.entrySet()) {
+      if (!"data/minecraft/ender_dragon_fight.dat".equals(SavedData.relativePath(entry.getKey()))) continue;
+      var root = Nbt.read(entry.getValue());
+      if (Set.of(4790, 4903, 5023).contains(root.integer("DataVersion", 0))
+          && Set.of("data", "DataVersion").containsAll(root.keySet())
+          && root.get("data") instanceof Nbt.Compound dragon
+          && Set.of("needs_state_scanning", "dragon_killed", "previously_killed", "respawn_stage",
+              "respawn_time", "dragon_uuid", "exit_portal_location", "gateways", "respawn_crystals")
+              .containsAll(dragon.keySet())
+          && dragon.get("gateways") instanceof int[] gateways) {
+        // Codec.INT.list() accepts both NBT forms; NbtOps packs native lists as
+        // int arrays, while LEVEL DFU can preserve the legacy ordered list.
+        var values = new ArrayList<Object>();
+        for (int gateway : gateways) values.add(gateway);
+        dragon.put("gateways", new Nbt.ListTag(values.isEmpty() ? 0 : 3, values));
+        out.put(entry.getKey(), Nbt.write(root));
+      }
+    }
+    for(var entry:metadata.entrySet())
+      if(entry.getKey().equals("world_border.dat.nbt") || entry.getKey().matches("[^.]+\\.[^.]+\\.world_border\\.dat\\.nbt")) {
+        var root=Nbt.read(entry.getValue());
+        int version=root.integer("DataVersion",0);
+        if(version>=4671 && version<=5023 && Set.of("data","DataVersion").containsAll(root.keySet())
+            && root.get("data") instanceof Nbt.Compound border && staticBorder(border)) {
+          root.put("data",border);out.put(entry.getKey(),Nbt.write(root));
+        }
+      }
     if (!metadata.containsKey("level.nbt")) return out;
-    var level = Nbt.read(metadata.get("level.nbt"));
+    var level = Nbt.read(out.get("level.nbt"));
     if (level.integer("DataVersion",0) != 4671 || !(level.get("world_border") instanceof Nbt.Compound border)) return out;
-    var nativeFile = metadata.containsKey("world_border.dat.nbt") ? Nbt.read(metadata.get("world_border.dat.nbt")) : null;
+    staticBorder(border);
+    var nativeFile = out.containsKey("world_border.dat.nbt") ? Nbt.read(out.get("world_border.dat.nbt")) : null;
     if (nativeFile != null && (!Set.of("data","DataVersion").containsAll(nativeFile.keySet())
         || !Arrays.equals(Nbt.write(border),Nbt.write(nativeFile.compound("data"))))) return out;
     if (nativeFile == null) out.put("world_border.dat.nbt",Nbt.write(new Nbt.Compound().with("DataVersion",4671).with("data",Nbt.copy(border))));
     level.remove("world_border");out.put("level.nbt",Nbt.write(level));
     return out;
+  }
+
+  /** 原生 StaticBorderExtent 的 target 等於 size；零時長時原版不使用舊 target。
+   * 保留活動插值、未知 schema、custom payload 與其他全部設定。 */
+  private static boolean staticBorder(Nbt.Compound border) {
+    if(!Set.of("center_x","center_z","damage_per_block","safe_zone","size","warning_blocks",
+        "warning_time","lerp_time","lerp_target").containsAll(border.keySet())
+        || !(border.get("lerp_time") instanceof Long time) || time!=0L
+        || !(border.get("size") instanceof Double size) || !Double.isFinite(size) || size<0
+        || !(border.get("lerp_target") instanceof Double target) || !Double.isFinite(target))return false;
+    border.put("lerp_target",size);return true;
   }
 
   private static boolean chunkTickets(String name) {

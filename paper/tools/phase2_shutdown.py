@@ -1,5 +1,6 @@
 """在已寫入的 switch 中關服、重開並 force 恢復；acceptance.py 自取 bench.lock。"""
-import json, os, re, shutil, time, traceback
+import hashlib, json, os, re, shutil, subprocess, time, traceback
+from pathlib import Path
 import harness
 from cli_compat import cli_data, verify_all
 from harness import BenchLock, Server, ROOT, WORK, wgit
@@ -24,8 +25,15 @@ def run(platform,version,shutdown=True):
     with BenchLock():
         harness.RUN=os.path.join(WORK,'paper-phase2','run')
         baseline=os.path.join(WORK,'paper-delivery','fixtures','acceptance-flat-'+version)
+        stable=os.path.join(evidence,'fixture')
+        shutil.copytree(baseline,stable)
+        subprocess.run([harness.JAVA[version],'-Xmx512m','-cp',os.path.join(ROOT,'cli/build/libs/wgit.jar'),
+                        os.path.join(ROOT,'paper/tools/EntitiesFixture.java'),os.path.join(stable,'world')],check=True)
+        baseline=stable
         s=Server(platform,version,baseline=baseline,run_label=f'{scenario}-{platform}-{version}',view=2,
+                 extra_props={'gamemode':'survival'},
                  config={'auto-commit':{'enabled':False,'on-shutdown':False},'commit':{'timeout-seconds':900}})
+        result['plugin_sha256']=hashlib.sha256(Path(s.dir,'plugins/worldgit-paper.jar').read_bytes()).hexdigest()
         journal=os.path.join(s.world,'.worldgit','apply-state.yml')
         try:
             s.start(); result['console_logs'].append(os.path.relpath(s.evidence_log,ROOT))
@@ -44,8 +52,12 @@ def run(platform,version,shutdown=True):
                 time.sleep(.2)
             check('mod status／diff 預覽均已建立',previews[0]['status']>0 and previews[1]['diff']>0 and all(p['previews'] for p in previews),before=previews)
             cmd(s,'wg commit -m shutdown-B',r'overworld [0-9a-f]{8}|沒有變動')
+            # 明確製造一個尚未提交的變動，reset 才會走真正的 apply／clear。
+            # 不依賴其他維度的自然排程碰巧使本來乾淨的 reset 變成寫入。
+            cmd(s,'wg debug fill 32 diamond_block 1',r'debug fill 完成')
             before=head(s); s.cmd('wg debug release',r'已釋放')
-            cmd(s,'wg reset --hard',r'完成|Complete')
+            reset=cmd(s,'wg reset --hard',r'完成|Complete')
+            check('預覽清除使用真正的 reset apply','NO_OP' not in reset and ('SUCCESS' in reset or 'sections=1' in reset),output=reset)
             time.sleep(1)
             cleared=[bot.ask('stats','stats')['received'] for bot in bots]
             check('套用清除 mod status／diff 舊分包狀態',all(a['clear']>b['clear'] and not a['previews'] for a,b in zip(cleared,previews)),before=previews,after=cleared)
@@ -91,4 +103,5 @@ def run(platform,version,shutdown=True):
             errors=[l for l in s.lines_since() if 'ERROR' in l or 'Exception' in l]
             check(scenario+' log 無 ERROR／Exception',not errors,errors=errors[-25:])
             shutil.rmtree(s.dir,ignore_errors=True)
+            shutil.rmtree(baseline,ignore_errors=True)
     return 0 if all(step['ok'] for step in result['steps']) else 1

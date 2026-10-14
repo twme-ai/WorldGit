@@ -387,6 +387,7 @@ final class PaperLiveWorld implements LiveWorld {
       for(var pos:scope) if(loaded.contains(pos)) jobs.add(scheduling.submit(world,pos,()->plugin.edits().ensureChunkTicks(world,pos.x(),pos.z())));
       CompletableFuture.allOf(jobs.toArray(CompletableFuture[]::new)).get(plugin.settings().commitTimeoutSeconds(),TimeUnit.SECONDS);
       return ()->{
+        if(plugin.platform().folia() && plugin.platform().isShuttingDown()) return;
         plugin.edits().unregisterTicks(world);
         var restored=new ArrayList<CompletableFuture<Void>>();
         var schedulingRestore=new ChunkLockQueue(plugin);
@@ -395,6 +396,8 @@ final class PaperLiveWorld implements LiveWorld {
         finally {try {restoreEntityBoundary();}finally {edit.close();}}
       };
     } catch(Exception error) {
+      if(plugin.platform().folia() && plugin.platform().isShuttingDown())
+        throw new IOException("插件關閉中；guard 交由原生 region 存檔 owner 恢復",error);
       plugin.edits().unregisterTicks(world);
       // Every already-acquired owner lock must be restored on that owner, including failed acquisition.
       for(var entry:held.entrySet()) {var pos=entry.getKey();plugin.platform().region(world,pos.x(),pos.z(),()->{try {entry.getValue().close();}catch(Exception e){plugin.getLogger().severe(e.toString());}});}

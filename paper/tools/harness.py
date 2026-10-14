@@ -73,6 +73,13 @@ class BenchLock:
 
 
 def plugin_jar():
+    frozen = os.environ.get('WG_PLUGIN_JAR')
+    if frozen:
+        path = Path(frozen).resolve()
+        expected = os.environ.get('WG_PLUGIN_SHA256')
+        if not expected or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise RuntimeError('固定驗收 jar 的 SHA-256 不符；拒絕啟動伺服器')
+        return str(path)
     jars = sorted(f for f in os.listdir(PLUGIN_JAR_GLOB) if f.startswith('worldgit-paper') and f.endswith('.jar'))
     if not jars:
         raise RuntimeError('先執行 ./gradlew :paper:plugin:jar')
@@ -83,6 +90,11 @@ def ensure_shared_artifacts(log=None):
     """呼叫端已持 bench.lock；續跑前重建受 shared Java 修改影響的 jar。"""
     from pathlib import Path
     root = Path(ROOT)
+    if os.environ.get('WG_PLUGIN_JAR'):
+        plugin_jar()  # A frozen matrix never rebuilds or replaces its artifact.
+        for relative in ['hub/build/libs/worldgit-hub.jar','cli/build/libs/wgit.jar','cli/build/libs/acceptance-tools.jar']:
+            if not (root/relative).is_file():raise RuntimeError('固定矩陣缺少共用產物：'+relative)
+        return
     sources = [p for module in ['core', 'platform-api', 'i18n', 'protocol', 'cli', 'hub', 'paper']
                for p in (root / module).rglob('src/main/**/*.java')]
     sources.append(root / 'core/src/test/java/org/worldgit/core/MetadataNormalizerTest.java')

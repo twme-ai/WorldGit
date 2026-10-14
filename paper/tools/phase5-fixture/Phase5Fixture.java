@@ -7,6 +7,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 /** 驗收專用，不進正式 jar：自然出生原因與第三方 /git 衝突。 */
 public final class Phase5Fixture extends JavaPlugin implements org.bukkit.event.Listener {
+  private final java.util.Map<java.util.UUID,org.bukkit.permissions.PermissionAttachment> permissions=new java.util.HashMap<>();
   public void onEnable() {
     getServer().getPluginManager().registerEvents(this,this);
     if(getConfig().getBoolean("git",false))getServer().getCommandMap().register("fixture",new org.bukkit.command.Command("git") {
@@ -16,6 +17,14 @@ public final class Phase5Fixture extends JavaPlugin implements org.bukkit.event.
     getCommand("wgfixture").setExecutor((sender,command,label,args)->{
       var p=Bukkit.getPlayerExact(args[0]);if(p==null)return false;
       p.getScheduler().run(this,task->{
+        if(args.length>1 && (args[1].equals("revoke-switch") || args[1].equals("restore-switch"))) {
+          var previous=permissions.remove(p.getUniqueId());if(previous!=null)p.removeAttachment(previous);
+          if(args[1].equals("revoke-switch")) {
+            var attachment=p.addAttachment(this);attachment.setPermission("worldgit.admin",false);
+            attachment.setPermission("worldgit.command.switch",false);permissions.put(p.getUniqueId(),attachment);
+          }
+          sender.sendMessage("SWITCH_ALLOWED="+(p.hasPermission("worldgit.admin") || p.hasPermission("worldgit.command.switch")));return;
+        }
         if(args.length>1 && args[1].equals("pin")) {
           p.setFlying(true);p.setGravity(false);
           p.teleportAsync(new Location(p.getWorld(),8.5,65,8.5)).whenComplete((ok,error)->sender.sendMessage("PINNED="+ok+" ERROR="+error));return;

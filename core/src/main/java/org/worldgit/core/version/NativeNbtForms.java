@@ -85,4 +85,49 @@ public final class NativeNbtForms {
     }
     return result;
   }
+
+  /** ENTITY_CHUNK DFU can leave legacy item arrays beside the upgraded equipment.
+   * Compare with the same ITEM_STACK DFU before discarding any redundant payload. */
+  static Nbt.Compound dfuEntity(Nbt.Compound input,int from,int to,NbtUpgrader upgrader) throws IOException {
+    if(from>=3839 || to<4440)return input;
+    var result=input;
+    if(Types.LIVING.contains(input.string("id")) && input.get("equipment") instanceof Nbt.Compound equipment)
+      for(var entry:Map.of("HandItems",List.of("mainhand","offhand"),
+          "ArmorItems",List.of("feet","legs","chest","head")).entrySet()) {
+        if(!(input.get(entry.getKey()) instanceof Nbt.ListTag list) || list.type()!=10
+            || list.values().size()!=entry.getValue().size())continue;
+        boolean redundant=true;
+        for(int i=0;i<list.values().size();i++) {
+          if(!(list.values().get(i) instanceof Nbt.Compound item)){redundant=false;break;}
+          var converted=item;
+          if(item.containsKey("Count")) {
+            if(!item.string("id").startsWith("minecraft:")){redundant=false;break;}
+            converted=upgrader.upgrade("ITEM_STACK",Nbt.copy(item),from,to);
+          }
+          redundant &= Arrays.equals(Nbt.write(emptyItemPatch(converted)),
+              Nbt.write(emptyItemPatch(equipment.compound(entry.getValue().get(i)))));
+        }
+        if(redundant) {
+          if(result==input)result=Nbt.copy(input);
+          result.remove(entry.getKey());
+        }
+      }
+    if(input.get("Passengers") instanceof Nbt.ListTag passengers && passengers.type()==10) {
+      var values=new ArrayList<Object>();boolean changed=false;
+      for(Object value:passengers.values()) {
+        var before=(Nbt.Compound)value;var after=dfuEntity(before,from,to,upgrader);
+        values.add(after);changed |= before!=after;
+      }
+      if(changed) {
+        if(result==input)result=Nbt.copy(input);
+        result.put("Passengers",new Nbt.ListTag(10,values));
+      }
+    }
+    return result;
+  }
+
+  private static Nbt.Compound emptyItemPatch(Nbt.Compound item) {
+    if(!(item.get("components") instanceof Nbt.Compound patch) || !patch.isEmpty())return item;
+    var copy=Nbt.copy(item);copy.remove("components");return copy;
+  }
 }

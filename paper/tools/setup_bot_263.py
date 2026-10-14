@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """在 .work/bot 套用固定 PrismarineJS 26.3 驗收依賴；不更改正式插件。
-先安裝 npm 依賴。上游 data 的未完成元件 codec 不用於本驗收 fixture。
+先安裝 npm 依賴。補齊經精確 26.3 原生 STREAM_CODEC 核對的元件。
 """
 import argparse, concurrent.futures, hashlib, json, subprocess, urllib.request
 from pathlib import Path
@@ -14,6 +14,51 @@ PATCHES = [
     ('PrismarineJS/mineflayer', 4125, '93c8c160bd243716e75caad558f9492c5bc4e9be', 'mineflayer'),
     ('PrismarineJS/mineflayer', 4146, '651195051e539c7737397b1c1167c882848031f3', 'mineflayer'),
 ]
+
+def component_codecs(bot, proof=None):
+    """26.3 原生 resolvable number／registry holder 的完整 wire 表示。
+
+    ResolvableInt/Float 的 Either 用 bool，常數為固定 i32/f32、reference
+    為 Identifier；holderRegistry 是原生 registry ID，沒有 inline 分支。
+    驗收 fixture 另用原生 StreamCodec 產生 bytes，逐 component 讀寫比對。
+    """
+    file = bot / 'node_modules/minecraft-data/minecraft-data/data/pc/26.3/protocol.json'
+    data = json.loads(file.read_text())
+    types = data['types']
+    def number(kind):
+        return ['container', [
+            {'name': 'constant', 'type': 'bool'},
+            {'name': 'value', 'type': ['switch', {'compareTo': 'constant',
+              'fields': {'true': kind, 'false': 'string'}}]},
+        ]]
+    def fields(*entries):
+        return ['container', [{'name': name, 'type': type} for name, type in entries]]
+    additions = {
+        'block_transformer': 'varint',
+        'provides_pottery_pattern': 'varint',
+        'compostable': fields(('layers', number('i32'))),
+        'cooking_fuel': fields(('burnTime', number('i32')), ('speedMultiplier', number('f32'))),
+        'brewing_fuel': fields(('uses', number('i32')), ('speedMultiplier', number('f32'))),
+    }
+    slot = types['SlotComponent'][1][1]['type'][1]['fields']
+    for name, codec in additions.items():
+        if name in slot and slot[name] != codec:
+            raise RuntimeError('26.3 component schema changed; verify native codec: ' + name)
+        slot[name] = codec
+    # SignText.STREAM_CODEC sends filtered lines only when they differ.
+    # The pinned upstream data incorrectly made four filtered lines mandatory.
+    for name in ('sign_text_front', 'sign_text_back'):
+        current = slot[name][1][1]['type']
+        array = ['array', {'count': 4, 'type': 'anonymousNbt'}]
+        optional = ['option', array]
+        if current not in (array, optional):
+            raise RuntimeError('26.3 SignText schema changed; verify native codec')
+        slot[name][1][1]['type'] = optional
+    file.write_text(json.dumps(data, indent=2) + '\n')
+    if proof is not None:
+        proof.append({'local_rule': '26.3-native-resolvable-and-registry-component-codecs',
+                      'components': sorted(additions) + ['sign_text_front', 'sign_text_back'],
+                      'sha256': hashlib.sha256(file.read_bytes()).hexdigest()})
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -47,6 +92,7 @@ def main():
         target.write_bytes(data)
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         list(pool.map(fetch, row.items()))
+    component_codecs(bot, proof)
     installed['pc']['26.3'] = row
     local.write_text(json.dumps(installed, indent=1))
     versions = base / 'minecraft-data/data/pc/common/protocolVersions.json'

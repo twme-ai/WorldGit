@@ -79,9 +79,23 @@ final class VersionConfirmations implements VersionedSnapshots {
       source.getSender().sendMessage(Messages.line("paper.version.invalid-token"));return;
     }
     String operation=value.action().operation.split("\\.")[0];
-    if(!CommandTree.allowed(source,operation)){source.getSender().sendMessage(Messages.line("common.no-permission"));return;}
+    if(!CommandTree.allowed(source,operation)){
+      pending.remove(token,value);
+      source.getSender().sendMessage(Messages.line("common.no-permission"));return;
+    }
     if(!pending.remove(token,value))return;
     value.action().retry.accept(value.approval());
+  }
+  /** The native requires predicate can hide confirm before its handler runs.
+   * Consume a denied actor's own token at the player command entry as well. */
+  boolean revokeDenied(CommandSender sender,String token) {
+    var value=pending.get(token);
+    if(value==null || !value.approval().actor().equals(actor(sender)))return false;
+    String operation=value.action().operation.split("\\.")[0];
+    if(CommandTree.allowed(sender,operation))return false;
+    pending.remove(token,value);
+    Messages.inLocale(sender,()->sender.sendMessage(Messages.line("common.no-permission")));
+    return true;
   }
   void clear(){pending.clear();}
 }

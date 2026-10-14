@@ -115,7 +115,7 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
       }
       return null;
     });
-    if (platform.folia() && settings.autoOnShutdown()) {
+    if (platform.folia()) {
       offlineShutdown = new OfflineShutdownCommit(this);
       offlineShutdown.register();
     }
@@ -143,11 +143,11 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     if(remote!=null) remote.close();
     if(comments!=null) comments.shutdown();
     boolean wasApplying=repo.applying();
+    platform.shuttingDown();
     repo.shutdownApply();
     edits.shutdown();
     if(merges!=null) merges.shutdown();
     if (displays != null) displays.clearAll();
-    platform.shuttingDown();
     if (autoCommit != null) autoCommit.shutdown();
     if(!wasApplying) repo.awaitIdle(); // 等待進行中的背景操作；之後才能在目前執行緒內聯 commit（repo lock 同一時間只有一個持有者）
     if (!wasApplying && settings.autoOnShutdown()) shutdownCommit();
@@ -334,8 +334,12 @@ public final class WorldGitPlugin extends JavaPlugin implements Listener {
     if(words[0].equalsIgnoreCase("/git") && !gitRegistered)return;
     String sub = words[1].toLowerCase(Locale.ROOT);
     var player = event.getPlayer();
+    if(sub.equals("confirm") && words.length==3 && versionConfirmations.revokeDenied(player,words[2].trim())) {
+      event.setCancelled(true);return;
+    }
     if (!CommandTree.SUBS.contains(sub) || sub.equals("help")) return;
-    boolean allowed = sub.equals("debug") ? player.hasPermission("worldgit.debug")
+    boolean allowed = sub.equals("confirm") ? CommandTree.allowed(player,sub)
+        : sub.equals("debug") ? player.hasPermission("worldgit.debug")
         : player.hasPermission("worldgit.command." + CommandTree.permission(sub)) || player.hasPermission("worldgit.admin");
     if (!allowed) {
       event.setCancelled(true);

@@ -1,5 +1,5 @@
 """跨維度 UUID barrier、移除舊乘客及遠離原點的巢狀乘客 LOAD 回歸。"""
-import json, os, re, shutil, subprocess, time, traceback, zipfile
+import hashlib, json, os, re, shutil, subprocess, time, traceback, zipfile
 from pathlib import Path
 import harness
 from cli_compat import cli_data, verify_all, player_command, repository
@@ -9,11 +9,11 @@ IDS=('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee','bbbbbbbb-cccc-dddd-eeee-fffffffffff
 
 def fixture(server,version):
     base=Path(WORK)/'gradle-home/caches/modules-2/files-2.1'
-    jars=[next((base/'io.papermc.paper/paper-api'/(version+'-R0.1-SNAPSHOT' if not version.startswith('26.') else {'26.1.2':'26.1.2.build.74-stable','26.3':'26.3.build.177-stable'}[version])).rglob('*.jar'))]
-    for group in ['net.kyori/adventure-api','net.kyori/adventure-key','org.jetbrains/annotations','net.md-5/bungeecord-chat','net.kyori/examination-api','net.kyori/examination-string']:
+    jars=[Path(harness.plugin_jar()),next((base/'io.papermc.paper/paper-api'/(version+'-R0.1-SNAPSHOT' if not version.startswith('26.') else {'26.1.2':'26.1.2.build.74-stable','26.2':'26.2.build.129-stable','26.3':'26.3.build.177-stable'}[version])).rglob('*.jar'))]
+    for group in ['com.google.guava/guava','net.kyori/adventure-api','net.kyori/adventure-key','org.jetbrains/annotations','net.md-5/bungeecord-chat','net.kyori/examination-api','net.kyori/examination-string']:
         jars+=list((base/group).rglob('*.jar'))
     classes=Path(server.dir)/'entity-fixture-classes';classes.mkdir()
-    subprocess.run([str(Path(harness.JAVA[version]).with_name('javac')),'--release','25' if version.startswith('26.') else '21','-cp',os.pathsep.join(map(str,jars)),
+    subprocess.run([str(Path(harness.JAVA[version]).with_name('javac')),'--release','25' if version.startswith('26.') else '17' if version in ('1.20.1','1.20.4') else '21','-cp',os.pathsep.join(map(str,jars)),
                     '-d',str(classes),str(Path(ROOT)/'paper/tools/components-fixture/EntitiesFixturePlugin.java')],check=True)
     with zipfile.ZipFile(Path(server.dir)/'plugins/entities-fixture.jar','w') as jar:
         for path in classes.rglob('*.class'):jar.write(path,str(path.relative_to(classes)))
@@ -41,27 +41,26 @@ def run(platform,version):
     with BenchLock():
         harness.RUN=os.path.join(WORK,'paper-phase2','run')
         baseline=os.path.join(WORK,'paper-delivery','fixtures','acceptance-flat-'+version)
-        if version in ('1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3'):
-            stable=os.path.join(evidence,'fixture')
-            shutil.copytree(baseline,stable)
-            subprocess.run([harness.JAVA[version],'-Xmx512m','-cp',os.path.join(ROOT,'cli/build/libs/wgit.jar'),
-                            os.path.join(ROOT,'paper/tools/EntitiesFixture.java'),os.path.join(stable,'world')],check=True)
-            baseline=stable
+        stable=os.path.join(evidence,'fixture')
+        shutil.copytree(baseline,stable)
+        subprocess.run([harness.JAVA[version],'-Xmx512m','-cp',os.path.join(ROOT,'cli/build/libs/wgit.jar'),
+                        os.path.join(ROOT,'paper/tools/EntitiesFixture.java'),os.path.join(stable,'world')]+(['--disk-uuid'] if platform=='folia' and version in ('1.20.1','26.1.2') else []),check=True)
+        baseline=stable
         s=Server(platform,version,baseline=baseline,run_label=f'entities-{platform}-{version}',view=2,
                  config={'auto-commit':{'enabled':False,'on-shutdown':False},'commit':{'timeout-seconds':900}})
+        result['plugin_sha256']=hashlib.sha256(Path(s.dir,'plugins/worldgit-paper.jar').read_bytes()).hexdigest()
         try:
-            if version in ('1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3'): fixture(s,version)
+            fixture(s,version)
             s.start(); result['console']=os.path.relpath(s.evidence_log,ROOT)
             cmd(s,'wg debug guard on',r'WGCHUNKGUARD locked')
             s.bot('WgBot'); nether_bot=s.bot('WgBot2')
             s.cmd('tp WgBot 200 70 -184')
             s.cmd('execute in minecraft:the_nether run tp WgBot2 -184 70 200')
             cmd(s,'wg debug entities overworld 12 -12 seed')
-            if version in ('1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3'):
-                # 舊版 NoAI 仍會遞減 EggLayTime；以原版 jockey flag 安定 fixture，完整保留 timer 欄位。
-                output=s.cmd('wgentityfixture',r'WGENTITYFIXTURE (success|failed)')
-                check('原版 jockey flag 固定蛋計時且不忽略欄位','WGENTITYFIXTURE success jockey=true' in output,output=output)
-                if 'WGENTITYFIXTURE success jockey=true' not in output: raise RuntimeError(output)
+            # 以原版 jockey flag 安定 fixture，所有版本均完整保留 timer 欄位。
+            output=s.cmd('wgentityfixture',r'WGENTITYFIXTURE (success|failed)')
+            check('原版 jockey flag 固定蛋計時且不忽略欄位','WGENTITYFIXTURE success jockey=true' in output,output=output)
+            if 'WGENTITYFIXTURE success jockey=true' not in output: raise RuntimeError(output)
             time.sleep(2)
             initial=inspect(s,'overworld',12,-12)
             check('A fixture 包含三個巢狀 UUID',present(initial,IDS),output=initial)
@@ -80,6 +79,22 @@ def run(platform,version):
             player_command(nether_bot,'wg commit -m entity-B',r'存檔點：|Snapshot:')
             check('地獄 B 獨立提交實體變更',head('minecraft:the_nether')!=nether_before)
             cmd(s,'wg branch B');player_command(nether_bot,'wg branch B',r'分支：|Branches')
+            if platform=='folia' and version in ('1.20.1','26.1.2'):
+                before=head('minecraft:overworld')
+                rejected=s.cmd('wg switch A --force',r'已存在另一維度|Switched|已切換到|PARTIAL',900)
+                check('載入中跨維度 UUID 寫入前拒絕且 HEAD 不動','已存在另一維度' in rejected and head('minecraft:overworld')==before,output=rejected)
+                # 先清除已載入的地獄副本；遠端終界的同 UUID 從未載入。
+                player_command(nether_bot,'wg switch A --force',r'已切換到|Switched')
+                census=s.cmd('wgentityfixture census',r'WGENTITYCENSUS',30)
+                check('遠端終界 chunk 未載入且 UUID 不在 manager 普查','loaded=false known=false bukkitLoaded=false' in census,output=census)
+                if 'loaded=false known=false bukkitLoaded=false' not in census:raise RuntimeError(census)
+                rejected=s.cmd('wg switch A --force',r'已存在另一維度|Switched|已切換到|PARTIAL',900)
+                check('未載入磁碟 UUID 普查寫入前拒絕且 HEAD 不動','已存在另一維度' in rejected and 'minecraft:the_end' in rejected and '96' in rejected and head('minecraft:overworld')==before,output=rejected)
+                check('拒絕後主世界仍無受測 UUID',present(inspect(s,'overworld',12,-12),()))
+                cleared=s.cmd('wgentityfixture clear-disk',r'WGENTITYDISK (success|failed)',180)
+                check('owner 清除唯一磁碟衝突實體','WGENTITYDISK success removed=1' in cleared,output=cleared)
+                if 'WGENTITYDISK success removed=1' not in cleared:raise RuntimeError(cleared)
+                cmd(s,'wg commit --dimension minecraft:the_end -m disk-collision-cleared',r'存檔點：|Snapshot:')
             for rev in ('A','B','A'):
                 # 先移除目前佔有 UUID 的維度，再還原目的維度；不再依賴全組原子 switch。
                 if rev=='A':
@@ -109,11 +124,10 @@ def run(platform,version):
             check('實體場景 log 無 ERROR／Exception',not errors,errors=errors[-25:])
             if not all(step['ok'] for step in result['steps']):
                 forensic=os.path.join(evidence,'failure-world')
-                shutil.copytree(repository(s.world),os.path.join(forensic,'.worldgit'))
-                for filename in ('level.dat','region/r.0.-1.mca','entities/r.0.-1.mca'):
-                    source=os.path.join(s.world,filename)
-                    if os.path.isfile(source):
-                        target=os.path.join(forensic,filename);os.makedirs(os.path.dirname(target),exist_ok=True);shutil.copy2(source,target)
+                os.makedirs(forensic)
+                for name in ('world','world_nether','world_the_end'):
+                    source=os.path.join(s.dir,name)
+                    if os.path.isdir(source):shutil.copytree(source,os.path.join(forensic,name))
             shutil.rmtree(s.dir,ignore_errors=True)
-            if version in ('1.20.6','1.21.1','1.21.4','1.21.8','26.1.2','26.3'): shutil.rmtree(baseline,ignore_errors=True)
+            shutil.rmtree(baseline,ignore_errors=True)
     return 0 if all(step['ok'] for step in result['steps']) else 1

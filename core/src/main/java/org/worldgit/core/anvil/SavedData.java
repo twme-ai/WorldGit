@@ -10,7 +10,7 @@ public final class SavedData {
   private SavedData() {}
   /** 暫態規則也用於歷史 tree；不可只在磁碟 capture 排除。 */
   public static final String NORMALIZATION = normalizationVersion();
-  private static String normalizationVersion() { return "runtime-saved-data-v7-legacy-stopwatches"; }
+  private static String normalizationVersion() { return "runtime-saved-data-v10-namespaced-dragon-gateways"; }
   private static final Set<String> STOPWATCHES = Set.of("data/stopwatches.dat", "data/minecraft/stopwatches.dat");
   private static final Set<String> PAPER_DATA = Set.of("data/paper/metadata.dat",
       "data/paper/persistent_data_container.dat", "data/paper/level_overrides.dat");

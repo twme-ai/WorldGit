@@ -24,6 +24,7 @@ public final class ComponentsFixture extends JavaPlugin {
       bridge=(NmsBridge)getter.invoke(plugin);
     }catch(Exception error){throw new IllegalStateException(error);}
     getCommand("wgcomponents").setExecutor((sender,command,label,args)->{
+      boolean shutdown=args.length>0 && args[0].equals("shutdown");
       var world=Objects.requireNonNull(Bukkit.getWorld("world"),"pending fixture world");
       require(world.getKey().toString().equals("minecraft:overworld"),"pending fixture must use overworld");
       world.getChunkAtAsync(8,8,false).whenComplete((loaded,error)->{
@@ -35,8 +36,11 @@ public final class ComponentsFixture extends JavaPlugin {
           try {
             require(Bukkit.isOwnedByCurrentRegion(world,8,8),"async fixture callback must own chunk");
             require(loaded.getWorld()==world && loaded.getX()==8 && loaded.getZ()==8,"async fixture chunk identity");
-            var level=((CraftWorld)world).getHandle();var chunk=level.getChunkSource().getChunkNow(8,8);
+            // 舊 Folia 的 async callback 可能先於 loadedChunkMap 發布；在已確認的
+            // owner 上取得 FULL handle，仍不加 ticking ticket、不先 unpack pending。
+            var level=((CraftWorld)world).getHandle();var chunk=level.getChunk(8,8);
             require(chunk!=null,"fixture chunk must be FULL on owner in "+world.getKey());
+            require(level.getChunkSource().getChunkNow(8,8)==chunk,"FULL handle published before bridge operations");
             var blocks=(LevelChunkTicks<?>)chunk.getBlockTicks();var fluids=(LevelChunkTicks<?>)chunk.getFluidTicks();
             var field=LevelChunkTicks.class.getDeclaredField("pendingTicks");field.setAccessible(true);
             // 兩個從真 chunk NBT 載入、尚未 ticking 的容器；getAll/removeIf 此時看不到 pending。
@@ -54,9 +58,9 @@ public final class ComponentsFixture extends JavaPlugin {
             var before=bridge.copy(world,8,8).terrain();checkTicks(before);
             Bukkit.getRegionScheduler().runDelayed(this,world,8,8,task->{
               try {
-                checkTicks(bridge.copy(world,8,8).terrain());locked.close();
-                bridge.saveChunk(world,8,8);
-                sender.sendMessage("WGCOMPONENTS success pending-replace=true unpack=true delay=600 priorities=-1,1");
+                checkTicks(bridge.copy(world,8,8).terrain());
+                if(!shutdown) {locked.close();bridge.saveChunk(world,8,8);}
+                sender.sendMessage("WGCOMPONENTS success pending-replace=true unpack=true delay=600 priorities=-1,1"+(shutdown ? " shutdown-held=true" : ""));
               }catch(Throwable failure){try{locked.close();}catch(Exception cleanup){failure.addSuppressed(cleanup);}sender.sendMessage("WGCOMPONENTS failed "+failure);failure.printStackTrace();}
             },20);
           }catch(Throwable failure){if(hold!=null)try{hold.close();}catch(Exception cleanup){failure.addSuppressed(cleanup);}sender.sendMessage("WGCOMPONENTS failed "+failure);failure.printStackTrace();}

@@ -14,7 +14,7 @@ GRADLE_USER_HOME=.work/gradle-home ./gradlew --configure-on-demand --max-workers
 
 ## 跨版本線上操作
 
-較舊 commit 的 switch／merge／reset 使用目前伺服器的原版 DFU 自動升級。有損降級先在聊天或 console 顯示完整損失，包含替代值、數量與座標樣本；檢查後點確認或執行 `/wg confirm <token>`。代碼五分鐘內有效、限原執行者且單次使用。世界、HEAD、規則或損失改變時需重新預覽／確認；`--force` 不略過損失確認。verify 為唯讀，dry-run 不改世界。資料包與世界 metadata 不同的線上還原仍要求離線 CLI。
+較舊 commit 的 switch／merge／reset 使用目前伺服器的原版 DFU 自動升級。有損降級先在聊天或 console 顯示完整損失，包含替代值、數量與座標樣本；檢查後點確認或執行 `/wg confirm <token>`。代碼五分鐘內有效、限原執行者且單次使用。世界、HEAD、規則、repo／插件設定或損失改變時需重新預覽／確認；原操作權限被撤銷時拒絕並使代碼失效，伺服器重啟也會清空代碼。失效後復原設定或權限不能重用已消耗的 token。`--force` 不略過損失確認。verify 為唯讀，dry-run 不改世界。資料包與世界 metadata 不同的線上還原仍要求離線 CLI。
 
 1.20.4→1.20.6 時，Paper 可能把舊 `keep-spawn-loaded=false` 設定遷移成 `spawnChunkRadius=0`；較舊歷史中缺少此規則，原版缺省投影為 `2`。這種設定差異會在任何寫入前被拒絕，需先決定要保留的設定，再停服用 CLI 還原。正式預檢不會為了通過 components 升級而略過 gamerule（#213）。
 
@@ -145,6 +145,18 @@ FAWE bulk 路徑用 `IBatchProcessor` 記錄 chunk 與 actor，純 WorldEdit 用
 - **驗收**：`python3 paper/tools/acceptance.py <paper|folia> <1.21.11|26.2> phase3`（port 25701–25704，自帶 bench.lock），證據放 `.work/paper-phase3/`。結果見 [docs/13](../docs/13-phase3-progress.md)「Paper／Folia」。
 
 ## 重現驗收與量測
+
+任務 2 的最終矩陣使用固定插件與可續跑紀錄。先將 `667feff` 的基準插件保存為 `.work/mv2-final/artifacts/before-667feff.jar`，完整 build 後執行：
+
+```bash
+python3 paper/tools/final_matrix.py --output-root .work/mv2-final --freeze paper/plugin/build/libs/worldgit-paper-0.1.0-SNAPSHOT.jar
+# 中斷後核對 pid、matrix.log、checkpoint.json，再用相同目錄續跑
+python3 paper/tools/final_matrix.py --output-root .work/mv2-final
+```
+
+依使用者縮減範圍（#260），runner 依序跑十版 Paper／八版 Folia 的 acceptance（18 格）；Paper 1.20.1、1.20.6、1.21.4、26.1.2、26.3 的 phase5（5 格）；九組相鄰雙向與 1.20.1↔26.3、1.20.4↔1.21.11 跳躍（11 格）；Folia 1.20.1／26.1.2 的 pending／UUID／乘客／取消／PARTIAL／關閉 barrier（10 格）；兩組 Phase 2 回歸（合計1格）與效能（5格），共50格。中間版本的 phase5 未在最終 jar 重跑，既有完整驗收與正式逐版狀態見 [docs/19 §8](../docs/19-multiversion.md#8-驗收與限制)。
+
+所有正式格固定同一 SHA-256；效能 before 使用另存的基準 jar。成功格只在結果與 log 雜湊仍相符時略過，改動正式 jar 必須換新目錄重驗。子 runner 自持 bench.lock，每次只跑一個伺服器。`--list` 可查看命令；`--stage` 可選格。26.3 真互動與原生十三種新元件 wire fixture 由 `multiversion.py --pair 26.2:26.3 --tokens --interactions` 執行。
 
 新增 components 平台的完整驗收（各腳本自持 bench.lock，依序執行）：
 
@@ -330,4 +342,6 @@ feedback:
 
 所有設定需重啟；`/wg reload` 只重載語言。線上 clone／export／migrate 沒有入口，沿用 CLI 的停止世界要求。第三方直接寫 NMS 或未經 WE／FAWE hook 的 UUID 改寫不屬於可攔截事件；無法把任意第三方寫入推測成玩家觸及。
 
-驗收腳本自持 bench.lock：`python3 paper/tools/phase5.py --matrix` 跑目前支援的 11 組 Paper／Folia 平台及四組別名衝突／停用；`python3 paper/tools/phase5_screenshots.py paper 1.21.11`（亦可指定其他組合）用真客戶端拍攝八種畫面。證據與限制見 [Phase 5 設計紀錄](../docs/16-phase5-design.md)，截圖在 [phase5](docs/screenshots/phase5/)。
+驗收腳本自持 bench.lock：`python3 paper/tools/phase5.py --matrix` 跑目前支援的 18 組 Paper／Folia 平台及四組別名衝突／停用；`python3 paper/tools/phase5_screenshots.py paper 1.21.11`（亦可指定其他組合）用真客戶端拍攝八種畫面。證據與限制見 [Phase 5 設計紀錄](../docs/16-phase5-design.md)，截圖在 [phase5](docs/screenshots/phase5/)。
+
+子任務⑤已於2026-10-14完成上述50格縮減矩陣及500項JUnit；最終固定插件SHA-256：`e44e9292003a671e47af960de01f84f5eac693b63301ff87dc8ec9dcaada937c`。逐格證據、效能比較、決策#251–#271與Fabric交接見`.work/mv2-5/report.md`；逐版最終jar正式狀態仍以docs/19 §8為準。

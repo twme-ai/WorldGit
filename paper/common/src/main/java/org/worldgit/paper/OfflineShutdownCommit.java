@@ -1,6 +1,9 @@
 package org.worldgit.paper;
 
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Instant;
@@ -38,6 +41,12 @@ final class OfflineShutdownCommit {
   private final WorldGitPlugin plugin;
   private final CountDownLatch disabled = new CountDownLatch(1);
   private final Path logFile;
+  // Paper redirects System.err through its plugin logger. During JVM shutdown
+  // that turns normal lifecycle messages into ERROR and races logger teardown.
+  // Keep the durable file and write directly to the process console instead.
+  // This stream must never be closed: the descriptor belongs to the JVM.
+  private final PrintStream shutdownConsole =
+      new PrintStream(new FileOutputStream(FileDescriptor.err), true, StandardCharsets.UTF_8);
   private final java.util.concurrent.atomic.AtomicBoolean ioDone = new java.util.concurrent.atomic.AtomicBoolean();
   private volatile List<Prepared> prepared=List.of();
   private volatile Thread hook;
@@ -51,22 +60,35 @@ final class OfflineShutdownCommit {
   private static final class Watch extends org.apache.logging.log4j.core.appender.AbstractAppender {
     private final java.util.concurrent.atomic.AtomicBoolean flag;
     private final NmsBridge bridge;
+    private final WorldGitPlugin plugin;
 
-    Watch(java.util.concurrent.atomic.AtomicBoolean flag, NmsBridge bridge) {
+    Watch(java.util.concurrent.atomic.AtomicBoolean flag, WorldGitPlugin plugin) {
       super("WorldGitShutdownWatch", null, null, true, org.apache.logging.log4j.core.config.Property.EMPTY_ARRAY);
       this.flag = flag;
-      this.bridge = bridge;
+      this.plugin = plugin;
+      this.bridge = plugin.bridge();
     }
 
     @Override
     public void append(org.apache.logging.log4j.core.LogEvent event) {
-      if (event.getMessage() != null && bridge.shutdownIoComplete(event.getLoggerName(), event.getMessage().getFormattedMessage())) flag.set(true);
+      if(event.getMessage()==null)return;
+      String message=event.getMessage().getFormattedMessage();
+      if(plugin.platform().isShuttingDown() && bridge.shutdownRegionSave(event.getLoggerName(),message)) {
+        if(!Thread.currentThread().getClass().getName().equals("io.papermc.paper.threadedregions.RegionShutdownThread"))
+          throw new IllegalStateException("Folia save callback must run synchronously on native shutdown owner");
+        for(var world:org.bukkit.Bukkit.getWorlds())bridge.restoreShutdownGuards(world);
+      }
+      if(bridge.shutdownIoComplete(event.getLoggerName(),message)) {
+        if(bridge.pendingShutdownGuards()!=0)
+          throw new IllegalStateException("Folia I/O completed with unrestored chunk guards: "+bridge.pendingShutdownGuards());
+        flag.set(true);
+      }
     }
   }
 
   void register() {
     try {
-      var watch = new Watch(ioDone, plugin.bridge());
+      var watch = new Watch(ioDone, plugin);
       watch.start();
       ((org.apache.logging.log4j.core.Logger) org.apache.logging.log4j.LogManager.getRootLogger()).addAppender(watch);
     } catch (Throwable t) {
@@ -105,8 +127,10 @@ final class OfflineShutdownCommit {
         all.add(new Prepared(mapping.layout(), plugin.attribution(mapping).drain(), plugin.serverIdentity(), local.entityTolerance(), sources));
         }
         prepared = List.copyOf(all);
-        preloadClasses();
       }
+      // Active cancellation and native owner cleanup also outlive disable,
+      // even when no automatic shutdown commit was requested.
+      if(hook!=null)preloadClasses();
     } catch (IOException | RuntimeException e) {
       plugin.getLogger().warning("準備 Folia 關閉前離線 commit 失敗：" + e);
     } finally {
@@ -139,7 +163,7 @@ final class OfflineShutdownCommit {
 
   private void log(String line) {
     String text = Instant.now() + " " + line;
-    System.err.println("[WorldGit] " + line);
+    shutdownConsole.println("[WorldGit] " + line);
     try {
       Files.createDirectories(logFile.getParent());
       Files.writeString(logFile, text + System.lineSeparator(), StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);

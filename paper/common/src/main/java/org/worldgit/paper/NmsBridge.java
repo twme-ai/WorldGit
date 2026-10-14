@@ -34,6 +34,10 @@ public interface NmsBridge {
   default boolean shutdownIoComplete(String loggerName, String message) {
     return message.contains("All RegionFile I/O tasks to complete");
   }
+  /** Verified Folia native save point, with a bound region and before its save. */
+  default boolean shutdownRegionSave(String loggerName,String message) { return false; }
+  default int restoreShutdownGuards(World world) { throw new UnsupportedOperationException("Shutdown owner cleanup unavailable"); }
+  default int pendingShutdownGuards() { return 0; }
   /** Server entity manager census, including known but unloaded UUIDs. */
   java.util.Set<java.util.UUID> knownEntityIds(World world);
   default java.util.function.Function<String,com.mojang.brigadier.arguments.ArgumentType<?>> commandTypes(){return CommandSource.LEGACY_TYPES::type;}

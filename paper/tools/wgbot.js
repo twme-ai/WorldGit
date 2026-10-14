@@ -16,6 +16,13 @@ const received = { hello: 0, status: 0, diff: 0, clear: 0, conflicts: 0, conflic
 const axiom = process.env.WG_AXIOM_BOT ? require("./axiom-protocol.js")(bot, out, version) : null
 let ready = false
 let suggestionId = 0
+const clickableMessages = []
+function runCommands(value) {
+  if (Array.isArray(value)) return value.flatMap(runCommands)
+  if (!value || typeof value !== 'object') return []
+  const command = value.action === 'run_command' ? value.value ?? value.command : null
+  return [...(typeof command === 'string' ? [command] : []), ...Object.values(value).flatMap(runCommands)]
+}
 
 function varint(buf, pos) { let n = 0, i = 0, b; do { b = buf[pos++]; n |= (b & 127) << (7 * i++); } while (b & 128); return [n, pos] }
 function writeVarint(n) { const a = []; do { let b = n & 127; n >>>= 7; a.push(b | (n ? 128 : 0)) } while (n); return Buffer.from(a) }
@@ -71,7 +78,13 @@ bot.on('kicked', (r) => out({ ev: 'kicked', r: JSON.stringify(r) }))
 bot.on('error', (e) => out({ ev: 'error', e: String(e) }))
 bot.on('end', (r) => { out({ ev: 'end', r }); process.exit(0) })
 bot.on('health', () => out({ ev: 'health', health: bot.health, food: bot.food }))
-bot.on('message', (m) => { const t = m.toString(); if (t.trim()) out({ ev: 'chat', t, json: m.json }) })
+bot.on('message', (m) => {
+  const t = m.toString()
+  if (t.trim()) {
+    clickableMessages.push(...runCommands(m.json))
+    out({ ev: 'chat', t, json: m.json })
+  }
+})
 
 // Dimension transfers keep the existing player and positive health. Folia need
 // not resend an unchanged health packet; Mineflayer otherwise remains "dead"
@@ -125,6 +138,10 @@ rl.on('line', async (line) => {
       const b = bot.blockAt(new Vec3(+a[1], +a[2], +a[3])); await bot.dig(b, true); out({ ev: 'dug', name: b.name })
     } else if (cmd === 'block') {
       const b = bot.blockAt(new Vec3(+a[1], +a[2], +a[3])); out({ ev: 'block', pos: a.slice(1, 4).join(','), name: b ? b.name : null, stateId: b ? b.stateId : null, properties: b ? b.getProperties() : null })
+    } else if (cmd === 'click_chat') {
+      const command = clickableMessages.findLast(value => value === '/wg confirm ' + a[1])
+      if (!command) throw new Error('No received clickable confirmation for token ' + a[1])
+      bot.chat(command); out({ ev: 'chat_clicked', command })
     } else if (cmd === 'chat') { bot.chat(line.slice(5)); out({ ev: 'chat_sent' }) }
     else if (cmd === 'locale') { bot.setSettings({ locale: a[1] }); out({ ev: 'locale', locale: a[1] }) }
     else if (cmd === 'sample') {

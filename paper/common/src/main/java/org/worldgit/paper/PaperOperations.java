@@ -210,15 +210,24 @@ final class PaperOperations implements AutoCloseable {
   private String confirmationState() throws IOException {
     if(conversions.values().stream().noneMatch(org.worldgit.core.version.ConversionReport::lossy) && (core==null || core.conversionAudits().values().stream().noneMatch(org.worldgit.core.version.ConversionReport::lossy)))return "";
     var state=new StringBuilder();
+    appendConfirmationFile(state,plugin.getDataFolder().toPath().resolve("config.yml"));
+    state.append(plugin.settings());
     for(var entry:live.entrySet()) {
       var directory=worlds.tracked().get(entry.getKey());
       var repo=repos.get(entry.getKey());
       if(repo!=null)state.append(repo.refs().headState()).append(capture(repo));
       else state.append(core.conversionState().get(entry.getKey()));
       state.append(entry.getKey()).append(directory.toAbsolutePath()).append(Files.readString(directory.resolve("HEAD")));
-      for(String file:List.of("worldgit.yml",".wgignore"))if(Files.exists(directory.resolve(file)))state.append(Files.readString(directory.resolve(file)));
+      for(String file:List.of("worldgit.yml","worldgit-repo.yml",".wgignore"))appendConfirmationFile(state,directory.resolve(file));
     }
     return state.toString();
+  }
+  private static void appendConfirmationFile(StringBuilder state,Path path) throws IOException {
+    // Bind existence as well as the bytes; a deleted rule/config file also revokes approval.
+    state.append(path.toAbsolutePath()).append(':');
+    if(Files.exists(path))state.append(Files.size(path)).append(':').append(Files.readString(path));
+    else state.append("missing");
+    state.append('\n');
   }
   private Prepared prepare(SortedMap<DimensionId,RefStore.Commit> targets,DimensionId dimension,Scope scope,boolean meta,boolean delete) throws IOException {
     var plans=new TreeMap<DimensionId,ApplyPlan>();

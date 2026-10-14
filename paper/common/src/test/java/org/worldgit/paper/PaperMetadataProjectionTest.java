@@ -25,6 +25,31 @@ class PaperMetadataProjectionTest {
         .encodeToString(path.getBytes(StandardCharsets.UTF_8)) + ".nbt";
   }
 
+  @Test void nativeIntegerPackRangeAtMinorZeroProjectsButCustomRangesRemainStrict() throws Exception {
+    try(var gzip=new java.util.zip.GZIPOutputStream(java.nio.file.Files.newOutputStream(folder.resolve("level.dat")))) {
+      gzip.write(Nbt.write(new Nbt.Compound().with("Data",new Nbt.Compound())));
+    }
+    var markerFile=folder.resolve("datapacks/bukkit/pack.mcmeta");java.nio.file.Files.createDirectories(markerFile.getParent());
+    String nativeText="{\"pack\":{\"description\":\"Persistent resources provided by plugins\",\"min_format\":121,\"max_format\":121}}";
+    java.nio.file.Files.writeString(markerFile,nativeText);
+    var base=PaperMetadataProjection.wrap((type,raw,from,to)->raw,5023,new Nbt.Compound(),121,0,List.of("vanilla"));
+    var backend=PaperMetadataProjection.forWorld(base,"minecraft.overworld",UUID.randomUUID(),folder);
+    var input=new TreeMap<String,byte[]>();input.put(MARKER,JSON.getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(nativeText.getBytes(StandardCharsets.UTF_8),backend.projectMetadata(input,3465,5023).get(MARKER));
+    input.put(MARKER,nativeText.getBytes(StandardCharsets.UTF_8));
+    var older=projection(26);
+    assertTrue(new String(older.projectMetadata(input,5023,3700).get(MARKER),StandardCharsets.UTF_8).contains("\"pack_format\": 26"));
+    for(String custom:List.of(nativeText.replace("\"max_format\":121","\"max_format\":122"),
+        nativeText.replace("\"min_format\":121","\"min_format\":\"121\""),
+        nativeText.replace("\"max_format\":121","\"max_format\":121,\"custom\":true"))) {
+      input.put(MARKER,custom.getBytes(StandardCharsets.UTF_8));
+      assertArrayEquals(input.get(MARKER),backend.projectMetadata(input,3465,5023).get(MARKER));
+    }
+    input.put(MARKER,JSON.getBytes(StandardCharsets.UTF_8));
+    input.put(asset("datapacks/bukkit/data/custom/function/test.mcfunction"),"say keep".getBytes(StandardCharsets.UTF_8));
+    assertArrayEquals(input.get(MARKER),backend.projectMetadata(input,3465,5023).get(MARKER));
+  }
+
   @Test void currentNativeMarkerUsesTargetBytesButCustomSchemasAndAssetsStayUntouched() throws Exception {
     try(var gzip=new java.util.zip.GZIPOutputStream(java.nio.file.Files.newOutputStream(folder.resolve("level.dat")))) {
       gzip.write(Nbt.write(new Nbt.Compound().with("Data",new Nbt.Compound())));
@@ -136,7 +161,7 @@ class PaperMetadataProjectionTest {
       assertEquals(enabled, output.list("Enabled").values());
       assertEquals(available.stream().filter(x -> !x.equals("vanilla")).sorted().toList(), output.list("Disabled").values());
       assertEquals(source, Nbt.read(input.get("level.nbt")).compound("DataPacks").list("Disabled").values());
-      assertTrue(projection.projectionFingerprint().startsWith("paper-metadata-v6:"));
+      assertTrue(projection.projectionFingerprint().startsWith("paper-metadata-v7:"));
     }
   }
 

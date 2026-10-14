@@ -90,6 +90,7 @@ public final class Bridge_1_20_1 implements NmsBridge {
       com.mojang.datafixers.DSL.TypeReference reference=switch(type) {
         case "CHUNK"->net.minecraft.util.datafix.fixes.References.CHUNK;
         case "ENTITY_CHUNK"->net.minecraft.util.datafix.fixes.References.ENTITY_CHUNK;
+        case "ITEM_STACK"->net.minecraft.util.datafix.fixes.References.ITEM_STACK;
         case "LEVEL"->net.minecraft.util.datafix.fixes.References.LEVEL;
         case "SAVED_DATA_MAP_DATA","SAVED_DATA_SCOREBOARD","SAVED_DATA_COMMAND_STORAGE","SAVED_DATA_MAP_INDEX","SAVED_DATA_TICKETS","SAVED_DATA_RAIDS","SAVED_DATA_RANDOM_SEQUENCES"->net.minecraft.util.datafix.fixes.References.SAVED_DATA;
         default->throw new IOException("Unsupported server DFU type: "+type);
@@ -318,6 +319,12 @@ public final class Bridge_1_20_1 implements NmsBridge {
     else {var material=org.bukkit.Material.matchMaterial(sourceBlock);if(material!=null)level.neighborChanged(pos,((org.bukkit.craftbukkit.v1_20_R1.block.data.CraftBlockData)org.bukkit.Bukkit.createBlockData(material)).getState().getBlock(),null);}
   }
   @Override public boolean atomicLightingSafe(World world,org.worldgit.core.apply.ApplyPlan plan) throws java.io.IOException {return org.worldgit.paper.v1_20_1.ChunkTickGuard.atomicLightingSafe(level(world),plan,state->state.getLightBlock(level(world),net.minecraft.core.BlockPos.ZERO));}
+  @Override public boolean shutdownRegionSave(String loggerName,String message) {
+    return "RegionShutdownThread".equals(loggerName)
+        && message.startsWith("Saving chunks around region around chunk ");
+  }
+  @Override public int restoreShutdownGuards(World world) {return org.worldgit.paper.v1_20_1.ChunkTickGuard.closeShutdownOwned(level(world));}
+  @Override public int pendingShutdownGuards() {return org.worldgit.paper.v1_20_1.ChunkTickGuard.pendingShutdownHolds();}
   @Override public AutoCloseable lockChunkTicks(World world,int x,int z) { return org.worldgit.paper.v1_20_1.ChunkTickGuard.lock(level(world),x,z); }
   @Override public void refreshChunkLock(World world,int x,int z) { org.worldgit.paper.v1_20_1.ChunkTickGuard.refresh(level(world),x,z); }
   @Override public void entityBoundary(World world,java.util.Set<org.worldgit.core.model.ChunkPos> scope) {org.worldgit.paper.v1_20_1.ChunkTickGuard.entityBoundary(level(world),scope);}
